@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JUST-OS</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap"
+        rel="stylesheet">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    
+    <style>
+        body {
+            background-color: {{ bg_color|safe }};
+        }
+    </style>
+</head>
+<div id="header-bar">
+    <img src='/images/qualle.png' id="header-logo">
+</div>
+<div id="container">
+    <div id="chat-messages">{{ message_history | safe }}</div>
+    <div id="status-message"></div>
+    <div id="user-input-box">
+        <div id="user-input-container">
+            <textarea id="user-input" placeholder="Ask anything related to Open Science."></textarea>
+            <div id=button-container>
+                <button id="send-button" title="Send message"><i class="fas fa-paper-plane"></i></button>
+                <button id="info-button" title="About JUST-OS"><i class="fas fa-circle-info"></i></button>
+                <button id="new-chat-button" title="Start a new conversation"><i class="fas fa-rotate-right"></i></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info Modal -->
+<div id="info-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h2>About JUST-OS</h2>
+        <div class="modal-body">
+            <p>
+                Despite (or due to) the overwhelming amount of information on Open Science, it is practised way less than it is preached.
+                To bridge this gap, we propose JUST-OS, a chatbot to navigate Open Science resources.
+                Technically, JUST-OS uses retrieval-augmented generation, an AI-based natural language processing method, which operates on an Open Science database on FORRT.
+                Practically, JUST-OS assists in navigating initiatives, knowledge, and resources for various stakeholders by answering their questions interactively and leading them to related practices or topics.
+                Thus, JUST-OS will contribute to making Open Science more accessible, aligning researchers’ behaviour with their generally positive Open Science attitudes.
+            </p>
+            <p>
+                The assistant is powered by Allen Institute for AI's <a href=https://huggingface.co/OpenSciLM/Llama-3.1_OpenScholar-8B>Open Scholar model</a>.
+                Its sources are from a selection from resources curated by <a href=https://forrt.org/>FORRT</a>.
+                We took care to only use resources that are assessed as open access by <a href=https://unpaywall.org/>Unpaywall</a>.
+                The entire list of resources on which the bot bases its answers can be found <a href=https://drive.google.com/file/d/1eMiimpcwcnVJT6k4PQ9xfz3Udvsejo6V/view?usp=drive_link>here</a>.
+                If you are an author or rights holder of one of these resources and don't want your work to be used in the bot, please create an issue on <a href=https://github.com/JUST-Open-Science/JUST-OS>our Github page</a> and we will remove it as soon as possible.
+            </p>
+        </div>
+    </div>
+</div>
+
+</body>
+
+</html>

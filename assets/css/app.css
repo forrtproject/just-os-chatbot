@@ -1,0 +1,305 @@
+body {
+    background-color: #fefdf6;
+    font-family: "Century Schoolbook";
+    color: #313131
+}
+
+#header-bar {
+    display: flex;
+    justify-content: center;
+    max-width: 799px;
+    margin: 0 auto
+}
+
+#header-logo {
+    height: 100px;
+    margin-bottom: 10px;
+}
+
+
+#status-message {
+    font-style: italic;
+    font-size: small;
+    color: #666;
+    margin: 10px 0;
+    font-family: "Helvetica", sans-serif;
+}
+
+#welcome-message {
+    font-size: x-large;
+    text-align: center;
+}
+
+/* Common styles for info boxes */
+.message,
+.reference-tooltip,
+.modal-content {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.message {
+    padding: 0px 16px
+}
+
+
+
+#container {
+    margin: auto;
+    max-width: 800px;
+}
+
+#user-input-box {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    min-height: 100px;
+    position: sticky;
+    bottom: 0;
+    padding: 10px;
+    background-color: #004055;
+    border-radius: 4px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    font-family: "Roboto Mono", monospace;
+}
+
+#user-input:focus {
+    outline: none;
+}
+
+#user-input-container {
+    width: 100%;
+    display: flex;
+    align-items: stretch;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: white;
+}
+
+#button-container {
+    display: flex;
+    flex-direction: column;
+    align-self: flex-start;
+}
+
+textarea#user-input {
+    border: none;
+    flex-grow: 1;
+    height: 100%;
+}
+
+
+.user-message,
+.bot-message {
+    max-width: 80%;
+    width: fit-content;
+}
+
+.user-message {
+    margin-left: 10%;
+    margin-right: 0;
+    border-left: 3px solid #8e0000;
+    align-self: flex-end;
+}
+
+.bot-message {
+    margin-right: 10%;
+    margin-left: 0;
+    border-right: 3px solid #004055;
+    align-self: flex-start;
+}
+
+.bot-message h1,
+.bot-message h2,
+.bot-message h3 {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+}
+
+.bot-message p {
+    margin-bottom: 1em;
+}
+
+.bot-message ul,
+.bot-message ol {
+    margin-left: 1.5em;
+    margin-bottom: 1em;
+}
+
+.bot-message code {
+    background-color: #f0f0f0;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+.bot-message pre {
+    background-color: #f0f0f0;
+    padding: 1em;
+    border-radius: 5px;
+    overflow-x: auto;
+}
+
+.bot-message a {
+    color: #0366d6;
+    text-decoration: none;
+}
+
+.bot-message a:hover {
+    text-decoration: underline;
+}
+
+.sources {
+    font-size: smaller;
+    text-align: end;
+}
+
+#chat .form-control {
+    border-color: transparent;
+}
+
+#chat .form-control:focus {
+    border-color: transparent;
+    box-shadow: inset 0px 0px 0px 1px transparent;
+}
+
+#chat-messages {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+button#new-chat-button,
+button#send-button,
+button#info-button {
+    font-size: 1.2em;
+    height: 100%;
+    border: none;
+    color: #8e0000;
+    background: none;
+    cursor: pointer;
+}
+
+button#send-button:disabled {
+    color: #ccc;
+    cursor: default;
+}
+
+.reference-link {
+    color: #0645AD;
+    cursor: pointer;
+    text-decoration: none;
+    position: relative;
+}
+
+.reference-tooltip {
+    position: absolute;
+    max-width: 500px;
+    border: 1px solid #e1e4e8;
+    z-index: 1000;
+    font-size: 14px;
+}
+
+.reference-tooltip .title {
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #2c3e50;
+}
+
+.reference-tooltip .metadata {
+    color: #666;
+    margin-bottom: 12px;
+    font-size: 13px;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    margin: 15% auto;
+    width: 80%;
+    max-width: 600px;
+    border: 1px solid #e1e4e8;
+}
+
+.close-modal {
+    color: #666;
+    float: right;
+    font-size: 24px;
+    font-weight: normal;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.close-modal:hover,
+.close-modal:focus {
+    color: #333;
+    text-decoration: none;
+}
+
+.modal h2 {
+    margin-top: 0;
+    color: #333;
+}
+
+.modal-body {
+    margin-top: 15px;
+    line-height: 1.6;
+}
+
+.modal-body ul {
+    padding-left: 20px;
+    margin: 10px 0;
+}
+
+.reference-tooltip .content {
+    margin: 12px 0;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 3px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #444;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.reference-tooltip .source-link {
+    display: block;
+    margin-top: 12px;
+    color: #0645AD;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.reference-tooltip .content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.reference-tooltip .content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.reference-tooltip .content::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+.reference-tooltip .content::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
