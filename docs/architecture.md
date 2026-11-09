@@ -43,7 +43,8 @@ just-os-chatbot/
 |---|---|---|
 | `app.py` | `FlaskApp`: routes, CORS allow-list, input validation, rate limits (`RateLimitManager`, Flask-Limiter on Redis), NDJSON streaming. `get_app()` is the Gunicorn entry point | `rag_service`, `chat_manager`, `extensions`, templates |
 | `rag_service.py` | Builds the pipeline once per worker (singleton): embedding model → FAISS index from `VECTOR_STORE` → retriever (wrapped in `HybridRetriever` if `HYBRID_SEARCH`) → `Qualle` | `qualle`, `chat_manager`, `config.settings` |
-| `qualle.py` | The RAG pipeline. `QueryProcessor` (rephrase + classify; tool call with JSON fallback), `DocumentRetriever` (FAISS top-k + local CrossEncoder re-rank; falls back to vector order; `MAX_CHUNKS_PER_DOC` caps chunks per paper), `ResponseGenerator` (prompt + LLM call + post-processing), `OpenAIClientManager` (OpenAI-compatible clients; sends `OPENSCHOLAR_MODEL` to the self-hosted server), `ReferenceProcessor` (citation numbers → HTML + source list: one number per paper, publication year, doi.org links, passage only for open licences), `Qualle` (`get_response`, `get_arena_response`) | `openscholar`, `chat_manager` |
+| `qualle.py` | The RAG pipeline. `QueryProcessor` (rephrase + classify; tool call with JSON fallback), `DocumentRetriever` (FAISS top-k + local CrossEncoder re-rank; falls back to vector order; `MAX_CHUNKS_PER_DOC` caps chunks per paper), `ResponseGenerator` (prompt chosen by `PROMPT_STYLE`: `openscholar` or `short`; LLM call; post-processing), `OpenAIClientManager` (OpenAI-compatible clients; sends `OPENSCHOLAR_MODEL` to the self-hosted server), `ReferenceProcessor` (citation numbers → HTML + source list: one number per paper, publication year, doi.org links, passage only for open licences), `Qualle` (`get_response`, `get_arena_response`) | `openscholar`, `chat_manager` |
+| `answer_cache.py` | `AnswerCache`: semantic answer cache in Redis (`ANSWER_CACHE_TTL` > 0 turns it on) | `qualle` |
 | `hybrid.py` | `HYBRID_SEARCH=true`: `BM25` keyword index (scikit-learn sparse matrix, built from the docstore at start-up, ~7 s) + `HybridRetriever` (vector and keyword lists merged by reciprocal rank fusion) | `rag_service` |
 | `references.py` | Pure helpers (no heavy imports): `normalize_doi`, `reference_url` (`https://doi.org/<doi>`, else an http(s) link), `document_key` (one key per paper), `passage_allowed` (licence gate), `publication_year` + `load_publication_years` (`PUB_YEARS_FILE`) | `qualle`, `ingest/helpers`, `scripts/get_pub_years` |
 | `openscholar.py` | The OpenScholar system prompt and answer template (keep the Apache-2.0 header) | `qualle` |
@@ -97,6 +98,7 @@ just-os-chatbot/
 | `test_qualle.py` | Citation mapping, classify error ≠ refusal, JSON fallback, OpenScholar routing |
 | `test_references.py` | DOI normalisation, doi.org links, licence gate, publication year, one reference per paper |
 | `test_retrieval.py` | Per-paper cap, BM25, rank fusion, hybrid retriever |
+| `test_answer_cache.py` | Answer cache hit/miss/expiry/namespace/size, no LLM call on a hit, `PROMPT_STYLE` |
 | `test_rerank.py` | Re-ranker order and fallback to vector order |
 | `test_app.py` | Arena routes with a fake RAG service and fakeredis |
 | `test_compare.py` | `eval/compare.py` summary numbers |
@@ -135,6 +137,7 @@ Each step yields a status line (`{"status": "in-progress", "message": ...}`). Th
 | Model weights (bge-m3, bge-reranker-base) | Docker volume `hf-cache` → `/home/python/.cache/huggingface`; `LLAMA_INDEX_CACHE_DIR` points llama-index to the same folder | Until the volume is deleted | No 2–3 GB download on each container start |
 | Chat history | Redis `chat:{chat_id}` (list, newest first) | `MESSAGE_TTL` = 1 h, reset on each message | Rephrase follow-up questions; privacy-friendly |
 | Rate-limit counters | Redis (Flask-Limiter `storage_uri`) | Per window in `RATE_LIMIT` | Shared by all workers |
+| Answer cache (only with `ANSWER_CACHE_TTL` > 0) | Redis list `answer_cache:<hash of models, index, prompt, retrieval settings>`: question vector + final answer, newest first, max `ANSWER_CACHE_MAX_ITEMS` | `ANSWER_CACHE_TTL` seconds | A first question with cosine ≥ `ANSWER_CACHE_MIN_SIMILARITY` to a recent one gets the stored answer: no LLM call. Shared by all users (stores question text) |
 | Arena battles | Redis `arena:battle:{id}` | 1 day, deleted on vote | Hide model names until the vote |
 | Arena votes | Redis list `arena:votes` | No expiry (`redis-cli DEL arena:votes`) | Leaderboard |
 | Redis data | Docker volume `redis` | Until the volume is deleted | |
@@ -142,7 +145,7 @@ Each step yields a status line (`{"status": "in-progress", "message": ...}`). Th
 | Eval embeddings | `data/processed/emb_cache/<model>.npy` (float16, one row per chunk) | Until deleted | `compare_embeddings.py` embeds the 59,473 chunks one time per model |
 | Python deps | Docker layer from `uv.lock` (`bin/uv-install`) | Until `uv.lock` changes | Fast rebuilds |
 
-There is no answer cache: the same question two times makes the same LLM calls two times (see issue "Semantic answer cache" in [issues.md](issues.md)).
+The answer cache is off by default. Follow-up questions (chats with history) never use it.
 
 ## 5. Index format
 

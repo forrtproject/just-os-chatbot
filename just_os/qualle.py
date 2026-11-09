@@ -13,6 +13,7 @@ from openai import OpenAI
 from openai.types.chat import ChatCompletion
 from sentence_transformers import CrossEncoder
 
+from just_os.answer_cache import AnswerCache
 from just_os.chat_manager import ChatManager
 from just_os.openscholar import generation_instance_prompts_w_references, system_prompt
 from just_os.references import (
@@ -39,6 +40,19 @@ NON_OS_RESPONSE = "Sorry, I'm only able to answer questions related to Open Scie
 # Shown when the language model cannot be reached (not a refusal)
 CLASSIFY_ERROR_RESPONSE = (
     "Sorry, the language model is not available at the moment. Please try again later."
+)
+
+# PROMPT_STYLE=short: a short, model-neutral prompt instead of the OpenScholar prompt
+# (~1.5k tokens with a worked example, made for the fine-tuned OpenScholar model)
+SHORT_SYSTEM_PROMPT = (
+    "You are JUST-OS, an assistant for questions about open and reproducible research. "
+    "Answer only with information from the numbered sources. Cite every claim with the "
+    "number of its source in square brackets, for example [0] or [2]. If the sources do "
+    "not answer the question, say so. Answer in the language of the question."
+)
+SHORT_PROMPT_TEMPLATE = (
+    "Sources:\n{context_items}\n\nQuestion: {query}\n\n"
+    "Write a clear answer of one to three short paragraphs with citations."
 )
 
 
@@ -306,8 +320,12 @@ class ResponseGenerator:
         self.config = config
         self.reference_processor = reference_processor
         self.citation_model = config["CITATION_MODEL"]
-        self.system_prompt = system_prompt
-        self.prompt_template = generation_instance_prompts_w_references
+        if config.get("PROMPT_STYLE", "openscholar") == "short":
+            self.system_prompt = SHORT_SYSTEM_PROMPT
+            self.prompt_template = SHORT_PROMPT_TEMPLATE
+        else:
+            self.system_prompt = system_prompt
+            self.prompt_template = generation_instance_prompts_w_references
 
     def generate_response(
         self, query: str, context: str, model: Optional[str] = None
@@ -642,6 +660,13 @@ class Qualle:
             self.client_manager, config, self.reference_processor
         )
 
+        # Semantic answer cache (off when ANSWER_CACHE_TTL is 0)
+        self.answer_cache = (
+            AnswerCache(chat_manager.redis, embed_model, config)
+            if config.get("ANSWER_CACHE_TTL")
+            else None
+        )
+
         logger.debug("Qualle service initialized")
 
     def no_relevant_nodes_handler(
@@ -692,6 +717,18 @@ class Qualle:
             # Get conversation history
             conversation_history = self.chat_manager.get_history(chat_id)
             logger.debug("Retrieved conversation history for chat_id: %s", chat_id)
+
+            # A first question very close to a recent one gets the stored answer
+            use_cache = self.answer_cache is not None and not conversation_history
+            if use_cache:
+                cached = self.answer_cache.lookup(query)
+                if cached:
+                    self.chat_manager.add_message(chat_id, {"role": "user", "content": query})
+                    self.chat_manager.add_message(
+                        chat_id, {"role": "assistant", "content": cached["text"]}
+                    )
+                    yield cached["response"]
+                    return
 
             # Rephrase query if there's conversation history
             if conversation_history:
@@ -772,7 +809,7 @@ class Qualle:
                 )
 
                 # Return final response
-                yield {
+                final = {
                     "status": "complete",
                     "message": html_message,
                     "metadata": {
@@ -781,6 +818,9 @@ class Qualle:
                         )
                     },
                 }
+                if use_cache:
+                    self.answer_cache.store(query, final, processed_message)
+                yield final
             else:
                 # Handle non-Open Science queries
                 self.chat_manager.add_message(

@@ -90,6 +90,7 @@ def make_qualle(classification, ranked, all_nodes, answer):
     q = object.__new__(qualle.Qualle)
     q.config = CONFIG
     q.chat_manager = FakeChatManager()
+    q.answer_cache = None
     q.query_processor = SimpleNamespace(
         classify_query=lambda query: classification, rephrase_query=lambda query, chat_id: query
     )

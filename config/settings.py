@@ -22,6 +22,12 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "EMBEDDING_MODEL": "BAAI/bge-m3",
     # Local CrossEncoder on CPU
     "RERANK_MODEL": "BAAI/bge-reranker-base",
+    # Answer prompt: "openscholar" (long, made for OpenScholar) or "short" (model-neutral)
+    "PROMPT_STYLE": "openscholar",
+    # Semantic answer cache: seconds to keep answers (0 = off); reuse if cosine >= limit
+    "ANSWER_CACHE_TTL": 0,
+    "ANSWER_CACHE_MIN_SIMILARITY": 0.95,
+    "ANSWER_CACHE_MAX_ITEMS": 500,
     # Temperature settings
     "TEMPERATURE": 0.3,
     "TEMPERATURE_GENERAL": 0.15,

@@ -72,7 +72,7 @@ JUST-OS answers open-science questions with citations to the FORRT resource libr
 | 9 | Index not available to contributors | **Partly**: `scripts/get_index.py` + zip ready; upload link missing |
 | 10 | Tooltip `innerHTML` → stored XSS | **Fixed** (#5): `textContent`, http(s) links only |
 | 11 | Model names fixed to RUG names | **Fixed** (`BASE_URL`, `LLM_API_KEY`, `CITATION_MODEL`, `GENERAL_MODEL`, `OPENSCHOLAR_*`) |
-| 12 | OpenScholar prompt used for every model | Open → M2 |
+| 12 | OpenScholar prompt used for every model | **Fixed** (#11): `PROMPT_STYLE=short`; eval comparison pending |
 | 13 | Rate limit key = proxy IP | Open (Phase 3) |
 | 14 | `/up` route missing | **Fixed** |
 | 15 | Each worker loads the models lazily | **Fixed**: `post_worker_init` preload, `WEB_CONCURRENCY=1` |
