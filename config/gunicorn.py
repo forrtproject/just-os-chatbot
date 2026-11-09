@@ -16,3 +16,15 @@ threads = int(os.getenv("PYTHON_MAX_THREADS", 1))
 reload = bool(strtobool(os.getenv("WEB_RELOAD", "false")))
 
 timeout = int(os.getenv("WEB_TIMEOUT", 120))
+
+
+def post_worker_init(worker):
+    # Load the models and index (about 1 min) when the worker starts, not inside
+    # the first request, where the load counts against the timeout.
+    try:
+        from just_os.rag_service import create_rag_service
+
+        create_rag_service()
+    except Exception as e:
+        # The app loads the service lazily on the first request instead
+        worker.log.error(f"Could not preload the RAG service: {e}")

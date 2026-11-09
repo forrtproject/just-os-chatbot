@@ -1,0 +1,326 @@
+id,lang,expect,outcome,correct,hit,n_citations,citations_valid,seconds,prompt_tokens,completion_tokens,cost_usd,retrieved_dois,question,answer
+pr01,en,answer,answered,1,0,27,1,35.5,4421,961,0.000272,{'15971e768acb8a3c4817369e0d6b1f95': '10.1002/icd.2315'} 10.1007/s12108-023-09563-6 10.4195/nse2017.06.0013 10.1037/0000409-043 10.4195/nse2017.06.0013 10.17705/1cais.04905 10.31234/osf.io/spz4w,What is preregistration and why is it important?,"[Response_Start]  
+**Preregistration** is the systematic practice of documenting the key elements of a research study—such as hypotheses, study design, sampling strategy, measurement plans, and statistical analysis procedures—before data are collected or observed. The documentation is typically posted in a public registry or repository, creating a verifiable “paper trail” that distinguishes pre‑planned confirmatory analyses from post‑hoc exploratory work [1][3][6].  
+
+### Core components of a preregistration  
+1. **Research questions and hypotheses** – Explicit statements of what the study intends to test, including null and alternative hypotheses, and any directional expectations [1][3].  
+2. **Methodological design** – Detailed description of the experimental or observational protocol, sampling frame, recruitment procedures, and any inclusion/exclusion criteria [1][4].  
+3. **Data acquisition plan** – Outline of instruments, measurement scales, and data‑collection schedule, often with specifications of how missing data will be handled [1][4].  
+4. **Analysis plan** – Pre‑specified statistical tests, model structures, handling of covariates, and planned corrections for multiple comparisons, as well as any sensitivity or robustness checks that will be performed [0][3][6].  
+
+### Why preregistration matters  
+
+| Rationale | Supporting evidence |
+|-----------|---------------------|
+| **Reduces questionable research practices (QRPs)** – By committing to analysis strategies in advance, preregistration deters practices such as HARKing (hypothesizing after results are known) and p‑hacking, thereby enhancing the credibility of reported findings [6][0]. |
+| **Promotes transparency and reproducibility** – Publicly available preregistrations allow other researchers to verify that the reported results align with the pre‑planned analyses, facilitating replication and meta‑analytic synthesis [2][4]. |
+| **Mitigates publication bias** – Documenting both successful and null result"
+pr02,en,answer,answered,1,,9,1,40.8,4416,1568,0.000254,{'15971e768acb8a3c4817369e0d6b1f95': '10.1002/icd.2315'} {'15971e768acb8a3c4817369e0d6b1f95': '10.1002/icd.2315'} {'15971e768acb8a3c4817369e0d6b1f95': '10.1002/icd.2315'} {'15971e768acb8a3c4817369e0d6b1f95': '10.1002/icd.2315'} {'15971e768acb8a3c4817369e0d6b1f95': '10.1002/icd.2315'} {'15971e768acb8a3c4817369e0d6b1f95': '10.1002/icd.2315'} 10.15626/mp.2020.2625,How do I preregister my longitudinal research?,"[Response_Start]  
+**Preregistering a longitudinal study: a practical, step‑by‑step guide**
+
+1. **Why pre‑registration matters for longitudinal research**  
+   Pre‑registration locks in hypotheses, analytic plans, and methodological decisions before data are examined, thereby limiting researcher degrees of freedom and reducing the risk of p‑hacking. For longitudinal designs, this practice is especially valuable because the large sample sizes and repeated measures create many opportunities for selective reporting and post‑hoc model tweaking [0].  
+
+2. **The serial‑modular framework**  
+   Longitudinal projects are inherently dynamic: new waves of data, emerging measures, and evolving research questions are common. Rather than attempting to pre‑register every detail at once, the recommended strategy is a **serial, modular approach**.  
+   * **Phase 1 – Core preregistration**: Before the first wave of data collection, register the study’s overarching design, primary hypotheses, key measures, and main analytic strategy (e.g., growth‑curve vs. cross‑lagged models). This core plan should be “locked” in a permanent repository such as OSF, ensuring that it cannot be altered without a timestamped update [3].  
+   * **Phase 2 – Incremental preregistrations**: As the study progresses, each new wave, paper, or specific analysis receives its own preregistration. These documents can reference the core plan and add details such as updated measurement invariance tests, handling of missing data, or new exploratory hypotheses. Because each preregistration is time‑stamped, the evolution of the study is fully transparent [3].  
+
+3. **Key components of a longitudinal preregistration**  
+   * **Design & sampling**: Specify the number of waves, recruitment strategy, and retention plans.  
+   * **Measures**: Provide item lists, coding schemes, and any planned item‑response models.  
+   * **Analysis plan**: Outline the statistical models, parameter constraints, and criteria for model fit. I"
+pr03,en,answer,answered,1,1,15,1,35.0,4444,1737,0.000271,10.1080/08989621.2019.1580147 10.1080/08989621.2019.1580147 10.1080/08989621.2019.1580147 10.1016/j.psychsport.2017.12.010 10.1080/08989621.2019.1580147 10.1037/0000409-043 10.1016/j.psychsport.2017.12.010,How do I preregister qualitative research?,"[Response_Start]  
+Preregistration is increasingly viewed as a way to enhance transparency, reduce selective reporting, and strengthen the credibility of research across the sciences. While it was originally conceived for hypothesis‑driven quantitative work, several scholars have argued that the same principles can be adapted to qualitative inquiry, provided that the unique characteristics of qualitative methods are respected [1][3][4]. Below is a practical, step‑by‑step guide that incorporates the main recommendations from the literature, along with key caveats that qualitative researchers should keep in mind.
+
+---
+
+### 1. Clarify the purpose and scope of preregistration for qualitative work  
+- **Why preregister?**  
+  * It signals a commitment to a transparent research process, reducing the risk of “post‑diction” (i.e., tailoring interpretations to fit the data) [1].  
+  * It can help mitigate dissemination bias by documenting the study’s design and analytic plan before results are known [5].  
+  * It provides a reference point for future audits of confirmability and reflexivity, which are core to qualitative rigor [3].
+
+- **What can be preregistered?**  
+  * Core research questions or objectives (even if they are exploratory).  
+  * Study design (e.g., case study, ethnography, grounded theory).  
+  * Sampling strategy and inclusion criteria.  
+  * Data collection methods (interviews, focus groups, observations).  
+  * Preliminary analytic strategy (coding framework, thematic analysis steps, memoing).  
+  * Ethical considerations and consent procedures.  
+  * Plans for data management and storage.  
+
+  The literature stresses that preregistration does **not** require a rigid, unchangeable protocol; rather, it should capture the *intended* trajectory while allowing for emergent adjustments [5][6].
+
+---
+
+### 2. Choose a preregistration platform  
+- **Open Science Framework (OSF)** is the most widely used platform for qualitative preregistration. It allows you to cr"
+pr04,en,answer,answered,1,,12,1,30.2,4371,1292,0.000317,10.31234/osf.io/2tqep 10.17705/1cais.04905 10.17705/1cais.04905 10.1016/j.psychsport.2017.12.010 10.1038/s44159-023-00262-0 10.1073/pnas.1708274114 10.1111/brv.12315,Where can I preregister my research?,"[Response_Start]  
+Preregistration is now a routine part of the research workflow in many disciplines, and a variety of public, peer‑reviewed registries and journal‑based formats are available to accommodate different study designs and research communities. Below is a structured overview of the most common venues, their scope, and practical tips for choosing the right one.
+
+**1. General‑purpose, open‑science registries**  
+- **Open Science Framework (OSF)** is the most widely used platform for preregistering experiments, observational studies, and data‑analysis plans across the social, behavioral, and life sciences. Researchers upload a detailed protocol (hypotheses, design, sample size, analysis plan) that is timestamped and publicly accessible, ensuring transparency and preventing post‑hoc hypothesis generation [0][1][2][6].  
+- **AsPredicted** is a lightweight, domain‑agnostic service that lets investigators quickly post a concise preregistration (often a one‑page document) and receive a permanent DOI. It is especially popular in fields where a full OSF submission may be perceived as too involved, such as psychology and education research [0][6].  
+
+**2. Clinical‑trial‑specific registries**  
+- **ClinicalTrials.gov** (maintained by the U.S. National Library of Medicine) is the gold standard for interventional clinical studies. It requires detailed information on study design, eligibility criteria, outcomes, and statistical methods, and is mandated by many funding agencies and journals for trials involving human participants [0][4][5].  
+- The **World Health Organization International Clinical Trials Registry Platform (WHO ICTRP)** aggregates data from multiple national registries, including ClinicalTrials.gov, and provides a global search interface. Researchers can register directly with WHO ICTRP or with a national registry that is a member of the platform, ensuring compliance with international reporting standards [5].  
+
+**3. Domain‑specific registries**  
+- *"
+pr05,en,answer,answered,1,0,6,1,22.8,4472,1188,0.000217,10.31234/osf.io/2tqep 10.1007/s12108-023-09563-6 10.31234/osf.io/2tqep 10.1007/s12108-023-09563-6 10.1007/s12108-023-09563-6 10.2139/ssrn.3796813 10.1098/rsos.211997,How is preregistration different from registered report?,"[Response_Start]  
+Preregistration and Registered Reports are two related but distinct practices that aim to improve research transparency and reduce questionable‑research practices.  While both involve documenting hypotheses, methods, and analysis plans before data are examined, they differ in their procedural requirements, peer‑review status, and the level of commitment they impose on authors.
+
+**Similarities**  
+Both approaches require authors to specify research questions, design, and analytic strategy in advance of data collection or analysis.  This pre‑commitment is intended to curb *HARKing* (hypothesizing after results are known) and to promote full disclosure of all planned analyses, thereby enhancing methodological integrity [0][1][2].  In both cases, the preregistered document is typically time‑stamped and publicly accessible, ensuring that the plan cannot be retroactively altered without notice.
+
+**Key Differences**
+
+| Feature | Preregistration | Registered Report |
+|---------|-----------------|-------------------|
+| **Peer‑review stage** | None before data collection; the plan is shared with the community but not formally reviewed by a journal editor or reviewers. | Undergoes formal peer review in *Stage 1* before any data are collected.  The review focuses solely on the theoretical rationale, methodological rigor, and analytic plan, not on results. |
+| **Commitment to publish** | No formal guarantee; authors may still choose not to submit or may submit a different manuscript later. | *In‑principle acceptance* (IPA) is granted if the Stage 1 review is favorable.  The journal commits to publish the study regardless of the outcome, provided the authors adhere to the approved plan. |
+| **Publication workflow** | Authors submit a final manuscript after data collection; reviewers evaluate the study’s adherence to the preregistration but can still reject based on other criteria. | Two‑stage process: Stage 1 (protocol review) and Stage 2 (final manuscript).  R"
+pr06,en,answer,answered,1,0,12,1,28.3,4375,1097,0.0003,10.31234/osf.io/2tqep 10.1098/rsos.220142 10.36850/mr6 10.1515/ling-2019-0048 10.36850/mr6 10.36850/mr6 10.1136/bmjos-2021-100259,How is preregistration different from a registered clinical trial?,"[Response_Start]  
+Preregistration and registered clinical trials are both mechanisms for documenting research plans before data collection, but they differ in scope, content, regulatory status, and disciplinary conventions.  
+
+**Terminology and disciplinary reach**  
+Preregistration is a generic term that applies to studies across psychology, linguistics, social sciences, and other fields. It refers to the act of publicly posting a detailed protocol—including hypotheses, design, sample‑size calculations, and statistical analysis plans—before data are gathered. Clinical trial registration, by contrast, is a specific practice used in biomedical research and is often called *prospective registration* in the literature. It is mandated for trials funded by the U.S. government since 2000 and required by the International Committee of Medical Journal Editors for publication since 2005 [0][6].  
+
+**Regulatory versus voluntary status**  
+Clinical trial registration is legally required for most interventional studies, whereas preregistration is largely voluntary outside of clinical research. The regulatory framework for trials imposes strict deadlines (e.g., registration before enrollment) and a minimum set of required fields, whereas preregistration platforms (OSF, AsPredicted, ClinicalTrials.gov for trials) allow researchers to choose the level of detail they wish to disclose [1][2].  
+
+**Content and depth of information**  
+Clinical trial registries typically collect basic demographic and methodological information—study title, sponsor, interventions, eligibility criteria, and primary/secondary outcomes—but they do not routinely include detailed hypotheses or full statistical analysis plans. In contrast, preregistrations in psychology or linguistics often contain explicit hypotheses, planned analyses, and even power calculations, thereby creating a clear demarcation between exploratory and confirmatory work [3][5].  
+
+**Timing of registration**  
+Both practices emphasize "
+pr07,en,answer,answered,1,,10,1,23.3,4377,949,0.000191,10.4195/nse2017.06.0013 10.1111/brv.12315 10.1515/ling-2019-0048 10.1515/ling-2019-0048 10.1111/brv.12315 10.31222/osf.io/zry2u 10.1371/journal.pone.0253950,Will people find my preregistration?,"[Response_Start]  
+Whether your preregistration will be discoverable by other researchers depends on the registry you choose, the embargo settings you apply, and the metadata you provide. In practice, most preregistration platforms are designed to make studies searchable and permanently archived, but the degree of visibility can be controlled by the author.
+
+**Public registries and persistence**  
+When a preregistration is submitted to a public registry such as the Center for Open Science (COS) or a journal‑hosted system, it is time‑stamped and stored in a way that is accessible to anyone who knows the URL or searches the registry’s database. Once a preregistration becomes public, it is also archived on the Web Archive (Wayback Machine), ensuring long‑term persistence [5]. Even if you initially keep the document private, COS allows you to set an embargo period; after the embargo expires the preregistration is automatically published and indexed, making it discoverable through search engines and the registry’s own search functions [0][4].
+
+**Embargo and anonymity options**  
+If you are concerned about “scooping,” you can keep the preregistration embargoed or use a “blind” URL that removes author information. COS provides a blind URL option that hides the author’s identity while still preserving the time‑stamp and content of the preregistration [0]. Embargoed preregistrations can be set to become public after a specified date, at which point they will appear in the registry’s public index and be searchable by keyword, author, or project title. AsPredicted, on the other hand, offers a simpler interface but does not support rich formatting or extensive metadata, which can limit discoverability if you rely solely on that platform [5].
+
+**Searchability and metadata**  
+The discoverability of a preregistration also hinges on the quality of the metadata you provide. Most registries allow you to include keywords, study title, author names, and a brief abstract. These fields "
+oa01,en,answer,answered,1,,18,1,24.7,4335,894,0.000185,10.1136/bmjebm-2022-112126 10.1136/bmjebm-2022-112126 10.1136/bmjebm-2022-112126 10.1136/bmjebm-2022-112126 10.1371/journal.pone.0159614 10.1002/icd.2334 10.1136/bmjebm-2022-112126,What is open access and what are advantages and disadvantages?,"[Response_Start]  
+Open access (OA) is a publishing model that makes scholarly research freely available to anyone with an internet connection, removing subscription or pay‑wall barriers that traditionally restrict access to journal content. OA can be achieved through several routes, such as “gold” OA where the final peer‑reviewed article is posted on the publisher’s website immediately upon publication, or “green” OA where authors deposit a version of their manuscript in a repository or pre‑print server after a possible embargo period [5]. The core principle of OA is that scientific knowledge, especially when funded by public money, should be a public good that can be accessed, reused, and built upon by researchers, clinicians, policymakers, and the general public [0][1][2].
+
+### Advantages of Open Access  
+
+1. **Enhanced Accessibility and Equity**  
+   By removing paywalls, OA allows researchers, patients, and decision‑makers in low‑resource settings to read and apply findings that would otherwise be inaccessible. This democratization of information reduces disparities in knowledge access and supports evidence‑based practice worldwide [0][1][3].  
+
+2. **Increased Visibility and Impact**  
+   Studies have shown that OA articles tend to receive more downloads and citations than pay‑walled counterparts, a phenomenon known as the open‑access citation advantage (OACA). Meta‑analyses report citation increases ranging from 36 % to 172 % for OA papers, which can translate into greater academic recognition and funding opportunities for authors [4].  
+
+3. **Facilitation of Reproducibility and Transparency**  
+   OA publications often accompany open data, code, and detailed methodology, enabling other scientists to replicate analyses, validate results, and build upon the work. This openness promotes scientific rigor and reduces the likelihood of irreproducible findings [2][6].  
+
+4. **Accelerated Knowledge Diffusion**  
+   When research is freely available, it can be quickly"
+ds01,en,answer,answered,1,,10,1,26.7,2503,1242,0.000183,10.31234/osf.io/2tqep,How can I make sure nobody misuses my openly available data?,"[Response_Start]  
+Ensuring that openly shared data is not misused requires a combination of technical safeguards, clear legal frameworks, and transparent documentation. Below is a structured overview of best practices that can help researchers protect their data while still enabling legitimate reuse.
+
+**1. Choose a reputable, well‑managed data repository**  
+Storing data in a recognized archive (e.g., OSF, Zenodo, Dryad) guarantees that the data will be preserved, assigned a persistent identifier (DOI), and made discoverable. Repositories typically enforce basic metadata standards and provide mechanisms for versioning, which help prevent accidental or intentional tampering with the dataset. By linking directly to the repository, you also make it easier for others to cite and track the data’s usage, which can deter misuse through accountability. [0]  
+
+**2. Use open, interoperable file formats**  
+Data should be stored in machine‑readable, non‑proprietary formats (e.g., CSV, JSON, NetCDF, FITS). Open formats reduce the risk that users will need special software or licenses to access the data, thereby lowering barriers to legitimate reuse while also simplifying the detection of unauthorized alterations. Converting proprietary files to open formats also mitigates the risk that the data will become unusable if the original software becomes unavailable. [0]  
+
+**3. Provide comprehensive metadata and a data codebook**  
+A detailed data codebook (or data dictionary) explains the meaning of each variable, the units of measurement, coding schemes, and any transformations applied. Metadata should also describe the sampling design, data collection procedures, and any known limitations. Clear documentation makes it harder for users to misinterpret or misapply the data, and it facilitates reproducibility. [0]  
+
+**4. Apply a clear, permissive license**  
+Choosing an appropriate open‑source license (e.g., CC0, CC‑BY, or a domain‑specific data license) communicates the intended u"
+ds02,en,answer,answered,1,,26,1,24.8,4320,1940,0.000289,10.31219/osf.io/3r8hb 10.31234/osf.io/spz4w 10.31219/osf.io/3r8hb 10.3390/ani7120090 10.31219/osf.io/3r8hb 10.31219/osf.io/3r8hb 10.1177/2515245917746500,What are the best platforms and tools for sharing research data openly?,"[Response_Start]  
+**Best platforms and tools for openly sharing research data**
+
+| Category | Recommended platform(s) | Key strengths | Typical use case | Citations |
+|----------|------------------------|---------------|-----------------|-----------|
+| **General‑purpose data & materials** | Open Science Framework (OSF), GitHub, Zenodo | Centralised, free, DOI assignment (OSF, Zenodo), version control (GitHub) | Manuscript‑level data, code, protocols, supplementary files | [1][2][6] |
+| **Preprint & early‑stage research** | OSF Preprints, Mediarxiv, SSRN, First Look | Rapid dissemination, open‑access, discipline‑specific focus | Early findings, conference papers, media studies | [2][5] |
+| **Discipline‑specific data repositories** | Figshare, Dataverse, Dryad, HomeBank, CHILDES, WordBank | Domain‑tailored metadata standards, community curation | Social science, psychology, linguistics, developmental studies | [3][6] |
+| **Software & code** | GitHub, GitLab, JOSS (Journal of Open‑Source Software) | Code hosting, continuous integration, peer‑reviewed software publication | Algorithms, simulation tools, analysis pipelines | [1][4][5] |
+| **Licensing & attribution** | ChooseALicense.com, Creative Commons, OpenAIRE licensing guidelines | Easy license selection, clear attribution, legal clarity | All research outputs | [4] |
+| **Metadata & discoverability** | DataCite, ORCID, Resource Identification Initiative (RIi) | Persistent identifiers, standardized metadata, cross‑disciplinary indexing | All data & software | [3] |
+
+### 1. Open Science Framework (OSF)  
+OSF is a free, open‑source platform that serves as a hub for all research outputs. It supports uploading raw data, code, and documentation, and automatically generates DOIs via Zenodo integration. OSF’s workflow allows researchers to keep materials private until they are ready to share, and it offers project‑level metadata, versioning, and collaboration tools. The platform’s long‑term stability and interoperability w"
+oa02,en,answer,answered,1,,21,1,22.0,4430,1494,0.000247,10.1371/journal.pone.0230416 10.1371/journal.pone.0288313 10.1186/s12913-024-10764-z 10.7554/elife.16800 10.1371/journal.pone.0159614 10.7554/elife.16800 10.1629/uksg.607,How does open access publishing impact the dissemination and citation of research?,"[Response_Start]  
+Open‑access (OA) publishing has become a central lever for enhancing the reach and impact of scholarly work.  Across a broad range of disciplines, OA articles consistently receive more downloads and, after a short lag, accrue more citations than pay‑walled papers.  The most frequently cited evidence comes from large‑scale bibliometric studies that compare OA and non‑OA outputs within the same journals or fields.  For example, a randomized controlled trial of OA in *BMJ* showed a statistically significant citation advantage for OA articles, and subsequent meta‑analyses confirm that the effect is robust across science, engineering, and social‑science venues [4].  The classic study by Eysenbach on *PNAS* found that OA articles were twice as likely to be cited within 4–10 months and nearly three times as likely after 10–16 months, a pattern replicated in agriculture, civil engineering, and other fields [3][5].  These findings collectively support the conclusion that OA confers a measurable citation advantage, often referred to as the “OA citation advantage” (OA‑CA) [0][3].
+
+**Mechanisms that drive the OA‑CA**  
+The primary mechanism is increased visibility.  By removing paywalls, OA articles become immediately accessible to a global audience, including researchers in low‑ and middle‑income countries who otherwise face subscription barriers.  This broader exposure translates into higher download counts, which in turn correlate strongly with citation rates [4].  The “open‑access effect” can be partially explained by the “open‑access–download–citation” pathway: OA → higher downloads → higher citations.  Empirical work shows that the correlation between downloads and citations is stronger for OA articles, suggesting that the removal of access barriers amplifies the impact of early readership on subsequent scholarly recognition [4][5].
+
+**Field‑specific variations**  
+While the OA‑CA is broadly observed, its magnitude varies by discipline.  In agricultural"
+ds03,en,answer,answered,1,,8,1,23.2,4519,1102,0.000209,10.31234/osf.io/7wkdn 10.1177/2515245917746500 {'15971e768acb8a3c4817369e0d6b1f95': '10.1002/icd.2315'} 10.31234/osf.io/7wkdn 10.1371/journal.pone.0292996 10.1177/2515245917746500 10.1177/2515245917751886,What are the legal and ethical considerations in sharing human subject data?,"[Response_Start]  
+Sharing data from studies involving human participants is governed by a complex interplay of legal statutes and ethical norms that aim to protect participants’ privacy, autonomy, and welfare while enabling scientific progress.  The key considerations can be grouped into (1) regulatory compliance, (2) informed‑consent and participant rights, (3) data de‑identification and risk of re‑identification, (4) controlled‑access mechanisms, and (5) institutional and community responsibilities.
+
+**1. Regulatory compliance**  
+In the United States, the Federal Policy for the Protection of Human Subjects (the “Common Rule”) now explicitly addresses “informational harm” that can arise from data sharing, especially when the data include video or other identifiable media.  The rule requires that researchers obtain explicit participant permission for sharing and that they implement safeguards to protect privacy [1].  In other jurisdictions, data‑protection laws such as the EU’s General Data Protection Regulation (GDPR) impose similar obligations, including the need for lawful bases for processing and the right to withdraw consent.  Compliance with these regulations is a prerequisite for any data‑sharing activity.
+
+**2. Informed consent and participant rights**  
+Informed consent must be extended beyond the act of participation to cover the future use and sharing of data.  Researchers are required to disclose the purposes for which data will be shared, the types of data that will be released, and the safeguards that will be applied.  Consent forms should explicitly state whether data will be made publicly available, shared with collaborators, or stored in a controlled‑access repository.  Failure to obtain such consent can lead to ethical breaches and legal liability [1][3].
+
+**3. De‑identification and risk of re‑identification**  
+While many datasets can be anonymized by removing direct identifiers, the risk of re‑identification remains high for sensitive or longit"
+co01,en,answer,answered,1,,6,1,23.8,3776,921,0.000176,10.1038/d41586-023-00019-y 10.1371/journal.pbio.3002362 10.1186/s12913-024-10764-z 10.31219/osf.io/8x4e9 10.1371/journal.pbio.3002362,How does open science reshape the future of interdisciplinary and collaborative research?,"[Response_Start]  
+Open science is increasingly being framed not merely as a set of tools or a policy directive, but as a transformative research ecosystem that re‑configures how scientists across disciplines design, conduct, and disseminate work.  At its core, open science promotes **transparency, accessibility, and shared ownership** of data, methods, and findings, which in turn reshapes the dynamics of interdisciplinary collaboration in several interlocking ways.  
+
+**1. Lowering entry barriers and democratizing participation**  
+Open‑access data repositories, shared codebases, and openly licensed publications reduce the cost and logistical hurdles that historically limited participation to well‑funded institutions or specialized labs.  This democratization has been shown to increase public trust in science and to broaden the pool of contributors, including under‑represented groups and researchers from low‑resource settings [3].  By making raw data and analytical pipelines publicly available, researchers can more readily verify, reproduce, and extend each other’s work, fostering a culture of shared inquiry that is essential for interdisciplinary projects where expertise from multiple domains must be integrated.  
+
+**2. Enabling modular, role‑specialized teams**  
+Open‑science platforms encourage the emergence of **task‑specialized roles** (e.g., data managers, systematic reviewers, statisticians) that can be distributed across institutions and even countries.  This re‑organization of scientific labor allows large, heterogeneous teams to focus on their core competencies while relying on shared infrastructure for other tasks, thereby accelerating the pace of interdisciplinary research [4].  The Psychological Science Accelerator and ManyBabies exemplify how open platforms can bring together diverse expertise—psychologists, statisticians, data engineers—to tackle complex questions that would be infeasible for single investigators.  
+
+**3. Standardizing formats and wo"
+qa01,en,answer,no_sources,0,,0,,16.0,304,13,1.6e-05,,Can you generate detailed methodological steps based on queries to assist in experimental replication?,
+qa02,en,answer,answered,1,,20,1,28.7,4452,1043,0.000202,10.31234/osf.io/2tqep 10.31234/osf.io/2tqep 10.31234/osf.io/2tqep 10.31234/osf.io/2tqep 10.31234/osf.io/2tqep 10.3758/s13428-015-0630-z 10.1177/2515245917746500,What should you think about when sharing your data with others?,"[Response_Start]  
+When planning to share research data, scientists should systematically evaluate a range of ethical, legal, technical, and practical factors to ensure that the data are both useful to others and compliant with institutional and regulatory standards. The following themes capture the most common considerations, organized by similarity and contrast across the literature.
+
+**1. Ethical and legal compliance**  
+- **Institutional Review Board (IRB) approval**: All data‑sharing plans must be reviewed and approved by the IRB or ethics committee, and participants should be informed that their data will be shared, often in an anonymized form [5].  
+- **Informed consent**: Consent documents should explicitly state whether data will be made open, how it will be de‑identified, and the scope of potential future use. This transparency protects participants and satisfies funding agencies that require open‑science practices [0][1].  
+- **Privacy and re‑identification risk**: Researchers must assess whether the data contain sensitive information that could lead to re‑identification, especially in small samples or with detailed demographic variables. Techniques such as redaction, aggregation, or synthetic data generation can mitigate these risks [3][4].
+
+**2. Data de‑identification and anonymization**  
+- **Removal of personal identifiers**: All direct identifiers (names, addresses, IDs) should be stripped, and indirect identifiers (rare combinations of age, gender, location) should be examined for potential re‑identification risk [2][3].  
+- **Synthetic data**: When true anonymization is infeasible, creating synthetic datasets that preserve statistical properties while protecting privacy is a viable alternative [4].  
+- **Documentation of de‑identification steps**: Clear records of how data were anonymized help reviewers and future users assess the risk and integrity of the dataset [5].
+
+**3. Data management and FAIR principles**  
+- **Findable**: Assign persistent "
+qa03,en,answer,no_sources,0,,0,,27.6,302,13,1.6e-05,,"How do you update your knowledge base, and are these updates made transparent?",
+qa04,en,answer,answered,1,,10,1,32.0,4429,981,0.000195,10.1038/s44271-023-00003-2 {'bcf4554573a4de5c37e070aeed6c498d': '10.1017/can.2024.44'} 10.1037/pag0000653 10.4135/9781412986311.n21 10.1037/pag0000653 10.31219/osf.io/3r8hb 10.1038/s44271-023-00003-2,What is transparency?,"[Response_Start]  
+Transparency in scientific research is a multifaceted concept that refers to the openness and accountability of researchers’ actions throughout the research cycle. At its core, it combines **availability**—making data, code, protocols, and other research artifacts accessible to others—with **accountability**—providing clear documentation that allows external evaluation of the methods and decisions taken by investigators. This dual nature ensures that the scientific record can be scrutinized, reproduced, and built upon by the wider community [0][6].
+
+### 1. Core Components of Transparency  
+- **Open Data and Code**: Publishing raw datasets and the computational scripts used to generate results enables others to verify analyses and extend findings.  
+- **Detailed Protocols and Manuals**: Providing exhaustive methodological descriptions, including experimental designs, sampling strategies, and statistical plans, allows peers to assess the rigor of the study and to replicate it.  
+- **Preregistration and Registered Reports**: Stipulating hypotheses, analysis plans, and sample sizes before data collection reduces selective reporting and hypothesis‑shopping.  
+- **Open Peer Review and Publication**: Making reviewer comments and editorial decisions publicly available promotes accountability and reduces bias.  
+
+These elements collectively support the goal of **scientifically relevant transparency**, which focuses on the technical details that enable reproducibility and verification of results [0][2][4].
+
+### 2. Transparency and Trust  
+Transparency serves as a mechanism for monitoring and building trust among scientists, funders, and the public. While openness can sometimes expose sloppy or questionable practices, it generally enhances confidence that researchers are honest actors and that findings are robust. However, the benefits of transparency must be balanced against potential risks, such as the misuse of shared code or data by individuals lacking d"
+qa05,en,answer,answered,1,,5,1,23.1,3424,1073,0.000568,10.7554/elife.16800 10.1038/sdata.2019.30 10.1186/s12913-024-10764-z 10.1371/journal.pbio.3002204,How do licensing agreements affect the sharing and reuse of scientific research?,"[Response_Start]  
+Licensing agreements are the legal backbone that determines how scientific outputs—papers, data sets, software, and other research artefacts—can be accessed, shared, and reused by the broader community.  The type of license chosen shapes the extent of openness, the obligations of downstream users, and the potential for innovation and collaboration.  Below, we synthesize evidence from recent open‑science literature to illustrate how different licensing regimes influence sharing practices and reuse outcomes.
+
+**1. Open‑access publishing and Creative Commons licences**  
+Open‑access (OA) journals typically publish under Creative Commons (CC) licences that allow free distribution and reuse, provided attribution is given.  The CC‑BY licence, for example, permits any downstream use—including commercial exploitation—so long as the original authors are credited.  This permissive framework has been shown to increase the visibility and citation impact of OA articles, as it removes pay‑wall barriers and encourages downstream derivative works such as systematic reviews, meta‑analyses, and educational materials [2].  Conversely, more restrictive licences (e.g., CC‑BY‑NC or CC‑BY‑SA) limit commercial reuse or require derivative works to carry the same licence, which can deter certain types of reuse, such as integration into proprietary software or commercial products.  The choice of licence therefore directly affects the breadth of potential downstream applications.
+
+**2. Institutional and policy‑driven licence mandates**  
+Many universities and funding agencies now require that research outputs be released under licences that facilitate reuse.  For instance, the Harvard Open Access Project and similar initiatives encourage faculty to grant non‑exclusive reuse rights to their institutions, enabling open archiving without negotiating with publishers [0].  These policies not only streamline the publication process but also embed a culture of openness that can lea"
+qa06,en,answer,answered,1,,3,1,32.6,2508,1940,0.000253,10.3389/fphar.2024.1304950,"Can commercial interests coexist with the ethos of Open Science, particularly in industry-funded research?","[Response_Start]  
+Open science—defined by principles of transparency, reproducibility, and broad data sharing—has long been championed as a catalyst for accelerating discovery, especially in data‑rich fields such as genomics and health research.  However, the rise of intellectual‑property (IP) regimes and the increasing role of industry funding have introduced a tension between the collaborative ethos of open science and the commercial imperatives of private enterprises [0].  The question is whether these seemingly divergent goals can be reconciled, particularly in industry‑funded research.
+
+**1. Theoretical foundations for coexistence**  
+The literature suggests that commercial interests need not be antithetical to open science.  Open science can be viewed as a strategic asset: by openly sharing data, methods, and intermediate results, firms can reduce duplication of effort, accelerate innovation cycles, and foster a broader ecosystem of collaborators that may ultimately feed back into the company’s pipeline.  Moreover, open‑access publishing and preprint servers have become standard practice even for industry labs, allowing rapid dissemination of findings while still retaining IP through subsequent patent filings or licensing agreements.  These practices illustrate that openness can coexist with, and even enhance, commercial competitiveness.
+
+**2. Practical mechanisms that enable coexistence**  
+Several mechanisms have emerged that allow industry to engage in open science while protecting commercial interests:
+
+| Mechanism | How it balances openness & IP | Typical industry use |
+|------------|------------------------------|----------------------|
+| **Open‑source software** | Code is freely available, but proprietary modules or data can be kept closed | Bioinformatics pipelines, AI model frameworks |
+| **Data‑sharing agreements** | Data is shared under controlled licenses (e.g., non‑exclusive, time‑limited) | Clinical trial datasets, genomic reference panels |
+| *"
+qa07,en,answer,answered,1,,17,1,29.4,4545,1171,0.000217,10.1093/ptj/pzad133 10.1093/ptj/pzad133 10.1093/ptj/pzad133 10.1016/j.psychsport.2017.12.010 10.1093/ptj/pzad133 10.1186/s12913-024-10764-z 10.31234/osf.io/7wkdn,What ethical concerns arise in the context of increased transparency and openness in research?,"[Response_Start]  
+In the last decade, the push toward open science has illuminated a range of ethical concerns that span data stewardship, researcher conduct, and the broader scientific ecosystem.  These concerns can be grouped into three interrelated themes: (1) the integrity of the research record, (2) the protection of individual and collective interests, and (3) the governance of open‑access infrastructures.
+
+**1. Integrity of the research record**  
+Open‑access publication has amplified the visibility of methodological and analytical choices, but it has also made it easier to spot errors and questionable practices.  The reproducibility crisis in psychology and other fields has highlighted how selective reporting, p‑hacking, and data fabrication can inflate false‑positive findings and bias the literature toward “positive” results [3].  Even when data and code are shared, the absence of rigorous peer review or the lack of detailed methodological documentation can undermine trust, leading to a perception that open science may inadvertently lower quality standards [0][4].  Moreover, the pressure to publish quickly and openly can encourage researchers to share preliminary or unvalidated results, which may mislead readers and policy makers if not properly contextualized [0].
+
+**2. Protection of individual and collective interests**  
+Greater transparency raises ethical questions about privacy, consent, and the potential misuse of shared data.  When raw datasets, especially those containing sensitive health or personal information, are made publicly available, researchers must navigate complex legal and ethical frameworks to protect participants’ confidentiality [5].  The same openness that promotes reproducibility can also expose researchers to increased scrutiny and criticism; the fear that errors will be publicly highlighted may discourage scholars from sharing data or methods, thereby creating a tension between accountability and the risk of reputational harm [6]"
+qa08,en,answer,answered,1,,11,1,27.3,4309,1489,0.000287,10.1371/journal.pbio.3002362 10.1371/journal.pbio.3002362 10.1371/journal.pbio.3002362 10.1111/gtc.13100 10.1371/journal.pbio.3002362 10.31219/osf.io/8x4e9 10.31219/osf.io/8x4e9,What funding models support the sustainability of Open Science initiatives?,"[Response_Start]  
+Open‑science sustainability is achieved through a mosaic of funding streams that combine public, private, and community resources.  The most common models can be grouped into (i) philanthropic and volunteer‑driven support, (ii) government and institutional grants, (iii) transformative publishing agreements, (iv) author‑paid open‑access (OA) schemes, and (v) infrastructure‑building consortia that provide free or low‑cost access to journals and data repositories.  Each model addresses different aspects of the open‑science ecosystem—from infrastructure and training to publication and data sharing.
+
+**1. Philanthropic and volunteer‑driven funding**  
+Many early open‑science platforms were launched and sustained by philanthropic foundations and volunteer labor.  The Center for Open Science (COS), for example, was founded with backing from Arnold Ventures and remains largely dependent on philanthropic contributions, while the Research Resource Identifier (RRID) Initiative and Reproducibility Networks rely on volunteer participation and charitable support [0][1].  These models enable rapid prototyping and community‑driven governance but often lack the long‑term financial stability of state‑funded programs.
+
+**2. Government and institutional grants**  
+National agencies increasingly allocate dedicated budgets to open‑science infrastructure.  The U.S. National Institutes of Health (NIH) has proposed committing even a modest 0.1 % of its total budget to open‑science initiatives, which would translate into roughly \$47 M annually, illustrating the potential scale of public investment [2].  Similar commitments appear in the United Kingdom (UKRN £4.5 M for training) and in space‑science (NASA’s Transform to Open Science (TOPS) Initiative, \$40 M over five years) [2][4].  National research councils such as Brazil’s FAPESP and CNPq, and regional bodies like BIREME, have funded digital libraries (e.g., SciELO) that provide free access to thousands of journals, de"
+qa09,en,answer,answered,1,,10,1,20.3,4473,859,0.000184,10.3897/rio.9.e96476 10.3897/rio.9.e96476 10.3897/rio.9.e96476 10.3897/rio.9.e96476 10.3897/rio.9.e96476 10.3897/rio.9.e96476 10.3897/rio.9.e96476,What is citizen science?,"[Response_Start]  
+Citizen science is a research paradigm in which non‑professional participants—often volunteers, students, or members of the general public—collaborate with professional scientists to generate, collect, analyze, or interpret data that contribute to scientific knowledge. The core idea is that scientific inquiry can be democratized by engaging the broader community in the research process, thereby expanding data collection capacity, fostering public understanding of science, and promoting social innovation [0][1].  
+
+**Historical and conceptual foundations**  
+The term “citizen science” emerged in the 1990s as a response to the increasing need for large‑scale data and the recognition that many scientific questions could benefit from distributed, participatory approaches. Early conceptualizations framed citizen science as a form of “participatory research” where laypersons contribute meaningfully to the scientific process, often through structured projects such as biodiversity monitoring or environmental sensing [2]. The movement has since evolved into a diverse ecosystem of projects ranging from simple data logging to sophisticated co‑design of research questions and methods.  
+
+**Modes of participation**  
+Citizen science projects are commonly categorized according to the level of engagement and the nature of the tasks performed. Bonney et al. identified three primary modes:  
+- **Contributive** projects, where participants primarily provide data (e.g., recording bird sightings).  
+- **Collaborative** projects, in which citizens engage in multiple stages of the research cycle, from data collection to preliminary analysis.  
+- **Co‑creative** projects, where participants co‑design research questions, protocols, and interpret results alongside scientists [4]. These modes reflect a spectrum from passive data provision to active co‑creation of knowledge.  
+
+**Link to open science**  
+Citizen science is intrinsically linked to the broader open‑science mo"
+qa10,en,answer,answered,1,,25,1,21.5,4458,1274,0.000225,10.3897/rio.9.e96476 10.3897/rio.9.e96476 10.3897/rio.9.e96476 10.3897/rio.9.e96476 10.3897/rio.9.e96476 10.3897/rio.9.e96476 10.3897/rio.9.e96476,How is citizen science open science?,"[Response_Start]  
+**Citizen Science as a Manifestation of Open Science**
+
+Citizen science (CS) embodies the core values of open science (OS) by foregrounding transparency, accessibility, and participatory collaboration across the entire research lifecycle.  The conceptual overlap is evident from the very definition of OS, which seeks to remove barriers to sharing outputs, methods, and data at every research stage, and from the explicit statement that CS is “closely linked to Open Science” [1][4].  In practice, CS operationalizes OS through a set of interlocking practices that mirror the OS pillars: open data, open methods, open collaboration, and open educational resources (OER).
+
+| Open‑Science Pillar | Citizen‑Science Practice | Key References |
+|---------------------|--------------------------|-----------------|
+| **Open Data** | Publicly released raw observations, metadata, and derived datasets; use of linked open data (LOD) to integrate citizen‑generated data with scholarly repositories. | [5][6] |
+| **Open Methods** | Transparent protocols for data collection, sampling, and analysis; shared tools and software (e.g., mobile apps, web platforms) that are freely available and documented. | [0][1] |
+| **Open Collaboration** | Co‑design of research questions, protocols, and interpretation with volunteers; shared governance structures; open forums for discussion and peer review. | [2][3] |
+| **Open Educational Resources** | Free instructional materials, tutorials, and training modules that enable non‑experts to participate effectively. | [1][4] |
+| **Open Hardware** | Open‑source designs for field instruments (e.g., low‑cost sensors) that can be replicated and adapted by participants. | [5][6] |
+
+**1. Transparency and Methodological Openness**  
+Citizen‑science projects routinely publish detailed protocols and methodological guidelines that are accessible to all stakeholders.  This transparency ensures that data collection follows rigorous scientific standards whil"
+qa11,en,answer,refused,0,,0,,0.4,297,13,1.6e-05,,Who has the intellectual property of research articles?,
+off01,en,refuse,refused,1,,0,,0.1,299,13,1.6e-05,,What are the key skills needed for career advancement in academia?,
+off02,en,refuse,refused,1,,0,,0.5,296,13,1.6e-05,,How are emerging technologies transforming traditional classroom teaching?,
+off03,en,refuse,refused,1,,0,,0.2,301,13,1.6e-05,,What are the best practices for managing a successful laboratory and effective team?,
+off04,en,refuse,refused,1,,0,,0.2,301,13,1.6e-05,,What steps are involved in transferring technology from the lab to the market?,
+off05,en,refuse,answered,0,,11,1,20.5,4482,1349,0.000233,10.1371/journal.pbio.1002273 10.1371/journal.pone.0067111 10.1371/journal.pbio.1002273 10.7287/peerj.preprints.27638 10.31234/osf.io/435xz 10.1371/journal.pone.0109019 10.31234/osf.io/435xz,What are the impacts of journal impact factors on research priorities?,"[Response_Start]  
+Journal impact factors (JIFs) have become a de‑facto metric for judging the prestige of a venue and, by extension, the value of the work it publishes.  Because many institutions, funding agencies, and hiring committees embed the JIF into promotion, tenure, and grant‑review criteria, authors routinely tailor their research agendas to maximize the likelihood of landing in high‑IF journals.  This alignment has several cascading effects on research priorities.
+
+**1. Publication strategy and topic selection**  
+Researchers often choose topics that are “hot” or likely to attract the attention of high‑IF journals, even if those topics are not the most pressing or under‑studied.  The emphasis on novelty and impact, which high‑IF journals reward, can shift the research landscape toward flashy, interdisciplinary studies at the expense of incremental, methodologically rigorous work.  This tendency is reinforced by the fact that JIFs are used as a proxy for quality in many institutional evaluations [0][3].
+
+**2. Career advancement and funding decisions**  
+The JIF is routinely incorporated into metrics such as the Article Impact Factor (AIF) or other composite scores that influence hiring, promotion, and grant allocation.  Faculty members with a higher proportion of publications in high‑IF journals are more likely to receive tenure offers, higher salaries, and larger research budgets.  Consequently, researchers may prioritize publishing in prestigious venues over pursuing research that is socially or scientifically important but less likely to be accepted by those journals [3][4].
+
+**3. Research design and methodological trade‑offs**  
+High‑IF journals often favor studies with striking results, which can encourage smaller sample sizes, exploratory analyses, or selective reporting.  Empirical evidence shows a negative association between JIF and statistical power: journals with the highest impact factors tend to publish studies with smaller samples and lower p"
+off06,en,refuse,refused,1,,0,,0.2,292,13,1.6e-05,,What is an apple?,
+off07,en,refuse,refused,1,,0,,0.4,292,13,1.6e-05,,How do birds fly?,
+off08,en,refuse,refused,1,,0,,0.4,248,11,5.7e-05,,What causes rainbows?,
+off09,en,refuse,refused,1,,0,,0.1,293,13,1.6e-05,,Why is the sky blue?,
+off10,en,refuse,refused,1,,0,,0.3,294,13,1.6e-05,,How does a microwave oven work?,
+off11,en,refuse,refused,1,,0,,0.2,296,13,1.6e-05,,What is the deepest part of the ocean?,
+off12,en,refuse,refused,1,,0,,0.1,294,13,1.6e-05,,Who invented the light bulb?,
+off13,en,refuse,refused,1,,0,,0.2,295,13,1.6e-05,,What is the purpose of yawning?,
+off14,en,refuse,refused,1,,0,,0.1,296,13,1.6e-05,,How many planets are in our solar system?,
+off15,en,refuse,refused,1,,0,,0.2,292,13,1.6e-05,,What is photosynthesis?,
+off16,en,refuse,refused,1,,0,,0.1,300,13,1.6e-05,,How do you write a successful grant proposal for basic research funding?,
+off17,en,refuse,refused,1,,0,,0.4,300,13,1.6e-05,,What strategies can be used to maximize networking opportunities at scientific conferences?,
+ml01,nl,answer,answered,1,1,10,1,29.2,4432,1374,0.000344,10.1016/j.psychsport.2017.12.010 10.1016/j.psychsport.2017.12.010 10.1080/08989621.2019.1580147 10.1080/08989621.2019.1580147 10.31219/osf.io/hstcx 10.1177/1609406920976417 10.1037/0000409-043,Hoe kan ik kwalitatief onderzoek preregistreren?,"[Response_Start]  
+Kwalitatief onderzoek kan op een gestructureerde, transparante manier worden preregisterd door een reeks stappen te volgen die de flexibiliteit van de methode respecteren, maar toch een duidelijk beginpunt bieden voor de studie. Hieronder volgt een overzicht van de belangrijkste componenten, praktische tips en beschikbare hulpmiddelen, gebaseerd op de recente literatuur over open‑science‑initiatieven voor kwalitatief onderzoek.  
+
+**1. Wat moet er in een preregistratie staan?**  
+Een kwalitatieve preregistratie omvat doorgaans:  
+- **Onderzoeksvraag en theoretische achtergrond** – een heldere formulering van het centrale vraagstuk en de conceptuele kaders die de studie sturen.  
+- **Methodologische keuzes** – selectie van methoden (bijv. diepte‑interviews, focusgroepen, etnografie), steekproefstrategie, inclusie‑ en exclusiecriteria, en de geplande duur van de dataverzameling.  
+- **Analyse‑plan** – een beschrijving van de beoogde coderingsstrategie, thematische analyse, of andere interpretatieve benaderingen, inclusief eventuele software (NVivo, Atlas.ti, etc.).  
+- **Ethiek en data‑beheer** – procedures voor geïnformeerde toestemming, vertrouwelijkheid en opslag van data.  
+
+Deze onderdelen zijn niet bedoeld als starre voorschriften; ze dienen als “startpunt” dat kan worden aangepast naarmate het onderzoek vordert, wat de emergente aard van kwalitatief onderzoek bewaakt [0][1].  
+
+**2. Flexibiliteit behouden: een “plan, niet een gevangenis”**  
+De term *postdiction* (dat de interpretatie wordt gevormd op basis van verzamelde data) staat centraal in kwalitatief onderzoek. Preregistratie hoeft de creatieve loop niet te blokkeren; in plaats daarvan kan het dienen als een documentatie‑tool voor reflexiviteit. Door de preregistratie periodiek bij te werken (bijv. via een tijdlijn of versie‑beheer) kan de onderzoeker de evolutie van de studie volgen zonder de vrijheid te verliezen [3][5].  
+
+**3. Praktische hulpmiddelen en sjablonen**  
+- **Open Scien"
+ml02,de,answer,no_sources,0,0,0,,12.9,302,13,1.6e-05,,Was ist Präregistrierung und warum ist sie wichtig?,
+ml03,es,answer,no_sources,0,0,0,,13.7,258,11,5.9e-05,,¿En qué se diferencia el prerregistro de un informe registrado?,

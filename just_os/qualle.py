@@ -2,7 +2,9 @@ import html
 import json
 import logging
 import re
-from typing import Dict, List, Any, Optional, Generator, Union, Tuple
+import time
+from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, List, Any, Optional, Generator, Tuple
 
 import markdown
 from bs4 import BeautifulSoup
@@ -11,7 +13,6 @@ from openai import OpenAI
 from openai.types.chat import ChatCompletion
 from sentence_transformers import CrossEncoder
 
-from config.settings import get_config
 from just_os.chat_manager import ChatManager
 from just_os.openscholar import generation_instance_prompts_w_references, system_prompt
 
@@ -29,6 +30,10 @@ URL_DOI_KEY = "link_to_resource"
 
 # Default response for non-Open Science questions
 NON_OS_RESPONSE = "Sorry, I'm only able to answer questions related to Open Science."
+# Shown when the language model cannot be reached (not a refusal)
+CLASSIFY_ERROR_RESPONSE = (
+    "Sorry, the language model is not available at the moment. Please try again later."
+)
 
 
 class QueryProcessor:
@@ -52,26 +57,22 @@ class QueryProcessor:
         self.chat_manager = chat_manager
         self.general_model = config["GENERAL_MODEL"]
 
-    def classify_query(self, query: str) -> bool:
+    def _structured_output(self, prompt: str, key: str, value_type: str) -> Any:
         """
-        Classify whether a query is about Open Science.
+        Ask the general model for one JSON value.
+
+        Tries a forced tool call first. Not every model or provider supports
+        tool calls, so it then asks for plain JSON in the message content.
 
         Args:
-            query: User query
+            prompt: Prompt for the model
+            key: Name of the value to return
+            value_type: JSON schema type of the value ("boolean", "string")
 
         Returns:
-            True if the query is about Open Science, False otherwise
+            The value, or None if both attempts fail (for example, an API error)
         """
-        prompt = f"""You are an Open Science expert.
-Classify whether the following query is about Open Science:
-"{query}"
-Return your answer as a valid JSON object with a single boolean entry "concerns_open_science"
-"""
-
-        history_openai_format = [
-            {"role": "user", "content": prompt},
-        ]
-
+        messages = [{"role": "user", "content": prompt}]
         tools = [
             {
                 "type": "function",
@@ -81,10 +82,8 @@ Return your answer as a valid JSON object with a single boolean entry "concerns_
                     "strict": True,
                     "parameters": {
                         "type": "object",
-                        "properties": {
-                            "concerns_open_science": {"type": "boolean"},
-                        },
-                        "required": ["concerns_open_science"],
+                        "properties": {key: {"type": value_type}},
+                        "required": [key],
                         "additionalProperties": False,
                     },
                     "additionalProperties": False,
@@ -92,27 +91,60 @@ Return your answer as a valid JSON object with a single boolean entry "concerns_
             }
         ]
         tool_choice = {"type": "function", "function": {"name": "structure_output"}}
+        temperature = self.config.get("TEMPERATURE_GENERAL", 0.3)
 
         response = self.client_manager.create_chat_completion(
             model=self.general_model,
-            messages=history_openai_format,
-            temperature=self.config.get("TEMPERATURE_GENERAL", 0.3),
+            messages=messages,
+            temperature=temperature,
             tools=tools,
             tool_choice=tool_choice,
         )
-
-        if not response or not response.choices:
-            logger.error("Failed to classify query")
-            return False
-
         try:
-            concerns_open_science = json.loads(
+            return json.loads(
                 response.choices[0].message.tool_calls[0].function.arguments
-            )["concerns_open_science"]
-            return concerns_open_science
-        except (KeyError, IndexError, json.JSONDecodeError) as e:
-            logger.error(f"Error parsing classification response: {str(e)}")
-            return False
+            )[key]
+        except (AttributeError, TypeError, KeyError, IndexError, json.JSONDecodeError):
+            logger.info(f"No tool call from {self.general_model}, asking for plain JSON")
+
+        response = self.client_manager.create_chat_completion(
+            model=self.general_model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": f'{prompt}\nReply with only a JSON object with the key "{key}".',
+                }
+            ],
+            temperature=temperature,
+        )
+        try:
+            content = response.choices[0].message.content
+            return json.loads(content[content.index("{") : content.rindex("}") + 1])[key]
+        except (AttributeError, TypeError, KeyError, IndexError, ValueError) as e:
+            logger.error(f"Structured output failed for '{key}': {str(e)}")
+            return None
+
+    def classify_query(self, query: str) -> Optional[bool]:
+        """
+        Classify whether a query is about Open Science.
+
+        Args:
+            query: User query
+
+        Returns:
+            True or False, or None if the model could not be reached or parsed
+            (an error, which must not look like a refusal)
+        """
+        prompt = f"""You are an Open Science expert.
+Classify whether the following query is about Open Science:
+"{query}"
+Return your answer as a valid JSON object with a single boolean entry "concerns_open_science"
+"""
+        result = self._structured_output(prompt, "concerns_open_science", "boolean")
+        if not isinstance(result, bool):
+            logger.error(f"Failed to classify query, got: {result!r}")
+            return None
+        return result
 
     def rephrase_query(self, query: str, chat_id: str) -> str:
         """
@@ -123,7 +155,7 @@ Return your answer as a valid JSON object with a single boolean entry "concerns_
             chat_id: Chat session ID
 
         Returns:
-            Rephrased query
+            Rephrased query, or the original query if rephrasing fails
         """
         # Get conversation history
         conversation_history = self.chat_manager.get_history(chat_id)
@@ -140,51 +172,11 @@ a proper reformulation would be "Does Open Science also have disadvantages?"
 If the question is not related to open science, return the original question.
 Now reformulate the following question such that it makes sense in isolation:\n{query}"""
 
-        history_openai_format = [
-            {"role": "user", "content": prompt},
-        ]
-
-        tools = [
-            {
-                "type": "function",
-                "function": {
-                    "name": "structure_output",
-                    "description": "Send structured output back to the user",
-                    "strict": True,
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "reformulated_query": {"type": "string"},
-                        },
-                        "required": ["reformulated_query"],
-                        "additionalProperties": False,
-                    },
-                    "additionalProperties": False,
-                },
-            }
-        ]
-        tool_choice = {"type": "function", "function": {"name": "structure_output"}}
-
-        response = self.client_manager.create_chat_completion(
-            model=self.general_model,
-            messages=history_openai_format,
-            temperature=self.config.get("TEMPERATURE_GENERAL", 0.3),
-            tools=tools,
-            tool_choice=tool_choice,
-        )
-
-        if not response or not response.choices:
+        result = self._structured_output(prompt, "reformulated_query", "string")
+        if not isinstance(result, str) or not result.strip():
             logger.warning("Failed to rephrase query, using original")
             return query
-
-        try:
-            reformulated = json.loads(
-                response.choices[0].message.tool_calls[0].function.arguments
-            )["reformulated_query"]
-            return reformulated
-        except (KeyError, IndexError, json.JSONDecodeError) as e:
-            logger.error(f"Error parsing reformulation response: {str(e)}")
-            return query
+        return result
 
 
 class DocumentRetriever:
@@ -297,13 +289,16 @@ class ResponseGenerator:
         self.system_prompt = system_prompt
         self.prompt_template = generation_instance_prompts_w_references
 
-    def generate_response(self, query: str, context: str) -> Optional[str]:
+    def generate_response(
+        self, query: str, context: str, model: Optional[str] = None
+    ) -> Optional[str]:
         """
         Generate a response using the LLM.
 
         Args:
             query: User query
             context: Context for the query
+            model: Model to use instead of CITATION_MODEL (used by the arena)
 
         Returns:
             Generated response or None if generation fails
@@ -319,7 +314,7 @@ class ResponseGenerator:
 
         # Generate response
         response = self.client_manager.create_chat_completion(
-            model=self.citation_model,
+            model=model or self.citation_model,
             messages=history_openai_format,
             temperature=self.config.get("TEMPERATURE", 0.3),
         )
@@ -387,9 +382,20 @@ class OpenAIClientManager:
         if not self.api_key:
             logger.warning("LLM_API_KEY / OPENROUTER_API_KEY environment variable not set")
 
-        self.client = self._create_client()
+        self.client = self._create_client(self.api_key, config["BASE_URL"])
+        # The self-hosted OpenScholar server has its own URL and key
+        self.openscholar_client = (
+            self._create_client(config.get("OPENSCHOLAR_API_KEY"), config["OPENSCHOLAR_BASE_URL"])
+            if config.get("OPENSCHOLAR_BASE_URL")
+            else None
+        )
 
-    def _create_client(self) -> Optional[OpenAI]:
+    def _client_for(self, model: str) -> Optional[OpenAI]:
+        if self.openscholar_client and model == self.config.get("OPENSCHOLAR_MODEL"):
+            return self.openscholar_client
+        return self.client
+
+    def _create_client(self, api_key: Optional[str], base_url: str) -> Optional[OpenAI]:
         """
         Create an OpenAI client instance.
 
@@ -397,7 +403,7 @@ class OpenAIClientManager:
             OpenAI client or None if initialization fails
         """
         try:
-            return OpenAI(api_key=self.api_key, base_url=self.config["BASE_URL"])
+            return OpenAI(api_key=api_key, base_url=base_url)
         except Exception as e:
             logger.error(f"Failed to initialize OpenAI client: {str(e)}")
             return None
@@ -423,7 +429,8 @@ class OpenAIClientManager:
         Returns:
             ChatCompletion or None if the request fails
         """
-        if not self.client:
+        client = self._client_for(model)
+        if not client:
             logger.error("OpenAI client not initialized")
             return None
 
@@ -436,7 +443,7 @@ class OpenAIClientManager:
             if tool_choice:
                 kwargs["tool_choice"] = tool_choice
 
-            return self.client.chat.completions.create(**kwargs)
+            return client.chat.completions.create(**kwargs)
         except Exception as e:
             logger.error(f"OpenAI API error: {str(e)}")
             return None
@@ -690,12 +697,19 @@ class Qualle:
             concerns_open_science = self.query_processor.classify_query(query)
             logger.debug(f"Query classification: {concerns_open_science}")
 
+            if concerns_open_science is None:
+                yield {
+                    "status": "error",
+                    "message": markdown.markdown(CLASSIFY_ERROR_RESPONSE),
+                }
+                return
+
             # Process Open Science queries
             if concerns_open_science:
                 # Retrieve and rerank relevant sources
                 yield {"status": "in-progress", "message": "Finding relevant sources"}
                 logger.debug("Retrieving and reranking nodes for query")
-                ranked_nodes, all_nodes = self.document_retriever.retrieve_and_rerank(
+                ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(
                     query
                 )
 
@@ -738,7 +752,7 @@ class Qualle:
                 )
                 html_message, used_refs = (
                     self.response_generator.process_with_references(
-                        processed_message, all_nodes
+                        processed_message, ranked_nodes
                     )
                 )
 
@@ -756,7 +770,7 @@ class Qualle:
                     "message": html_message,
                     "metadata": {
                         "sources": self.reference_processor.references_from_nodes(
-                            all_nodes, used_refs
+                            ranked_nodes, used_refs
                         )
                     },
                 }
@@ -775,6 +789,86 @@ class Qualle:
                 }
         except Exception as e:
             logger.error(f"Error in get_response: {str(e)}")
+            yield {
+                "status": "error",
+                "message": markdown.markdown(
+                    "An unexpected error occurred while processing your request."
+                ),
+            }
+
+    def get_arena_response(
+        self, query: str, models: List[str]
+    ) -> Generator[Dict[str, Any], None, None]:
+        """
+        Answer one question with several models from the same sources (arena mode).
+
+        Classification and retrieval run once, so only the answer model differs.
+        Single turn: no chat history is read or stored.
+
+        Args:
+            query: User query
+            models: Models that each write an answer
+
+        Yields:
+            Status chunks, then {"status": "complete", "responses": [...]} with one
+            {"model", "message", "sources", "seconds"} per model. A refusal or
+            "no sources" result has a single "message" instead of "responses".
+        """
+        try:
+            yield {"status": "in-progress", "message": "Classifying question"}
+            concerns_open_science = self.query_processor.classify_query(query)
+            if concerns_open_science is None:
+                yield {
+                    "status": "error",
+                    "message": markdown.markdown(CLASSIFY_ERROR_RESPONSE),
+                }
+                return
+            if not concerns_open_science:
+                yield {"status": "complete", "message": markdown.markdown(NON_OS_RESPONSE)}
+                return
+
+            yield {"status": "in-progress", "message": "Finding relevant sources"}
+            ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(query)
+            if not ranked_nodes:
+                yield {
+                    "status": "complete",
+                    "message": markdown.markdown(
+                        "I couldn't find any relevant information about that topic in Open Science."
+                    ),
+                }
+                return
+            context = self.document_retriever.context_from_nodes(ranked_nodes)
+
+            yield {"status": "in-progress", "message": "Generating responses"}
+
+            def answer(model: str) -> Dict[str, Any]:
+                start = time.time()
+                text = self.response_generator.generate_response(query, context, model)
+                if not text:
+                    return {
+                        "model": model,
+                        "message": markdown.markdown("This model did not answer (API error)."),
+                        "sources": "",
+                        "seconds": round(time.time() - start, 1),
+                    }
+                processed = self.response_generator.post_process_response(text)
+                html_message, used_refs = self.response_generator.process_with_references(
+                    processed, ranked_nodes
+                )
+                return {
+                    "model": model,
+                    "message": html_message,
+                    "sources": self.reference_processor.references_from_nodes(
+                        ranked_nodes, used_refs
+                    ),
+                    "seconds": round(time.time() - start, 1),
+                }
+
+            with ThreadPoolExecutor(len(models)) as pool:
+                responses = list(pool.map(answer, models))
+            yield {"status": "complete", "responses": responses}
+        except Exception as e:
+            logger.error(f"Error in get_arena_response: {str(e)}")
             yield {
                 "status": "error",
                 "message": markdown.markdown(

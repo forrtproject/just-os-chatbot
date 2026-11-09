@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JUST-OS Arena</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+    <script src="{{ url_for('static', filename='js/arena.js') }}"></script>
+</head>
+
+<body>
+    <div id="header-bar">
+        <img src='/images/qualle.png' id="header-logo" alt="JUST-OS">
+    </div>
+    <div id="arena">
+        <p class="arena-intro">Two anonymous models answer your question from the same sources.
+            Vote for the better answer; the model names appear after your vote.</p>
+
+        <div id="arena-question" class="message user-message" hidden></div>
+        <div id="status-message" role="status"></div>
+
+        <div id="arena-answers" hidden>
+            <section class="arena-card" data-label="A">
+                <header><span class="arena-label">Assistant A</span> <span class="arena-model"></span></header>
+                <div class="arena-body bot-message"></div>
+                <div class="sources"></div>
+            </section>
+            <section class="arena-card" data-label="B">
+                <header><span class="arena-label">Assistant B</span> <span class="arena-model"></span></header>
+                <div class="arena-body bot-message"></div>
+                <div class="sources"></div>
+            </section>
+        </div>
+
+        <div id="arena-votes" hidden>
+            <button data-vote="a"><i class="fas fa-arrow-left"></i> A is better</button>
+            <button data-vote="tie"><i class="fas fa-equals"></i> Both are good</button>
+            <button data-vote="bad"><i class="fas fa-ban"></i> Both are bad</button>
+            <button data-vote="b">B is better <i class="fas fa-arrow-right"></i></button>
+        </div>
+
+        <div id="user-input-box">
+            <div id="user-input-container">
+                <label for="user-input" class="visually-hidden">Question</label>
+                <textarea id="user-input" placeholder="Ask anything related to Open Science."></textarea>
+                <div id="button-container">
+                    <button id="send-button" title="Send question"><i class="fas fa-paper-plane"></i></button>
+                    <button id="leaderboard-button" title="Show leaderboard"><i class="fas fa-ranking-star"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <div id="leaderboard" hidden>
+            <h2>Leaderboard</h2>
+            <table>
+                <thead>
+                    <tr><th>Model</th><th>Battles</th><th>Wins</th><th>Losses</th><th>Both good</th><th>Both bad</th><th>Win rate</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <p class="arena-note">Win rate = (wins + ½ × both good) / battles. Few votes give unstable numbers.</p>
+        </div>
+    </div>
+</body>
+
+</html>

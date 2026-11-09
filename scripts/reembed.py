@@ -2,7 +2,7 @@
 
 The chunks and metadata stay the same, so only the embedding model differs.
 
-    python reembed.py data/processed/vs_latest_bge-small-en-v1.5 BAAI/bge-m3
+    python -m scripts.reembed data/processed/vs_latest_bge-small-en-v1.5 BAAI/bge-m3
 """
 
 import sys

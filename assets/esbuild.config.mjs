@@ -12,8 +12,8 @@ if (process.env.NODE_ENV === "production") {
 }
 
 const config = {
-  entryPoints: ["./js/app.js"],
-  outfile: "../public/js/app.js",
+  entryPoints: ["./js/app.js", "./js/arena.js"],
+  outdir: "../public/js",
   bundle: true,
   minify: minify,
   sourcemap: sourcemap,

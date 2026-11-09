@@ -1,0 +1,519 @@
+just_os_id,title,doi,pdf_path,chunks,licence
+,A Manifesto for Rewarding and Recognizing Team Infrastructure Roles,10.36850/mr8,,117,CC BY
+,A Student’s Guide to Open Science: Using the Replication Crisis to Reform Psychology,10.31234/osf.io/2tqep,,98,CC BY-NC-SA
+,A critique of using the labels confirmatory and exploratory in modern psychological research,10.3389/fpsyg.2022.1020770,,147,CC BY
+,A dataset without a code book: ethnography and open science,10.3389/fsoc.2024.1308029,,115,CC BY
+,Can a Good Theory Be Built Using Bad Ingredients?,10.1007/s42113-024-00220-w,,82,CC BY
+,Community consensus on core open science practices to monitor in biomedicine,10.1371/journal.pbio.3001949,,132,CC BY
+,Course on Open Science 101,10.1503/cjs.012621,,391,CC BY
+,"Decisions, Decisions, Decisions: An Ethnographic Study of Researcher Discretion in Practice",10.1007/s11948-024-00481-5,,161,CC BY
+,Developing an open educational resource for open research: Protocol for the PaPOR TRAIL project,10.12688/hrbopenres.13171.1,,86,CC BY
+,Editorial: Open Science and Ethics,10.1007/s10677-019-10053-3,,13,I don't see any of these
+,Game-Based Approaches for Research Skills Training and Researcher Development: A Survey of Attitudes and Acceptance in Higher Education,10.21125/iceri.2024.0429,,76,"Public Domain, CC BY"
+,Grand challenge: social psychology without hubris,10.3389/frsps.2023.1283272,,180,CC BY
+,How UK science is failing Black researchers — in nine stark charts,10.1038/d41586-022-04386-w,,30,CC BY
+,"Improvements since the Replication Crisis: The Structural, Procedural, and Community Changes",10.1038/s44271-023-00003-2,,200,CC BY
+,Knowledge Rights 21,10.25033/sig.116013,,5,I don't see any of these
+,"Moving Toward Transparent, Open, and Reproducible Prevention Science: Introduction to the Special Issue",10.1007/s11121-022-01393-1,,42,I don't see any of these
+,"Multi-Site Replications in Social Psychology: Reflections, Implications, and Future Directions",10.1017/sjp.2023.6,,123,CC BY
+,Open Science education through student participation,10.47205/jdss.2021(2-iv)74,,53,CC BY-NC-SA
+,Plan E for Education: open access to educational materials created in publicly funded universities,10.1629/uksg.607,,63,CC BY
+,Point of View: An annotated introductory reading list for neurodiversity,10.7554/elife.102467,,183,CC BY
+,"Preregistration is not a panacea, but why? A rejoinder to Chen & Li's (2024) “infusing preregistration into tourism research”",10.1017/can.2024.44,,170,CC BY
+,Promoting Civility in Formal And Informal Open Science Contexts,10.31234/osf.io/rfkyu,,195,CC BY
+,Questionable Metascience Practices,10.36850/mr4,,217,CC BY
+,Recommendations for empowering early career researchers to improve research culture and practice,10.1371/journal.pbio.3001680,,126,CC BY
+,"Reflections on Preregistration: Core Criteria, Badges, Complementary Workflows",10.36850/mr6,,115,CC BY
+,"Repetitive research: a conceptual space and terminology of replication, reproduction, revision, reanalysis, reinvestigation and reuse in digital humanities",10.1007/s42803-023-00073-y,,215,CC BY
+,Reputation Without Practice? A Dynamic Computational Model of the Unintended Consequences of Open Scientist Reputations,10.36850/mr10,,131,CC BY
+,Research assessment using a narrow definition of “research quality” is an act of gatekeeping: A comment on Gärtner et al. (2022),10.15626/mp.2023.3764,,57,CC BY
+,Responsible Research Assessment Should Prioritize Theory Development and Testing Over Ticking Open Science Boxes,10.15626/mp.2023.3735,,37,CC BY
+,Responsible assessment of what research? Beware of epistemic diversity!,10.15626/mp.2023.3797,,39,CC BY
+,Revisiting the replication crisis without false positives,10.31235/osf.io/rkyf7,,190,CC BY-NC-ND
+,Statements on Open Science for Sustainable Development Goals,10.5334/dsj-2024-049,,68,CC BY
+,Supporting the next generation of psychologists,10.1038/s44159-023-00274-w,,8,CC BY
+,Taxonomia da Ciência Aberta: revisada e ampliada,10.5007/1518-2924.2023.e91712,,13,CC BY
+,Teaching Replication in Social Sciences,10.31222/osf.io/ejkws,,51,CC BY
+,Teaching the why and how of replication studies,10.1891/1058-1243.22.3.166,,37,Public Domain
+,Ten simple rules for pushing boundaries of inclusion at academic events,10.1371/journal.pcbi.1011797,,152,CC BY
+,Tension Between Theory and Practice of Replication,10.36850/mr9,,85,CC BY
+,The Invisible Workload of Open Research,10.36850/mr5,,198,CC BY
+,The Replication Database: Documenting the Replicability of Psychological Science,10.5334/jopd.101,,242,CC BY
+,The replication crisis is less of a “crisis” in Lakatos’ philosophy of science than it is in Popper’s,10.1007/s13194-024-00629-x,,156,Public Domain
+,Towards a culture of open scholarship: the role of pedagogical communities,10.1186/s13104-022-05944-1,,50,CC BY
+,"What Makes a Good Theory, and How Do We Make a Theory Good?",10.1007/s42113-023-00193-2,,173,CC BY
+,What is the Replication Crisis a Crisis Of?,10.1017/psa.2024.2,,50,CC BY
+0001,A checklist is associated with increased quality of reporting preclinical biomedical research: A systematic review,10.1371/journal.pone.0183591,data/NWO JUST-OS/Content/0001.pdf,102,Creative Commons Attribution 4.0 International
+0002,A consensus-based transparency checklist,10.1038/s41562-019-0772-6,data/NWO JUST-OS/Content/0002.pdf,36,Creative Commons Attribution 4.0 International
+0003,A funder-imposed data publication requirement seldom inspired data sharing,10.1371/journal.pone.0199789,data/NWO JUST-OS/Content/0003.pdf,84,Creative Commons Attribution 4.0 International
+0006,A proposal for the future of scientific publishing in the life sciences,10.1371/journal.pbio.3000116,data/NWO JUST-OS/Content/0006.pdf,67,Creative Commons Attribution 4.0 International
+0007,A reputation economy: how individual reward considerations trump systemic arguments for open access to data,10.1057/palcomms.2017.51,data/NWO JUST-OS/Content/0007.pdf,110,Creative Commons Attribution 4.0 International
+0010,A study of the impact of data sharing on article citations using journal policies as a natural experiment,10.1371/journal.pone.0225883,data/NWO JUST-OS/Content/0010.pdf,83,Creative Commons Attribution 4.0 International
+0011,A test of the diffusion model explanation for the worst performance rule using preregistration and blinding,10.3758/s13414-017-1304-y,data/NWO JUST-OS/Content/0011.pdf,112,cc-by
+0013,An excess of positive results: Comparing the standard Psychology literature with Registered Reports,10.1177/25152459211007467,data/NWO JUST-OS/Content/0013.pdf,160,cc-by
+0015,An open investigation of the reproducibility of cancer biology research,10.7554/elife.04333,data/NWO JUST-OS/Content/0015.pdf,80,cc-by
+0017,An open source pharma roadmap,10.1371/journal.pmed.1002276,data/NWO JUST-OS/Content/0017.pdf,63,Creative Commons Attribution 4.0 International
+0019,Analysis of Open Data and Computational Reproducibility in Registered Reports in Psychology,10.1177/2515245920918872,data/NWO JUST-OS/Content/0019.pdf,72,public-domain
+0022,Are choices based on conditional or conjunctive probabilities in a sequential risk-taking task?,10.1002/bdm.2161,data/NWO JUST-OS/Content/0022.pdf,154,Creative Commons Attribution 4.0 International
+0024,"ARRIVE has not ARRIVEd: Support for the ARRIVE (Animal Research: Reporting of in vivo Experiments) guidelines does not improve the reporting quality of papers in animal welfare, analgesia or anesthesia",10.1371/journal.pone.0197882,data/NWO JUST-OS/Content/0024.pdf,134,Creative Commons Attribution 4.0 International
+0025,Assessing data availability and research reproducibility in hydrology and water resources,10.1038/sdata.2019.30,data/NWO JUST-OS/Content/0025.pdf,79,Creative Commons Attribution 4.0 International
+0026,Association between trial registration and treatment effect estimates: a meta-epidemiological study,10.1186/s12916-016-0639-x,data/NWO JUST-OS/Content/0026.pdf,96,cc-by
+0027,Attitudes towards animal study registries and their characteristics: An online survey of three cohorts of animal researchers,10.1371/journal.pone.0226443,data/NWO JUST-OS/Content/0027.pdf,165,Creative Commons Attribution 4.0 International
+0028,Authorization of Animal Experiments Is Based on Confidence Rather than Evidence of Scientific Rigor,10.1371/journal.pbio.2000598,data/NWO JUST-OS/Content/0028.pdf,183,Creative Commons Attribution 4.0 International
+0031,Badges for sharing data and code at Biostatistics: an observational study,10.12688/f1000research.13477.1,data/NWO JUST-OS/Content/0031.pdf,91,Creative Commons Attribution 4.0 International
+0032,Bayesian inference for psychology. Part II: Example applications with JASP,10.3758/s13423-017-1323-7,data/NWO JUST-OS/Content/0032.pdf,154,cc-by
+0035,Choice of analysis pathway dramatically affects statistical outcomes in breaking continuous flash suppression,10.1038/s41598-017-03396-3,data/NWO JUST-OS/Content/0035.pdf,132,Creative Commons Attribution 4.0 International
+0037,Clinical trial registration and reporting: a survey of academic organizations in the United States,10.1186/s12916-018-1042-6,data/NWO JUST-OS/Content/0037.pdf,114,cc-by
+0038,COMPare: a prospective cohort study correcting and monitoring 58 misreported trials in real time,10.1186/s13063-019-3173-2,data/NWO JUST-OS/Content/0038.pdf,149,cc-by
+0039,Comparison of registered and published outcomes in randomized controlled trials: a systematic review,10.1186/s12916-015-0520-3,data/NWO JUST-OS/Content/0039.pdf,107,cc-by
+0044,Current Incentives for Scientists Lead to Underpowered Studies with Erroneous Conclusions,10.1371/journal.pbio.2000995,data/NWO JUST-OS/Content/0044.pdf,81,Creative Commons Attribution 4.0 International
+0048,"Data availability, reusability, and analytic reproducibility: evaluating the impact of a mandatory open data policy at the journal Cognition",10.1098/rsos.180448,data/NWO JUST-OS/Content/0048.pdf,177,cc-by
+0050,Data Carpentry for Biologists,10.21105/jose.00139,,34,Creative Commons Attribution 4.0 International
+0055,Data Management & Reproducibility,10.1101/644625,,51,cc-by-nc
+0060,Data policies of highly-ranked social science journals,10.31235/osf.io/9h7ay,data/NWO JUST-OS/Content/0060.pdf,3,Creative Commons Attribution 4.0 International
+0061,Data Sharing by Scientists: Practices and Perceptions,10.1371/journal.pone.0021101,data/NWO JUST-OS/Content/0061.pdf,201,Creative Commons Attribution 4.0 International
+0062,Data sharing in PLOS ONE: An analysis of Data Availability Statements,10.1371/journal.pone.0194768,data/NWO JUST-OS/Content/0062.pdf,71,Creative Commons Attribution 4.0 International
+0065,DEBATE-statistical analysis plans for observational studies,10.1186/s12874-019-0879-5,data/NWO JUST-OS/Content/0065.pdf,79,cc-by
+0076,Discrepancies in the Registries of Diet vs Drug Trials,10.1001/jamanetworkopen.2019.15360,data/NWO JUST-OS/Content/0076.pdf,38,Creative Commons Attribution 4.0 International
+0077,Dissemination and publication of research findings: an updated review of related biases,10.3310/hta14080,data/NWO JUST-OS/Content/0077.pdf,1845,Creative Commons Public Domain Dedication
+0078,Does use of the CONSORT Statement impact the completeness of reporting of randomised controlled trials published in medical journals? A Cochrane reviewa,10.1186/2046-4053-1-60,data/NWO JUST-OS/Content/0078.pdf,52,Creative Commons Attribution 4.0 International
+0081,Effect of Population Heterogenization on the Reproducibility of Mouse Behavior: A Multi-Laboratory Study,10.1371/journal.pone.0016461,data/NWO JUST-OS/Content/0081.pdf,225,Creative Commons Attribution 4.0 International
+0083,Embedding open and reproducible science into teaching: A bank of lesson plans and resources,10.1037/stl0000307,data/NWO JUST-OS/Content/0083.pdf,71,cc-by
+0084,Empirical assessment of published effect sizes and power in the recent cognitive neuroscience and psychology literature,10.1371/journal.pbio.2000797,data/NWO JUST-OS/Content/0084.pdf,136,Creative Commons Attribution 4.0 International
+0085,Empirical Study of Data Sharing by Authors Publishing in PLoS Journals,10.1371/journal.pone.0007078,data/NWO JUST-OS/Content/0085.pdf,24,Creative Commons Attribution 4.0 International
+0087,Equivalence Testing for Psychological Research: A Tutorial,10.1177/2515245918770963,data/NWO JUST-OS/Content/0087.pdf,94,cc-by
+0088,"Equivalence Tests: A Practical Primer for t Tests, Correlations, and Meta-Analyses",10.1177/1948550617697177,data/NWO JUST-OS/Content/0088.pdf,81,Creative Commons Attribution 4.0 International
+0089,Estimating the prevalence of transparency and reproducibility-related research practices in psychology (2014-2017),10.31222/osf.io/9sz2y,data/NWO JUST-OS/Content/0089.pdf,138,cc-by
+0090,Evaluating Registered Reports: A Naturalistic Comparative Study of Article Impact,10.31219/osf.io/5y8w7,data/NWO JUST-OS/Content/0090.pdf,93,cc-by
+0091,Evidence of insufficient quality of reporting in patent landscapes in the life sciences,10.1038/nbt.3809,data/NWO JUST-OS/Content/0091.pdf,56,Creative Commons Attribution 4.0 International
+0093,Five selfish reasons to work reproducibly,10.1186/s13059-015-0850-7,data/NWO JUST-OS/Content/0093.pdf,30,cc-by
+0094,Foster Open Science,10.3897/rio.9.e96476,,157,Creative Commons Attribution 4.0 International
+0095,Four simple recommendations to encourage best practices in research software,10.12688/f1000research.11407.1,data/NWO JUST-OS/Content/0095.pdf,92,Creative Commons Attribution 4.0 International
+0097,General Principles of Preclinical Study Design,10.1007/164_2019_277,data/NWO JUST-OS/Content/0097.pdf,77,cc-by
+0101,Good enough practices in scientific computing,10.1371/journal.pcbi.1005510,data/NWO JUST-OS/Content/0101.pdf,102,Creative Commons Attribution 4.0 International
+0104,"How significant are the public dimensions of faculty work in review, promotion and tenure documents?",10.7554/elife.42254,data/NWO JUST-OS/Content/0104.pdf,198,cc-by
+0107,Impact of genetic background and experimental reproducibility on identifying chemical compounds with robust longevity effects,10.1038/ncomms14256,data/NWO JUST-OS/Content/0107.pdf,135,Creative Commons Attribution 4.0 International
+0108,Increasing efficiency of preclinical research by group sequential designs,10.1371/journal.pbio.2001307,data/NWO JUST-OS/Content/0108.pdf,61,Creative Commons Attribution 4.0 International
+0139,Managing a Personal Research Archive,10.5209/rev_cmpl.2013.v24.n2.43371,,45,cc-by-nc
+0140,Mapping the universe of registered reports,10.1038/s41562-018-0444-y,data/NWO JUST-OS/Content/0140.pdf,80,Creative Commons Public Domain Dedication
+0143,Meta-assessment of bias in science,10.1073/pnas.1618569114,data/NWO JUST-OS/Content/0143.pdf,75,cc-by
+0147,No evidence of publication bias in climate change science,10.1007/s10584-016-1880-1,data/NWO JUST-OS/Content/0147.pdf,60,cc-by
+0148,On the reproducibility of science: unique identification of research resources in the biomedical literature,10.7717/peerj.148,data/NWO JUST-OS/Content/0148.pdf,162,Creative Commons Attribution 4.0 International
+0151,Open Access Target Validation Is a More Efficient Way to Accelerate Drug Discovery,10.1371/journal.pbio.1002164,data/NWO JUST-OS/Content/0151.pdf,78,Creative Commons Attribution 4.0 International
+0153,Open Developmental Science: An Overview and Annotated Reading List,10.1002/icd.2334,data/NWO JUST-OS/Content/0153.pdf,125,cc-by
+0156,"Open science challenges, benefits and tips in early career and beyond",10.1371/journal.pbio.3000246,data/NWO JUST-OS/Content/0156.pdf,128,Creative Commons Attribution 4.0 International
+0158,"Open Science is for Aging Research, Too",10.15460/jlar.2024.2.1.1424,data/NWO JUST-OS/Content/0158.pdf,22,cc-by
+0160,Open Science Manual,10.4195/nse2017.06.0013,data/NWO JUST-OS/Content/0160.pdf,87,cc-by-nc
+0174,Outcome reporting bias in randomized-controlled trials investigating antipsychotic drugs,10.1038/tp.2017.203,data/NWO JUST-OS/Content/0174.pdf,66,Creative Commons Attribution 4.0 International
+0175,P values in display items are ubiquitous and almost invariably significant: A survey of top science journals,10.1371/journal.pone.0197440,data/NWO JUST-OS/Content/0175.pdf,134,Creative Commons Attribution 4.0 International
+0176,"Peer Review: Decisions, decisions",10.7554/elife.32011,data/NWO JUST-OS/Content/0176.pdf,61,cc-by
+0178,Poor replication validity of biomedical association studies reported by newspapers,10.1371/journal.pone.0172650,data/NWO JUST-OS/Content/0178.pdf,90,Creative Commons Attribution 4.0 International
+0179,"Poor statistical reporting, inadequate data presentation and spin persist despite editorial advice",10.1371/journal.pone.0202121,data/NWO JUST-OS/Content/0179.pdf,73,Creative Commons Attribution 4.0 International
+0180,Practical Considerations for Navigating Registered Reports,10.1016/j.tins.2019.07.003,data/NWO JUST-OS/Content/0180.pdf,48,cc-by
+0182,Pre-analysis Plans: A Stocktaking,10.31222/osf.io/e4pum,data/NWO JUST-OS/Content/0182.pdf,163,Creative Commons Public Domain Dedication
+0196,Public Availability of Published Research Data in High-Impact Journals,10.1371/journal.pone.0024357,data/NWO JUST-OS/Content/0196.pdf,31,Creative Commons Attribution 4.0 International
+0197,Public Data Archiving in Ecology and Evolution: How Well Are We Doing?,10.1371/journal.pbio.1002295,data/NWO JUST-OS/Content/0197.pdf,108,Creative Commons Attribution 4.0 International
+0200,Qualitative Research Using Open Tools,10.1503/cjs.016712,,752,cc-by
+0202,Questionable research practices among Italian research psychologists,10.1371/journal.pone.0172792,data/NWO JUST-OS/Content/0202.pdf,118,Creative Commons Attribution 4.0 International
+0203,Questionable research practices in ecology and evolution,10.1371/journal.pone.0200303,data/NWO JUST-OS/Content/0203.pdf,101,Creative Commons Attribution 4.0 International
+0207,Raiders of the lost HARK: a reproducible inference framework for big data science,10.1057/s41599-019-0340-8,data/NWO JUST-OS/Content/0207.pdf,145,Creative Commons Attribution 4.0 International
+0208,Rate and success of study replication in ecology and evolution,10.7717/peerj.7654,data/NWO JUST-OS/Content/0208.pdf,89,Creative Commons Attribution 4.0 International
+0213,Registered reports: an early example and analysis,10.7717/peerj.6232,data/NWO JUST-OS/Content/0213.pdf,82,cc-by
+0214,Releasing a preprint is associated with more attention and citations for the peer-reviewed article,10.1101/699652,data/NWO JUST-OS/Content/0214.pdf,92,Creative Commons Attribution 4.0 International
+0217,Reporting in Experimental Philosophy: Current Standards and Recommendations for Future Practice,10.1007/s13164-018-0414-3,data/NWO JUST-OS/Content/0217.pdf,153,cc-by
+0218,Reproducibility for Everyone,10.31219/osf.io/dxw67,,76,cc-by
+0220,Reproducibility in Cancer Biology: The challenges of replication,10.7554/elife.23693,data/NWO JUST-OS/Content/0220.pdf,23,cc-by
+0222,"Reproducibility, Preservation, and Access to Research with ReproZip and ReproServer",10.29173/iq969,,67,cc-by-sa
+0223,Reproducible and reusable research: are journal data sharing policies meeting the mark?,10.7287/peerj.preprints.2588,data/NWO JUST-OS/Content/0223.pdf,116,Creative Commons Attribution 4.0 International
+0224,Reproducible and transparent research practices in published neurology research,10.1186/s41073-020-0091-5,data/NWO JUST-OS/Content/0224.pdf,80,cc-by
+0227,"Reproducible research practices, transparency, and open access data in the biomedical literature, 2015–2017",10.1371/journal.pbio.2006930,data/NWO JUST-OS/Content/0227.pdf,167,Creative Commons Attribution 4.0 International
+0235,Research practices and statistical reporting quality in 250 economic psychology master's theses: a meta-research investigation,10.1098/rsos.190738,data/NWO JUST-OS/Content/0235.pdf,164,cc-by
+0238,Resolving the Tension Between Exploration and Confirmation in Preclinical Biomedical Research,10.1007/164_2019_278,data/NWO JUST-OS/Content/0238.pdf,45,cc-by
+0242,Risk of Bias in Reports of In Vivo Research: A Focus for Improvement,10.1371/journal.pbio.1002273,data/NWO JUST-OS/Content/0242.pdf,82,Creative Commons Attribution 4.0 International
+0244,Scientific Utopia II. Restructuring incentives and practices to promote truth over publishability.,10.1177/1745691612459058,data/NWO JUST-OS/Content/0244.pdf,221,I don't see any of these
+0246,Sharing Detailed Research Data Is Associated with Increased Citation Rate,10.1371/journal.pone.0000308,data/NWO JUST-OS/Content/0246.pdf,50,Creative Commons Attribution 4.0 International
+0247,Signaling the trustworthiness of science,10.1073/pnas.1913039116,data/NWO JUST-OS/Content/0247.pdf,46,cc-by
+0258,Systematic Review of the Empirical Evidence of Study Publication Bias and Outcome Reporting Bias — An Updated Review,10.1371/journal.pone.0066844,data/NWO JUST-OS/Content/0258.pdf,157,Creative Commons Attribution 4.0 International
+0260,Ten Simple Rules for Reproducible Computational Research,10.1371/journal.pcbi.1003285,data/NWO JUST-OS/Content/0260.pdf,36,Creative Commons Attribution 4.0 International
+0261,The citation advantage of linking publications to research data,10.1371/journal.pone.0230416,data/NWO JUST-OS/Content/0261.pdf,142,Creative Commons Attribution 4.0 International
+0262,The cumulative effect of reporting and citation biases on the apparent efficacy of treatments: the case of depression,10.1017/s0033291718001873,data/NWO JUST-OS/Content/0262.pdf,26,Creative Commons Attribution 4.0 International
+0263,The earth is flat (p > 0.05): significance thresholds and the crisis of unreplicable research,10.7287/peerj.preprints.2921,data/NWO JUST-OS/Content/0263.pdf,350,Creative Commons Attribution 4.0 International
+0264,The Economics of Reproducibility in Preclinical Research,10.1371/journal.pbio.1002165,data/NWO JUST-OS/Content/0264.pdf,57,Creative Commons Attribution 4.0 International
+0265,The effect of publishing peer review reports on referee behavior in five scholarly journals,10.1038/s41467-018-08250-2,data/NWO JUST-OS/Content/0265.pdf,80,Creative Commons Attribution 4.0 International
+0266,The influence of journal submission guidelines on authors' reporting of statistics and use of open research practices,10.1371/journal.pone.0175583,data/NWO JUST-OS/Content/0266.pdf,103,Creative Commons Attribution 4.0 International
+0269,"The Post-Embargo Open Access Citation Advantage: It Exists (Probably), It’s Modest (Usually), and the Rich Get Richer (of Course)",10.1371/journal.pone.0159614,data/NWO JUST-OS/Content/0269.pdf,56,Creative Commons Attribution 4.0 International
+0271,The psychology of experimental psychologists: Overcoming cognitive constraints to improve research: The 47th Sir Frederic Bartlett Lecture:,10.1177/1747021819886519,data/NWO JUST-OS/Content/0271.pdf,187,Creative Commons Attribution 4.0 International
+0273,"The Role Of Replication Research In Advancing Gerontological Science: Trajectories, Transitions, And Typologies",10.1093/geroni/igy023.2906,data/NWO JUST-OS/Content/0273.pdf,20,public-domain
+0276,The Weak Spots in Contemporary Science (and How to Fix Them),10.3390/ani7120090,data/NWO JUST-OS/Content/0276.pdf,198,Creative Commons Attribution 4.0 International
+0280,Toward Reproducible Computational Research: An Empirical Analysis of Data and Code Policy Adoption by Journals,10.1371/journal.pone.0067111,data/NWO JUST-OS/Content/0280.pdf,71,Creative Commons Attribution 4.0 International
+0283,Transparency of CHI Research Artifacts: Results of a Self-Reported Survey,10.1145/3313831.3376448,data/NWO JUST-OS/Content/0283.pdf,126,cc-by
+0284,"Transparent, Reproducible, and Open Science Practices of Published Literature in Dermatology Journals: Cross-Sectional Analysis",10.2196/16078,data/NWO JUST-OS/Content/0284.pdf,122,Creative Commons Attribution 4.0 International
+0285,Two Years Later: Journals Are Not Yet Enforcing the ARRIVE Guidelines on Reporting Standards for Pre-Clinical Animal Studies,10.1371/journal.pbio.1001756,data/NWO JUST-OS/Content/0285.pdf,57,Creative Commons Attribution 4.0 International
+0286,UKRN,10.31219/osf.io/m4zyh,,10,cc-by
+0287,UKRN Open Research Primers,10.31219/osf.io/au48t,,21,cc-by
+0288,Update on the endorsement of CONSORT by high impact factor journals: a survey of journal “Instructions to Authors” in 2014,10.1186/s13063-016-1408-z,data/NWO JUST-OS/Content/0288.pdf,103,cc-by
+0289,"Use of the Journal Impact Factor in academic review, promotion, and tenure evaluations",10.7287/peerj.preprints.27638,data/NWO JUST-OS/Content/0289.pdf,105,Creative Commons Attribution 4.0 International
+0290,What incentives increase data sharing in health and medical research? A systematic review,10.1186/s41073-017-0028-9,data/NWO JUST-OS/Content/0290.pdf,113,cc-by
+0294,Wide-Open: Accelerating public data release by automating detection of overdue datasets,10.1371/journal.pbio.2002477,data/NWO JUST-OS/Content/0294.pdf,26,Creative Commons Attribution 4.0 International
+0307,"Good Science, Bad Science",10.1016/s0262-4079(20)30874-5,,6,I don't see any of these
+0338,GLIMMPSE,10.1371/journal.pone.0102082,,107,I don't see any of these
+0347,CREP project,10.7557/5.4528,,15,I don't see any of these
+0390,Stereotype threat,10.35534/pc.0107029,,137,I don't see any of these
+0395,Everything Hertz,10.3389/fphys.2014.00177,,171,I don't see any of these
+0415,Giving Community Psychology Away: A case for open access publishing,10.17161/gjcpp.v10i3.20693,data/NWO JUST-OS/Content/0415.pdf,84,I don't see any of these
+0416,Which is the correct statistical test to use?,10.1053/j.ackd.2012.01.004,data/NWO JUST-OS/Content/0416.pdf,23,I don't see any of these
+0418,The preregistration revolution,10.1073/pnas.1708274114,data/NWO JUST-OS/Content/0418.pdf,82,I don't see any of these
+0419,Teaching replication,10.1177/1745691612460686,data/NWO JUST-OS/Content/0419.pdf,41,I don't see any of these
+0431,Intro to the special issue,10.1080/03640210802473582,data/NWO JUST-OS/Content/0431.pdf,10,I don't see any of these
+0436,The (mis)reporting of statistical results in psychology journals,10.3758/s13428-011-0089-5,data/NWO JUST-OS/Content/0436.pdf,119,I don't see any of these
+0437,Willingness to share research data is related to the strength of the evidence and the quality of reporting of statistical results,10.1371/journal.pone.0026828,data/NWO JUST-OS/Content/0437.pdf,84,I don't see any of these
+0438,Statistical Reporting Errors and Collaboration on Statistical Analyses in Psychological Science,10.1371/journal.pone.0114876,data/NWO JUST-OS/Content/0438.pdf,95,I don't see any of these
+0440,Response to Comment on “Estimating the reproducibility of psychological science”,10.1126/science.aad9163,data/NWO JUST-OS/Content/0440.pdf,25,I don't see any of these
+0443,"Randomization Does Not Help Much, Comparability Does",10.1371/journal.pone.0132102,data/NWO JUST-OS/Content/0443.pdf,161,I don't see any of these
+0446,A Unified Framework to Quantify the Credibility of Scientific Findings,10.1177/2515245918787489,data/NWO JUST-OS/Content/0446.pdf,99,I don't see any of these
+0447,Investigating Variation in Replicability: A “Many Labs” Replication Project,10.31234/osf.io/ux8ef,data/NWO JUST-OS/Content/0447.pdf,137,I don't see any of these
+0450,"The ASA Statement on p-Values: Context, Process, and Purpose",10.1080/00031305.2016.1154108,data/NWO JUST-OS/Content/0450.pdf,51,I don't see any of these
+0454,Abandon statistical significance. ,10.1080/00031305.2018.1527253,data/NWO JUST-OS/Content/0454.pdf,136,I don't see any of these
+0457,"Evolution of Reporting P Values in the Biomedical Literature, 1990-2015",10.1001/jama.2016.1952,data/NWO JUST-OS/Content/0457.pdf,91,I don't see any of these
+0465,"Adjusting for Publication Bias in MetaAnalysis. Perspectives on Psychological Science, 11(5), 730–749. ",10.1177/1745691616662243,data/NWO JUST-OS/Content/0465.pdf,158,I don't see any of these
+0468,Publication bias and the canonization of false facts. ,10.7554/elife.21451,data/NWO JUST-OS/Content/0468.pdf,145,I don't see any of these
+0469,Meta-analyses are no substitute for registered replications: a skeptical perspective on religious priming,10.3389/fpsyg.2015.01365,data/NWO JUST-OS/Content/0469.pdf,74,I don't see any of these
+0470,Publication Bias in Psychology: A Diagnosis Based on the Correlation between Effect Size and Sample Size,10.1371/journal.pone.0105825,data/NWO JUST-OS/Content/0470.pdf,73,I don't see any of these
+0473,"Scientists’ Reputations Are Based on Getting It Right, Not Being Right",10.1371/journal.pbio.1002460,data/NWO JUST-OS/Content/0473.pdf,45,I don't see any of these
+0475,The prevalence of statistical reporting errors in psychology (1985–2013),10.3758/s13428-015-0664-2,data/NWO JUST-OS/Content/0475.pdf,160,I don't see any of these
+0476,The GRIM Test: A Simple Technique Detects Numerous Anomalies in the Reporting of Results in Psychology,10.1177/1948550616673876,data/NWO JUST-OS/Content/0476.pdf,60,I don't see any of these
+0477,"Degrees of Freedom in Planning, Running, Analyzing, and Reporting Psychological Studies: A Checklist to Avoid p-Hacking",10.3389/fpsyg.2016.01832,data/NWO JUST-OS/Content/0477.pdf,153,I don't see any of these
+0487,Why most published research findings are false,10.1371/journal.pmed.0020124,data/NWO JUST-OS/Content/0487.pdf,60,I don't see any of these
+0492,Increasing transparency through a multiverse analysis.,10.1177/1745691616658637,data/NWO JUST-OS/Content/0492.pdf,73,I don't see any of these
+0493,A 21 word solution.,10.2139/ssrn.2160588,data/NWO JUST-OS/Content/0493.pdf,12,I don't see any of these
+0494,Psychology's Replication Crisis and the Grant Culture: Righting the Ship,10.1177/1745691616687745,data/NWO JUST-OS/Content/0494.pdf,42,I don't see any of these
+0497,"Let’s Put Our Money Where Our Mouth Is: If Authors Are to Change Their Ways, Reviewers (and Editors) Must Change With Them",10.1177/1745691614528215,data/NWO JUST-OS/Content/0497.pdf,74,I don't see any of these
+0498,Sailing From the Seas of Chaos Into the Corridor of Stability: Practical Recommendations to Increase the Informational Value of Studies,10.1177/1745691614528520,data/NWO JUST-OS/Content/0498.pdf,133,I don't see any of these
+0499,How to Make More Published Research True,10.1371/journal.pmed.1001747,data/NWO JUST-OS/Content/0499.pdf,60,I don't see any of these
+0502,Academic Research in the 21st Century: Maintaining Scientific Integrity in a Climate of Perverse Incentives and Hypercompetition,10.1089/ees.2016.0223,data/NWO JUST-OS/Content/0502.pdf,139,I don't see any of these
+0503,"Open sharing of data on close relationships and other sensitive social psychological topics: Challenges, tools, and future directions",10.1177/2515245917744281,data/NWO JUST-OS/Content/0503.pdf,71,I don't see any of these
+0505,On the reproducibility of psychological science,10.1080/01621459.2016.1240079,data/NWO JUST-OS/Content/0505.pdf,104,I don't see any of these
+0510,Is there a credibility crisis in strategic management research? Evidence on the reproducibility of study findings,10.1177/1476127017701076,data/NWO JUST-OS/Content/0510.pdf,82,I don't see any of these
+0513,"Experiments with More Than One Random Factor: Designs, Analytic Models, and Statistical Power.",10.1146/annurev-psych-122414-033702,data/NWO JUST-OS/Content/0513.pdf,271,I don't see any of these
+0519,Effect Size Estimation in Neuroimaging. ,10.1001/jamapsychiatry.2016.3356,data/NWO JUST-OS/Content/0519.pdf,14,I don't see any of these
+0522,Problems in using p-curve analysis and text-mining to detect rate of p-hacking.,10.7287/peerj.preprints.1266v3,data/NWO JUST-OS/Content/0522.pdf,102,I don't see any of these
+0524,The poor availability of syntaxes of structural equation modeling,10.1080/08989621.2017.1396214,data/NWO JUST-OS/Content/0524.pdf,76,I don't see any of these
+0527,Point of View: How open science helps researchers succeed,10.7554/elife.16800,data/NWO JUST-OS/Content/0527.pdf,216,I don't see any of these
+0528,Ten Simple Rules for the Care and Feeding of Scientific Data,10.1371/journal.pcbi.1003542,data/NWO JUST-OS/Content/0528.pdf,52,I don't see any of these
+0533,Practical Solutions for Sharing Data and Materials From Psychological Research,10.1177/2515245917746500,data/NWO JUST-OS/Content/0533.pdf,78,I don't see any of these
+0535,On the reproducibility of meta-analyses: six practical recommendations,10.1186/s40359-016-0126-3,data/NWO JUST-OS/Content/0535.pdf,100,I don't see any of these
+0539,The rules of the game called psychological science,10.1177/1745691612459060,data/NWO JUST-OS/Content/0539.pdf,80,I don't see any of these
+0542,Replications in Psychology Research: How Often Do They Really Occur?,10.1177/1745691612460688,data/NWO JUST-OS/Content/0542.pdf,49,I don't see any of these
+0545,On the challenges of drawing conclusions from p-values just below 0.05,10.7717/peerj.1142,data/NWO JUST-OS/Content/0545.pdf,114,I don't see any of these
+0546,"The Baby Factory: Difficult Research Objects, Disciplinary Standards, and the Production of Statistical Significance",10.1177/2378023115625071,data/NWO JUST-OS/Content/0546.pdf,90,CC BY-NC
+0549,A Bayesian Perspective on the Reproducibility Project: Psychology,10.1371/journal.pone.0149794,data/NWO JUST-OS/Content/0549.pdf,84,I don't see any of these
+0550,A Reliability-Generalization Study of Journal Peer Reviews: A Multilevel Meta-Analysis of Inter-Rater Reliability and Its Determinants,10.1371/journal.pone.0014331,data/NWO JUST-OS/Content/0550.pdf,126,I don't see any of these
+0554,Internal conceptual replications do not increase independent replication success,10.3758/s13423-016-1030-9,data/NWO JUST-OS/Content/0554.pdf,77,I don't see any of these
+0555,The Reputational Consequences of Failed Replications and Wrongness Admission among Scientists,10.1371/journal.pone.0143723,data/NWO JUST-OS/Content/0555.pdf,86,I don't see any of these
+0556,The Replication Recipe: What makes for a convincing replication? ,10.1016/j.jesp.2013.10.005,data/NWO JUST-OS/Content/0556.pdf,108,I don't see any of these
+0559,Reporting Effect Sizes in Original Psychological Research: A Discussion and Tutorial,10.1037/met0000126,data/NWO JUST-OS/Content/0559.pdf,242,I don't see any of these
+0561,Justify your alpha,10.1038/s41562-018-0311-x,,64,I don't see any of these
+0562,Enabling Open-Science Initiatives in Clinical Psychology and Psychiatry Without Sacrificing Patients’ Privacy: Current Practices and Future Challenges,10.1177/2515245917749652,data/NWO JUST-OS/Content/0562.pdf,94,I don't see any of these
+0565,"Statistical tests, p values, confidence intervals, and power: a guide to misinterpretations. ",10.1007/s10654-016-0149-3,data/NWO JUST-OS/Content/0565.pdf,140,I don't see any of these
+0566,Using OSF to Share Data: A Step-by-Step Guide,10.1177/2515245918757689,data/NWO JUST-OS/Content/0566.pdf,28,I don't see any of these
+0570,The natural selection of bad science.,10.1098/rsos.160384,data/NWO JUST-OS/Content/0570.pdf,172,I don't see any of these
+0572,Negativity towards negative results: a discussion of the disconnect between scientific worth and scientific culture.,10.1242/dmm.015123,data/NWO JUST-OS/Content/0572.pdf,35,I don't see any of these
+0575,Data: Sharing Is Caring,10.1177/2515245918758319,data/NWO JUST-OS/Content/0575.pdf,71,I don't see any of these
+0581,The Extent and Consequences of P-Hacking in Science,10.1371/journal.pbio.1002106,data/NWO JUST-OS/Content/0581.pdf,105,I don't see any of these
+0582,On the plurality of (methodological) worlds: estimating the analytic flexibility of fMRI experiments,10.3389/fnins.2012.00149,data/NWO JUST-OS/Content/0582.pdf,115,I don't see any of these
+0583,Power-up: A reanalysis of ‘power failure’ in neuroscience using mixture modeling.,10.1523/jneurosci.3592-16.2017,data/NWO JUST-OS/Content/0583.pdf,153,I don't see any of these
+0585,The N-Pact Factor: Evaluating the Quality of Empirical Journals with Respect to Sample Size and Statistical Power,10.1371/journal.pone.0109019,data/NWO JUST-OS/Content/0585.pdf,138,I don't see any of these
+0591,Crowdsourced research: Many hands make tight work,10.1038/526189a,data/NWO JUST-OS/Content/0591.pdf,23,I don't see any of these
+0592,The pipeline project: Pre-publication independent replications of a single laboratory's research pipeline,10.1016/j.jesp.2015.10.001,data/NWO JUST-OS/Content/0592.pdf,252,I don't see any of these
+0593,A manifesto for reproducible science,10.1038/s41562-016-0021,,106,I don't see any of these
+0596,Tracking replicability as a method of post-publication open evaluation,10.3389/fncom.2012.00008,data/NWO JUST-OS/Content/0596.pdf,136,I don't see any of these
+0597,Too true to be bad: When sets of studies with significant and nonsignificant findings are probably true,10.1177/1948550617693058,data/NWO JUST-OS/Content/0597.pdf,73,I don't see any of these
+0599,Inappropriate fiddling with statistical analyses to obtain a desirable p-value: tests to detect its presence in published literature. ,10.1371/journal.pone.0046363,data/NWO JUST-OS/Content/0599.pdf,86,I don't see any of these
+0603,Using science and psychology to improve the dissemination and evaluation of scientific work,10.3389/fncom.2014.00082,data/NWO JUST-OS/Content/0603.pdf,79,I don't see any of these
+0606,Registered reports: A method to increase the credibility of published results,10.1027/1864-9335/a000192,data/NWO JUST-OS/Content/0606.pdf,47,I don't see any of these
+0607,Raise standards for preclinical cancer research,10.1038/483531a,data/NWO JUST-OS/Content/0607.pdf,24,I don't see any of these
+0608,Detecting and avoiding likely false-positive findings: A practical guide,10.1111/brv.12315,data/NWO JUST-OS/Content/0608.pdf,273,I don't see any of these
+0611,Safeguard Power as a Protection Against Imprecise Power Estimates,10.1177/1745691614528519,data/NWO JUST-OS/Content/0611.pdf,103,I don't see any of these
+0613,Calculating and reporting effect sizes to facilitate cumulative science: a practical primer for t-tests and ANOVAs,10.3389/fpsyg.2013.00863,data/NWO JUST-OS/Content/0613.pdf,146,I don't see any of these
+0618,When power analyses based on pilot data are biased: Inaccurate effect size estimators and follow-up bias,10.1016/j.jesp.2017.09.004,data/NWO JUST-OS/Content/0618.pdf,134,I don't see any of these
+0619,Are We Wasting a Good Crisis? The Availability of Psychological Research Data after the Storm,10.1525/collabra.13,data/NWO JUST-OS/Content/0619.pdf,49,I don't see any of these
+0620,"The what, why, and how of born-open data",10.3758/s13428-015-0630-z,data/NWO JUST-OS/Content/0620.pdf,62,I don't see any of these
+0621,Data reuse and the open data citation advantage,10.7717/peerj.175,data/NWO JUST-OS/Content/0621.pdf,110,CC BY
+0623,A Software Tool for Removing Patient Identifying Information from Clinical Documents,10.1197/jamia.m2702,data/NWO JUST-OS/Content/0623.pdf,84,I don't see any of these
+0626,‘‘Positive’’ Results Increase Down the Hierarchy of the Sciences,10.1371/journal.pone.0010068,data/NWO JUST-OS/Content/0626.pdf,101,I don't see any of these
+0627,Effect of open peer review on quality of reviews and on reviewers'recommendations: a randomised trial,10.1136/bmj.318.7175.23,data/NWO JUST-OS/Content/0627.pdf,57,I don't see any of these
+0631,"Replication, Communication, and the Population Dynamics of Scientific Discovery",10.1371/journal.pone.0136088,data/NWO JUST-OS/Content/0631.pdf,96,I don't see any of these
+0632,"Badges to Acknowledge Open Practices: A Simple, Low-Cost, Effective Method for Increasing Transparency",10.1371/journal.pbio.1002456,data/NWO JUST-OS/Content/0632.pdf,81,I don't see any of these
+0633,Likelihood of Null Effects of Large NHLBI Clinical Trials Has Increased over Time,10.1371/journal.pone.0132382,data/NWO JUST-OS/Content/0633.pdf,126,I don't see any of these
+0636,Is the call to abandon p-values the red herring of the replicability crisis? ,10.3389/fpsyg.2015.00245,data/NWO JUST-OS/Content/0636.pdf,60,I don't see any of these
+0637,Conservative tests under satisficing models of publication bias.,10.1371/journal.pone.0149590,data/NWO JUST-OS/Content/0637.pdf,82,I don't see any of these
+0649,"Better P-curves: Making P-curve Analysis More Robust to Errors, Fraud, and Ambitious P-hacking, a Reply to Ulrich and Miller (2015)",10.1037/xge0000104,,99,I don't see any of these
+0653,The relation between statistical power and inference in fMRI.,10.1371/journal.pone.0184923,data/NWO JUST-OS/Content/0653.pdf,163,I don't see any of these
+0659,Optimizing Research Payoff,10.1177/1745691616649170,data/NWO JUST-OS/Content/0659.pdf,195,I don't see any of these
+0660,Ten Simple Rules for Effective Statistical Practice,10.1371/journal.pcbi.1004961,data/NWO JUST-OS/Content/0660.pdf,46,I don't see any of these
+0662,Data Sharing in Psychology: A Survey on Barriers and Preconditions,10.1177/2515245917751886,data/NWO JUST-OS/Content/0662.pdf,119,I don't see any of these
+0663,Prediction Interval: What to Expect When You’re Expecting … A Replication,10.1371/journal.pone.0162874,data/NWO JUST-OS/Content/0663.pdf,288,I don't see any of these
+0665,Privacy and Data-Based Research,10.1257/jep.28.2.75,data/NWO JUST-OS/Content/0665.pdf,211,I don't see any of these
+0666,The Peer Reviewers’ Openness Initiative: incentivizing open research practices through peer review. ,10.1098/rsos.150547,data/NWO JUST-OS/Content/0666.pdf,63,I don't see any of these
+0668,Researchers’ Intuitions About Power in Psychological Research,10.1177/0956797616647519,data/NWO JUST-OS/Content/0668.pdf,75,I don't see any of these
+0669,Using prediction markets to estimate the reproducibility of scientific research,10.1073/pnas.1516179112,data/NWO JUST-OS/Content/0669.pdf,69,I don't see any of these
+0678,Excess Success for Psychology Articles in the Journal Science,10.1371/journal.pone.0114255,data/NWO JUST-OS/Content/0678.pdf,81,I don't see any of these
+0683,Open Science in Sport and Exercise Psychology: Review of Current Approaches and Considerations for Qualitative Inquiry,10.1016/j.psychsport.2017.12.010,data/NWO JUST-OS/Content/0683.pdf,193,I don't see any of these
+0685,"Open Science: What, Why, and How",10.5860/crln.84.10.377,data/NWO JUST-OS/Content/0685.pdf,289,I don't see any of these
+0686,"Registered Replication Report: Rand, Greene, and Nowak (2012). ",10.1177/1745691617693624,data/NWO JUST-OS/Content/0686.pdf,179,I don't see any of these
+0687,A multilab preregistered replication of the ego-depletion effect.,10.1177/1745691616652873,data/NWO JUST-OS/Content/0687.pdf,241,I don't see any of these
+0691,The Null Ritual What You Always Wanted to Know About Significance Testing but Were Afraid to Ask,10.4135/9781412986311.n21,data/NWO JUST-OS/Content/0691.pdf,153,I don't see any of these
+0692,Continuously Cumulating Meta-Analysis and Replicability,10.1177/1745691614529796,data/NWO JUST-OS/Content/0692.pdf,93,I don't see any of these
+0694,RIPOSTE: A Framework for Improving the Design and Analysis of Laboratory-Based Research,10.7554/elife.05519,data/NWO JUST-OS/Content/0694.pdf,213,I don't see any of these
+0699,"Transparent science: A more credible, reproducible, and publishable way to do science",10.31234/osf.io/7wkdn,data/NWO JUST-OS/Content/0699.pdf,76,I don't see any of these
+0701,Quality Uncertainty Erodes Trust in Science,10.1525/collabra.74,data/NWO JUST-OS/Content/0701.pdf,49,I don't see any of these
+0703,Registered replication report: Schooler and engstler-schooler (1990). ,10.1177/1745691614545653,data/NWO JUST-OS/Content/0703.pdf,225,I don't see any of these
+0704,Registered replication report: Hart & Albarracín (2011).,10.1177/1745691615605826,data/NWO JUST-OS/Content/0704.pdf,132,I don't see any of these
+0712,Is There a Free Lunch in Inference?,10.1111/tops.12214,data/NWO JUST-OS/Content/0712.pdf,146,I don't see any of these
+0714,The Replication Crisis in Psychology,10.1146/annurev-clinpsy-050718-095710,,176,CC BY-NC-SA
+0724,Novel methods to deal with publication biases: secondary analysis of antidepressant trials in the FDA trial registry database and related journal publications.,10.1136/bmj.b2981,,69,I don't see any of these
+0727,"Registered Replication Report: Strack, Martin, & Stepper (1988)",10.1177/1745691616674458,data/NWO JUST-OS/Content/0727.pdf,91,I don't see any of these
+0728,The effect of horizontal eye movements on free recall: A preregistered adversarial collaboration.,10.1037/xge0000038,data/NWO JUST-OS/Content/0728.pdf,182,I don't see any of these
+0730,Publication bias and the limited strength model of self-control: has the evidence for ego depletion been overestimated?,10.3389/fpsyg.2014.00823,data/NWO JUST-OS/Content/0730.pdf,173,I don't see any of these
+0733,Making Prospective Registration of Observational Research a Reality,10.1126/scitranslmed.3007513,data/NWO JUST-OS/Content/0733.pdf,50,I don't see any of these
+0736,"Registered Replication Report: Study 1 From Finkel, Rusbult, Kumashiro, & Hannon (2002).",10.1177/1745691616664694,data/NWO JUST-OS/Content/0736.pdf,122,I don't see any of these
+0740,Data Management and Data Sharing in Psychological Science: Revision of the DGPs Recommendations,10.31234/osf.io/24ncs,data/NWO JUST-OS/Content/0740.pdf,110,CC BY
+0743,"Open Research: Examples of good practice, and resources across disciplines",10.31219/osf.io/3r8hb,,320,I don't see any of these
+0749,Preregistration for Quantitative Research in Psychology Template,10.1037/0000409-043,,116,I don't see any of these
+0750,Credibility of preprints: an interdisciplinary survey of researchers,10.1098/rsos.201520,data/NWO JUST-OS/Content/0750.pdf,147,I don't see any of these
+0754,Open science saves lives: lessons from the COVID-19 pandemic,10.1186/s12874-021-01304-y,,223,CC BY
+0757,Towards inclusive funding practices for early career researchers,10.31219/osf.io/9sfm8,data/NWO JUST-OS/Content/0757.pdf,199,I don't see any of these
+0770,All the Weight of Our Dreams On Living Racialized Autism,10.15353/cjds.v9i3.652,,14,I don't see any of these
+0773,Autistic community and the Neurodiversity movement: Stories from the Frontline,10.15804/kie.2021.04.17,data/NWO JUST-OS/Content/0773.pdf,37,I don't see any of these
+0789,Open Science and Methodological Improvements,10.4102/sajip.v45i0.1607,,111,I don't see any of these
+0793,Open and Reproducible Research in Psychology,10.1002/icd.2333,,134,I don't see any of these
+0795,Capstone: Advanced General,10.1037/e405452004-001,,174,I don't see any of these
+0802,Quantitative Emerging Practices and Methods in Psychology,10.1503/cjs.014121,,303,I don't see any of these
+0805,Open Science & Inclusive Psychology,10.1177/17456916211036654,,247,I don't see any of these
+0828,Changing the Culture of Peer Review for a More Inclusive and Equitable Psychological Science,10.31234/osf.io/435xz,data/NWO JUST-OS/Content/0828.pdf,242,CC BY
+0830,Teaching Replication to Graduate Students,10.1177/0092055x19867996,data/NWO JUST-OS/Content/0830.pdf,73,Public Domain
+0833,7 Easy Steps to Open Science: An Annotated Reading List,10.31234/osf.io/cfzyx,data/NWO JUST-OS/Content/0833.pdf,104,cc-by
+0836,Towards reproducible radiomics research: introduction of a database for radiomics studies,10.1007/s00330-023-10095-3,data/NWO JUST-OS/Content/0836.pdf,76,CC BY
+0837,Policy recommendations to ensure that research software is openly accessible and reusable,10.1371/journal.pbio.3002204,data/NWO JUST-OS/Content/0837.pdf,34,CC BY
+0839,Adopting Open Educational Resources as an Equity Strategy,10.1097/01.nep.0000000000001170,data/NWO JUST-OS/Content/0839.pdf,20,CC BY-NC-ND
+0842,The trustworthiness of the cumulative knowledge in industrial/organizational psychology: The current state of affairs and a path forward,10.1016/j.actpsy.2023.104005,data/NWO JUST-OS/Content/0842.pdf,331,CC BY
+0843,Analytical code sharing practices in biomedical research,10.1101/2023.07.31.551384,data/NWO JUST-OS/Content/0843.pdf,79,CC BY-NC
+0844,Disclosing and Managing Non-Financial Conflicts of Interest in Scientific Publications,10.1177/17470161221148387,data/NWO JUST-OS/Content/0844.pdf,96,I don't see any of these
+0845,The transparency of quantitative empirical legal research published in highly ranked law journals (2018–2020): an observational study,10.12688/f1000research.127563.1,data/NWO JUST-OS/Content/0845.pdf,245,CC BY
+0846,Medical Product Industry Ties to Patient Advocacy Organizations’ Executive Leadership,10.1001/jamainternmed.2023.2842,data/NWO JUST-OS/Content/0846.pdf,44,I don't see any of these
+0850,"A primer for choosing, designing and evaluating registered reports for qualitative methods",10.12688/openreseurope.15532.1,data/NWO JUST-OS/Content/0850.pdf,73,CC BY
+0851,Open Science Training in TRIPLE,10.12688/openreseurope.15430.1,data/NWO JUST-OS/Content/0851.pdf,113,CC BY
+0852,Positionality Statements are just the tip of the Iceberg: Moving toward a Reflexive Process,10.1615/jwomenminorscieneng.2022044277,data/NWO JUST-OS/Content/0852.pdf,11,I don't see any of these
+0853,ePlatypus: an ecosystem for computational analysis of immunogenomics data,10.1093/bioinformatics/btad553,data/NWO JUST-OS/Content/0853.pdf,43,CC BY
+0857,The replication crisis is less of a “crisis” in the Lakatosian approach than it is in the Popperian and naïve methodological falsificationism approaches,10.59350/ngq4y-1fe25,data/NWO JUST-OS/Content/0857.pdf,81,CC BY-ND
+0858,Guidelines for Evaluating the Comparability of Down-Sampled GWAS Summary Statistics,10.1007/s10519-023-10152-z,data/NWO JUST-OS/Content/0858.pdf,123,CC BY
+0861,Increasing the transparency of systematic reviews: Presenting a generalized registration form,10.1186/s13643-023-02281-7,data/NWO JUST-OS/Content/0861.pdf,126,CC BY
+0862,Why Hypothesis Testers Should Spend Less Time Testing Hypotheses,10.1177/1745691620966795,data/NWO JUST-OS/Content/0862.pdf,134,CC BY
+0864,"Open access journal publication in health and medical research and open science: Benefits, challenges and limitations",10.1136/bmjebm-2022-112126,data/NWO JUST-OS/Content/0864.pdf,68,CC BY
+0865,Ten quick tips for building FAIR workflows,10.1371/journal.pcbi.1011369,data/NWO JUST-OS/Content/0865.pdf,93,CC BY
+0866,History repeating: Guidelines to address common problems in psychedelic science,10.1177/20451253231198466,data/NWO JUST-OS/Content/0866.pdf,152,I don't see any of these
+0868,Preliminary analysis of COVID-19 academic information patterns: a call for open science in the times of closed borders,10.1007/s11192-020-03587-2,data/NWO JUST-OS/Content/0868.pdf,79,I don't see any of these
+0869,Low Research-Data Availability in Educational-Psychology Journals: No Indication of Effective Research-Data Policies,10.1177/25152459231156419,data/NWO JUST-OS/Content/0869.pdf,174,CC BY
+0870,A cautionary note on aggregation in educational psychology and beyond,10.1177/09593543231172495,data/NWO JUST-OS/Content/0870.pdf,134,CC BY
+0871,Artificial intelligence and responsibility gaps: What is the problem?,10.1007/s10676-022-09643-0,data/NWO JUST-OS/Content/0871.pdf,112,CC BY
+0872,Eleven Strategies for Making Reproducible Research and Open Science Training the Norm at Research Institutions,10.31219/osf.io/kcvra,data/NWO JUST-OS/Content/0872.pdf,134,CC BY
+0872,Eleven strategies for making reproducible research and open science training the norm at research institutions,10.7554/elife.89736,data/NWO JUST-OS/Content/0872.pdf,176,CC BY
+0873,"Biomedical publishing: Past historic, present continuous, future conditional",10.1371/journal.pbio.3002234,data/NWO JUST-OS/Content/0873.pdf,141,CC BY
+0882,"Medicines and Healthcare products Regulatory Agency’s “Consultation on proposals for legislative changes for clinical trials”: a response from the Trials Methodology Research Partnership Adaptive Designs Working Group, with a focus on data sharing",10.1186/s13063-023-07576-7,data/NWO JUST-OS/Content/0882.pdf,56,CC BY
+0883,Participatory Research Approaches in Alzheimer’s Disease and Related Dementias Literature: A Scoping Review,10.1093/geroni/igad091,data/NWO JUST-OS/Content/0883.pdf,153,CC BY-NC-ND
+0884,Feasibility of Emulating Clinical Trials Supporting US FDA Supplemental Indication Approvals of Drugs and Biologics,10.1001/jamainternmed.2023.4073,data/NWO JUST-OS/Content/0884.pdf,45,I don't see any of these
+0886,Why NASA and federal agencies are declaring this the Year of Open Science,10.1038/d41586-023-00019-y,data/NWO JUST-OS/Content/0886.pdf,9,I don't see any of these
+0887,Does preregistration improve the credibility of research findings?,10.20982/tqmp.16.4.p376,data/NWO JUST-OS/Content/0887.pdf,152,I don't see any of these
+0890,Paths in strange spaces: A comment on preregistration,10.31234/osf.io/wxn58,data/NWO JUST-OS/Content/0890.pdf,111,CC BY
+0891,"Preregistration: the good, the bad, and the confusing",10.31234/osf.io/bcd9t,data/NWO JUST-OS/Content/0891.pdf,124,CC BY
+0892,Do p values lose their meaning in exploratory analyses? It depends how you define the familywise error rate,10.1037/gpr0000123,data/NWO JUST-OS/Content/0892.pdf,93,I don't see any of these
+0893,Authorship practices must evolve to support collaboration and open science,10.1371/journal.pbio.3002364,data/NWO JUST-OS/Content/0893.pdf,29,CC BY
+0894,A community-endorsed open-source lexicon for contrast agent–based perfusion MRI: A consensus guidelines report from the ISMRM Open Science Initiative for Perfusion Imaging (OSIPI),10.1002/mrm.29840,data/NWO JUST-OS/Content/0894.pdf,124,CC BY
+0895,"Open peer review, pros and cons from the perspective of an early career researcher",10.1128/mbio.01948-23,data/NWO JUST-OS/Content/0895.pdf,16,CC BY
+0896,Evaluation of Transparency and Openness Guidelines in Physical Therapy Journals,10.1093/ptj/pzad133,data/NWO JUST-OS/Content/0896.pdf,129,I don't see any of these
+0898,Habits and perceptions regarding open science by researchers from Spanish institutions,10.1371/journal.pone.0288313,data/NWO JUST-OS/Content/0898.pdf,111,I don't see any of these
+0902,Open Science 2.0: Towards a truly collaborative research ecosystem,10.1371/journal.pbio.3002362,data/NWO JUST-OS/Content/0902.pdf,187,CC BY
+0904,Fifty years of research on questionable research practises in science: Quantitative analysis of co-citation patterns,10.1098/rsos.230677,data/NWO JUST-OS/Content/0904.pdf,174,CC BY
+0906,Exploratory hypothesis tests can be more compelling than confirmatory hypothesis tests,10.1080/09515089.2022.2113771,data/NWO JUST-OS/Content/0906.pdf,207,CC BY-NC-ND
+0907,The Costs of HARKing,10.1093/bjps/axz050,data/NWO JUST-OS/Content/0907.pdf,119,I don't see any of these
+0908,When Does HARKing Hurt? Identifying When Different Types of Undisclosed Post Hoc Hypothesizing Harm Scientific Progress,10.1037/gpr0000128,data/NWO JUST-OS/Content/0908.pdf,197,I don't see any of these
+0909,The case for formal methodology in scientific reform,10.1098/rsos.200805,data/NWO JUST-OS/Content/0909.pdf,255,CC BY
+0910,How to Crack Pre-registration: Toward Transparent and Open Science,10.3389/fpsyg.2018.01831,data/NWO JUST-OS/Content/0910.pdf,31,I don't see any of these
+0914,Breaking free: How preregistration hurts scholars and science,10.1017/pls.2022.4,data/NWO JUST-OS/Content/0914.pdf,34,CC BY
+0916,Robust Modeling in Cognitive Science,10.1007/s42113-019-00029-y,data/NWO JUST-OS/Content/0916.pdf,125,I don't see any of these
+0918,"Pre-analysis Plans Have Limited Upside, Especially Where Replications Are Feasible",10.1257/jep.29.3.81,data/NWO JUST-OS/Content/0918.pdf,150,I don't see any of these
+0919,The Preregistration Prescriptiveness Trade-Off and Unknown Unknowns in Science: Comments on Van Drimmelen (2023),10.31222/osf.io/3t7pc,data/NWO JUST-OS/Content/0919.pdf,38,CC BY
+0920,Rethinking transparency and rigor from a qualitative open science perspective,10.36850/mr7,data/NWO JUST-OS/Content/0920.pdf,139,CC BY
+0921,"The Tone Debate: Knowledge, Self, and Social Order",10.1177/10892680211015636,data/NWO JUST-OS/Content/0921.pdf,125,CC BY
+0923,Experimenter as automaton; experimenter as human: Exploring the position of the researcher in scientific research,10.1007/s13194-020-00324-7,data/NWO JUST-OS/Content/0923.pdf,118,I don't see any of these
+0926,Preregistration of exploratory research: Learning from the golden age of discovery,10.1371/journal.pbio.3000690,data/NWO JUST-OS/Content/0926.pdf,37,CC BY
+0928,Preregistration of secondary data analysis: A template and tutorial,10.15626/mp.2020.2625,data/NWO JUST-OS/Content/0928.pdf,136,CC BY
+0932,Preregistration in diverse contexts: A preregistration template for the application of cognitive models,10.1098/rsos.210155,data/NWO JUST-OS/Content/0932.pdf,208,CC BY
+0933,Pre-registration of mathematical models,10.1016/j.mbs.2022.108782,data/NWO JUST-OS/Content/0933.pdf,122,CC BY-NC-ND
+0934,Preregistration in Single-Case Design Research,10.1177/0014402919868529,data/NWO JUST-OS/Content/0934.pdf,120,CC BY
+0935,Challenges and opportunities in preregistration of coordinated data analysis: A tutorial and template,10.1037/pag0000611,data/NWO JUST-OS/Content/0935.pdf,45,I don't see any of these
+0936,Research practices for a robust psychological science of adult development and aging,10.1037/pag0000670,data/NWO JUST-OS/Content/0936.pdf,63,I don't see any of these
+0937,"Transparency, replicability, and discovery in cognitive aging research: A computational modeling approach",10.1037/pag0000665,data/NWO JUST-OS/Content/0937.pdf,235,I don't see any of these
+0939,Good clinical practice improves rigor and transparency: Lessons from the ACTIVE trial,10.1037/pag0000653,data/NWO JUST-OS/Content/0939.pdf,92,I don't see any of these
+0940,Open science in dementia care embedded pragmatic clinical trials,10.1037/pag0000644,data/NWO JUST-OS/Content/0940.pdf,113,I don't see any of these
+0943,Incorporating ecological momentary assessment into multimethod investigations of cognitive aging: Promise and practical considerations,10.1037/pag0000646,data/NWO JUST-OS/Content/0943.pdf,165,I don't see any of these
+0945,Data overuse in aging research: Emerging issues and potential solutions,10.1037/pag0000605,data/NWO JUST-OS/Content/0945.pdf,81,I don't see any of these
+0946,Adapting open science and pre-registration to longitudinal research,10.1002/icd.2315,data/NWO JUST-OS/Content/0946.pdf,264,CC BY
+0947,Facilitating open science practices for research syntheses: PreregRS guides preregistration,10.1002/jrsm.1540,data/NWO JUST-OS/Content/0947.pdf,45,CC BY
+0948,From pre-registration to publication: A non-technical primer for conducting a meta-analysis to synthesize correlational data,10.3389/fpsyg.2015.01549,data/NWO JUST-OS/Content/0948.pdf,103,CC BY
+0949,Preregistration of Machine Learning Research ,10.2307/j.ctvhrd092.21,data/NWO JUST-OS/Content/0949.pdf,24,CC BY-NC-ND
+0950,Making ERP research more transparent: Guidelines for preregistration,10.1016/j.ijpsycho.2021.02.016,,288,CC BY
+0956,Preregistration of Information Systems Research,10.17705/1cais.04905,,95,I don't see any of these
+0957,"Preregistration in experimental linguistics: Applications, challenges, and limitations",10.1515/ling-2019-0048,,126,CC BY
+0958,The benefits of preregistration for hypothesis-driven bilingualism research,10.1017/s1366728921000031,,79,CC BY
+0960,Premiering pre-registration at PLOS Biology,10.1371/journal.pbio.3001611,,17,CC BY
+0961,Publication rate in preclinical research: A plea for preregistration,10.1136/bmjos-2019-100051,,55,CC BY
+0962,Preregistration of animal research protocols: development and 3-year overview of preclinicaltrials.eu,10.1136/bmjos-2021-100259,,73,CC BY
+0963,Mitigating Illusory Results through Preregistration in Education,10.1080/19345747.2017.1387950,,127,CC BY-NC-ND
+0967,"Leonardo da Vinci, preregistration and the Architecture of Science: Towards a More Open and Transparent Research Culture",10.5334/hpb.30,,60,CC BY
+0971,ASL lexicon and reporting recommendations: A consensus report from the ISMRM Open Science Initiative for Perfusion Imaging (OSIPI),10.1002/mrm.29815,,192,CC BY
+0972,A Primer on Systematic Review and Meta-analysis in Diabetes Research,10.2337/dci23-0031,,110,CC BY-NC-ND
+0973,"Research Preregistration in Political Science: The Case, Counterarguments, and a Response to Critiques",10.1017/s1049096515000189,,51,I don't see any of these
+0975,"Preregistration and Registered Reports in Sociology: Strengths, Weaknesses, and Other Considerations",10.1007/s12108-023-09563-6,,145,I don't see any of these
+0976,"The need for public opinion and survey methodology research to embrace preregistration and replication, exemplified by a team’s failure to replicate their own findings on visual cues in grid-type questions",10.1093/ijpor/edac040,,248,CC BY
+0980,Improving evidence-based practice through preregistration of applied research: Barriers and recommendations,10.1080/08989621.2021.1969233,,139,CC BY-NC-ND
+0983,Preregistration and reproducibility,10.1016/j.joep.2019.01.006,,95,CC BY
+0984,Improving transparency in observational social science research: A pre-analysis plan approach,10.1016/j.econlet.2018.03.036,,92,I don't see any of these
+0985,Promises and Perils of Pre-analysis Plans,10.1257/jep.29.3.61,,199,I don't see any of these
+0986,In Praise of Moderation: Suggestions for the Scope and Use of Pre-Analysis Plans for RCTs in Economics,10.3386/w26993,,78,I don't see any of these
+0988,The Problem of New Evidence: P-Hacking and Pre-Analysis Plans,10.33392/diam.1587,,131,I don't see any of these
+0993,Preregistering Qualitative Research: A Delphi Study,10.1177/1609406920976417,,103,CC BY
+0994,Preregistering qualitative research,10.1080/08989621.2019.1580147,,85,CC BY
+0995,Update on Trial Registration 11 Years after the ICMJE Policy Was Established,10.1056/nejmsr1601330,,67,I don't see any of these
+0999,Preregistration and Incentives,10.2139/ssrn.3796813,,212,I don't see any of these
+1000,Beyond kindness: A proposal for the flourishing of science and scientists,10.31231/osf.io/4zrmd,data/NWO JUST-OS/Content/1000 tot 1099/1000.pdf,50,CC BY
+1001,Conducting Research With People in Lower-Socioeconomic-Status Contexts,10.1177/25152459231193044,data/NWO JUST-OS/Content/1000 tot 1099/1001.pdf,128,CC BY-NC
+1003,ORCC UKRN Primer on Working in Open Research,10.31219/osf.io/346hr,data/NWO JUST-OS/Content/1000 tot 1099/1003.pdf,15,Public Domain
+1005,Bringing institutional multidisciplinary repositories into the FAIR picture,10.1038/s41597-023-02652-8,,162,I don't see any of these
+1006,An Open Science MRI Database of over 100 Synaesthetic Brains and Accompanying Deep Phenotypic Information,10.1038/s41597-023-02664-4,data/NWO JUST-OS/Content/1000 tot 1099/1006.pdf,138,I don't see any of these
+1007,Data sharing practices in collaborative human genomic research in low- and middle-income countries: A systematic review protocol,10.1371/journal.pone.0292996,data/NWO JUST-OS/Content/1000 tot 1099/1007.pdf,86,CC BY
+1008,RPM: An open-source Rotation Platform for open- and closed-loop vestibular stimulation in head-fixed Mice,10.1016/j.jneumeth.2023.110002,data/NWO JUST-OS/Content/1000 tot 1099/1008.pdf,81,CC BY
+1009,Data management plans as linked open data: exploiting ARGOS FAIR and machine actionable outputs in the OpenAIRE research graph,10.1186/s13326-023-00297-5,data/NWO JUST-OS/Content/1000 tot 1099/1009.pdf,88,CC BY
+1010,New trends in science communication fostering evidence-informed policymaking,10.12688/openreseurope.14769.2,data/NWO JUST-OS/Content/1000 tot 1099/1010.pdf,176,CC BY
+1011,Making science public: a review of journalists’ use of Open Science research,10.12688/f1000research.133710.1,data/NWO JUST-OS/Content/1000 tot 1099/1011.pdf,266,CC BY
+1014,How to make data open? Stop overlooking librarians,10.1038/d41586-023-03935-1,data/NWO JUST-OS/Content/1000 tot 1099/1014.pdf,8,I don't see any of these
+1015,Using artificial intelligence to create diverse and inclusive medical case vignettes for education,10.1111/bcp.15977,data/NWO JUST-OS/Content/1000 tot 1099/1015.pdf,86,I don't see any of these
+1016,Big team science initiatives: A catalyst for trustworthy advancements in IO psychology,10.1016/j.actpsy.2023.104101,data/NWO JUST-OS/Content/1000 tot 1099/1016.pdf,44,CC BY-NC-ND
+1017,From policy to practice: Lessons learned from an open science funding initiative,10.1371/journal.pcbi.1011626,data/NWO JUST-OS/Content/1000 tot 1099/1017.pdf,76,CC BY
+1018,A future for digital public goods for monitoring SDG indicators,10.1038/s41597-023-02803-x,data/NWO JUST-OS/Content/1000 tot 1099/1018.pdf,98,CC BY
+1020,Are Preregistration and Registered Reports Vulnerable to Hacking?,10.1097/ede.0000000000001162,data/NWO JUST-OS/Content/1000 tot 1099/1020.pdf,9,I don't see any of these
+1022,Trial Publication after Registration in ClinicalTrials.Gov: A Cross-Sectional Analysis,10.1371/journal.pmed.1000144,data/NWO JUST-OS/Content/1000 tot 1099/1022.pdf,89,I don't see any of these
+1024,The effect of preregistration on trust in empirical research findings: results of a registered report,10.1098/rsos.181351,data/NWO JUST-OS/Content/1000 tot 1099/1024.pdf,123,CC BY
+1026,Pre-Analysis Plans: An Early Stocktaking,10.1017/s1537592721000931,data/NWO JUST-OS/Content/1000 tot 1099/1026.pdf,131,I don't see any of these
+1027,Do Pre-Registration and Pre-Analysis Plans Reduce p-Hacking and Publication Bias?,10.2139/ssrn.4180594,data/NWO JUST-OS/Content/1000 tot 1099/1027.pdf,227,I don't see any of these
+1028,Trial registration 10 years on,10.1136/bmj.h3572,,13,I don't see any of these
+1030,Publication of NIH funded trials registered in ClinicalTrials.gov: Cross sectional analysis,10.1136/bmj.d7292,data/NWO JUST-OS/Content/1000 tot 1099/1030.pdf,103,I don't see any of these
+1032,Preregistration specificity & adherence: A review of preregistered gambling studies & cross-disciplinary comparison,10.31234/osf.io/nj4es,data/NWO JUST-OS/Content/1000 tot 1099/1032.pdf,306,CC BY
+1033,Experimentation and manipulation with preregistration,10.1016/j.geb.2021.09.002,data/NWO JUST-OS/Content/1000 tot 1099/1033.pdf,79,CC BY
+1034,"Computational social science is growing up: why puberty consists of embracing measurement validation, theory development, and open science practices",10.1140/epjds/s13688-023-00434-1,data/NWO JUST-OS/Content/1000 tot 1099/1034.pdf,163,CC BY
+1036,A survey on how preregistration affects the research workflow: better science but more work,10.1098/rsos.211997,data/NWO JUST-OS/Content/1000 tot 1099/1036.pdf,142,CC BY
+1038,Registered Report Protocol: Survey on attitudes and experiences regarding preregistration in psychological research,10.1371/journal.pone.0253950,data/NWO JUST-OS/Content/1000 tot 1099/1038.pdf,170,I don't see any of these
+1039,The ClinicalTrials.gov Results Database — Update and Key Issues,10.1056/nejmsa1012065,data/NWO JUST-OS/Content/1000 tot 1099/1039.pdf,63,I don't see any of these
+1040,Discrepancy review: A feasibility study of a novel peer review intervention to reduce undisclosed discrepancies between registrations and publications,10.1098/rsos.220142,data/NWO JUST-OS/Content/1000 tot 1099/1040.pdf,152,CC BY
+1042,The preregistration revolution needs to distinguish between predictions and analyses,10.1073/pnas.1812592115,data/NWO JUST-OS/Content/1000 tot 1099/1042.pdf,9,I don't see any of these
+1043,Reply to Ledgerwood: Predictions without analysis plans are inert,10.1073/pnas.1816418115,data/NWO JUST-OS/Content/1000 tot 1099/1043.pdf,7,I don't see any of these
+1046,Pre-Registration in the Undergraduate Dissertation: A Critical Discussion,10.31234/osf.io/egbcv,data/NWO JUST-OS/Content/1000 tot 1099/1046.pdf,41,I don't see any of these
+1049,Comparing Analysis Blinding With Preregistration in the Many-Analysts Religion Project,10.1177/25152459221128319,data/NWO JUST-OS/Content/1000 tot 1099/1049.pdf,160,I don't see any of these
+1050,Declaration of common standards for the preregistration of animal research—speeding up the scientific progress,10.1093/pnasnexus/pgac016,data/NWO JUST-OS/Content/1000 tot 1099/1050.pdf,65,CC BY
+1052,Comparison of Preregistration Platforms,10.31222/osf.io/zry2u,data/NWO JUST-OS/Content/1000 tot 1099/1052.pdf,49,CC BY
+1053,What should a preregistration contain?,10.31234/osf.io/cj5mh,data/NWO JUST-OS/Content/1000 tot 1099/1053.pdf,145,CC BY
+1057,Research Integrity and Responsible Scholarship,10.9743/jse.2024.7.1.4,data/NWO JUST-OS/Content/1000 tot 1099/1057.pdf,95,Public Domain
+1058,Establishing trust in automated reasoning,10.31222/osf.io/nt96q,data/NWO JUST-OS/Content/1000 tot 1099/1058.pdf,99,Public Domain
+1061,Optimizing the methodology of human sleep and memory research,10.1038/s44159-023-00262-0,,171,I don't see any of these
+1062,A recipe for extremely reproducible enrichment analysis (and why we need it),10.31219/osf.io/r6kxg,data/NWO JUST-OS/Content/1000 tot 1099/1062.pdf,86,CC BY
+1065,Opening open science to all: Demystifying reproducibility and transparency practices in linguistic research,10.31234/osf.io/spz4w,,158,CC BY
+1066,Ethnography vs. zombie methodologies: What anthropology can teach psychology about nonreproducibility,10.1111/amet.13235,data/NWO JUST-OS/Content/1000 tot 1099/1066.pdf,90,CC BY-NC-ND
+1069,The landscape of open science in behavioral addiction research: Current practices and future directions,10.1556/2006.2023.00052,data/NWO JUST-OS/Content/1000 tot 1099/1069.pdf,115,CC BY
+1070,The needed link between open science and science diplomacy—A Latin American perspective,10.3389/frma.2024.1355393,data/NWO JUST-OS/Content/1000 tot 1099/1070.pdf,106,CC BY
+1074,Building reproducible bridges to cross the “valley of death”,10.1172/jci177383,data/NWO JUST-OS/Content/1000 tot 1099/1074.pdf,33,CC BY
+1076,"SPIRO – the automated Petri plate imaging platform designed by biologists, for biologists",10.1111/tpj.16587,data/NWO JUST-OS/Content/1000 tot 1099/1076.pdf,162,CC BY
+1077,"Consent Form Reporting on ClinicalTrials.Gov, 2013-2023",10.1001/jamanetworkopen.2024.18895,data/NWO JUST-OS/Content/1000 tot 1099/1077.pdf,30,CC BY
+1078,A survey of researchers’ methods sharing practices and priorities,10.7717/peerj.16731,data/NWO JUST-OS/Content/1000 tot 1099/1078.pdf,166,CC BY
+1080,CONSORT statement adherence and risk of bias in randomized controlled trials on deep caries management: a meta-research,10.1186/s12903-024-04417-0,data/NWO JUST-OS/Content/1000 tot 1099/1080.pdf,119,CC BY
+1083,"CATEcor: An Open Science, Shaded-Truss, Externally-Occulted Coronagraph",10.1007/s11207-024-02314-x,data/NWO JUST-OS/Content/1000 tot 1099/1083.pdf,142,CC BY
+1085,NowIKnowMyABCD: A global resource hub for researchers using data from the ABCD Study,10.1016/j.dcn.2024.101388,data/NWO JUST-OS/Content/1000 tot 1099/1085.pdf,65,CC BY-NC-ND
+1087,Biomedical Data Repository Concepts and Management Principles,10.1038/s41597-024-03449-z,data/NWO JUST-OS/Content/1000 tot 1099/1087.pdf,135,CC BY
+1089,"Understanding the value of curation: A survey of US data repository curation practices and perceptions
+",10.1371/journal.pone.0301171,data/NWO JUST-OS/Content/1000 tot 1099/1089.pdf,148,CC BY
+1092,Selective and (mis)leading economics journals: Meta-research evidence,10.1111/joes.12598,data/NWO JUST-OS/Content/1000 tot 1099/1092.pdf,178,CC BY-NC-ND
+1095,Guideline for reporting systematic reviews of outcome measurement instruments (OMIs): PRISMA-COSMIN for OMIs 2024,10.1016/j.jclinepi.2024.111422,data/NWO JUST-OS/Content/1000 tot 1099/1095.pdf,289,CC BY
+1098,Demystifying Open Science in Health Psychology and Behavioral Medicine: A Practical Guide to Registered Reports and Data Notes,10.31234/osf.io/bgudc,data/NWO JUST-OS/Content/1000 tot 1099/1098.pdf,91,CC BY
+1098,"Demystifying Open Science in health psychology and
+behavioral medicine: a practical guide to Registered Reports
+and Data Notes",10.1080/21642850.2024.2351939,data/NWO JUST-OS/Content/1000 tot 1099/1098.pdf,134,CC BY
+1099,Open Data Governance at the Canadian Open Neuroscience Platform (CONP): From the Walled Garden to the Arboretum,10.1093/gigascience/giad114,data/NWO JUST-OS/Content/1000 tot 1099/1099.pdf,71,CC BY
+1105,Introducing Open Science in Teaching Health Economic Modelling,10.1007/s41669-023-00469-0,data/NWO JUST-OS/Content/1100 tot 1199/1105.pdf,70,CC BY
+1107,CrustyBase v.2.0: new features and enhanced utilities to support open science,10.1186/s12864-024-10033-7,data/NWO JUST-OS/Content/1100 tot 1199/1107.pdf,107,CC BY
+1114,Do organisms need an impact factor? Citations of key biological resources including model organisms reveal usage patterns and impact,10.1101/2024.01.15.575636,data/NWO JUST-OS/Content/1100 tot 1199/1114.pdf,102,CC BY
+1115,Open Science Practices in Psychiatric Genetics: A Primer,10.1016/j.bpsgos.2023.08.007,data/NWO JUST-OS/Content/1100 tot 1199/1115.pdf,198,CC BY
+1116,Cancer researchers’ experiences with and perceptions of research data sharing: Results of a cross-sectional survey,10.1080/08989621.2024.2308606,data/NWO JUST-OS/Content/1100 tot 1199/1116.pdf,233,CC BY
+1117,"Sorry we′re open, come in we're closed: different profiles in the perceived applicability of open science practices to completed research projects",10.1098/rsos.230595,data/NWO JUST-OS/Content/1100 tot 1199/1117.pdf,124,CC BY
+1121,Open science and the climate crisis,10.1371/journal.pclm.0000336,data/NWO JUST-OS/Content/1100 tot 1199/1121.pdf,22,CC BY
+1122,Bounded research ethicality: researchers rate themselves and their field as better than others at following good research practice,10.1038/s41598-024-53450-0,data/NWO JUST-OS/Content/1100 tot 1199/1122.pdf,74,CC BY
+1123,School Psychology Annual Journal Update: Revising Open Science Standards,10.1037/spq0000623,data/NWO JUST-OS/Content/1100 tot 1199/1123.pdf,19,CC BY
+1124,"Preregister Your Ethical Redlines: Vulnerable Populations, Policy Engagement, and the Perils of E-Hacking",10.2139/ssrn.4066842,data/NWO JUST-OS/Content/1100 tot 1199/1124.pdf,131,CC BY
+1128,Do grant proposal texts matter for funding decisions? A field experiment,10.1007/s11192-024-04968-7,data/NWO JUST-OS/Content/1100 tot 1199/1128.pdf,73,CC BY
+1131,Exploring regulatory flexibility to create novel incentives to optimize drug discovery,10.3389/fmed.2024.1379966,data/NWO JUST-OS/Content/1100 tot 1199/1131.pdf,71,CC BY
+1132,Processes and Lessons Learned in Establishing the Palliative Care Research Cooperative’s Qualitative Data Repository in Serious Illness and Palliative Care,10.31219/osf.io/z5bty,data/NWO JUST-OS/Content/1100 tot 1199/1132.pdf,84,CC BY
+1133,"The O3 guidelines: open data, open code, and open infrastructure for sustainable curated scientific resources
+",10.1038/s41597-024-03406-w,data/NWO JUST-OS/Content/1100 tot 1199/1133.pdf,71,CC BY
+1134,On the Use and Misuses of Preregistration: A Reply to Klonsky (2024),10.31234/osf.io/g7dn2,data/NWO JUST-OS/Content/1100 tot 1199/1134.pdf,83,I don't see any of these
+1135,Catalyzing communities of research rigour champions,10.1093/braincomms/fcae120,data/NWO JUST-OS/Content/1100 tot 1199/1135.pdf,77,CC BY
+1137,"
+OpenSAFELY: A platform for analysing electronic health records designed for reproducible research",10.1002/pds.5815,data/NWO JUST-OS/Content/1100 tot 1199/1137.pdf,104,CC BY
+1139,Campbell’s Law Explains the Replication Crisis: Pre-Registration Badges Are History Repeating,10.1177/10731911241253430,data/NWO JUST-OS/Content/1100 tot 1199/1139.pdf,103,CC BY
+1140,Building transparency and reproducibility into the practice of pharmacoepidemiology and outcomes research,10.1093/aje/kwae087,data/NWO JUST-OS/Content/1100 tot 1199/1140.pdf,74,CC BY
+1142,A Guide for Social Science Journal Editors on Easing into Open Science,10.31219/osf.io/hstcx,data/NWO JUST-OS/Content/1100 tot 1199/1142.pdf,533,CC BY
+1142,A guide for social science journal editors on easing into open science,10.1186/s41073-023-00141-5,data/NWO JUST-OS/Content/1100 tot 1199/1142.pdf,158,CC BY
+1144,Publishing in the Open Access and Open Science era,10.1111/gtc.13100,data/NWO JUST-OS/Content/1100 tot 1199/1144.pdf,41,CC BY-NC
+1145,Advocating for Generalizability: Accepting Inherent Variability in Translation of Animal Research Outcomes,10.1146/annurev-animal-021022-043531,data/NWO JUST-OS/Content/1100 tot 1199/1145.pdf,145,CC BY
+1146,Positive Deviance Underlies Successful Science: Normative Methodologies Risk Throwing out the Baby With the Bathwater,10.1177/10892680241235120,data/NWO JUST-OS/Content/1100 tot 1199/1146.pdf,237,CC BY-NC
+1147,More than meets the ITT: A guide for anticipating and investigating nonsignificant results in survey experiments,10.1017/xps.2024.1,data/NWO JUST-OS/Content/1100 tot 1199/1147.pdf,103,CC BY
+1148,Toolkit for Aligning Incentives 2.0,10.31219/osf.io/8x4e9,,68,CC BY
+1149,A call for open science in forensics,10.1073/pnas.2321809121,data/NWO JUST-OS/Content/1100 tot 1199/1149.pdf,122,CC BY
+1151,The societal impact of Open Science–a scoping review ,10.31235/osf.io/tqrwg,,339,CC BY
+1153,Enabling Data Discovery with the Astrobiology Resource Metadata Standard,10.1089/ast.2023.0067,data/NWO JUST-OS/Content/1100 tot 1199/1153.pdf,51,CC BY
+1155,Preregistration templates as a new addition to the evidence-based toxicology toolbox,10.1080/2833373x.2024.2314303,data/NWO JUST-OS/Content/1100 tot 1199/1155.pdf,56,CC BY
+1159,A framework for understanding an open scientific community using automated harvesting of public artifacts ,10.1093/jamiaopen/ooae017,data/NWO JUST-OS/Content/1100 tot 1199/1159.pdf,45,CC BY
+1161,A Plan to Develop Open Science’s Green Shoots into a Thriving Garden,10.58875/mzsw4704,data/NWO JUST-OS/Content/1100 tot 1199/1161.pdf,16,CC BY
+1162,A minimal metadata set (MNMS) to repurpose nonclinical in vivo data for biomedical research,10.1038/s41684-024-01335-0,data/NWO JUST-OS/Content/1100 tot 1199/1162.pdf,145,CC BY
+1167,"PEARL-Neuro Database: EEG, fMRI, health and lifestyle data of middle-aged people at risk of dementia",10.1038/s41597-024-03106-5,data/NWO JUST-OS/Content/1100 tot 1199/1167.pdf,157,CC BY
+1168,Design and validation of a conceptual model regarding impact of open science on healthcare research processes,10.1186/s12913-024-10764-z,data/NWO JUST-OS/Content/1100 tot 1199/1168.pdf,136,CC BY
+1169,Editorial bullying: an exploration of acts impacting publication ethics and related environment,10.3389/frma.2024.1345553,data/NWO JUST-OS/Content/1100 tot 1199/1169.pdf,53,CC BY
+1172,A library of electrophysiological responses in plants - a model of transversal education and open science,10.1080/15592324.2024.2310977,data/NWO JUST-OS/Content/1100 tot 1199/1172.pdf,116,CC BY
+1173,The challenges of open data sharing for qualitative researchers,10.1177/13591053241237620,data/NWO JUST-OS/Content/1100 tot 1199/1173.pdf,38,CC BY
+1178,Reporting Standards for Complication Studies of Radiation Therapy for Pediatric Cancer: Lessons From PENTEC,10.1016/j.ijrobp.2024.02.018,data/NWO JUST-OS/Content/1100 tot 1199/1178.pdf,109,CC BY
+1179,FAIR health data in the national and international data space,10.1007/s00103-024-03884-8,data/NWO JUST-OS/Content/1100 tot 1199/1179.pdf,134,CC BY
+1180,"Minimizing Questionable Research Practices – The Role of Norms, Counter Norms, and Micro-Organizational Ethics Discussion",10.1007/s10805-024-09520-z,data/NWO JUST-OS/Content/1100 tot 1199/1180.pdf,233,CC BY
+1181,The State of the Science Address,10.5962/p.351332,,71,I don't see any of these
+1182,The psychological reality of the learned “p < .05” boundary,10.1186/s41235-024-00553-x,data/NWO JUST-OS/Content/1100 tot 1199/1182.pdf,160,CC BY
+1183,Understanding the provenance and qualityof methods is essential for responsible reuseof FAIR data,10.1038/s41591-024-02879-x,data/NWO JUST-OS/Content/1100 tot 1199/1183.pdf,19,CC BY
+1184,The power of many brains: Catalyzing neuropsychiatric discovery through open neuroimaging data and large-scale collaboration,10.1016/j.scib.2024.03.006,data/NWO JUST-OS/Content/1100 tot 1199/1184.pdf,394,CC BY
+1185,A registered report survey of open research practices in psychology departments in the UK and Ireland,10.1111/bjop.12700,data/NWO JUST-OS/Content/1100 tot 1199/1185.pdf,242,CC BY
+1186,How flash mobs can be used for data collection in healthcare? A scoping review protocol,10.1111/aas.14404,data/NWO JUST-OS/Content/1100 tot 1199/1186.pdf,27,CC BY-NC
+1188,The Benefits of Preregistration and Registered Reports,10.31234/osf.io/dqap7,,203,Public Domain
+1191,Raising awareness of uncertain choices in empirical data analysis: A teaching concept toward replicable research practices,10.1371/journal.pcbi.1011936,data/NWO JUST-OS/Content/1100 tot 1199/1191.pdf,61,CC BY
+1194,Primer on Reproducible Research in R: Enhancing Transparency and Scientific Rigor,10.3390/clockssleep6010001,data/NWO JUST-OS/Content/1100 tot 1199/1194.pdf,77,CC BY
+1195,Positionality statements in science,10.12688/openreseurope.17058.2,data/NWO JUST-OS/Content/1100 tot 1199/1195.pdf,35,CC BY
+1199,Towards building a trustworthy pipeline integrating Neuroscience Gateway and Open Science Chain,10.1093/database/baae023,data/NWO JUST-OS/Content/1100 tot 1199/1199.pdf,58,CC BY
+1200,A pathway to strengthening open science: comments on the draft South African Ethics in Health Research Guidelines,10.3389/fphar.2024.1304950,data/NWO JUST-OS/Content/1200 tot 1299/1200.pdf,200,CC BY
+1202,Assessment of transparency indicators in space medicine,10.1371/journal.pone.0300701,data/NWO JUST-OS/Content/1200 tot 1299/1202.pdf,118,CC BY
+1205,brainlife.io: a decentralized and open-source cloud platform to support neuroscience research,10.1038/s41592-024-02237-2,data/NWO JUST-OS/Content/1200 tot 1299/1205.pdf,198,CC BY
+1208,"What does Open Science mean for Educational Technology Research? Challenges, Opportunities, and a Call for Research",10.35542/osf.io/s73xb,data/NWO JUST-OS/Content/1200 tot 1299/1208.pdf,70,CC BY
+1209,Navigating the Science System: Research Integrity and Academic Survival Strategies,10.1007/s11948-024-00467-3,data/NWO JUST-OS/Content/1200 tot 1299/1209.pdf,123,CC BY
+1212,Research Integrity definitions and challenges,10.1016/j.jclinepi.2024.111367,data/NWO JUST-OS/Content/1200 tot 1299/1212.pdf,45,CC BY
+1213,Declaration of Helsinki: ethical norm in pursuit of common global goals,10.3389/fmed.2024.1360653,data/NWO JUST-OS/Content/1200 tot 1299/1213.pdf,74,CC BY
+1214,State of open science in cancer research,10.1007/s12094-024-03468-7,data/NWO JUST-OS/Content/1200 tot 1299/1214.pdf,66,CC BY
+1216,A study on formalizing the knowledge of data curation activities across different fields,10.1371/journal.pone.0301772,data/NWO JUST-OS/Content/1200 tot 1299/1216.pdf,331,CC BY
+1217,Seek and you may (not) find: A multi-institutional analysis of where research data are shared,10.1371/journal.pone.0302426,data/NWO JUST-OS/Content/1200 tot 1299/1217.pdf,128,CC BY
+1221,"Investigating the nature of open science practices across complementary, alternative, and integrative medicine journals: An audit",10.1371/journal.pone.0302655,data/NWO JUST-OS/Content/1200 tot 1299/1221.pdf,198,CC BY
+1222,ZooTraits: An R shiny app for exploring animal trait data for ecological and evolutionary research,10.1002/ece3.11334,data/NWO JUST-OS/Content/1200 tot 1299/1222.pdf,115,CC BY
+1223,Consolidated Reporting Guidelines for Prognostic and Diagnostic Machine Learning Models (CREMLS),10.2196/52508,data/NWO JUST-OS/Content/1200 tot 1299/1223.pdf,61,CC BY
+1225,Responsible data sharing: Identifying and remedying possible re-identification of human participants,10.31222/osf.io/5m3cx,data/NWO JUST-OS/Content/1200 tot 1299/1225.pdf,109,Public Domain
+1228,Open Resources for Biology Education (ORBE): a resource collection,10.1128/jmbe.00203-23,data/NWO JUST-OS/Content/1200 tot 1299/1228.pdf,28,CC BY-NC-ND
+1233,Evading Open Science: The Black Box of Student Data Collection,10.32872/spb.9411,data/NWO JUST-OS/Content/1200 tot 1299/1233.pdf,164,nan

@@ -29,6 +29,13 @@ dependencies = [
 packages = ["just_os", "ingest"]
 
 [dependency-groups]
+# Installed by default with `uv sync` (tests and eval scripts)
+dev = [
+    "fakeredis>=2.26.0",
+    "pandas>=2.2.3",
+    "pytest>=8.3.0",
+    "ruff>=0.7.0",
+]
 ingest = [
     "google-api-python-client>=2.178.0",
     "google-auth>=2.40.3",

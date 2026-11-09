@@ -1,10 +1,13 @@
 import json
 import logging
 import os
+import random
 import secrets
+import uuid
+from datetime import datetime, timezone
 from typing import Dict, Any, Generator, Optional
 
-from flask import Flask, Response, render_template, request, session, jsonify
+from flask import Flask, Response, abort, render_template, request, session, jsonify
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -15,6 +18,9 @@ from just_os.chat_manager import ChatManager
 from just_os.extensions import flask_static_digest
 
 logger = logging.getLogger(__name__)
+
+# a: A is better, b: B is better, tie: both are good, bad: both are bad
+ARENA_VOTES = ("a", "b", "tie", "bad")
 
 
 class RateLimitManager:
@@ -214,6 +220,100 @@ class FlaskApp:
                 self._generate_chat_response(user_message, chat_id),
                 mimetype="text/event-stream",
             )
+
+        @self.app.route("/up")
+        def up():
+            """Health check for Docker and load balancers."""
+            return "ok"
+
+        @self.app.route("/arena")
+        def arena():
+            """Arena page: two anonymous answers side by side, the user votes."""
+            if not self.config["ARENA_ENABLED"]:
+                abort(404)
+            return render_template("arena.html")
+
+        @self.app.route("/arena/chat", methods=["POST"])
+        @self.rate_limit_manager.limiter.limit(
+            self.rate_limit_manager.get_chat_rate_limit
+        )
+        def arena_chat():
+            """Answer one question with two random arena models (names hidden)."""
+            if not self.config["ARENA_ENABLED"]:
+                abort(404)
+            user_message = (request.get_json(silent=True) or {}).get("message")
+            if not isinstance(user_message, str):
+                return jsonify({"status": "error", "message": "'message' is required."}), 400
+            is_valid, error_msg = self._validate_message(user_message)
+            if not is_valid:
+                return jsonify({"status": "error", "message": error_msg}), 400
+            models = [m.strip() for m in self.config["ARENA_MODELS"].split(",") if m.strip()]
+            if len(models) < 2:
+                return jsonify({"status": "error", "message": "ARENA_MODELS needs 2 models."}), 500
+            return Response(
+                self._generate_arena_response(user_message, random.sample(models, 2)),
+                mimetype="text/event-stream",
+            )
+
+        @self.app.route("/arena/vote", methods=["POST"])
+        def arena_vote():
+            """Store a vote for a battle and reveal the two model names."""
+            if not self.config["ARENA_ENABLED"]:
+                abort(404)
+            data = request.get_json(silent=True) or {}
+            if data.get("vote") not in ARENA_VOTES:
+                return jsonify({"status": "error", "message": f"vote must be one of {ARENA_VOTES}"}), 400
+            key = f"arena:battle:{data.get('battle_id')}"
+            # getdel: one vote per battle
+            battle = self.chat_manager.redis.getdel(key)
+            if battle is None:
+                return jsonify({"status": "error", "message": "Unknown or already voted battle."}), 404
+            battle = json.loads(battle)
+            model_a, model_b = battle["models"]
+            self.chat_manager.redis.rpush(
+                "arena:votes",
+                json.dumps({
+                    "time": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                    "question": battle["question"],
+                    "model_a": model_a,
+                    "model_b": model_b,
+                    "vote": data["vote"],
+                }),
+            )
+            return jsonify({"status": "ok", "models": [model_a, model_b]})
+
+        @self.app.route("/arena/votes")
+        def arena_votes():
+            """All stored votes (for the leaderboard and for analysis)."""
+            if not self.config["ARENA_ENABLED"]:
+                abort(404)
+            votes = self.chat_manager.redis.lrange("arena:votes", 0, -1)
+            return jsonify([json.loads(v) for v in votes])
+
+    def _generate_arena_response(
+        self, user_message: str, models: list[str]
+    ) -> Generator[str, None, None]:
+        """
+        Stream an arena battle. Model names are replaced by labels A and B until
+        the user votes; the battle is kept in Redis for one day.
+        """
+        rag_service = self.get_rag_service()
+        if not rag_service:
+            yield json.dumps({"status": "error", "message": "RAG service is not available in this environment."}) + "\n"
+            return
+        for chunk in rag_service.get_arena_response(user_message, models):
+            if "responses" in chunk:
+                battle_id = str(uuid.uuid4())
+                self.chat_manager.redis.set(
+                    f"arena:battle:{battle_id}",
+                    json.dumps({"question": user_message, "models": models}),
+                    ex=86400,
+                )
+                for label, response in zip("AB", chunk["responses"]):
+                    response["label"] = label
+                    del response["model"]
+                chunk["battle_id"] = battle_id
+            yield json.dumps(chunk) + "\n"
 
     def _generate_chat_response(
         self, user_message: str, chat_id: str

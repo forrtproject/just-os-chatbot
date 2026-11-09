@@ -1,35 +1,90 @@
 # JUST-OS
 
-This repository contains the source code for the [JUST-OS](https://www.just-os.org/) project.
+[JUST-OS](https://www.just-os.org/) answers questions about open and reproducible research with cited sources from the [FORRT](https://forrt.org/) resource library. It runs as the chat widget on forrt.org.
+
+It is a retrieval-augmented generation (RAG) app: Flask + Redis, LlamaIndex + FAISS over 513 open-access documents (embedding `BAAI/bge-m3`), a local re-ranker, and any OpenAI-compatible LLM (OpenRouter by default, or a self-hosted OpenScholar-8B).
+
+## Documentation
+
+All documentation is in [`docs/`](docs/README.md):
+[architecture](docs/architecture.md) (code map, request flow, caching) ·
+[data](docs/data.md) (indexes, which PDFs are embedded, ingestion) ·
+[evaluation](docs/evaluation.md) (metrics and results) ·
+[project plan](docs/project-plan.md) ·
+[hackathon](docs/hackathon.md) ·
+[issues](docs/issues.md)
 
 
 ## Installation
 
-1. Make sure your system has both `docker` and `docker-compose` installed
-2. Depending on your setup, create a symlink `compose.override.yaml` to either `compose.dev.yaml` or `compose.prod.yaml`. In the development environment the web server will automatically restart after changes to the code.
-```
-ln -s <compose.dev.yaml or compose.prod.yaml> compose.override.yaml
-```
-3. Copy `.env.example` to `.env` and fill in the required variables.
-4. Start the docker containers with `docker compose up`.
+You need Docker (Docker Desktop with WSL2 on Windows), Git and Python 3. About 8 GB free disk.
 
-## Ingestion Pipeline
-
-The ingestion process creates a vector store in the `data` folder that the backend will use. Follow these steps in order:
-
-1. **Filter resources on Open Access status as assessed by Unpaywall**:
+1. Clone without the old large data files:
    ```bash
-   uv run bootstrap_local_database.py
+   GIT_LFS_SKIP_SMUDGE=1 git clone <repository-url>
    ```
-
-2. **Convert PDFs to Markdown**:
+2. Copy the environment file and add your OpenRouter key (`OPENROUTER_API_KEY`) to `.env`:
    ```bash
-   ./marker.sh
+   cp .env.example .env
    ```
-
-3. **Generate embeddings**:
+   All settings are in `config/settings.py`; any of them can be overridden with a line in `.env`.
+   `.env.example` already selects the development setup (`COMPOSE_FILE=compose.yaml:compose.dev.yaml`): code changes restart the server. For production use `compose.yaml:compose.prod.yaml`.
+3. Get the vector index (ask the project lead for the link):
    ```bash
-   uv run embed.py
+   python scripts/get_index.py <index-zip-url>
+   ```
+4. Start the containers. The first build takes 10–20 minutes:
+   ```bash
+   docker compose up -d --build
+   ```
+5. One time on a new computer, download the embedding and re-ranker models (about 3.5 GB, kept in the `hf-cache` volume):
+   ```bash
+   docker compose exec web python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; SentenceTransformer('BAAI/bge-m3'); CrossEncoder('BAAI/bge-reranker-base')"
+   docker compose restart web
+   ```
+6. Open http://localhost:8000 (chat) or http://localhost:8000/arena (two models side by side, with `ARENA_ENABLED=true`). The server loads the models for about one minute after each start.
+
+### Models
+
+The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://openrouter.ai). Change models in `.env` and run `docker compose up -d web`:
+
+| Setting | Use |
+|---|---|
+| `CITATION_MODEL` | writes the answer |
+| `GENERAL_MODEL` | classifies and rephrases the question |
+| `EMBEDDING_MODEL` + `VECTOR_STORE` | search; the two must match (default `BAAI/bge-m3`) |
+| `ARENA_MODELS` | models for `/arena`, comma separated |
+
+| `OPENSCHOLAR_BASE_URL` + `OPENSCHOLAR_API_KEY` | self-hosted OpenScholar server; calls for `OPENSCHOLAR_MODEL` (`openscholar-8b`) go there, all other models stay on OpenRouter |
+
+To answer with OpenScholar, set `OPENSCHOLAR_BASE_URL`, `OPENSCHOLAR_API_KEY` and `CITATION_MODEL=openscholar-8b` in `.env` (see `.env.example`).
+
+### Tests and evaluation
+
+```bash
+docker compose exec web pytest test/                       # offline, no index needed
+docker compose exec web ruff check --select E,F --ignore E501 just_os test eval
+docker compose exec -e OMP_NUM_THREADS=8 web python eval/run.py --model openai/gpt-oss-20b
+docker compose exec web python eval/compare.py             # table of all runs in eval/results/
+```
+
+Before you open a PR: tests pass, and `docs/` is updated for any changed file, setting, route or cache.
+
+## Ingestion pipeline
+
+The ingestion creates the vector index in `data/processed/`. Run the steps in order from the repository root (details and limits: [docs/data.md](docs/data.md#5-build-an-index-ingestion)):
+
+1. **Filter resources on open-access status (Unpaywall):**
+   ```bash
+   uv run python -m scripts.bootstrap_local_database
+   ```
+2. **Convert PDFs to Markdown:**
+   ```bash
+   ./scripts/marker.sh
+   ```
+3. **Generate embeddings:**
+   ```bash
+   uv run python -m scripts.embed
    ```
 
 ## API Integration

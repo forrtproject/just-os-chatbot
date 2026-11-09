@@ -12,6 +12,11 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "LLM_API_KEY": os.getenv("OPENROUTER_API_KEY"),
     "CITATION_MODEL": "meta-llama/llama-3.1-8b-instruct",
     "GENERAL_MODEL": "meta-llama/llama-3.1-8b-instruct",
+    # Self-hosted OpenScholar (OpenAI-compatible). When OPENSCHOLAR_BASE_URL is set,
+    # calls for OPENSCHOLAR_MODEL go to that server; all other models stay on BASE_URL.
+    "OPENSCHOLAR_BASE_URL": "",
+    "OPENSCHOLAR_API_KEY": os.getenv("OPENSCHOLAR_API_KEY"),
+    "OPENSCHOLAR_MODEL": "openscholar-8b",
     # Multilingual; must match VECTOR_STORE. English-only option: BAAI/bge-small-en-v1.5
     # with data/processed/vs_latest_bge-small-en-v1.5
     "EMBEDDING_MODEL": "BAAI/bge-m3",
@@ -39,6 +44,12 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "MIN_MESSAGE_LENGTH": 3,
     # Chat settings
     "MESSAGE_TTL": 3600,  # 1 hour in seconds
+    # Arena: answers from several models side by side, with votes (page /arena).
+    # Off by default: each question costs one LLM call per model.
+    "ARENA_ENABLED": False,
+    "ARENA_MODELS": "meta-llama/llama-3.1-8b-instruct,openai/gpt-oss-20b,"
+    "google/gemma-3-27b-it,qwen/qwen3.7-flash,mistralai/mistral-small-3.2-24b-instruct,"
+    "openai/gpt-6-luna",
     # Google Drive settings
     "CREDENTIALS_FILE": "credentials.json",
     "GDRIVE_FOLDER_ID": "1EqOxpkb-ksYjRmvSHl1XjULlcPxZINdD",
@@ -51,12 +62,13 @@ for key in DEFAULT_CONFIG:
     if os.environ.get(key):
         # Convert to appropriate type based on default value
         default_value = DEFAULT_CONFIG[key]
-        if isinstance(default_value, int):
+        # bool before int: bool is a subclass of int
+        if isinstance(default_value, bool):
+            DEFAULT_CONFIG[key] = os.environ.get(key).lower() in ("true", "yes", "1")
+        elif isinstance(default_value, int):
             DEFAULT_CONFIG[key] = int(os.environ.get(key))
         elif isinstance(default_value, float):
             DEFAULT_CONFIG[key] = float(os.environ.get(key))
-        elif isinstance(default_value, bool):
-            DEFAULT_CONFIG[key] = os.environ.get(key).lower() in ("true", "yes", "1")
         else:
             DEFAULT_CONFIG[key] = os.environ.get(key)
 
