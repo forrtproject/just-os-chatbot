@@ -13,7 +13,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "CITATION_MODEL": "meta-llama/llama-3.1-8b-instruct",
     "GENERAL_MODEL": "meta-llama/llama-3.1-8b-instruct",
     # Seconds before an LLM call gives up (the answer then shows an error, not a hang)
-    "LLM_TIMEOUT": 120,
+    "LLM_TIMEOUT": 60,
     # Self-hosted OpenScholar (OpenAI-compatible). When OPENSCHOLAR_BASE_URL is set,
     # calls for OPENSCHOLAR_MODEL go to that server; all other models stay on BASE_URL.
     "OPENSCHOLAR_BASE_URL": "",
@@ -85,6 +85,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "openscholar-8b",
     # Most models one question may go to (cost and time)
     "ARENA_MAX_MODELS": 10,
+    # true: hide the model names until the answers are rated (blind rating)
+    "ARENA_BLIND": False,
     # Google Drive settings
     "CREDENTIALS_FILE": "credentials.json",
     "GDRIVE_FOLDER_ID": "1EqOxpkb-ksYjRmvSHl1XjULlcPxZINdD",

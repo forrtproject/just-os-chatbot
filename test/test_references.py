@@ -148,3 +148,17 @@ def test_dict_valued_metadata_is_unwrapped():
     )
     line = qualle.ReferenceProcessor({"10.1002/icd.2315": "2022"}).references_from_nodes([broken])
     assert line == "[1] Petersen (2022). Adapting open science. https://doi.org/10.1002/icd.2315"
+
+
+def test_short_authors():
+    from just_os.references import short_authors
+    assert short_authors("Benjamin Le") == "Benjamin Le"
+    assert short_authors("Robert T. Thibault, Olavo B. Amaral, Felipe Argolo") == "Robert T. Thibault et al."
+    assert short_authors("Bartscherer, S. F., & Reinhart, M.") == "Bartscherer et al."
+
+
+def test_reference_list_is_structured_and_deduplicated():
+    nodes = [chunk("Manual", "10.1234/m", "first"), chunk("Manual", "10.1234/m", "second"), chunk("Other", "10.1234/o")]
+    entries = qualle.ReferenceProcessor({"10.1234/m": "2020"}).reference_list(nodes, None, {2})
+    assert [(e["number"], e["title"], e["year"], e["unverified"]) for e in entries] == [(1, "Manual", "2020", False), (2, "Other", "n.d.", True)]
+    assert entries[0]["url"] == "https://doi.org/10.1234/m"

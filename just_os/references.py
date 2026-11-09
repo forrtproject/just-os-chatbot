@@ -31,6 +31,14 @@ def plain_metadata(metadata: Dict) -> Dict:
     }
 
 
+def short_authors(creators: Optional[str]) -> str:
+    """'A, B, C' → 'A et al.'; one or two authors stay as they are."""
+    creators = " ".join(str(creators or "").split())
+    if creators.count(",") + creators.count("&") + creators.count(" and ") <= 1:
+        return creators
+    return re.split(r",|&| and ", creators)[0].strip() + " et al."
+
+
 def normalize_doi(text: Optional[str]) -> Optional[str]:
     """Return the bare, lower-case DOI in a string (URL, "doi:" prefix, ...) or None."""
     if not text:

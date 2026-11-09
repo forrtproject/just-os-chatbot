@@ -24,6 +24,7 @@ from just_os.references import (
     passage_allowed,
     plain_metadata,
     publication_year,
+    short_authors,
     reference_url,
 )
 
@@ -516,7 +517,7 @@ class OpenAIClientManager:
             return OpenAI(
                 api_key=api_key,
                 base_url=base_url,
-                timeout=self.config.get("LLM_TIMEOUT", 120),
+                timeout=self.config.get("LLM_TIMEOUT", 60),
                 max_retries=1,
             )
         except Exception as e:
@@ -659,6 +660,35 @@ class ReferenceProcessor:
         except Exception as e:
             logger.error(f"Error processing references: {str(e)}")
             return markdown.markdown(markdown_text), []
+
+    def reference_list(
+        self,
+        nodes: List[Any],
+        used_refs_ordered: Optional[List[int]] = None,
+        unverified: frozenset = frozenset(),
+    ) -> List[Dict[str, Any]]:
+        """The source list as data, one entry per document, for the page to format."""
+        if not used_refs_ordered:
+            seen, used_refs_ordered = set(), []
+            for idx, node in enumerate(nodes):
+                key = document_key(plain_metadata(node.metadata))
+                if key not in seen:
+                    seen.add(key)
+                    used_refs_ordered.append(idx)
+        flagged = {document_key(plain_metadata(nodes[i].metadata)) for i in unverified if i < len(nodes)}
+        entries = []
+        for number, ref_idx in enumerate((i for i in used_refs_ordered if i < len(nodes)), start=1):
+            data = self.reference_data(nodes[ref_idx])
+            entries.append({
+                "number": number,
+                "authors": data["authors"],
+                "authors_short": short_authors(data["authors"]),
+                "year": data["year"],
+                "title": data["title"],
+                "url": data["url"],
+                "unverified": document_key(plain_metadata(nodes[ref_idx].metadata)) in flagged,
+            })
+        return entries
 
     def references_from_nodes(
         self,
@@ -892,9 +922,13 @@ class Qualle:
                 "status": "complete",
                 "message": html_message,
                 "metadata": {
+                    # text for the forrt.org widget; "references" is the same list as data
                     "sources": self.reference_processor.references_from_nodes(
                         ranked_nodes, used_refs, unverified
-                    )
+                    ),
+                    "references": self.reference_processor.reference_list(
+                        ranked_nodes, used_refs, unverified
+                    ),
                 },
             }
             if use_cache:
@@ -975,6 +1009,7 @@ class Qualle:
                     "sources": self.reference_processor.references_from_nodes(
                         ranked_nodes, used_refs
                     ),
+                    "references": self.reference_processor.reference_list(ranked_nodes, used_refs),
                     "seconds": round(time.time() - start, 1),
                 }
 

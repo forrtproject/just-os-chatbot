@@ -575,3 +575,47 @@ button#send-button:disabled {
     font-size: small;
     margin: 4px 0;
 }
+
+/* Formatted source lists (chat and arena) */
+.sources-heading {
+    font-family: "Helvetica", sans-serif;
+    font-size: small;
+    font-weight: bold;
+    color: #004055;
+    margin-bottom: 4px;
+}
+
+.source-list {
+    margin: 0;
+    padding-left: 1.6em;
+    font-size: small;
+    line-height: 1.45;
+    white-space: normal;
+}
+
+.source-list li {
+    margin-bottom: 6px;
+    overflow-wrap: anywhere;
+}
+
+.source-title {
+    font-style: italic;
+}
+
+.source-list .source-link {
+    color: #004055;
+}
+
+.source-unverified {
+    color: #b00020;
+    border: 1px solid #b00020;
+    border-radius: 3px;
+    padding: 0 4px;
+    font-size: x-small;
+}
+
+.bot-message .sources {
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid #e1e4e8;
+}

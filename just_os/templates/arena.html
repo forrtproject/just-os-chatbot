@@ -16,7 +16,7 @@
     </div>
     <div id="arena" data-criteria='{{ criteria.items() | list | tojson }}' data-max-models="{{ max_models }}">
         <p class="arena-intro">Choose the models, ask a question, and rate each answer from 1 (bad) to 5 (very good).
-            All models get the same sources. The model names appear after you submit your ratings.</p>
+            All models get the same sources.{% if blind %} The model names appear after you submit your ratings.{% endif %}</p>
 
         <details id="model-picker">
             <summary><i class="fas fa-layer-group"></i> Models: <span id="model-count"></span></summary>
@@ -39,7 +39,7 @@
         <div id="arena-answers" hidden></div>
 
         <div id="arena-submit" hidden>
-            <button id="submit-ratings" disabled><i class="fas fa-check"></i> Submit ratings and show the models</button>
+            <button id="submit-ratings" disabled><i class="fas fa-check"></i> Submit ratings{% if blind %} and show the models{% endif %}</button>
         </div>
 
         <div id="user-input-box">

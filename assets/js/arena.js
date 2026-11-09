@@ -1,4 +1,4 @@
-import { setupReferenceHandlers } from "./references.js";
+import { renderSources, setupReferenceHandlers } from "./references.js";
 
 let battleId = null;
 let criteria = {};
@@ -74,12 +74,12 @@ function answerCard(response) {
   const header = el("header");
   header.append(
     el("span", "arena-label", `Answer ${response.label}`),
-    el("span", "arena-time", `${response.seconds} s`),
-    el("span", "arena-model")
+    el("span", "arena-model", response.model || ""), // empty while ARENA_BLIND hides it
+    el("span", "arena-time", `${response.seconds} s`)
   );
   const body = el("div", "arena-body bot-message");
   body.innerHTML = response.message; // server-built HTML, same as the chat page
-  card.append(header, body, el("div", "sources", response.sources));
+  card.append(header, body, renderSources(response.references, response.sources));
   if (response.error) {
     card.classList.add("failed");
   } else {
@@ -213,7 +213,9 @@ async function loadLeaderboard() {
     tr.appendChild(td);
     tbody.appendChild(tr);
   }
-  document.getElementById("leaderboard").hidden = false;
+  const board = document.getElementById("leaderboard");
+  board.hidden = false;
+  board.scrollIntoView({ behavior: "smooth", block: "start" }); // it sits below the question box
 }
 
 document.addEventListener("DOMContentLoaded", () => {

@@ -18,6 +18,11 @@ from config.settings import get_config
 from just_os.chat_manager import ChatManager
 from just_os.extensions import flask_static_digest
 
+# INFO shows the "Timing:" lines of each answer in `docker compose logs web`
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 # a: A is better, b: B is better, tie: both are good, bad: both are bad
@@ -281,6 +286,7 @@ class FlaskApp:
                 models=self.arena_models(),
                 max_models=self.config["ARENA_MAX_MODELS"],
                 criteria=ARENA_CRITERIA,
+                blind=self.config["ARENA_BLIND"],
             )
 
         @self.app.route("/arena/chat", methods=["POST"])
@@ -383,8 +389,8 @@ class FlaskApp:
         self, user_message: str, models: list[str]
     ) -> Generator[str, None, None]:
         """
-        Stream an arena round. Model names are replaced by labels A, B, C, ... until
-        the user rates; the round is kept in Redis for one day.
+        Stream an arena round. Answers get labels A, B, C, ...; with ARENA_BLIND the model
+        names stay hidden until the user rates. The round is kept in Redis for one day.
         """
         rag_service = self.get_rag_service()
         if not rag_service:
@@ -395,8 +401,10 @@ class FlaskApp:
                 battle_id = str(uuid.uuid4())
                 answers = {}
                 for label, response in zip(ARENA_LABELS, chunk["responses"]):
-                    answers[label] = {"model": response.pop("model"), "seconds": response["seconds"]}
+                    answers[label] = {"model": response["model"], "seconds": response["seconds"]}
                     response["label"] = label
+                    if self.config["ARENA_BLIND"]:
+                        del response["model"]  # names appear after the ratings
                 self.chat_manager.redis.set(
                     f"arena:battle:{battle_id}",
                     json.dumps({"question": user_message, "answers": answers}),

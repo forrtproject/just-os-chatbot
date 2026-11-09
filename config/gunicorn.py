@@ -9,7 +9,9 @@ access_log_format = (
 )
 
 workers = int(os.getenv("WEB_CONCURRENCY", 1)) # conservative default to prevent ooms
-threads = int(os.getenv("PYTHON_MAX_THREADS", 1))
+# > 1 switches to the gthread worker. With 1 thread, one idle browser connection (Chrome
+# opens spare ones) or one slow LLM call blocks every other request. Threads share the models.
+threads = int(os.getenv("PYTHON_MAX_THREADS", 8))
 
 reload = os.getenv("WEB_RELOAD", "false").lower() in ("1", "true", "yes", "on")
 

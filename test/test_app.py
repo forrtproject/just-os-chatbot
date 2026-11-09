@@ -53,10 +53,16 @@ def scores(correct=4, references=3, clarity=5):
     return {"correct": correct, "references": references, "clarity": clarity}
 
 
-def test_arena_asks_chosen_models_and_hides_names(app):
+def test_arena_asks_chosen_models_and_shows_names(app):
     app.config["ARENA_MODELS"] = "m1,m2,m3"
     _, final = ask(app.app.test_client(), ["m1", "m3"])
     assert [r["label"] for r in final["responses"]] == ["A", "B"]
+    assert sorted(r["model"] for r in final["responses"]) == ["m1", "m3"]
+
+
+def test_blind_arena_hides_names_until_rated(app):
+    app.config["ARENA_BLIND"] = True
+    _, final = ask(app.app.test_client(), ["m1", "m2"])
     assert all("model" not in r for r in final["responses"])
 
 

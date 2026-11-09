@@ -80,3 +80,48 @@ export function setupReferenceHandlers() {
     });
   });
 }
+
+// Numbered source list from response.references (all text inserted with textContent).
+// Falls back to the plain text list for old responses.
+export function renderSources(references, fallbackText = "") {
+  const box = document.createElement("div");
+  box.className = "sources";
+  if (!references || !references.length) {
+    box.textContent = fallbackText || "";
+    return box;
+  }
+  const heading = document.createElement("div");
+  heading.className = "sources-heading";
+  heading.textContent = "Sources";
+  const list = document.createElement("ol");
+  list.className = "source-list";
+  for (const ref of references) {
+    const item = document.createElement("li");
+    item.value = ref.number;
+    const span = (className, text) => {
+      const el = document.createElement("span");
+      el.className = className;
+      el.textContent = text;
+      return el;
+    };
+    item.append(
+      span("source-authors", ref.authors_short || ref.authors || "Unknown author"),
+      ` (${ref.year}). `,
+      span("source-title", ref.title || "Untitled")
+    );
+    if (/^https?:\/\//i.test(ref.url || "")) {
+      const link = document.createElement("a");
+      link.href = ref.url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.className = "source-link";
+      link.textContent = ref.url.replace(/^https?:\/\/(www\.)?/i, "");
+      if (ref.authors_short !== ref.authors) link.title = ref.authors;
+      item.append(" ", link);
+    }
+    if (ref.unverified) item.append(" ", span("source-unverified", "not verified"));
+    list.appendChild(item);
+  }
+  box.append(heading, list);
+  return box;
+}

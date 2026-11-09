@@ -1,4 +1,4 @@
-import { setupReferenceHandlers } from "./references.js";
+import { renderSources, setupReferenceHandlers } from "./references.js";
 
 function addMessage(message, sender, sources = null) {
   const chatMessages = document.getElementById("chat-messages");
@@ -16,11 +16,8 @@ function addMessage(message, sender, sources = null) {
     messageDiv.textContent = message;
   }
 
-  if (sources !== null) {
-    const sourcesDiv = document.createElement("div");
-    sourcesDiv.classList.add("sources");
-    sourcesDiv.textContent = sources;
-    messageDiv.appendChild(sourcesDiv);
+  if (sources && sources.length) {
+    messageDiv.appendChild(renderSources(sources));
   }
 
   chatMessages.appendChild(messageDiv);
@@ -118,7 +115,7 @@ async function sendMessage(message) {
 
             if (data.status === "complete") {
               endStream();
-              addMessage(data.message, "bot");
+              addMessage(data.message, "bot", data.metadata?.references);
             } else {
               baseMessage = data.message;
             }
