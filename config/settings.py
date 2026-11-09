@@ -24,6 +24,18 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "EMBEDDING_MODEL": "BAAI/bge-m3",
     # Local CrossEncoder on CPU
     "RERANK_MODEL": "BAAI/bge-reranker-base",
+    # CPU threads for the re-ranker and embedding (20 chunks: ~25 s with 1 thread, ~13 s with 6)
+    "RERANK_THREADS": 6,
+    # Follow-up questions: "rephrase" (one LLM call makes a stand-alone question) or
+    # "history" (no rephrase; the earlier turns go into the answer prompt)
+    "CONTEXT_METHOD": "rephrase",
+    # Check each cited sentence against its source with the re-ranker; mark weak ones
+    "VERIFY_CITATIONS": False,
+    "VERIFY_MIN_SCORE": 0.1,
+    # FORRT lookup mode: route "where/how on FORRT" questions to a search of the FORRT sheet
+    "FORRT_LOOKUP": False,
+    "FORRT_SHEET_FILE": "data/raw/forrt_sheet1_261028.csv",
+    "FORRT_LOOKUP_TOP_K": 5,
     # Answer prompt: "openscholar" (long, made for OpenScholar) or "short" (model-neutral)
     "PROMPT_STYLE": "openscholar",
     # Semantic answer cache: seconds to keep answers (0 = off); reuse if cosine >= limit

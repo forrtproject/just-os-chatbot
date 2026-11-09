@@ -26,6 +26,9 @@ export function setupReferenceHandlers() {
       };
       add("div", "title", data.title);
       add("div", "metadata", `${data.authors} (${data.year})`);
+      if (data.unverified) {
+        add("div", "unverified", "Not verified: the citation check did not find this claim in the passage.");
+      }
       add(
         "div",
         "content",

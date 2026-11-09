@@ -216,7 +216,12 @@ class FlaskApp:
                 ):
                     bg_color = "#fefdf6"  # Default if invalid
 
-            return render_template("index.html", bg_color=bg_color)
+            return render_template(
+                "index.html",
+                bg_color=bg_color,
+                models=self.chat_models(),
+                default_model=self.config["CITATION_MODEL"],
+            )
 
         @self.app.route("/chat", methods=["POST"])
         @self.rate_limit_manager.limiter.limit(
@@ -231,6 +236,8 @@ class FlaskApp:
             try:
                 user_message = request.json["message"]
                 chat_id = request.json["chat_id"]
+                # Optional: the built-in page can choose the answer model; the widget sends none
+                model = request.json.get("model") or None
             except (KeyError, TypeError) as e:
                 logger.error(f"Invalid request data: {str(e)}")
                 return jsonify(
@@ -251,8 +258,11 @@ class FlaskApp:
                     }
                 ), 400
 
+            if model is not None and model not in self.chat_models():
+                return jsonify({"status": "error", "message": "Unknown model."}), 400
+
             return Response(
-                self._generate_chat_response(user_message, chat_id),
+                self._generate_chat_response(user_message, chat_id, model),
                 mimetype="text/event-stream",
             )
 
@@ -358,6 +368,10 @@ class FlaskApp:
     def _arena_ratings(self) -> list[dict]:
         return [json.loads(r) for r in self.chat_manager.redis.lrange("arena:ratings", 0, -1)]
 
+    def chat_models(self) -> list[str]:
+        """Models the chat page offers: CITATION_MODEL first, then the arena models."""
+        return list(dict.fromkeys([self.config["CITATION_MODEL"], *self.arena_models()]))
+
     def arena_models(self) -> list[str]:
         """ARENA_MODELS, without OpenScholar when its server is not configured."""
         models = [m.strip() for m in self.config["ARENA_MODELS"].split(",") if m.strip()]
@@ -392,7 +406,7 @@ class FlaskApp:
             yield json.dumps(chunk) + "\n"
 
     def _generate_chat_response(
-        self, user_message: str, chat_id: str
+        self, user_message: str, chat_id: str, model: Optional[str] = None
     ) -> Generator[str, None, None]:
         """
         Generate chat responses as a stream.
@@ -408,7 +422,7 @@ class FlaskApp:
             # Lazy-load RAG service only when needed
             rag_service = self.get_rag_service()
             if rag_service:
-                for response in rag_service.get_response(user_message, chat_id):
+                for response in rag_service.get_response(user_message, chat_id, model):
                     yield json.dumps(response) + "\n"
             else:
                 yield (

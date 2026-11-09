@@ -88,7 +88,11 @@ async function sendMessage(message) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ message: message, chat_id: window.chatId }),
+      body: JSON.stringify({
+        message: message,
+        chat_id: window.chatId,
+        model: document.getElementById("model-select")?.value,
+      }),
     });
     const reader = response.body.getReader();
     const decoder = new TextDecoder();

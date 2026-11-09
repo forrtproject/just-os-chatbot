@@ -11,10 +11,12 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from openai import OpenAI
 from openai.types.chat import ChatCompletion
+import torch
 from sentence_transformers import CrossEncoder
 
 from just_os.answer_cache import AnswerCache
 from just_os.chat_manager import ChatManager
+from just_os.forrt_lookup import ForrtLookup
 from just_os.openscholar import generation_instance_prompts_w_references, system_prompt
 from just_os.references import (
     document_key,
@@ -38,6 +40,9 @@ LICENCE_KEY = "conditions_of_use"
 
 # Default response for non-Open Science questions
 NON_OS_RESPONSE = "Sorry, I'm only able to answer questions related to Open Science."
+# CONTEXT_METHOD=history: number of earlier messages passed to the answer model
+HISTORY_TURNS = 4
+INTENTS = ("open_science", "forrt_lookup", "off_topic")
 # Shown when the language model cannot be reached (not a refusal)
 CLASSIFY_ERROR_RESPONSE = (
     "Sorry, the language model is not available at the moment. Please try again later."
@@ -167,6 +172,29 @@ Return your answer as a valid JSON object with a single boolean entry "concerns_
             return None
         return result
 
+    def classify_intent(self, query: str) -> Optional[str]:
+        """
+        Route a query (FORRT_LOOKUP=true): "open_science" (explained answer with sources),
+        "forrt_lookup" (find a FORRT resource or a way to take part) or "off_topic".
+
+        Returns:
+            One of INTENTS, or None if the model could not be reached or parsed
+        """
+        prompt = f"""You route questions for JUST-OS, the chatbot of FORRT (Framework for Open and Reproducible Research Training).
+Classify the query into one category:
+- "open_science": a question about open science or research practice that needs an explained answer
+- "forrt_lookup": the user wants to find a FORRT resource, course, reading or page, or asks how to get involved with FORRT
+- "off_topic": anything else
+Query: "{query}"
+Return your answer as a valid JSON object with a single string entry "category"
+"""
+        result = self._structured_output(prompt, "category", "string")
+        result = result.strip().lower() if isinstance(result, str) else None
+        if result not in INTENTS:
+            logger.error(f"Failed to classify intent, got: {result!r}")
+            return None
+        return result
+
     def rephrase_query(self, query: str, chat_id: str) -> str:
         """
         Rephrase a query based on conversation history.
@@ -215,10 +243,40 @@ class DocumentRetriever:
         """
         self.config = config
         self._retriever = retriever
+        # The container sets OMP_NUM_THREADS=1; the re-ranker is ~2x faster with 6 threads
+        torch.set_num_threads(config.get("RERANK_THREADS", 6))
         self.reranker = CrossEncoder(config["RERANK_MODEL"])
+        self.verify_min_score = config.get("VERIFY_MIN_SCORE", 0.1)
         self.n_context_items = config["MAX_CHUNKS"]
         self.min_relevance = config["MIN_RELEVANCE"]
         self.max_per_doc = config.get("MAX_CHUNKS_PER_DOC", 0)
+
+    def unsupported_citations(self, text: str, nodes: List[Any]) -> set:
+        """
+        VERIFY_CITATIONS: score each (cited sentence, cited chunk) pair with the re-ranker.
+        A source number whose best score is below VERIFY_MIN_SCORE is "not verified".
+
+        Returns:
+            Indices of the cited nodes that no citing sentence is supported by
+        """
+        pairs, refs = [], []
+        for sentence in re.split(r"(?<=[.!?])\s+", text):
+            claim = re.sub(r"\[\d+\]", "", sentence).strip()
+            for ref in {int(m) for m in re.findall(r"\[(\d+)\]", sentence)}:
+                if claim and ref < len(nodes):
+                    pairs.append((claim, self.node_to_text(nodes[ref])))
+                    refs.append(ref)
+        if not pairs:
+            return set()
+        try:
+            scores = self.reranker.predict(pairs)
+        except Exception as e:
+            logger.error(f"Citation check failed, showing all citations: {e}")
+            return set()
+        best: Dict[int, float] = {}
+        for ref, score in zip(refs, scores):
+            best[ref] = max(best.get(ref, 0.0), float(score))
+        return {ref for ref, score in best.items() if score < self.verify_min_score}
 
     def limit_per_document(self, nodes: List[Any]) -> List[Any]:
         """Keep at most MAX_CHUNKS_PER_DOC chunks of one paper (0 = no limit), then MAX_CHUNKS."""
@@ -274,7 +332,9 @@ class DocumentRetriever:
             Tuple of (ranked nodes, all retrieved nodes)
         """
         # Retrieve relevant nodes
+        start = time.time()
         nodes = self._retriever.retrieve(query)
+        retrieved = time.time()
 
         if not nodes:
             return [], []
@@ -282,6 +342,10 @@ class DocumentRetriever:
         try:
             scores = self.reranker.predict(
                 [(query, self.node_to_text(node)) for node in nodes]
+            )
+            logger.info(
+                f"Timing: retrieval {retrieved - start:.1f}s, re-rank {time.time() - retrieved:.1f}s "
+                f"({len(nodes)} chunks)"
             )
         except Exception as e:
             # Fall back to vector order so a reranker failure never empties the answer
@@ -329,7 +393,11 @@ class ResponseGenerator:
             self.prompt_template = generation_instance_prompts_w_references
 
     def generate_response(
-        self, query: str, context: str, model: Optional[str] = None
+        self,
+        query: str,
+        context: str,
+        model: Optional[str] = None,
+        history: Optional[List[Dict[str, str]]] = None,
     ) -> Optional[str]:
         """
         Generate a response using the LLM.
@@ -348,6 +416,8 @@ class ResponseGenerator:
         # Prepare messages for the LLM
         history_openai_format = [
             {"role": "system", "content": self.system_prompt},
+            # CONTEXT_METHOD=history: the earlier turns of the chat
+            *[{"role": m["role"], "content": m["content"]} for m in history or []],
             {"role": "user", "content": prompt},
         ]
 
@@ -386,7 +456,7 @@ class ResponseGenerator:
             return raw_response
 
     def process_with_references(
-        self, processed_message: str, nodes: List[Any]
+        self, processed_message: str, nodes: List[Any], unverified: frozenset = frozenset()
     ) -> Tuple[str, List[int]]:
         """
         Process a response with references.
@@ -399,7 +469,7 @@ class ResponseGenerator:
             Tuple of (HTML message with references, list of used reference indices)
         """
         return self.reference_processor.process_markdown_with_references(
-            processed_message, nodes
+            processed_message, nodes, unverified
         )
 
 
@@ -506,10 +576,11 @@ class ReferenceProcessor:
     def __init__(self, pub_years: Optional[Dict[str, str]] = None):
         self.pub_years = pub_years or {}
 
-    def reference_data(self, node) -> Dict[str, Any]:
+    def reference_data(self, node, unverified: bool = False) -> Dict[str, Any]:
         """Tooltip data for one cited chunk. The front end inserts it as text, not HTML."""
         meta = plain_metadata(node.metadata)
         return {
+            "unverified": unverified,
             "title": meta.get(TITLE_KEY, "Unknown Title"),
             "authors": meta.get(CREATOR_KEY, "Unknown Author"),
             "year": publication_year(meta, self.pub_years),
@@ -518,7 +589,7 @@ class ReferenceProcessor:
         }
 
     def process_markdown_with_references(
-        self, markdown_text: str, references_nodes: List[Any]
+        self, markdown_text: str, references_nodes: List[Any], unverified: frozenset = frozenset()
     ) -> Tuple[str, List[int]]:
         """
         Convert markdown to HTML and add clickable references with tooltips.
@@ -569,7 +640,9 @@ class ReferenceProcessor:
                     start, end = match.span()
                     # Each citation keeps the passage of the chunk it cites
                     data_string = json.dumps(
-                        self.reference_data(references_nodes[old_ref_num]),
+                        self.reference_data(
+                            references_nodes[old_ref_num], old_ref_num in unverified
+                        ),
                         ensure_ascii=True,
                         separators=(",", ":"),
                     )
@@ -588,7 +661,10 @@ class ReferenceProcessor:
             return markdown.markdown(markdown_text), []
 
     def references_from_nodes(
-        self, nodes: List[Any], used_refs_ordered: Optional[List[int]] = None
+        self,
+        nodes: List[Any],
+        used_refs_ordered: Optional[List[int]] = None,
+        unverified: frozenset = frozenset(),
     ) -> str:
         """
         Generate the source list, one line per document.
@@ -611,6 +687,7 @@ class ReferenceProcessor:
                         seen.add(key)
                         used_refs_ordered.append(idx)
 
+            flagged = {document_key(plain_metadata(nodes[i].metadata)) for i in unverified if i < len(nodes)}
             lines = []
             for number, ref_idx in enumerate(
                 (i for i in used_refs_ordered if i < len(nodes)), start=1
@@ -619,6 +696,7 @@ class ReferenceProcessor:
                 lines.append(
                     f"[{number}] {data['authors']} ({data['year']}). {data['title']}."
                     + (f" {data['url']}" if data["url"] else "")
+                    + (" [not verified]" if document_key(plain_metadata(nodes[ref_idx].metadata)) in flagged else "")
                 )
             return "\n".join(lines)
         except Exception as e:
@@ -667,6 +745,13 @@ class Qualle:
             self.client_manager, config, self.reference_processor
         )
 
+        # FORRT lookup mode: three-way routing and a keyword search over the FORRT sheet
+        self.forrt_lookup = (
+            ForrtLookup(config["FORRT_SHEET_FILE"], config.get("FORRT_LOOKUP_TOP_K", 5))
+            if config.get("FORRT_LOOKUP")
+            else None
+        )
+
         # Semantic answer cache (off when ANSWER_CACHE_TTL is 0)
         self.answer_cache = (
             AnswerCache(chat_manager.redis, embed_model, config)
@@ -706,7 +791,7 @@ class Qualle:
         }
 
     def get_response(
-        self, query: str, chat_id: str
+        self, query: str, chat_id: str, model: Optional[str] = None
     ) -> Generator[Dict[str, Any], None, None]:
         """
         Generate a response to a user query.
@@ -714,133 +799,107 @@ class Qualle:
         Args:
             query: User query
             chat_id: Chat session ID
+            model: Answer model for this request (default CITATION_MODEL)
 
         Yields:
             Response chunks as dictionaries
         """
         logger.debug("Starting response generation for chat_id: %s", chat_id)
+        user_query = query  # the history keeps what the user typed, not the rephrased query
+
+        def remember(answer: str) -> None:
+            self.chat_manager.add_message(chat_id, {"role": "user", "content": user_query})
+            self.chat_manager.add_message(chat_id, {"role": "assistant", "content": answer})
 
         try:
-            # Get conversation history
             conversation_history = self.chat_manager.get_history(chat_id)
-            logger.debug("Retrieved conversation history for chat_id: %s", chat_id)
 
             # A first question very close to a recent one gets the stored answer
             use_cache = self.answer_cache is not None and not conversation_history
             if use_cache:
-                cached = self.answer_cache.lookup(query)
+                cached = self.answer_cache.lookup(query, model)
                 if cached:
-                    self.chat_manager.add_message(chat_id, {"role": "user", "content": query})
-                    self.chat_manager.add_message(
-                        chat_id, {"role": "assistant", "content": cached["text"]}
-                    )
+                    remember(cached["text"])
                     yield cached["response"]
                     return
 
-            # Rephrase query if there's conversation history
+            # Follow-up questions: rephrase (default) or pass the history (CONTEXT_METHOD=history)
+            history_for_answer = None
             if conversation_history:
-                yield {"status": "in-progress", "message": "Reformulating question"}
-                query = self.query_processor.rephrase_query(query, chat_id)
-                logger.debug(f"Rephrased query: {query}")
+                if self.config.get("CONTEXT_METHOD", "rephrase") == "history":
+                    history_for_answer = conversation_history[-HISTORY_TURNS:]
+                    last_user = [m["content"] for m in conversation_history if m["role"] == "user"][-1:]
+                    query = " ".join(last_user + [query])  # retrieval sees the topic of the chat
+                else:
+                    yield {"status": "in-progress", "message": "Reformulating question"}
+                    query = self.query_processor.rephrase_query(query, chat_id)
+                    logger.debug(f"Rephrased query: {query}")
 
-            # Classify query
             yield {"status": "in-progress", "message": "Classifying question"}
-            concerns_open_science = self.query_processor.classify_query(query)
-            logger.debug(f"Query classification: {concerns_open_science}")
+            if self.config.get("FORRT_LOOKUP") and self.forrt_lookup is not None:
+                intent = self.query_processor.classify_intent(query)
+            else:
+                is_open_science = self.query_processor.classify_query(query)
+                intent = None if is_open_science is None else ("open_science" if is_open_science else "off_topic")
+            logger.debug(f"Query intent: {intent}")
 
-            if concerns_open_science is None:
-                yield {
-                    "status": "error",
-                    "message": markdown.markdown(CLASSIFY_ERROR_RESPONSE),
-                }
+            if intent is None:
+                yield {"status": "error", "message": markdown.markdown(CLASSIFY_ERROR_RESPONSE)}
                 return
 
-            # Process Open Science queries
-            if concerns_open_science:
-                # Retrieve and rerank relevant sources
-                yield {"status": "in-progress", "message": "Finding relevant sources"}
-                logger.debug("Retrieving and reranking nodes for query")
-                ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(
-                    query
-                )
+            if intent == "forrt_lookup":
+                answer = self.forrt_lookup.answer(user_query if history_for_answer else query)
+                remember(answer)
+                yield {"status": "complete", "message": markdown.markdown(answer)}
+                return
 
-                if not ranked_nodes:
-                    yield from self.no_relevant_nodes_handler(query, chat_id)
-                    return
+            if intent == "off_topic":
+                remember(NON_OS_RESPONSE)
+                yield {"status": "complete", "message": markdown.markdown(NON_OS_RESPONSE)}
+                return
 
-                # Format context
-                context = self.document_retriever.context_from_nodes(ranked_nodes)
+            yield {"status": "in-progress", "message": "Finding relevant sources"}
+            ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(query)
+            if not ranked_nodes:
+                yield from self.no_relevant_nodes_handler(user_query, chat_id)
+                return
+            context = self.document_retriever.context_from_nodes(ranked_nodes)
 
-                # Generate response
-                yield {"status": "in-progress", "message": "Generating response"}
-                response_text = self.response_generator.generate_response(
-                    query, context
-                )
+            yield {"status": "in-progress", "message": "Generating response"}
+            start = time.time()
+            response_text = self.response_generator.generate_response(
+                query, context, model, history=history_for_answer
+            )
+            logger.info(f"Timing: answer {time.time() - start:.1f}s ({model or self.config.get('CITATION_MODEL')})")
+            if not response_text:
+                logger.error("Failed to generate response")
+                error = "I'm sorry, I encountered an error while generating a response."
+                remember(error)
+                yield {"status": "complete", "message": markdown.markdown(error)}
+                return
 
-                if not response_text:
-                    logger.error("Failed to generate response")
-                    self.chat_manager.add_message(
-                        chat_id, {"role": "user", "content": query}
+            processed_message = self.response_generator.post_process_response(response_text)
+            unverified = set()
+            if self.config.get("VERIFY_CITATIONS"):
+                yield {"status": "in-progress", "message": "Checking citations"}
+                unverified = self.document_retriever.unsupported_citations(processed_message, ranked_nodes)
+            html_message, used_refs = self.response_generator.process_with_references(
+                processed_message, ranked_nodes, unverified
+            )
+            remember(processed_message)
+
+            final = {
+                "status": "complete",
+                "message": html_message,
+                "metadata": {
+                    "sources": self.reference_processor.references_from_nodes(
+                        ranked_nodes, used_refs, unverified
                     )
-                    self.chat_manager.add_message(
-                        chat_id,
-                        {
-                            "role": "assistant",
-                            "content": "I'm sorry, I encountered an error while generating a response.",
-                        },
-                    )
-                    yield {
-                        "status": "complete",
-                        "message": markdown.markdown(
-                            "I'm sorry, I encountered an error while generating a response."
-                        ),
-                    }
-                    return
-
-                # Process response
-                processed_message = self.response_generator.post_process_response(
-                    response_text
-                )
-                html_message, used_refs = (
-                    self.response_generator.process_with_references(
-                        processed_message, ranked_nodes
-                    )
-                )
-
-                # Save conversation history
-                self.chat_manager.add_message(
-                    chat_id, {"role": "user", "content": query}
-                )
-                self.chat_manager.add_message(
-                    chat_id, {"role": "assistant", "content": processed_message}
-                )
-
-                # Return final response
-                final = {
-                    "status": "complete",
-                    "message": html_message,
-                    "metadata": {
-                        "sources": self.reference_processor.references_from_nodes(
-                            ranked_nodes, used_refs
-                        )
-                    },
-                }
-                if use_cache:
-                    self.answer_cache.store(query, final, processed_message)
-                yield final
-            else:
-                # Handle non-Open Science queries
-                self.chat_manager.add_message(
-                    chat_id, {"role": "user", "content": query}
-                )
-                self.chat_manager.add_message(
-                    chat_id, {"role": "assistant", "content": NON_OS_RESPONSE}
-                )
-
-                yield {
-                    "status": "complete",
-                    "message": markdown.markdown(NON_OS_RESPONSE),
-                }
+                },
+            }
+            if use_cache:
+                self.answer_cache.store(query, final, processed_message, model)
+            yield final
         except Exception as e:
             logger.error(f"Error in get_response: {str(e)}")
             yield {

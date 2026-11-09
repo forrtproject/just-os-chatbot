@@ -91,6 +91,7 @@ def make_qualle(classification, ranked, all_nodes, answer):
     q.config = CONFIG
     q.chat_manager = FakeChatManager()
     q.answer_cache = None
+    q.forrt_lookup = None
     q.query_processor = SimpleNamespace(
         classify_query=lambda query: classification, rephrase_query=lambda query, chat_id: query
     )

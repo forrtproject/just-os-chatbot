@@ -47,7 +47,7 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 
 | Setting | Use |
 |---|---|
-| `CITATION_MODEL` | writes the answer |
+| `CITATION_MODEL` | writes the answer (default `meta-llama/llama-3.1-8b-instruct`); the chat page can pick another model per question |
 | `GENERAL_MODEL` | classifies and rephrases the question |
 | `EMBEDDING_MODEL` + `VECTOR_STORE` | search; the two must match (default `BAAI/bge-m3`) |
 | `ARENA_MODELS` | models offered on `/arena`, comma separated (default: the 9 OpenRouter candidates + `openscholar-8b`) |
@@ -56,6 +56,10 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 | `PROMPT_STYLE` | `openscholar` (default) or `short` (model-neutral answer prompt) |
 | `ANSWER_CACHE_TTL` | seconds to reuse answers to near-identical first questions; `0` = off (default) |
 | `PROXY_FIX_X_FOR` | number of trusted reverse proxies (prod: `1`), so the rate limit uses the client IP; `0` = none (default) |
+| `RERANK_THREADS` | CPU threads for the re-ranker (default 6; 1 thread is ~2x slower) |
+| `CONTEXT_METHOD` | follow-ups: `rephrase` (default) or `history` (earlier turns in the answer prompt) |
+| `VERIFY_CITATIONS` | `true`: check each cited sentence against its source and mark weak citations "not verified" |
+| `FORRT_LOOKUP` | `true`: "where on FORRT / how to contribute" questions get a list of FORRT links |
 | `HYBRID_SEARCH` | `true`: keyword (BM25) + vector search (default `false`) |
 | `MAX_CHUNKS_PER_DOC` | at most this many chunks of one paper in the context; `0` = no limit (default) |
 

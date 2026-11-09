@@ -123,3 +123,15 @@ def test_arena_page_keeps_criteria_order(app):
     start = html.index("data-criteria='") + len("data-criteria='")
     keys = [key for key, _ in json.loads(html[start:html.index("'", start)])]
     assert keys == ["correct", "references", "clarity"]  # same order as the table headers
+
+
+def test_chat_rejects_unknown_model(app):
+    response = app.app.test_client().post("/chat", json={"message": "What is open data?", "chat_id": "c", "model": "not-a-model"})
+    assert response.status_code == 400
+
+
+def test_chat_page_offers_models_with_default_first(app):
+    app.config.update(CITATION_MODEL="m2", ARENA_MODELS="m1,m2")
+    assert app.chat_models() == ["m2", "m1"]
+    html = app.app.test_client().get("/").get_data(as_text=True)
+    assert '<select id="model-select">' in html and "m2 (default)" in html

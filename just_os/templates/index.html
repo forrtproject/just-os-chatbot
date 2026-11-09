@@ -29,6 +29,14 @@
 <div id="container">
     <div id="chat-messages">{{ message_history | safe }}</div>
     <div id="status-message"></div>
+    <div id="model-choice">
+        <label for="model-select">Answer model</label>
+        <select id="model-select">
+            {% for model in models %}
+            <option value="{{ model }}" {% if model == default_model %}selected{% endif %}>{{ model }}{% if model == default_model %} (default){% endif %}</option>
+            {% endfor %}
+        </select>
+    </div>
     <div id="user-input-box">
         <div id="user-input-container">
             <textarea id="user-input" placeholder="Ask anything related to Open Science."></textarea>

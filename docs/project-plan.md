@@ -81,8 +81,8 @@ JUST-OS answers open-science questions with citations to the FORRT resource libr
 | 18 | PDF download saves any response as `.pdf` | **Fixed** (#30): `%PDF` check |
 | 19 | No `uv.lock` | **Fixed** |
 | 20 | No tests, no `ruff` | **Fixed** |
-| 21 | Index upload only via Google Drive OAuth | Open |
-| 22 | FAISS L2 while bge expects cosine | Open |
+| 21 | Index upload only via Google Drive OAuth | **Fixed** (#30): the upload is skipped without `credentials.json`; teams share `scripts/make_share_bundle.py` zips |
+| 22 | FAISS L2 while bge expects cosine | **No change needed** (#30): the embeddings are normalised (`normalize=True`), so L2 order = cosine order |
 | 23 | Setup needs a symlink and a manual settings copy | **Fixed** (`COMPOSE_FILE` in `.env`; `settings.py` is in Git) |
 | 24 | Unused `session["user_id"]` | **Fixed** (#30) |
 | — | 10 documents with dict-valued metadata (duplicate `doi_hash`) | **Fixed in `embed.py`** (#24); the current index keeps them until the next build |

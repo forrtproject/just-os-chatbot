@@ -44,8 +44,9 @@ just-os-chatbot/
 |---|---|---|
 | `app.py` | `FlaskApp`: routes, CORS allow-list, input validation, rate limits (`RateLimitManager`, Flask-Limiter on Redis; `PROXY_FIX_X_FOR` > 0 trusts `X-Forwarded-For` from that many proxies), NDJSON streaming. `get_app()` is the Gunicorn entry point | `rag_service`, `chat_manager`, `extensions`, templates |
 | `rag_service.py` | Builds the pipeline once per worker (singleton): embedding model → FAISS index from `VECTOR_STORE` → retriever (wrapped in `HybridRetriever` if `HYBRID_SEARCH`) → `Qualle` | `qualle`, `chat_manager`, `config.settings` |
-| `qualle.py` | The RAG pipeline. `QueryProcessor` (rephrase + classify; tool call with JSON fallback), `DocumentRetriever` (FAISS top-k + local CrossEncoder re-rank; falls back to vector order; `MAX_CHUNKS_PER_DOC` caps chunks per paper), `ResponseGenerator` (prompt chosen by `PROMPT_STYLE`: `openscholar` or `short`; LLM call; post-processing), `OpenAIClientManager` (OpenAI-compatible clients with a `LLM_TIMEOUT` limit and 1 retry; sends `OPENSCHOLAR_MODEL` to the self-hosted server), `ReferenceProcessor` (citation numbers → HTML + source list: one number per paper, publication year, doi.org links, passage only for open licences), `Qualle` (`get_response`, `get_arena_response`) | `openscholar`, `chat_manager` |
+| `qualle.py` | The RAG pipeline. `QueryProcessor` (rephrase + classify, or `classify_intent` into open_science / forrt_lookup / off_topic; tool call with JSON fallback), `DocumentRetriever` (FAISS top-k + local CrossEncoder re-rank; falls back to vector order; `MAX_CHUNKS_PER_DOC` caps chunks per paper; `RERANK_THREADS` CPU threads; `unsupported_citations` for `VERIFY_CITATIONS`; logs `Timing:` lines), `ResponseGenerator` (prompt chosen by `PROMPT_STYLE`: `openscholar` or `short`; LLM call; post-processing), `OpenAIClientManager` (OpenAI-compatible clients with a `LLM_TIMEOUT` limit and 1 retry; sends `OPENSCHOLAR_MODEL` to the self-hosted server), `ReferenceProcessor` (citation numbers → HTML + source list: one number per paper, publication year, doi.org links, passage only for open licences), `Qualle` (`get_response`, `get_arena_response`) | `openscholar`, `chat_manager` |
 | `answer_cache.py` | `AnswerCache`: semantic answer cache in Redis (`ANSWER_CACHE_TTL` > 0 turns it on) | `qualle` |
+| `forrt_lookup.py` | `FORRT_LOOKUP=true`: `ForrtLookup` searches every row of the FORRT sheet (BM25 over title, abstract, clusters, tags) and answers with a list of links (titles escaped, http(s) only) | `qualle` |
 | `hybrid.py` | `HYBRID_SEARCH=true`: `BM25` keyword index (scikit-learn sparse matrix, built from the docstore at start-up, ~7 s) + `HybridRetriever` (vector and keyword lists merged by reciprocal rank fusion) | `rag_service` |
 | `references.py` | Pure helpers (no heavy imports): `normalize_doi`, `reference_url` (`https://doi.org/<doi>`, else an http(s) link), `document_key` (one key per paper), `passage_allowed` (licence gate), `publication_year` + `load_publication_years` (`PUB_YEARS_FILE`) | `qualle`, `ingest/helpers`, `scripts/get_pub_years` |
 | `openscholar.py` | The OpenScholar system prompt and answer template (keep the Apache-2.0 header) | `qualle` |
@@ -58,8 +59,8 @@ just-os-chatbot/
 ### Routes (`just_os/app.py`)
 | Route | Method | Purpose |
 |---|---|---|
-| `/` | GET | Built-in chat page |
-| `/chat` | POST | Main API (`message`, `chat_id`) → NDJSON stream. The forrt.org widget uses it: **do not change the fields** |
+| `/` | GET | Built-in chat page with an "Answer model" dropdown (`CITATION_MODEL` first, then `ARENA_MODELS`) |
+| `/chat` | POST | Main API (`message`, `chat_id`, optional `model` from the chat page's list) → NDJSON stream. The forrt.org widget uses it and sends no `model`: **do not change the existing fields** |
 | `/up` | GET | Health check (Docker) |
 | `/arena` | GET | Arena page (only if `ARENA_ENABLED`); lists `ARENA_MODELS` (OpenScholar only when `OPENSCHOLAR_BASE_URL` is set) |
 | `/arena/chat` | POST | `{message, models}`: each chosen model (1 to `ARENA_MAX_MODELS`) answers from the same sources; cards labelled A, B, C… in random order |
@@ -83,6 +84,9 @@ just-os-chatbot/
 | `embed.py` | `uv run python -m scripts.embed` | Step 3: chunks the Markdown (`CHUNK_SIZE`), embeds with `EMBEDDING_MODEL`, writes `data/processed/vs_latest_<model>/`, uploads to Drive. `unique_metadata` keeps one metadata row per `doi_hash` |
 | `reembed.py` | `uv run python -m scripts.reembed <index-dir> <model>` | Builds a second index from the **same chunks** with another embedding model (fair comparison) |
 | `get_pub_years.py` | `python -m scripts.get_pub_years [index-dir]` | Asks OpenAlex for the publication year of every DOI in the index → `data/raw/pub_years.csv` (tracked; read via `PUB_YEARS_FILE`). Run again after a new index build |
+| `add_to_index.py` | `python -m scripts.add_to_index <md-dir> <metadata.csv>` | Adds new Markdown documents to an existing index (skips DOIs/titles already in it) without a full rebuild |
+| `fetch_web_resources.py` | `python -m scripts.fetch_web_resources [--sample 50]` | HTML route: web resources without DOI → Markdown + metadata in `data/processed/web_markdown/` |
+| `match_cluster_pdfs.py` | `python -m scripts.match_cluster_pdfs` | Cluster PDF file names → title/DOI from the FORRT sheets → `data/interim/cluster_pdf_metadata.csv` |
 | `add_new_resources.py` | `uv run python -m scripts.add_new_resources` | Adds rows from the live FORRT sheets (`URL_FORRT`): DOI → Unpaywall → PDF download |
 
 `python -m scripts.<name>` keeps the repository root on the import path, so `config` and `ingest` import correctly.
@@ -94,6 +98,8 @@ just-os-chatbot/
 | `compare.py` | Merges run CSVs into one Markdown table | stdout |
 | `make_retrieval_set.py` | Makes the retrieval question set (seed + synthetic + translated questions) | `retrieval_questions.jsonl` |
 | `coverage.py` | One reason per FORRT sheet resource for why it is (not) in the index | `results/coverage_<date>.{csv,md,svg}` |
+| `judge.py` | LLM judge: share of cited sentences their source supports → column `judge_support` in a run CSV | same run CSV |
+| `classify.py` | Classify step only, for several `GENERAL_MODEL`s (`--intent` for 3 classes) | Markdown table |
 | `compare_embeddings.py` | Retrieval-only comparison of embedding models E1–E6 (see [evaluation.md](evaluation.md)) | `results/embeddings_<date>.csv` |
 
 ### `test/`
@@ -104,6 +110,8 @@ just-os-chatbot/
 | `test_retrieval.py` | Per-paper cap, BM25, rank fusion, hybrid retriever |
 | `test_answer_cache.py` | Answer cache hit/miss/expiry/namespace/size, no LLM call on a hit, `PROMPT_STYLE` |
 | `test_ingest.py` | Title match, `%PDF` check, `unique_metadata`, gunicorn reload flag |
+| `test_pipeline_options.py` | Chosen chat model, per-model answer cache, history keeps the user's words, `CONTEXT_METHOD=history`, citation check, FORRT lookup |
+| `test_scripts.py` | Judge, classifier summary, cluster PDF names, HTML text, adding to an index |
 | `test_rerank.py` | Re-ranker order and fallback to vector order |
 | `test_app.py` | Arena: chosen models, hidden names, OpenScholar filter, ratings, leaderboard, bad input; ProxyFix on/off |
 | `test_compare.py` | `eval/compare.py` summary numbers |
@@ -119,14 +127,16 @@ flowchart LR
     W[forrt.org widget / built-in page] -->|POST /chat| A[app.py: validate, rate limit]
     A --> H[(Redis: chat history)]
     A --> Q[Qualle.get_response]
-    Q -->|history| RP[1 Rephrase - GENERAL_MODEL]
+    Q -->|history| RP[1 Rephrase - GENERAL_MODEL, or history in the prompt if CONTEXT_METHOD=history]
     RP --> C{2 Classify - GENERAL_MODEL}
+    C -->|forrt_lookup, if FORRT_LOOKUP| L[FORRT sheet search → list of links]
     C -->|API error| E[error message]
     C -->|not open science| R[refusal]
     C -->|yes| F[3 FAISS top-k = RETRIEVER_TOP_K, + BM25 if HYBRID_SEARCH]
     F --> X[4 CrossEncoder re-rank: MAX_CHUNKS above MIN_RELEVANCE, max MAX_CHUNKS_PER_DOC per paper]
     X --> G[5 Generate - CITATION_MODEL, OpenScholar prompt]
-    G --> P[6 Citations → HTML + source list]
+    G --> V[5b optional: check each cited sentence with the re-ranker, VERIFY_CITATIONS]
+    V --> P[6 Citations → HTML + source list]
     P -->|NDJSON stream| W
 ```
 
@@ -141,7 +151,7 @@ Each step yields a status line (`{"status": "in-progress", "message": ...}`). Th
 | BM25 keyword index (only with `HYBRID_SEARCH`) | RAM of each worker, built at start-up from the docstore | Until the worker stops | Exact-term search; a few hundred MB |
 | Embedding model, re-ranker, FAISS index | RAM of each Gunicorn worker (`rag_service` singleton), loaded in `post_worker_init` | Until the worker stops | Loading takes ~1 min and ~3 GB RAM per worker; keep `WEB_CONCURRENCY=1` |
 | Model weights (bge-m3, bge-reranker-base) | Docker volume `hf-cache` → `/home/python/.cache/huggingface`; `LLAMA_INDEX_CACHE_DIR` points llama-index to the same folder | Until the volume is deleted | No 2–3 GB download on each container start |
-| Chat history | Redis `chat:{chat_id}` (list, newest first) | `MESSAGE_TTL` = 1 h, reset on each message | Rephrase follow-up questions; privacy-friendly |
+| Chat history | Redis `chat:{chat_id}` (list, newest first): the question as the user typed it + the answer | `MESSAGE_TTL` = 1 h, reset on each message | Context for follow-up questions (rephrase or `CONTEXT_METHOD=history`); privacy-friendly |
 | Rate-limit counters | Redis (Flask-Limiter `storage_uri`) | Per window in `RATE_LIMIT` | Shared by all workers |
 | Answer cache (only with `ANSWER_CACHE_TTL` > 0) | Redis list `answer_cache:<hash of models, index, prompt, retrieval settings>`: question vector + final answer, newest first, max `ANSWER_CACHE_MAX_ITEMS` | `ANSWER_CACHE_TTL` seconds | A first question with cosine ≥ `ANSWER_CACHE_MIN_SIMILARITY` to a recent one gets the stored answer: no LLM call. Shared by all users (stores question text) |
 | Arena rounds | Redis `arena:battle:{id}` (question, label → model + seconds) | 1 day, deleted when rated | Hide model names until the ratings are in |

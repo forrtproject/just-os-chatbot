@@ -548,3 +548,30 @@ button#send-button:disabled {
         grid-template-columns: 1fr;
     }
 }
+/* Chat page: answer model choice */
+#model-choice {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin: 4px 0;
+    font-family: "Helvetica", sans-serif;
+    font-size: small;
+    color: #555;
+}
+
+#model-select {
+    font-family: "Roboto Mono", monospace;
+    font-size: small;
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    max-width: 100%;
+}
+
+.reference-tooltip .unverified {
+    color: #b00020;
+    font-size: small;
+    margin: 4px 0;
+}

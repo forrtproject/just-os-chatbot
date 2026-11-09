@@ -37,20 +37,27 @@ class AnswerCache:
         self.ttl = config["ANSWER_CACHE_TTL"]
         self.min_similarity = config["ANSWER_CACHE_MIN_SIMILARITY"]
         self.max_items = config["ANSWER_CACHE_MAX_ITEMS"]
-        setup = json.dumps([config.get(k) for k in NAMESPACE_KEYS])
-        self.key = f"answer_cache:{hashlib.md5(setup.encode()).hexdigest()[:12]}"
+        self.config = config
+        self.key = self.key_for(None)
+
+    def key_for(self, model: Optional[str]) -> str:
+        """One cache per setup; a model chosen for one request replaces CITATION_MODEL."""
+        values = [self.config.get(k) for k in NAMESPACE_KEYS]
+        if model:
+            values[NAMESPACE_KEYS.index("CITATION_MODEL")] = model
+        return f"answer_cache:{hashlib.md5(json.dumps(values).encode()).hexdigest()[:12]}"
 
     def _vector(self, query: str) -> np.ndarray:
         vector = np.asarray(self.embed_model.get_query_embedding(query), dtype=np.float32)
         return vector / (np.linalg.norm(vector) or 1.0)
 
-    def lookup(self, query: str) -> Optional[Dict[str, Any]]:
+    def lookup(self, query: str, model: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Return the stored entry ({"response", "text"}) of the most similar fresh question."""
         try:
             vector = self._vector(query)
             now = time.time()
             best, best_score = None, self.min_similarity
-            for raw in self.redis.lrange(self.key, 0, -1):
+            for raw in self.redis.lrange(self.key_for(model), 0, -1):
                 entry = json.loads(raw)
                 if now - entry["time"] > self.ttl:
                     continue
@@ -65,7 +72,7 @@ class AnswerCache:
             logger.error(f"Answer cache lookup failed: {e}")
             return None
 
-    def store(self, query: str, response: Dict[str, Any], text: str) -> None:
+    def store(self, query: str, response: Dict[str, Any], text: str, model: Optional[str] = None) -> None:
         try:
             entry = {
                 "time": time.time(),
@@ -73,8 +80,9 @@ class AnswerCache:
                 "response": response,
                 "text": text,
             }
-            self.redis.lpush(self.key, json.dumps(entry))
-            self.redis.ltrim(self.key, 0, self.max_items - 1)
-            self.redis.expire(self.key, self.ttl)
+            key = self.key_for(model)
+            self.redis.lpush(key, json.dumps(entry))
+            self.redis.ltrim(key, 0, self.max_items - 1)
+            self.redis.expire(key, self.ttl)
         except Exception as e:
             logger.error(f"Answer cache store failed: {e}")
