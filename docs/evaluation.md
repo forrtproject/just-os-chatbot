@@ -11,6 +11,7 @@ Rule: a change to prompts, models, retrieval or chunking needs an eval table bef
 | Table of runs | `docker compose exec web python eval/compare.py [csv ...]` | Markdown table |
 | Retrieval question set | `python eval/make_retrieval_set.py` | `eval/retrieval_questions.jsonl` |
 | Embedding comparison | `python eval/compare_embeddings.py [E2 E4 ...]` (GPU or API) | `eval/results/embeddings_<YYMMDD>.csv` |
+| Coverage audit | `python eval/coverage.py` | `eval/results/coverage_<YYMMDD>.{csv,md,svg}` (see [data.md](data.md) 4) |
 | Arena (human votes) | http://localhost:8000/arena with `ARENA_ENABLED=true` | `/arena/votes` |
 
 Question sets:

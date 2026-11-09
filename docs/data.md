@@ -85,6 +85,21 @@ VECTOR_STORE=data/processed/vs_latest_bge-small-en-v1.5
 
 ## 4. Coverage facts
 
+**Audit of the live sheets (9 Nov 2026, `python eval/coverage.py`, issue #16):** 1,693 unique resources (sheet 1 + sheet 2, by DOI or title). Files: `eval/results/coverage_261109.{csv,md,svg}` (one reason per resource, table, bar chart).
+
+| Reason | Resources | Share | Route to add them |
+|---|---|---|---|
+| In the index | 519 | 31% | — |
+| No DOI: other web page | 370 | 22% | HTML route (#18) |
+| DOI, never processed (added after June 2025) | 305 | 18% | Run Unpaywall + download (#25) |
+| DOI, checked: not open access | 274 | 16% | Metadata-only "resource cards" (policy question) |
+| No DOI: OSF / GitHub page | 136 | 8% | HTML route (#18) |
+| No DOI: video | 79 | 5% | Resource card from the FORRT description |
+| No DOI and no link | 9 | 1% | Fix in the sheet |
+| Excluded by curators | 1 | 0% | — |
+
+Older facts (June 2025 snapshot):
+
 - Snapshot of June 2025: 1,234 rows, 657 downloaded, 689 with a DOI. Only open-access PDFs with a DOI are in the index (513 documents).
 - Rows without a DOI are mostly teaching material (Reading 181, Module 63, Syllabus 49, Lecture 43, …) and web pages (osf.io 84, youtube.com 76, datacarpentry.org 27).
 - The live sheets have 1,789 rows (1,504 + 285), not ~2,800 as the old plan said.

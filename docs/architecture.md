@@ -91,6 +91,7 @@ just-os-chatbot/
 | `run.py` | Runs the full pipeline (in the web container) on `questions.jsonl`; records outcome, hit@7, citation validity, time, tokens, cost | `results/run_<date>_<model>.csv` |
 | `compare.py` | Merges run CSVs into one Markdown table | stdout |
 | `make_retrieval_set.py` | Makes the retrieval question set (seed + synthetic + translated questions) | `retrieval_questions.jsonl` |
+| `coverage.py` | One reason per FORRT sheet resource for why it is (not) in the index | `results/coverage_<date>.{csv,md,svg}` |
 | `compare_embeddings.py` | Retrieval-only comparison of embedding models E1–E6 (see [evaluation.md](evaluation.md)) | `results/embeddings_<date>.csv` |
 
 ### `test/`
@@ -104,6 +105,7 @@ just-os-chatbot/
 | `test_rerank.py` | Re-ranker order and fallback to vector order |
 | `test_app.py` | Arena routes with a fake RAG service and fakeredis; ProxyFix on/off |
 | `test_compare.py` | `eval/compare.py` summary numbers |
+| `test_coverage.py` | Coverage reasons in `eval/coverage.py` |
 
 ### `assets/` (front end)
 `js/app.js` (chat page), `js/arena.js` (arena page), `js/references.js` (shared source tooltip; inserts metadata with `textContent`, links only for http(s) URLs), `css/app.css` (Tailwind). `esbuild.config.mjs` bundles `app.js` and `arena.js` into `public/js/`. The `js` and `css` compose services build them.
