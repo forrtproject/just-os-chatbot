@@ -64,9 +64,9 @@ Rules for every issue: [project-plan.md](project-plan.md) section 8 (small PR, a
 - **Files:** `just_os/openscholar.py:63`, `just_os/qualle.py` (`ResponseGenerator`, `prompt_template`).
 - **Done when:** a setting chooses the prompt; eval CSVs for both prompts on 2 models.
 
-### M3. Collect arena votes and read them
-- **Use:** `/arena` (on with `ARENA_ENABLED=true`); models in `ARENA_MODELS`; votes at `/arena/votes`.
-- **Done when:** ≥ 50 votes from at least 4 people; a short note on which models win and why. Whether to serve several answers to real users is a decision for after the hackathon.
+### M3. Collect arena ratings and read them
+- **Use:** `/arena` (on with `ARENA_ENABLED=true`): pick models, rate each answer 1-5 on correct / references / clarity; leaderboard at `/arena/leaderboard`, raw data at `/arena/ratings`.
+- **Done when:** ≥ 50 rated questions from at least 4 people; a short note on which models win and why. Whether to serve several answers to real users is a decision for after the hackathon.
 
 ### M4. Make answers faster (target p95 ≤ 15 s, plan N1)
 - **Measured (5 Nov):** classify 0.4 s, retrieval + re-ranking 31 s, two answers in parallel 15 s. The re-ranker takes 21 s for 20 chunks on 1 CPU thread (`compose.yaml`: `OMP_NUM_THREADS: 1`).

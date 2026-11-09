@@ -41,30 +41,62 @@ def test_arena_off_by_default(app):
     assert client.post("/arena/chat", json={"message": "question"}).status_code == 404
 
 
-def test_arena_hides_models_until_vote(app):
-    client = app.app.test_client()
-    lines = client.post("/arena/chat", json={"message": "What is open data?"}).data.decode().splitlines()
-    final = json.loads(lines[-1])
+def ask(client, models=None):
+    body = {"message": "What is open data?"}
+    if models is not None:
+        body["models"] = models
+    response = client.post("/arena/chat", json=body)
+    return response, json.loads(response.data.decode().splitlines()[-1])
 
+
+def scores(correct=4, references=3, clarity=5):
+    return {"correct": correct, "references": references, "clarity": clarity}
+
+
+def test_arena_asks_chosen_models_and_hides_names(app):
+    app.config["ARENA_MODELS"] = "m1,m2,m3"
+    _, final = ask(app.app.test_client(), ["m1", "m3"])
     assert [r["label"] for r in final["responses"]] == ["A", "B"]
     assert all("model" not in r for r in final["responses"])
 
-    vote = client.post("/arena/vote", json={"battle_id": final["battle_id"], "vote": "a"}).get_json()
-    assert sorted(vote["models"]) == ["m1", "m2"]
 
-    again = client.post("/arena/vote", json={"battle_id": final["battle_id"], "vote": "b"})
-    assert again.status_code == 404  # one vote per battle
-
-    votes = client.get("/arena/votes").get_json()
-    assert len(votes) == 1
-    assert votes[0]["vote"] == "a"
-    assert votes[0]["model_a"] == vote["models"][0]
-    assert votes[0]["question"] == "What is open data?"
-
-
-def test_arena_rejects_bad_vote(app):
+def test_arena_rejects_unknown_or_too_many_models(app):
     client = app.app.test_client()
-    assert client.post("/arena/vote", json={"battle_id": "x", "vote": "maybe"}).status_code == 400
+    assert ask(client, ["m1", "not-a-model"])[0].status_code == 400
+    app.config["ARENA_MAX_MODELS"] = 1
+    assert ask(client, ["m1", "m2"])[0].status_code == 400
+
+
+def test_arena_hides_openscholar_without_its_server(app):
+    app.config.update(ARENA_MODELS="m1,openscholar-8b", OPENSCHOLAR_MODEL="openscholar-8b", OPENSCHOLAR_BASE_URL="")
+    assert app.arena_models() == ["m1"]
+    app.config["OPENSCHOLAR_BASE_URL"] = "http://openscholar.test/v1"
+    assert app.arena_models() == ["m1", "openscholar-8b"]
+
+
+def test_arena_rating_reveals_models_and_builds_leaderboard(app):
+    client = app.app.test_client()
+    _, final = ask(client)  # no "models": all available (m1, m2)
+    battle = final["battle_id"]
+
+    rated = client.post("/arena/rate", json={"battle_id": battle, "ratings": {"A": scores(5, 5, 5), "B": scores(1, 2, 3)}})
+    models = rated.get_json()["models"]
+    assert sorted(models.values()) == ["m1", "m2"]
+    assert client.post("/arena/rate", json={"battle_id": battle, "ratings": {"A": scores()}}).status_code == 404
+
+    board = client.get("/arena/leaderboard").get_json()
+    assert [row["model"] for row in board] == [models["A"], models["B"]]  # best overall first
+    assert board[0] == {"model": models["A"], "ratings": 1, "correct": 5.0, "references": 5.0,
+                        "clarity": 5.0, "overall": 5.0, "seconds": 1.0}
+    assert board[1]["overall"] == 2.0
+    assert client.get("/arena/ratings").get_json()[0]["question"] == "What is open data?"
+
+
+def test_arena_rejects_bad_ratings(app):
+    client = app.app.test_client()
+    for ratings in ({}, {"A": {"correct": 6, "references": 3, "clarity": 3}},
+                    {"A": {"correct": 3}}, {"A": {"correct": True, "references": 3, "clarity": 3}}):
+        assert client.post("/arena/rate", json={"battle_id": "x", "ratings": ratings}).status_code == 400
 
 
 # --- finding 13: ProxyFix only when configured
@@ -84,3 +116,10 @@ def test_proxy_fix_uses_forwarded_ip(monkeypatch):
 
 def test_no_proxy_fix_by_default(app):
     assert client_ip(app) != "203.0.113.7"  # a client cannot fake its IP
+
+
+def test_arena_page_keeps_criteria_order(app):
+    html = app.app.test_client().get("/arena").get_data(as_text=True)
+    start = html.index("data-criteria='") + len("data-criteria='")
+    keys = [key for key, _ in json.loads(html[start:html.index("'", start)])]
+    assert keys == ["correct", "references", "clarity"]  # same order as the table headers

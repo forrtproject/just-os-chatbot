@@ -329,8 +329,150 @@ button#send-button:disabled {
 
 #arena-answers {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* as many columns as fit: 2 on a laptop, 3 on a wide screen, 1 on a phone */
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
     gap: 16px;
+}
+
+#model-picker {
+    background: white;
+    border: 1px solid #e1e4e8;
+    border-radius: 8px;
+    margin: 8px 0 16px;
+    font-family: "Helvetica", sans-serif;
+    font-size: small;
+}
+
+#model-picker summary {
+    cursor: pointer;
+    padding: 10px 16px;
+    color: #004055;
+    font-weight: bold;
+}
+
+#model-count.too-many {
+    color: #b00020;
+}
+
+.model-picker-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px 8px;
+}
+
+.model-picker-actions button,
+#arena-submit button {
+    padding: 6px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    color: #313131;
+    cursor: pointer;
+    font-family: "Helvetica", sans-serif;
+}
+
+#model-picker fieldset {
+    border: none;
+    margin: 0;
+    padding: 0 16px 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 4px 16px;
+}
+
+#model-picker label {
+    font-family: "Roboto Mono", monospace;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+
+.arena-time {
+    color: #555;
+}
+
+.arena-card.failed {
+    opacity: 0.7;
+}
+
+.ratings {
+    border-top: 1px solid #e1e4e8;
+    padding: 8px 16px 12px;
+    font-family: "Helvetica", sans-serif;
+    font-size: small;
+}
+
+.rating {
+    border: none;
+    margin: 0 0 6px;
+    padding: 0;
+}
+
+.rating legend {
+    padding: 0;
+    margin-bottom: 4px;
+    color: #313131;
+}
+
+.rating-scale {
+    display: flex;
+    gap: 4px;
+}
+
+.rating-scale label {
+    position: relative;
+}
+
+/* the radio button stays focusable for keyboard users; the number is the visible target */
+.rating-scale input {
+    position: absolute;
+    opacity: 0;
+    inset: 0;
+    margin: 0;
+    cursor: pointer;
+}
+
+.rating-scale span {
+    display: inline-block;
+    min-width: 32px;
+    padding: 4px 0;
+    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+}
+
+.rating-scale input:checked + span {
+    background: #004055;
+    border-color: #004055;
+    color: white;
+}
+
+.rating-scale input:focus-visible + span {
+    outline: 2px solid #004055;
+    outline-offset: 2px;
+}
+
+.rating-scale input:disabled + span {
+    opacity: 0.6;
+}
+
+#arena-submit {
+    display: flex;
+    justify-content: center;
+    margin: 16px 0;
+}
+
+#arena-submit button:not(:disabled) {
+    background: #004055;
+    border-color: #004055;
+    color: white;
+}
+
+#arena-submit button:disabled {
+    cursor: default;
+    opacity: 0.6;
 }
 
 .arena-card {
@@ -378,39 +520,6 @@ button#send-button:disabled {
     color: #555;
 }
 
-#arena-votes {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-    margin: 16px 0;
-}
-
-#arena-votes button {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background: white;
-    color: #313131;
-    cursor: pointer;
-    font-family: "Helvetica", sans-serif;
-}
-
-#arena-votes button:hover:not(:disabled) {
-    border-color: #004055;
-}
-
-#arena-votes button:disabled {
-    cursor: default;
-    opacity: 0.6;
-}
-
-#arena-votes button.chosen {
-    background: #004055;
-    border-color: #004055;
-    color: white;
-    opacity: 1;
-}
-
 #leaderboard table {
     width: 100%;
     border-collapse: collapse;
@@ -435,8 +544,7 @@ button#send-button:disabled {
 }
 
 @media (max-width: 768px) {
-    #arena-answers,
-    #arena-votes {
+    #arena-answers {
         grid-template-columns: 1fr;
     }
 }

@@ -29,10 +29,7 @@ You need Docker (Docker Desktop with WSL2 on Windows), Git and Python 3. About 8
    ```
    All settings are in `config/settings.py`; any of them can be overridden with a line in `.env`.
    `.env.example` already selects the development setup (`COMPOSE_FILE=compose.yaml:compose.dev.yaml`): code changes restart the server. For production use `compose.yaml:compose.prod.yaml`.
-3. Get the vector index (ask the project lead for the link):
-   ```bash
-   python scripts/get_index.py <index-zip-url>
-   ```
+3. Get the data that is not in Git: unzip the team bundle (`just-os-team-bundle.zip`, from the project lead) in the repository root. It has the index, the embedding vectors and a `.env`; see `TEAM_SETUP.md` inside. The project lead makes it with `python scripts/make_share_bundle.py`. Without the bundle: `python scripts/get_index.py <index-zip-url>`.
 4. Start the containers. The first build takes 10–20 minutes:
    ```bash
    docker compose up -d --build
@@ -53,7 +50,9 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 | `CITATION_MODEL` | writes the answer |
 | `GENERAL_MODEL` | classifies and rephrases the question |
 | `EMBEDDING_MODEL` + `VECTOR_STORE` | search; the two must match (default `BAAI/bge-m3`) |
-| `ARENA_MODELS` | models for `/arena`, comma separated |
+| `ARENA_MODELS` | models offered on `/arena`, comma separated (default: the 9 OpenRouter candidates + `openscholar-8b`) |
+| `LLM_TIMEOUT` | seconds before an LLM call gives up (default 120); a slow model then shows an error instead of holding up the answer |
+| `ARENA_MAX_MODELS` | most models per arena question (default 10) |
 | `PROMPT_STYLE` | `openscholar` (default) or `short` (model-neutral answer prompt) |
 | `ANSWER_CACHE_TTL` | seconds to reuse answers to near-identical first questions; `0` = off (default) |
 | `PROXY_FIX_X_FOR` | number of trusted reverse proxies (prod: `1`), so the rate limit uses the client IP; `0` = none (default) |

@@ -12,6 +12,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "LLM_API_KEY": os.getenv("OPENROUTER_API_KEY"),
     "CITATION_MODEL": "meta-llama/llama-3.1-8b-instruct",
     "GENERAL_MODEL": "meta-llama/llama-3.1-8b-instruct",
+    # Seconds before an LLM call gives up (the answer then shows an error, not a hang)
+    "LLM_TIMEOUT": 120,
     # Self-hosted OpenScholar (OpenAI-compatible). When OPENSCHOLAR_BASE_URL is set,
     # calls for OPENSCHOLAR_MODEL go to that server; all other models stay on BASE_URL.
     "OPENSCHOLAR_BASE_URL": "",
@@ -60,12 +62,17 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "MIN_MESSAGE_LENGTH": 3,
     # Chat settings
     "MESSAGE_TTL": 3600,  # 1 hour in seconds
-    # Arena: answers from several models side by side, with votes (page /arena).
-    # Off by default: each question costs one LLM call per model.
+    # Arena (page /arena): the user picks models, each answers the same question from the
+    # same sources, and the user rates each answer 1-5. Off by default: one LLM call per model.
+    # The candidates of docs/evaluation.md 3.3 (all on OpenRouter) + the self-hosted
+    # OpenScholar, which is hidden while OPENSCHOLAR_BASE_URL is not set.
     "ARENA_ENABLED": False,
-    "ARENA_MODELS": "meta-llama/llama-3.1-8b-instruct,openai/gpt-oss-20b,"
-    "google/gemma-3-27b-it,qwen/qwen3.7-flash,mistralai/mistral-small-3.2-24b-instruct,"
-    "openai/gpt-6-luna",
+    "ARENA_MODELS": "meta-llama/llama-3.1-8b-instruct,openai/gpt-oss-20b,qwen/qwen3-14b,"
+    "qwen/qwen3.7-flash,google/gemma-3-12b-it,google/gemma-3-27b-it,"
+    "mistralai/mistral-small-3.2-24b-instruct,openai/gpt-6-luna,deepseek/deepseek-v4-flash,"
+    "openscholar-8b",
+    # Most models one question may go to (cost and time)
+    "ARENA_MAX_MODELS": 10,
     # Google Drive settings
     "CREDENTIALS_FILE": "credentials.json",
     "GDRIVE_FOLDER_ID": "1EqOxpkb-ksYjRmvSHl1XjULlcPxZINdD",

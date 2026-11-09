@@ -235,3 +235,6 @@ pyproject.toml
 
 credentials.json
 token.json
+
+# Team bundle made by scripts/make_share_bundle.py (contains keys and data)
+share/

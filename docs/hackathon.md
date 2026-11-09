@@ -9,7 +9,7 @@ Follow [README.md → Installation](../README.md#installation). You get the Open
 Check that it works:
 - `docker compose exec web pytest test/` → all tests pass (no index or network needed).
 - http://localhost:8000 → ask "What is preregistration?" → an answer with numbered sources.
-- http://localhost:8000/arena → two answers side by side.
+- http://localhost:8000/arena → pick models, one answer card per model, rate each 1-5.
 
 Windows: use Docker Desktop with WSL2. If the build fails with `exit code 127`, your Git changed the line ends of `bin/*`: run `git add --renormalize .` or clone again (`.gitattributes` keeps them LF).
 

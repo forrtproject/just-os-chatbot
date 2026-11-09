@@ -1,6 +1,7 @@
 import { setupReferenceHandlers } from "./references.js";
 
 let battleId = null;
+let criteria = {};
 
 // Read an NDJSON stream and call onChunk for each parsed line.
 async function readStream(response, onChunk) {
@@ -21,42 +22,128 @@ async function readStream(response, onChunk) {
   if (buffer.trim()) onChunk(JSON.parse(buffer));
 }
 
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function selectedModels() {
+  return [...document.querySelectorAll('#model-picker input[name="model"]:checked')].map(
+    (box) => box.value
+  );
+}
+
+function updateModelCount() {
+  const max = Number(document.getElementById("arena").dataset.maxModels);
+  const total = document.querySelectorAll('#model-picker input[name="model"]').length;
+  const n = selectedModels().length;
+  const count = document.getElementById("model-count");
+  count.textContent = `${n} of ${total} selected` + (n > max ? ` (max ${max})` : "");
+  count.classList.toggle("too-many", n === 0 || n > max);
+}
+
 function setBusy(busy) {
   document.getElementById("user-input").disabled = busy;
   document.getElementById("send-button").disabled = busy;
 }
 
+// One 1-5 scale per criterion: a radio group, keyboard accessible
+function ratingScale(label, key, text) {
+  const group = el("fieldset", "rating");
+  group.appendChild(el("legend", null, text));
+  const scale = el("div", "rating-scale");
+  for (let value = 1; value <= 5; value++) {
+    const option = el("label");
+    const input = el("input");
+    input.type = "radio";
+    input.name = `${label}-${key}`;
+    input.value = value;
+    input.addEventListener("change", updateSubmit);
+    option.append(input, el("span", null, String(value)));
+    scale.appendChild(option);
+  }
+  group.appendChild(scale);
+  return group;
+}
+
+function answerCard(response) {
+  const card = el("section", "arena-card");
+  card.dataset.label = response.label;
+  const header = el("header");
+  header.append(
+    el("span", "arena-label", `Answer ${response.label}`),
+    el("span", "arena-time", `${response.seconds} s`),
+    el("span", "arena-model")
+  );
+  const body = el("div", "arena-body bot-message");
+  body.innerHTML = response.message; // server-built HTML, same as the chat page
+  card.append(header, body, el("div", "sources", response.sources));
+  if (response.error) {
+    card.classList.add("failed");
+  } else {
+    const ratings = el("div", "ratings");
+    for (const [key, text] of Object.entries(criteria)) {
+      ratings.appendChild(ratingScale(response.label, key, text));
+    }
+    card.appendChild(ratings);
+  }
+  return card;
+}
+
+function collectRatings() {
+  const ratings = {};
+  for (const card of document.querySelectorAll(".arena-card:not(.failed)")) {
+    const label = card.dataset.label;
+    const scores = {};
+    for (const key of Object.keys(criteria)) {
+      const checked = card.querySelector(`input[name="${label}-${key}"]:checked`);
+      if (!checked) return null; // every answer needs every criterion
+      scores[key] = Number(checked.value);
+    }
+    ratings[label] = scores;
+  }
+  return Object.keys(ratings).length ? ratings : null;
+}
+
+function updateSubmit() {
+  document.getElementById("submit-ratings").disabled = !battleId || !collectRatings();
+}
+
 function showAnswers(responses) {
-  document.querySelectorAll(".arena-card").forEach((card, i) => {
-    const response = responses[i];
-    // Server-built HTML, same as the chat page
-    card.querySelector(".arena-body").innerHTML = response.message;
-    card.querySelector(".sources").textContent = response.sources;
-    card.querySelector(".arena-model").textContent = "";
-    card.dataset.seconds = response.seconds;
-  });
-  document.getElementById("arena-answers").hidden = false;
-  document.getElementById("arena-votes").hidden = false;
-  document.querySelectorAll("#arena-votes button").forEach((b) => (b.disabled = false));
+  const answers = document.getElementById("arena-answers");
+  answers.replaceChildren(...responses.map(answerCard));
+  answers.hidden = false;
+  document.getElementById("arena-submit").hidden = !responses.some((r) => !r.error);
+  updateSubmit();
   setupReferenceHandlers();
 }
 
 async function ask(question) {
+  const models = selectedModels();
   const status = document.getElementById("status-message");
+  const max = Number(document.getElementById("arena").dataset.maxModels);
+  if (!models.length || models.length > max) {
+    status.textContent = `Choose 1 to ${max} models first.`;
+    document.getElementById("model-picker").open = true;
+    return;
+  }
   const questionBox = document.getElementById("arena-question");
   questionBox.textContent = question;
   questionBox.hidden = false;
   document.getElementById("arena-answers").hidden = true;
-  document.getElementById("arena-votes").hidden = true;
+  document.getElementById("arena-submit").hidden = true;
+  document.getElementById("model-picker").open = false;
   battleId = null;
   setBusy(true);
-  status.textContent = "Processing your request…";
+  status.textContent = `Asking ${models.length} model${models.length > 1 ? "s" : ""}…`;
 
   try {
     const response = await fetch("/arena/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: question }),
+      body: JSON.stringify({ message: question, models }),
     });
     if (!response.ok && response.headers.get("Content-Type")?.includes("json")) {
       status.textContent = (await response.json()).message;
@@ -70,8 +157,8 @@ async function ask(question) {
         battleId = data.battle_id;
         showAnswers(data.responses);
       } else {
-        // Refusal, no sources, or error: one message, nothing to vote on
-        const tmp = document.createElement("div");
+        // Refusal, no sources, or error: one message, nothing to rate
+        const tmp = el("div");
         tmp.innerHTML = data.message;
         status.textContent = tmp.textContent;
       }
@@ -84,14 +171,15 @@ async function ask(question) {
   }
 }
 
-async function vote(choice) {
-  if (!battleId) return;
-  const buttons = document.querySelectorAll("#arena-votes button");
-  buttons.forEach((b) => (b.disabled = true));
-  const response = await fetch("/arena/vote", {
+async function submitRatings() {
+  const ratings = collectRatings();
+  if (!battleId || !ratings) return;
+  const button = document.getElementById("submit-ratings");
+  button.disabled = true;
+  const response = await fetch("/arena/rate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ battle_id: battleId, vote: choice }),
+    body: JSON.stringify({ battle_id: battleId, ratings }),
   });
   const data = await response.json();
   if (data.status !== "ok") {
@@ -99,49 +187,52 @@ async function vote(choice) {
     return;
   }
   battleId = null;
-  document.querySelectorAll(".arena-card").forEach((card, i) => {
-    card.querySelector(".arena-model").textContent =
-      `${data.models[i]} · ${card.dataset.seconds} s`;
+  document.querySelectorAll(".arena-card").forEach((card) => {
+    card.querySelector(".arena-model").textContent = data.models[card.dataset.label] || "";
+    card.querySelectorAll(".ratings input").forEach((input) => (input.disabled = true));
   });
-  document.querySelector(`#arena-votes button[data-vote="${choice}"]`).classList.add("chosen");
+  document.getElementById("status-message").textContent = "Thank you. Your ratings are saved.";
   if (!document.getElementById("leaderboard").hidden) loadLeaderboard();
 }
 
 async function loadLeaderboard() {
-  const votes = await (await fetch("/arena/votes")).json();
-  const stats = {};
-  const row = (model) =>
-    (stats[model] ??= { battles: 0, wins: 0, losses: 0, tie: 0, bad: 0 });
-  for (const v of votes) {
-    const a = row(v.model_a);
-    const b = row(v.model_b);
-    a.battles++;
-    b.battles++;
-    if (v.vote === "a") { a.wins++; b.losses++; }
-    else if (v.vote === "b") { b.wins++; a.losses++; }
-    else { a[v.vote]++; b[v.vote]++; }
-  }
-  const rows = Object.entries(stats)
-    .map(([model, s]) => ({ model, ...s, rate: (s.wins + s.tie / 2) / s.battles }))
-    .sort((x, y) => y.rate - x.rate);
+  const rows = await (await fetch("/arena/leaderboard")).json();
   const tbody = document.querySelector("#leaderboard tbody");
+  const columns = ["model", "ratings", ...Object.keys(criteria), "overall", "seconds"];
   tbody.replaceChildren(
-    ...rows.map((r) => {
-      const tr = document.createElement("tr");
-      for (const value of [r.model, r.battles, r.wins, r.losses, r.tie, r.bad, `${Math.round(r.rate * 100)} %`]) {
-        const td = document.createElement("td");
-        td.textContent = value;
-        tr.appendChild(td);
-      }
+    ...rows.map((row) => {
+      const tr = el("tr");
+      for (const column of columns) tr.appendChild(el("td", null, String(row[column])));
       return tr;
     })
   );
+  if (!rows.length) {
+    const tr = el("tr");
+    const td = el("td", null, "No ratings yet.");
+    td.colSpan = columns.length;
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  }
   document.getElementById("leaderboard").hidden = false;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // [key, text] pairs: a list keeps the order (tojson would sort an object's keys)
+  criteria = Object.fromEntries(JSON.parse(document.getElementById("arena").dataset.criteria));
   const input = document.getElementById("user-input");
   const send = document.getElementById("send-button");
+  const boxes = document.querySelectorAll('#model-picker input[name="model"]');
+
+  boxes.forEach((box) => box.addEventListener("change", updateModelCount));
+  document.getElementById("select-all").addEventListener("click", () => {
+    boxes.forEach((box) => (box.checked = true));
+    updateModelCount();
+  });
+  document.getElementById("select-none").addEventListener("click", () => {
+    boxes.forEach((box) => (box.checked = false));
+    updateModelCount();
+  });
+  updateModelCount();
 
   send.addEventListener("click", () => {
     const question = input.value.trim();
@@ -155,12 +246,7 @@ document.addEventListener("DOMContentLoaded", () => {
       send.click();
     }
   });
-  document.querySelectorAll("#arena-votes button").forEach((button) =>
-    button.addEventListener("click", () => {
-      document.querySelectorAll("#arena-votes button").forEach((b) => b.classList.remove("chosen"));
-      vote(button.dataset.vote);
-    })
-  );
+  document.getElementById("submit-ratings").addEventListener("click", submitRatings);
   document.getElementById("leaderboard-button").addEventListener("click", () => {
     const board = document.getElementById("leaderboard");
     if (board.hidden) loadLeaderboard();

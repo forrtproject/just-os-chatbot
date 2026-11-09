@@ -138,3 +138,13 @@ def test_tooltip_hides_passage_for_closed_licence_and_never_shows_timestamp():
 
 def test_document_key_falls_back_to_title():
     assert document_key({"title": "A Paper!"}) == document_key({"title": "a paper"})
+
+
+def test_dict_valued_metadata_is_unwrapped():
+    broken = SimpleNamespace(
+        text="t",
+        metadata={"title": {"abc": "Adapting open science"}, "creators": {"abc": "Petersen"},
+                  "doi": {"abc": "10.1002/icd.2315"}, "conditions_of_use": {"abc": "CC BY"}},
+    )
+    line = qualle.ReferenceProcessor({"10.1002/icd.2315": "2022"}).references_from_nodes([broken])
+    assert line == "[1] Petersen (2022). Adapting open science. https://doi.org/10.1002/icd.2315"

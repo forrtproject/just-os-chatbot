@@ -170,3 +170,11 @@ def test_openscholar_off_when_no_url():
     )
     assert manager.openscholar_client is None
     assert manager._client_for("openscholar-8b") is manager.client
+
+
+def test_llm_calls_have_a_time_limit():
+    manager = qualle.OpenAIClientManager(
+        {"LLM_API_KEY": "k", "BASE_URL": "https://openrouter.ai/api/v1", "OPENSCHOLAR_BASE_URL": "", "LLM_TIMEOUT": 7}
+    )
+    assert manager.client.timeout == 7
+    assert manager.client.max_retries == 1

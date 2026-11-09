@@ -5,6 +5,18 @@
 
 ## 1. What the index contains
 
+### Live FORRT sheets
+
+`scripts/add_new_resources.py` and `eval/coverage.py` read two published Google Sheets (`URL_FORRT` in `ingest/helpers.py`). Counts on 9 Nov 2026:
+
+| Sheet (document name) | Rows | Unique | With DOI | Match a JUST-OS ID | PDF in `Content/` | Markdown | In the index |
+|---|---|---|---|---|---|---|---|
+| **FORRT Database 2.0** (`gid=1924034107`): the main resource list | 1,507 | 1,482 | 843 | 1,243 | 669 | 553 | 530 |
+| **clusters_panos** (`gid=0`): reference list of the FORRT clusters | 285 | 270 | 252 | 27 | 25 | 15 | 32 |
+
+Counts are rows (a few rows point to the same paper, so a count can be higher than the number of files). The index was **not** built from these live sheets directly: it was built from the June 2025 JUST-OS copy of FORRT Database 2.0 (`data/raw/forrt_db_250627.csv`, with the "JUST-OS internal identifier") plus 44 papers that `add_new_resources.py` added by DOI. The PDFs for `clusters_panos` are in `data/FORRT Clusters pdfs/` and are not in the index yet (issue #17).
+
+
 The default index `data/processed/vs_latest_bge-m3/` has **513 documents → 59,473 chunks** (chunk size 350 tokens). The old index `vs_latest_bge-small-en-v1.5` has the same chunks (built 26 Aug 2025); `scripts/reembed.py` made the bge-m3 index from them.
 
 The full list is in [indexed_documents.csv](indexed_documents.csv) (`just_os_id, title, doi, pdf_path, chunks, licence`). It was made by matching the index metadata (title, then DOI) to `data/raw/forrt_db_250627.csv`:
@@ -107,6 +119,9 @@ Older facts (June 2025 snapshot):
 
 ## 5. Build an index (ingestion)
 
+**PDF → Markdown tool:** [marker](https://github.com/datalab-to/marker) (`marker-pdf`, `ingest` dependency group), run by `scripts/marker.sh` (no image extraction). On the Meta Science Arena benchmarks (Nov 2026, synthetic + real papers) marker is mid-table: body-text fidelity 0.882 (rank 4 of 12, tied with Docling and pdftotext; GROBID 0.979 is the best tool) and section structure 0.599 (rank 4 of 9). For RAG chunks the text fidelity matters most, so GROBID is worth a test before the next full conversion.
+
+
 | Step | Command | Input | Output |
 |---|---|---|---|
 | 1 | `uv run python -m scripts.bootstrap_local_database` | `data/raw/forrt_db_250627.csv` + PDFs in `data/pdfs/by-justos-id/NNNN.pdf` | OA PDFs in `data/pdfs/by-doi/<doi_hash>.pdf` + `data/processed/just-os_db.csv` |
@@ -117,6 +132,9 @@ Older facts (June 2025 snapshot):
 Limits: step 1 does not download PDFs and reads the June 2025 snapshot; step 3 reads metadata from Google Drive (`URL_JUST_OS_DB`); steps 1 and 3 upload to Drive at the end and fail there without `credentials.json` (after the files are written).
 
 ## 6. What to share with a teammate (not in Git)
+
+`python scripts/make_share_bundle.py` puts all of it in one file: `share/just-os-team-bundle.zip` (the `share/` folder is git- and docker-ignored). It holds `.env`, the bge-m3 index, the bge-small index and `emb_cache/`, plus `TEAM_SETUP.md`. `--minimal` leaves out the embedding-comparison files; `--no-env` leaves out your keys. The embedding/re-ranker model weights are not in it: Docker downloads them one time (README step 5).
+
 
 | Need | Item | How |
 |---|---|---|

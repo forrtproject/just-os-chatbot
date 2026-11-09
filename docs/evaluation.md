@@ -12,7 +12,7 @@ Rule: a change to prompts, models, retrieval or chunking needs an eval table bef
 | Retrieval question set | `python eval/make_retrieval_set.py` | `eval/retrieval_questions.jsonl` |
 | Embedding comparison | `python eval/compare_embeddings.py [E2 E4 ...]` (GPU or API) | `eval/results/embeddings_<YYMMDD>.csv` |
 | Coverage audit | `python eval/coverage.py` | `eval/results/coverage_<YYMMDD>.{csv,md,svg}` (see [data.md](data.md) 4) |
-| Arena (human votes) | http://localhost:8000/arena with `ARENA_ENABLED=true` | `/arena/votes` |
+| Arena (human ratings) | http://localhost:8000/arena with `ARENA_ENABLED=true`: pick models, rate each answer 1-5 on correct / references / clarity | `/arena/leaderboard`, `/arena/ratings` |
 
 Question sets:
 - `eval/questions.jsonl`: 44 questions for the full pipeline (24 should answer, 17 should refuse, 3 not English; 5 with `expected_dois`).

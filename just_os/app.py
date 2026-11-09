@@ -21,7 +21,43 @@ from just_os.extensions import flask_static_digest
 logger = logging.getLogger(__name__)
 
 # a: A is better, b: B is better, tie: both are good, bad: both are bad
-ARENA_VOTES = ("a", "b", "tie", "bad")
+# Arena: each answer is rated 1-5 on these criteria; the answer time is measured
+ARENA_CRITERIA = {
+    "correct": "Correct: the answer is right and complete",
+    "references": "References: the cited sources support the answer",
+    "clarity": "Clarity: clear and useful for the question",
+}
+ARENA_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+
+def valid_ratings(ratings) -> bool:
+    """{"A": {"correct": 1-5, "references": 1-5, "clarity": 1-5}, ...} with at least one answer."""
+    return (
+        isinstance(ratings, dict)
+        and bool(ratings)
+        and all(
+            isinstance(scores, dict)
+            and set(scores) == set(ARENA_CRITERIA)
+            and all(type(v) is int and 1 <= v <= 5 for v in scores.values())
+            for scores in ratings.values()
+        )
+    )
+
+
+def leaderboard(ratings: list[dict]) -> list[dict]:
+    """One row per model: number of ratings, mean per criterion, overall mean, mean time."""
+    by_model: Dict[str, list] = {}
+    for rating in ratings:
+        by_model.setdefault(rating["model"], []).append(rating)
+    rows = []
+    for model, items in by_model.items():
+        row = {"model": model, "ratings": len(items)}
+        for criterion in ARENA_CRITERIA:
+            row[criterion] = round(sum(i[criterion] for i in items) / len(items), 2)
+        row["overall"] = round(sum(row[c] for c in ARENA_CRITERIA) / len(ARENA_CRITERIA), 2)
+        row["seconds"] = round(sum(i["seconds"] for i in items) / len(items), 1)
+        rows.append(row)
+    return sorted(rows, key=lambda r: (-r["overall"], r["seconds"]))
 
 
 class RateLimitManager:
@@ -227,74 +263,114 @@ class FlaskApp:
 
         @self.app.route("/arena")
         def arena():
-            """Arena page: two anonymous answers side by side, the user votes."""
+            """Arena page: chosen models answer the same question; the user rates each answer."""
             if not self.config["ARENA_ENABLED"]:
                 abort(404)
-            return render_template("arena.html")
+            return render_template(
+                "arena.html",
+                models=self.arena_models(),
+                max_models=self.config["ARENA_MAX_MODELS"],
+                criteria=ARENA_CRITERIA,
+            )
 
         @self.app.route("/arena/chat", methods=["POST"])
         @self.rate_limit_manager.limiter.limit(
             self.rate_limit_manager.get_chat_rate_limit
         )
         def arena_chat():
-            """Answer one question with two random arena models (names hidden)."""
+            """Answer one question with each chosen model (names hidden until rated)."""
             if not self.config["ARENA_ENABLED"]:
                 abort(404)
-            user_message = (request.get_json(silent=True) or {}).get("message")
+            data = request.get_json(silent=True) or {}
+            user_message = data.get("message")
             if not isinstance(user_message, str):
                 return jsonify({"status": "error", "message": "'message' is required."}), 400
             is_valid, error_msg = self._validate_message(user_message)
             if not is_valid:
                 return jsonify({"status": "error", "message": error_msg}), 400
-            models = [m.strip() for m in self.config["ARENA_MODELS"].split(",") if m.strip()]
-            if len(models) < 2:
-                return jsonify({"status": "error", "message": "ARENA_MODELS needs 2 models."}), 500
+            available = self.arena_models()
+            models = data.get("models") or available
+            if (
+                not isinstance(models, list)
+                or not models
+                or len(set(models)) != len(models)
+                or any(m not in available for m in models)
+                or len(models) > self.config["ARENA_MAX_MODELS"]
+            ):
+                limit = self.config["ARENA_MAX_MODELS"]
+                return jsonify({"status": "error", "message": f"Choose 1 to {limit} models from the list."}), 400
+            # Random order: the card position must not give away the model
+            models = random.sample(models, len(models))
             return Response(
-                self._generate_arena_response(user_message, random.sample(models, 2)),
+                self._generate_arena_response(user_message, models),
                 mimetype="text/event-stream",
             )
 
-        @self.app.route("/arena/vote", methods=["POST"])
-        def arena_vote():
-            """Store a vote for a battle and reveal the two model names."""
+        @self.app.route("/arena/rate", methods=["POST"])
+        def arena_rate():
+            """Store 1-5 ratings per answer and criterion, then reveal the model names."""
             if not self.config["ARENA_ENABLED"]:
                 abort(404)
             data = request.get_json(silent=True) or {}
-            if data.get("vote") not in ARENA_VOTES:
-                return jsonify({"status": "error", "message": f"vote must be one of {ARENA_VOTES}"}), 400
-            key = f"arena:battle:{data.get('battle_id')}"
-            # getdel: one vote per battle
-            battle = self.chat_manager.redis.getdel(key)
+            ratings = data.get("ratings")
+            if not valid_ratings(ratings):
+                names = ", ".join(ARENA_CRITERIA)
+                return jsonify({"status": "error", "message": f"Rate each answer 1-5 on: {names}."}), 400
+            # getdel: one rating round per battle
+            battle = self.chat_manager.redis.getdel(f"arena:battle:{data.get('battle_id')}")
             if battle is None:
-                return jsonify({"status": "error", "message": "Unknown or already voted battle."}), 404
+                return jsonify({"status": "error", "message": "Unknown or already rated battle."}), 404
             battle = json.loads(battle)
-            model_a, model_b = battle["models"]
-            self.chat_manager.redis.rpush(
-                "arena:votes",
-                json.dumps({
-                    "time": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                    "question": battle["question"],
-                    "model_a": model_a,
-                    "model_b": model_b,
-                    "vote": data["vote"],
-                }),
-            )
-            return jsonify({"status": "ok", "models": [model_a, model_b]})
+            if any(label not in battle["answers"] for label in ratings):
+                return jsonify({"status": "error", "message": "Unknown answer label."}), 400
+            now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            for label, scores in ratings.items():
+                answer = battle["answers"][label]
+                self.chat_manager.redis.rpush(
+                    "arena:ratings",
+                    json.dumps({
+                        "time": now,
+                        "question": battle["question"],
+                        "model": answer["model"],
+                        "seconds": answer["seconds"],
+                        **scores,
+                    }),
+                )
+            return jsonify({
+                "status": "ok",
+                "models": {label: a["model"] for label, a in battle["answers"].items()},
+            })
 
-        @self.app.route("/arena/votes")
-        def arena_votes():
-            """All stored votes (for the leaderboard and for analysis)."""
+        @self.app.route("/arena/leaderboard")
+        def arena_leaderboard():
+            """Mean rating per model and criterion, mean answer time, number of ratings."""
             if not self.config["ARENA_ENABLED"]:
                 abort(404)
-            votes = self.chat_manager.redis.lrange("arena:votes", 0, -1)
-            return jsonify([json.loads(v) for v in votes])
+            return jsonify(leaderboard(self._arena_ratings()))
+
+        @self.app.route("/arena/ratings")
+        def arena_ratings():
+            """All stored ratings (for analysis)."""
+            if not self.config["ARENA_ENABLED"]:
+                abort(404)
+            return jsonify(self._arena_ratings())
+
+    def _arena_ratings(self) -> list[dict]:
+        return [json.loads(r) for r in self.chat_manager.redis.lrange("arena:ratings", 0, -1)]
+
+    def arena_models(self) -> list[str]:
+        """ARENA_MODELS, without OpenScholar when its server is not configured."""
+        models = [m.strip() for m in self.config["ARENA_MODELS"].split(",") if m.strip()]
+        if not self.config.get("OPENSCHOLAR_BASE_URL"):
+            models = [m for m in models if m != self.config.get("OPENSCHOLAR_MODEL")]
+        return models
 
     def _generate_arena_response(
         self, user_message: str, models: list[str]
     ) -> Generator[str, None, None]:
         """
-        Stream an arena battle. Model names are replaced by labels A and B until
-        the user votes; the battle is kept in Redis for one day.
+        Stream an arena round. Model names are replaced by labels A, B, C, ... until
+        the user rates; the round is kept in Redis for one day.
         """
         rag_service = self.get_rag_service()
         if not rag_service:
@@ -303,14 +379,15 @@ class FlaskApp:
         for chunk in rag_service.get_arena_response(user_message, models):
             if "responses" in chunk:
                 battle_id = str(uuid.uuid4())
+                answers = {}
+                for label, response in zip(ARENA_LABELS, chunk["responses"]):
+                    answers[label] = {"model": response.pop("model"), "seconds": response["seconds"]}
+                    response["label"] = label
                 self.chat_manager.redis.set(
                     f"arena:battle:{battle_id}",
-                    json.dumps({"question": user_message, "models": models}),
+                    json.dumps({"question": user_message, "answers": answers}),
                     ex=86400,
                 )
-                for label, response in zip("AB", chunk["responses"]):
-                    response["label"] = label
-                    del response["model"]
                 chunk["battle_id"] = battle_id
             yield json.dumps(chunk) + "\n"
 

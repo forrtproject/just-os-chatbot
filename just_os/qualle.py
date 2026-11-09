@@ -20,6 +20,7 @@ from just_os.references import (
     document_key,
     load_publication_years,
     passage_allowed,
+    plain_metadata,
     publication_year,
     reference_url,
 )
@@ -242,7 +243,7 @@ class DocumentRetriever:
         Returns:
             Text representation of the node
         """
-        return f"Title: {node.metadata.get(TITLE_KEY, 'Unknown Title')} Text: {' '.join(node.text.split())}"
+        return f"Title: {plain_metadata(node.metadata).get(TITLE_KEY, 'Unknown Title')} Text: {' '.join(node.text.split())}"
 
     def context_from_nodes(self, nodes: List[Any]) -> str:
         """
@@ -441,7 +442,13 @@ class OpenAIClientManager:
             OpenAI client or None if initialization fails
         """
         try:
-            return OpenAI(api_key=api_key, base_url=base_url)
+            # A hard time limit: one slow model must not hold up a whole answer or arena round
+            return OpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                timeout=self.config.get("LLM_TIMEOUT", 120),
+                max_retries=1,
+            )
         except Exception as e:
             logger.error(f"Failed to initialize OpenAI client: {str(e)}")
             return None
@@ -501,7 +508,7 @@ class ReferenceProcessor:
 
     def reference_data(self, node) -> Dict[str, Any]:
         """Tooltip data for one cited chunk. The front end inserts it as text, not HTML."""
-        meta = node.metadata
+        meta = plain_metadata(node.metadata)
         return {
             "title": meta.get(TITLE_KEY, "Unknown Title"),
             "authors": meta.get(CREATOR_KEY, "Unknown Author"),
@@ -540,7 +547,7 @@ class ReferenceProcessor:
                     ref_idx = int(match.group(1))
                     if ref_idx >= len(references_nodes) or ref_idx in ref_mapping:
                         continue
-                    key = document_key(references_nodes[ref_idx].metadata)
+                    key = document_key(plain_metadata(references_nodes[ref_idx].metadata))
                     if key not in doc_numbers:
                         doc_numbers[key] = len(doc_numbers) + 1
                         used_refs_ordered.append(ref_idx)
@@ -599,7 +606,7 @@ class ReferenceProcessor:
                 seen = set()
                 used_refs_ordered = []
                 for idx, node in enumerate(nodes):
-                    key = document_key(node.metadata)
+                    key = document_key(plain_metadata(node.metadata))
                     if key not in seen:
                         seen.add(key)
                         used_refs_ordered.append(idx)
@@ -896,6 +903,7 @@ class Qualle:
                         "model": model,
                         "message": markdown.markdown("This model did not answer (API error)."),
                         "sources": "",
+                        "error": True,
                         "seconds": round(time.time() - start, 1),
                     }
                 processed = self.response_generator.post_process_response(text)

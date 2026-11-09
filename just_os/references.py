@@ -22,6 +22,15 @@ OPEN_LICENCE = re.compile(
 RESTRICTED = re.compile(r"\bnc\b|\bnd\b|non-?commercial|no-?deriv", re.I)
 
 
+def plain_metadata(metadata: Dict) -> Dict:
+    """Unwrap {"<doi_hash>": value} values: 10 documents of the current index were stored
+    that way (issue #24, fixed in scripts/embed.py for new builds)."""
+    return {
+        key: next(iter(value.values()), None) if isinstance(value, dict) else value
+        for key, value in metadata.items()
+    }
+
+
 def normalize_doi(text: Optional[str]) -> Optional[str]:
     """Return the bare, lower-case DOI in a string (URL, "doi:" prefix, ...) or None."""
     if not text:

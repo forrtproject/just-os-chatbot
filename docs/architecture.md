@@ -44,7 +44,7 @@ just-os-chatbot/
 |---|---|---|
 | `app.py` | `FlaskApp`: routes, CORS allow-list, input validation, rate limits (`RateLimitManager`, Flask-Limiter on Redis; `PROXY_FIX_X_FOR` > 0 trusts `X-Forwarded-For` from that many proxies), NDJSON streaming. `get_app()` is the Gunicorn entry point | `rag_service`, `chat_manager`, `extensions`, templates |
 | `rag_service.py` | Builds the pipeline once per worker (singleton): embedding model → FAISS index from `VECTOR_STORE` → retriever (wrapped in `HybridRetriever` if `HYBRID_SEARCH`) → `Qualle` | `qualle`, `chat_manager`, `config.settings` |
-| `qualle.py` | The RAG pipeline. `QueryProcessor` (rephrase + classify; tool call with JSON fallback), `DocumentRetriever` (FAISS top-k + local CrossEncoder re-rank; falls back to vector order; `MAX_CHUNKS_PER_DOC` caps chunks per paper), `ResponseGenerator` (prompt chosen by `PROMPT_STYLE`: `openscholar` or `short`; LLM call; post-processing), `OpenAIClientManager` (OpenAI-compatible clients; sends `OPENSCHOLAR_MODEL` to the self-hosted server), `ReferenceProcessor` (citation numbers → HTML + source list: one number per paper, publication year, doi.org links, passage only for open licences), `Qualle` (`get_response`, `get_arena_response`) | `openscholar`, `chat_manager` |
+| `qualle.py` | The RAG pipeline. `QueryProcessor` (rephrase + classify; tool call with JSON fallback), `DocumentRetriever` (FAISS top-k + local CrossEncoder re-rank; falls back to vector order; `MAX_CHUNKS_PER_DOC` caps chunks per paper), `ResponseGenerator` (prompt chosen by `PROMPT_STYLE`: `openscholar` or `short`; LLM call; post-processing), `OpenAIClientManager` (OpenAI-compatible clients with a `LLM_TIMEOUT` limit and 1 retry; sends `OPENSCHOLAR_MODEL` to the self-hosted server), `ReferenceProcessor` (citation numbers → HTML + source list: one number per paper, publication year, doi.org links, passage only for open licences), `Qualle` (`get_response`, `get_arena_response`) | `openscholar`, `chat_manager` |
 | `answer_cache.py` | `AnswerCache`: semantic answer cache in Redis (`ANSWER_CACHE_TTL` > 0 turns it on) | `qualle` |
 | `hybrid.py` | `HYBRID_SEARCH=true`: `BM25` keyword index (scikit-learn sparse matrix, built from the docstore at start-up, ~7 s) + `HybridRetriever` (vector and keyword lists merged by reciprocal rank fusion) | `rag_service` |
 | `references.py` | Pure helpers (no heavy imports): `normalize_doi`, `reference_url` (`https://doi.org/<doi>`, else an http(s) link), `document_key` (one key per paper), `passage_allowed` (licence gate), `publication_year` + `load_publication_years` (`PUB_YEARS_FILE`) | `qualle`, `ingest/helpers`, `scripts/get_pub_years` |
@@ -53,7 +53,7 @@ just-os-chatbot/
 | `database.py` | `get_redis_client()`: one Redis connection per process | `chat_manager` |
 | `extensions.py` | `flask_static_digest` instance (fingerprinted static files) | `app` |
 | `templates/index.html` | Built-in chat page | `public/js/app.js`, `public/css/app.css` |
-| `templates/arena.html` | Arena page (two anonymous answers + vote) | `public/js/arena.js` |
+| `templates/arena.html` | Arena page: model picker, one card per answer, 1-5 ratings, leaderboard | `public/js/arena.js` |
 
 ### Routes (`just_os/app.py`)
 | Route | Method | Purpose |
@@ -61,10 +61,11 @@ just-os-chatbot/
 | `/` | GET | Built-in chat page |
 | `/chat` | POST | Main API (`message`, `chat_id`) → NDJSON stream. The forrt.org widget uses it: **do not change the fields** |
 | `/up` | GET | Health check (Docker) |
-| `/arena` | GET | Arena page (only if `ARENA_ENABLED`) |
-| `/arena/chat` | POST | Two random models from `ARENA_MODELS` answer with the same sources |
-| `/arena/vote` | POST | Vote `a`, `b`, `tie` or `bad` for a battle |
-| `/arena/votes` | GET | Leaderboard data |
+| `/arena` | GET | Arena page (only if `ARENA_ENABLED`); lists `ARENA_MODELS` (OpenScholar only when `OPENSCHOLAR_BASE_URL` is set) |
+| `/arena/chat` | POST | `{message, models}`: each chosen model (1 to `ARENA_MAX_MODELS`) answers from the same sources; cards labelled A, B, C… in random order |
+| `/arena/rate` | POST | `{battle_id, ratings: {A: {correct, references, clarity}}}`, each 1-5; one rating round per question; reveals the model names |
+| `/arena/leaderboard` | GET | Per model: ratings, mean per criterion, overall mean, mean answer time |
+| `/arena/ratings` | GET | All stored ratings (analysis) |
 
 ### `ingest/`
 | File | What it does |
@@ -75,6 +76,7 @@ just-os-chatbot/
 ### `scripts/` (run from the repository root)
 | File | Command | What it does |
 |---|---|---|
+| `make_share_bundle.py` | `python scripts/make_share_bundle.py [--minimal] [--no-env]` | Zips `.env`, the index and the embedding-comparison vectors into `share/just-os-team-bundle.zip` (git- and docker-ignored) with a `TEAM_SETUP.md` |
 | `get_index.py` | `python scripts/get_index.py <zip-url>` | Downloads an index zip and unpacks it into `data/processed/` (standard library only) |
 | `bootstrap_local_database.py` | `uv run python -m scripts.bootstrap_local_database` | Ingestion step 1: checks open access (Unpaywall) for the downloaded PDFs, copies them to `data/pdfs/by-doi/<doi_hash>.pdf`, writes `data/processed/just-os_db.csv`, uploads to Drive |
 | `marker.sh` | `./scripts/marker.sh` | Step 2: PDF → Markdown with `marker` (GPU recommended) into `data/processed/markdown/` |
@@ -103,7 +105,7 @@ just-os-chatbot/
 | `test_answer_cache.py` | Answer cache hit/miss/expiry/namespace/size, no LLM call on a hit, `PROMPT_STYLE` |
 | `test_ingest.py` | Title match, `%PDF` check, `unique_metadata`, gunicorn reload flag |
 | `test_rerank.py` | Re-ranker order and fallback to vector order |
-| `test_app.py` | Arena routes with a fake RAG service and fakeredis; ProxyFix on/off |
+| `test_app.py` | Arena: chosen models, hidden names, OpenScholar filter, ratings, leaderboard, bad input; ProxyFix on/off |
 | `test_compare.py` | `eval/compare.py` summary numbers |
 | `test_coverage.py` | Coverage reasons in `eval/coverage.py` |
 
@@ -142,8 +144,8 @@ Each step yields a status line (`{"status": "in-progress", "message": ...}`). Th
 | Chat history | Redis `chat:{chat_id}` (list, newest first) | `MESSAGE_TTL` = 1 h, reset on each message | Rephrase follow-up questions; privacy-friendly |
 | Rate-limit counters | Redis (Flask-Limiter `storage_uri`) | Per window in `RATE_LIMIT` | Shared by all workers |
 | Answer cache (only with `ANSWER_CACHE_TTL` > 0) | Redis list `answer_cache:<hash of models, index, prompt, retrieval settings>`: question vector + final answer, newest first, max `ANSWER_CACHE_MAX_ITEMS` | `ANSWER_CACHE_TTL` seconds | A first question with cosine ≥ `ANSWER_CACHE_MIN_SIMILARITY` to a recent one gets the stored answer: no LLM call. Shared by all users (stores question text) |
-| Arena battles | Redis `arena:battle:{id}` | 1 day, deleted on vote | Hide model names until the vote |
-| Arena votes | Redis list `arena:votes` | No expiry (`redis-cli DEL arena:votes`) | Leaderboard |
+| Arena rounds | Redis `arena:battle:{id}` (question, label → model + seconds) | 1 day, deleted when rated | Hide model names until the ratings are in |
+| Arena ratings | Redis list `arena:ratings` (time, question, model, seconds, correct, references, clarity) | No expiry (`redis-cli DEL arena:ratings`) | Leaderboard. The old two-model votes stay in `arena:votes` (unused) |
 | Redis data | Docker volume `redis` | Until the volume is deleted | |
 | Static files | `public/` with digest names (`flask-static-digest`) | Until the next build | Browser cache busting |
 | Eval embeddings | `data/processed/emb_cache/<model>.npy` (float16, one row per chunk) | Until deleted | `compare_embeddings.py` embeds the 59,473 chunks one time per model |
