@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PYTHONPATH: .
+      # Same Python as the Dockerfile; newer ones lack wheels for some locked packages (Pillow 10.4)
+      UV_PYTHON: "3.12"
     steps:
       - uses: actions/checkout@v4
 
