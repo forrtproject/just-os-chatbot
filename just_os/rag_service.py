@@ -54,7 +54,13 @@ def create_retriever(config: Dict[str, Any], embed_model):
             storage_context=storage_context, embed_model=embed_model
         )
 
-        return index.as_retriever(similarity_top_k=config["RETRIEVER_TOP_K"])
+        retriever = index.as_retriever(similarity_top_k=config["RETRIEVER_TOP_K"])
+        if config.get("HYBRID_SEARCH"):
+            from just_os.hybrid import HybridRetriever
+
+            nodes = list(index.docstore.docs.values())
+            return HybridRetriever(retriever, nodes, config["RETRIEVER_TOP_K"])
+        return retriever
     except Exception as e:
         logger.error(f"Failed to initialize retriever: {str(e)}")
         raise

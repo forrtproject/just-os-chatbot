@@ -31,6 +31,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # RANKING SETTINGS
     "MIN_RELEVANCE": 0.1,
     "MAX_CHUNKS": 7,
+    # At most this many chunks of one paper in the context (0 = no limit), for variety
+    "MAX_CHUNKS_PER_DOC": 0,
+    # Keyword (BM25) + vector search, merged by reciprocal rank fusion (just_os/hybrid.py)
+    "HYBRID_SEARCH": False,
     # doi,year table for the reference year (scripts/get_pub_years.py); missing → "n.d."
     "PUB_YEARS_FILE": "data/raw/pub_years.csv",
     # Redis settings

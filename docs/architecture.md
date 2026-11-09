@@ -42,8 +42,9 @@ just-os-chatbot/
 | File | What it does | Links to |
 |---|---|---|
 | `app.py` | `FlaskApp`: routes, CORS allow-list, input validation, rate limits (`RateLimitManager`, Flask-Limiter on Redis), NDJSON streaming. `get_app()` is the Gunicorn entry point | `rag_service`, `chat_manager`, `extensions`, templates |
-| `rag_service.py` | Builds the pipeline once per worker (singleton): embedding model → FAISS index from `VECTOR_STORE` → retriever → `Qualle` | `qualle`, `chat_manager`, `config.settings` |
-| `qualle.py` | The RAG pipeline. `QueryProcessor` (rephrase + classify; tool call with JSON fallback), `DocumentRetriever` (FAISS top-k + local CrossEncoder re-rank; falls back to vector order), `ResponseGenerator` (prompt + LLM call + post-processing), `OpenAIClientManager` (OpenAI-compatible clients; sends `OPENSCHOLAR_MODEL` to the self-hosted server), `ReferenceProcessor` (citation numbers → HTML + source list: one number per paper, publication year, doi.org links, passage only for open licences), `Qualle` (`get_response`, `get_arena_response`) | `openscholar`, `chat_manager` |
+| `rag_service.py` | Builds the pipeline once per worker (singleton): embedding model → FAISS index from `VECTOR_STORE` → retriever (wrapped in `HybridRetriever` if `HYBRID_SEARCH`) → `Qualle` | `qualle`, `chat_manager`, `config.settings` |
+| `qualle.py` | The RAG pipeline. `QueryProcessor` (rephrase + classify; tool call with JSON fallback), `DocumentRetriever` (FAISS top-k + local CrossEncoder re-rank; falls back to vector order; `MAX_CHUNKS_PER_DOC` caps chunks per paper), `ResponseGenerator` (prompt + LLM call + post-processing), `OpenAIClientManager` (OpenAI-compatible clients; sends `OPENSCHOLAR_MODEL` to the self-hosted server), `ReferenceProcessor` (citation numbers → HTML + source list: one number per paper, publication year, doi.org links, passage only for open licences), `Qualle` (`get_response`, `get_arena_response`) | `openscholar`, `chat_manager` |
+| `hybrid.py` | `HYBRID_SEARCH=true`: `BM25` keyword index (scikit-learn sparse matrix, built from the docstore at start-up, ~7 s) + `HybridRetriever` (vector and keyword lists merged by reciprocal rank fusion) | `rag_service` |
 | `references.py` | Pure helpers (no heavy imports): `normalize_doi`, `reference_url` (`https://doi.org/<doi>`, else an http(s) link), `document_key` (one key per paper), `passage_allowed` (licence gate), `publication_year` + `load_publication_years` (`PUB_YEARS_FILE`) | `qualle`, `ingest/helpers`, `scripts/get_pub_years` |
 | `openscholar.py` | The OpenScholar system prompt and answer template (keep the Apache-2.0 header) | `qualle` |
 | `chat_manager.py` | `ChatManager`: chat history in the Redis list `chat:{chat_id}`, TTL `MESSAGE_TTL` (1 h) | `database` |
@@ -95,6 +96,7 @@ just-os-chatbot/
 |---|---|
 | `test_qualle.py` | Citation mapping, classify error ≠ refusal, JSON fallback, OpenScholar routing |
 | `test_references.py` | DOI normalisation, doi.org links, licence gate, publication year, one reference per paper |
+| `test_retrieval.py` | Per-paper cap, BM25, rank fusion, hybrid retriever |
 | `test_rerank.py` | Re-ranker order and fallback to vector order |
 | `test_app.py` | Arena routes with a fake RAG service and fakeredis |
 | `test_compare.py` | `eval/compare.py` summary numbers |
@@ -113,8 +115,8 @@ flowchart LR
     RP --> C{2 Classify - GENERAL_MODEL}
     C -->|API error| E[error message]
     C -->|not open science| R[refusal]
-    C -->|yes| F[3 FAISS top-k = RETRIEVER_TOP_K]
-    F --> X[4 CrossEncoder re-rank: MAX_CHUNKS above MIN_RELEVANCE]
+    C -->|yes| F[3 FAISS top-k = RETRIEVER_TOP_K, + BM25 if HYBRID_SEARCH]
+    F --> X[4 CrossEncoder re-rank: MAX_CHUNKS above MIN_RELEVANCE, max MAX_CHUNKS_PER_DOC per paper]
     X --> G[5 Generate - CITATION_MODEL, OpenScholar prompt]
     G --> P[6 Citations → HTML + source list]
     P -->|NDJSON stream| W
@@ -128,6 +130,7 @@ Each step yields a status line (`{"status": "in-progress", "message": ...}`). Th
 
 | What | Where | Lifetime | Why |
 |---|---|---|---|
+| BM25 keyword index (only with `HYBRID_SEARCH`) | RAM of each worker, built at start-up from the docstore | Until the worker stops | Exact-term search; a few hundred MB |
 | Embedding model, re-ranker, FAISS index | RAM of each Gunicorn worker (`rag_service` singleton), loaded in `post_worker_init` | Until the worker stops | Loading takes ~1 min and ~3 GB RAM per worker; keep `WEB_CONCURRENCY=1` |
 | Model weights (bge-m3, bge-reranker-base) | Docker volume `hf-cache` → `/home/python/.cache/huggingface`; `LLAMA_INDEX_CACHE_DIR` points llama-index to the same folder | Until the volume is deleted | No 2–3 GB download on each container start |
 | Chat history | Redis `chat:{chat_id}` (list, newest first) | `MESSAGE_TTL` = 1 h, reset on each message | Rephrase follow-up questions; privacy-friendly |

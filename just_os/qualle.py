@@ -203,6 +203,20 @@ class DocumentRetriever:
         self.reranker = CrossEncoder(config["RERANK_MODEL"])
         self.n_context_items = config["MAX_CHUNKS"]
         self.min_relevance = config["MIN_RELEVANCE"]
+        self.max_per_doc = config.get("MAX_CHUNKS_PER_DOC", 0)
+
+    def limit_per_document(self, nodes: List[Any]) -> List[Any]:
+        """Keep at most MAX_CHUNKS_PER_DOC chunks of one paper (0 = no limit), then MAX_CHUNKS."""
+        if self.max_per_doc > 0:
+            counts: Dict[str, int] = {}
+            kept = []
+            for node in nodes:
+                key = document_key(node.metadata)
+                counts[key] = counts.get(key, 0) + 1
+                if counts[key] <= self.max_per_doc:
+                    kept.append(node)
+            nodes = kept
+        return nodes[: self.n_context_items]
 
     def node_to_text(self, node) -> str:
         """
@@ -257,14 +271,14 @@ class DocumentRetriever:
         except Exception as e:
             # Fall back to vector order so a reranker failure never empties the answer
             logger.error(f"Reranking failed, using vector order: {str(e)}")
-            return nodes[: self.n_context_items], nodes
+            return self.limit_per_document(nodes), nodes
 
         ranked = sorted(zip(scores, nodes), key=lambda pair: pair[0], reverse=True)
 
         # Filter and limit ranked nodes
-        ranked_nodes = [
-            node for score, node in ranked if score > self.min_relevance
-        ][: self.n_context_items]
+        ranked_nodes = self.limit_per_document(
+            [node for score, node in ranked if score > self.min_relevance]
+        )
 
         return ranked_nodes, nodes
 
