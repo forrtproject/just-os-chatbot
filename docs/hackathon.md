@@ -17,7 +17,7 @@ Windows: use Docker Desktop with WSL2. If the build fails with `exit code 127`, 
 
 1. Branch `feat/<topic>` or `fix/<topic>`; PRs go to `hackathon`, not `main`.
 2. One problem per PR, under ~300 changed lines, link the issue.
-3. A bug fix has a test that fails before the fix. `pytest` passes before merge.
+3. A bug fix has a test that fails before the fix. `pytest` passes before merge (GitHub Actions runs it on each PR).
 4. A change to prompts, models, retrieval or chunking has the eval table in the PR (`eval/run.py` before and after, `eval/compare.py`).
 5. Do not change the `/chat` request or response fields: the forrt.org widget uses them.
 6. Keys only in `.env`. Never paste keys in issues, chat or screenshots. The hackathon key is switched off on 13 November in the evening.

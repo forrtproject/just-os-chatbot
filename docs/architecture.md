@@ -11,7 +11,8 @@ just-os-chatbot/
 ├── LICENSE                Project licence (GPL-3)
 ├── Dockerfile             3 stages: assets (Node) → app-build (uv) → app (Gunicorn)
 ├── compose.yaml           Services: web, redis, js, css; volumes hf-cache, redis
-├── compose.dev.yaml       Dev overlay: mounts just_os/, config/, test/, eval/ (live reload)
+├── compose.dev.yaml       Dev overlay: mounts just_os/, config/, test/, eval/, scripts/, ingest/ (live reload, tests)
+├── .github/workflows/     tests.yml: pytest + ruff on each PR and on pushes to main/dev/hackathon
 ├── compose.prod.yaml      Prod overlay: container name + external proxy network
 ├── run                    Task runner: ./run test, ./run lint, ./run shell, ...
 ├── pyproject.cpu.toml     Python deps (CPU torch); copied to pyproject.toml in the image
@@ -41,7 +42,7 @@ just-os-chatbot/
 ### `just_os/` (the web app)
 | File | What it does | Links to |
 |---|---|---|
-| `app.py` | `FlaskApp`: routes, CORS allow-list, input validation, rate limits (`RateLimitManager`, Flask-Limiter on Redis), NDJSON streaming. `get_app()` is the Gunicorn entry point | `rag_service`, `chat_manager`, `extensions`, templates |
+| `app.py` | `FlaskApp`: routes, CORS allow-list, input validation, rate limits (`RateLimitManager`, Flask-Limiter on Redis; `PROXY_FIX_X_FOR` > 0 trusts `X-Forwarded-For` from that many proxies), NDJSON streaming. `get_app()` is the Gunicorn entry point | `rag_service`, `chat_manager`, `extensions`, templates |
 | `rag_service.py` | Builds the pipeline once per worker (singleton): embedding model → FAISS index from `VECTOR_STORE` → retriever (wrapped in `HybridRetriever` if `HYBRID_SEARCH`) → `Qualle` | `qualle`, `chat_manager`, `config.settings` |
 | `qualle.py` | The RAG pipeline. `QueryProcessor` (rephrase + classify; tool call with JSON fallback), `DocumentRetriever` (FAISS top-k + local CrossEncoder re-rank; falls back to vector order; `MAX_CHUNKS_PER_DOC` caps chunks per paper), `ResponseGenerator` (prompt chosen by `PROMPT_STYLE`: `openscholar` or `short`; LLM call; post-processing), `OpenAIClientManager` (OpenAI-compatible clients; sends `OPENSCHOLAR_MODEL` to the self-hosted server), `ReferenceProcessor` (citation numbers → HTML + source list: one number per paper, publication year, doi.org links, passage only for open licences), `Qualle` (`get_response`, `get_arena_response`) | `openscholar`, `chat_manager` |
 | `answer_cache.py` | `AnswerCache`: semantic answer cache in Redis (`ANSWER_CACHE_TTL` > 0 turns it on) | `qualle` |
@@ -68,7 +69,7 @@ just-os-chatbot/
 ### `ingest/`
 | File | What it does |
 |---|---|
-| `helpers.py` | FORRT sheet URLs (`URL_FORRT`), `wrangle_data_*` (column names), `get_doi_from_url`, Unpaywall lookups, `download_and_save_pdf`, `execute_concurrent_tasks` (thread pool) |
+| `helpers.py` | FORRT sheet URLs (`URL_FORRT`), `wrangle_data_*` (column names), `get_doi_from_url` (`normalize_doi`), Unpaywall lookups, `best_title_match` (accepts a title-search result only at ≥ 0.9 similarity), `download_and_save_pdf` (saves only files that start with `%PDF`), `execute_concurrent_tasks` (thread pool) |
 | `drive.py` | Google Drive OAuth (`authenticate`) and upload (`upload_file`, `upload_folder`). Needs `credentials.json` |
 
 ### `scripts/` (run from the repository root)
@@ -77,7 +78,7 @@ just-os-chatbot/
 | `get_index.py` | `python scripts/get_index.py <zip-url>` | Downloads an index zip and unpacks it into `data/processed/` (standard library only) |
 | `bootstrap_local_database.py` | `uv run python -m scripts.bootstrap_local_database` | Ingestion step 1: checks open access (Unpaywall) for the downloaded PDFs, copies them to `data/pdfs/by-doi/<doi_hash>.pdf`, writes `data/processed/just-os_db.csv`, uploads to Drive |
 | `marker.sh` | `./scripts/marker.sh` | Step 2: PDF → Markdown with `marker` (GPU recommended) into `data/processed/markdown/` |
-| `embed.py` | `uv run python -m scripts.embed` | Step 3: chunks the Markdown (`CHUNK_SIZE`), embeds with `EMBEDDING_MODEL`, writes `data/processed/vs_latest_<model>/`, uploads to Drive |
+| `embed.py` | `uv run python -m scripts.embed` | Step 3: chunks the Markdown (`CHUNK_SIZE`), embeds with `EMBEDDING_MODEL`, writes `data/processed/vs_latest_<model>/`, uploads to Drive. `unique_metadata` keeps one metadata row per `doi_hash` |
 | `reembed.py` | `uv run python -m scripts.reembed <index-dir> <model>` | Builds a second index from the **same chunks** with another embedding model (fair comparison) |
 | `get_pub_years.py` | `python -m scripts.get_pub_years [index-dir]` | Asks OpenAlex for the publication year of every DOI in the index → `data/raw/pub_years.csv` (tracked; read via `PUB_YEARS_FILE`). Run again after a new index build |
 | `add_new_resources.py` | `uv run python -m scripts.add_new_resources` | Adds rows from the live FORRT sheets (`URL_FORRT`): DOI → Unpaywall → PDF download |
@@ -99,8 +100,9 @@ just-os-chatbot/
 | `test_references.py` | DOI normalisation, doi.org links, licence gate, publication year, one reference per paper |
 | `test_retrieval.py` | Per-paper cap, BM25, rank fusion, hybrid retriever |
 | `test_answer_cache.py` | Answer cache hit/miss/expiry/namespace/size, no LLM call on a hit, `PROMPT_STYLE` |
+| `test_ingest.py` | Title match, `%PDF` check, `unique_metadata`, gunicorn reload flag |
 | `test_rerank.py` | Re-ranker order and fallback to vector order |
-| `test_app.py` | Arena routes with a fake RAG service and fakeredis |
+| `test_app.py` | Arena routes with a fake RAG service and fakeredis; ProxyFix on/off |
 | `test_compare.py` | `eval/compare.py` summary numbers |
 
 ### `assets/` (front end)

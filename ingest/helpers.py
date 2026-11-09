@@ -7,6 +7,7 @@ from typing import Union
 
 import pandas as pd
 from dotenv import load_dotenv
+import difflib
 import hashlib
 
 import concurrent.futures
@@ -101,12 +102,37 @@ def download_and_save_pdf(pdf_url: str, doi: str, output_dir: Path) -> str:
     hash_filename = f"{hashlib.md5(doi.encode()).hexdigest()}.pdf"
 
     try:
-        urllib.request.urlretrieve(pdf_url, output_dir.joinpath(hash_filename))
+        with urllib.request.urlopen(pdf_url, timeout=60) as response:
+            content = response.read()
     except Exception as e:
         logging.error(f"Error downloading PDF at url {pdf_url}: {str(e)}")
         return None
 
+    # Landing pages and paywalls answer with HTML; keep only real PDFs
+    if not content.startswith(b"%PDF"):
+        logging.error(f"Not a PDF at url {pdf_url}")
+        return None
+
+    output_dir.joinpath(hash_filename).write_bytes(content)
     return hash_filename
+
+
+def _plain(title) -> str:
+    return " ".join(re.findall(r"[a-z0-9]+", str(title or "").lower()))
+
+
+def best_title_match(title: str, results: list, min_ratio: float = 0.9):
+    """First Unpaywall search result whose title is close enough to `title`, else None.
+
+    The search ranks by relevance, so its first result can be a different paper.
+    """
+    wanted = _plain(title)
+    for result in results or []:
+        response = result.get("response") or {}
+        found = _plain(response.get("title"))
+        if wanted and found and difflib.SequenceMatcher(None, wanted, found).ratio() >= min_ratio:
+            return response
+    return None
 
 
 # Data extraction utilities

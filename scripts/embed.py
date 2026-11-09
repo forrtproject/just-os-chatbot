@@ -10,8 +10,6 @@ from llama_index.vector_stores.faiss import FaissVectorStore
 
 from config import settings as justos_settings
 
-from ingest.drive import authenticate, upload_folder
-
 from config.settings import CREDENTIALS_FILE, GDRIVE_FOLDER_ID
 
 
@@ -22,11 +20,22 @@ def cleanup_markdown(text):
     return REFERENCE_PATTERN.sub("", text)
 
 
+def unique_metadata(metadata: pd.DataFrame) -> pd.DataFrame:
+    """One row per doi_hash. With duplicate rows, metadata.loc[hash] is a frame and
+    .to_dict() turns every value into a {hash: value} dict (issue #24)."""
+    return metadata[~metadata.index.duplicated(keep="first")]
+
+
 if __name__ == "__main__":
     Settings.chunk_size = justos_settings.CHUNK_SIZE
     datadir = Path("data")
 
-    metadata = pd.read_csv(justos_settings.URL_JUST_OS_DB).set_index("doi_hash")
+    # Google Drive upload needs the optional "ingest" dependency group
+    from ingest.drive import authenticate, upload_folder
+
+    metadata = unique_metadata(
+        pd.read_csv(justos_settings.URL_JUST_OS_DB).set_index("doi_hash")
+    )
 
     markdown_files = list(datadir.joinpath("processed/markdown").glob("**/*.md"))
     excluded_metadata_keys = set(metadata.columns).difference(("title",))

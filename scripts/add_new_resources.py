@@ -13,6 +13,7 @@ from ingest.helpers import (
     get_doi_from_url,
     get_unpaywall_info_by_doi,
     get_unpaywall_info_by_title,
+    best_title_match,
     wrangle_data_forrt,
 )
 
@@ -40,7 +41,7 @@ if __name__ == "__main__":
             upw_info = json.loads(get_unpaywall_info_by_doi(row.doi))
         else:
             results = json.loads(get_unpaywall_info_by_title(row.title))["results"]
-            upw_info = results[0]["response"] if len(results) else None
+            upw_info = best_title_match(row.title, results)
         return upw_info
 
     unpaywall_info = execute_concurrent_tasks(

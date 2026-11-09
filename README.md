@@ -56,6 +56,7 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 | `ARENA_MODELS` | models for `/arena`, comma separated |
 | `PROMPT_STYLE` | `openscholar` (default) or `short` (model-neutral answer prompt) |
 | `ANSWER_CACHE_TTL` | seconds to reuse answers to near-identical first questions; `0` = off (default) |
+| `PROXY_FIX_X_FOR` | number of trusted reverse proxies (prod: `1`), so the rate limit uses the client IP; `0` = none (default) |
 | `HYBRID_SEARCH` | `true`: keyword (BM25) + vector search (default `false`) |
 | `MAX_CHUNKS_PER_DOC` | at most this many chunks of one paper in the context; `0` = no limit (default) |
 

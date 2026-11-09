@@ -49,6 +49,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "REDIS_DB": 0,
     # see https://flask-limiter.readthedocs.io/en/stable/configuration.html#ratelimit-string
     "RATE_LIMIT": "100/minute;500/hour;2000/day",
+    # Number of trusted reverse proxies in front of the app (0 = none). Set to 1 behind
+    # one proxy, so the rate limit uses the client IP, not the proxy IP. Never set it
+    # without a proxy: clients could then fake their IP.
+    "PROXY_FIX_X_FOR": 0,
     # CORS settings
     "ALLOWED_ORIGINS": ["https://forrt.org"],
     # Input validation

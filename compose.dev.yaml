@@ -5,3 +5,5 @@ services:
       - "./config:/app/config"
       - "./test:/app/test"
       - "./eval:/app/eval"
+      - "./scripts:/app/scripts"
+      - "./ingest:/app/ingest"

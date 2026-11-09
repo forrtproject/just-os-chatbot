@@ -1,0 +1,27 @@
+# Unit tests and lint on each PR (issue O2, #27). Offline: no index, no API keys.
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches: [main, dev, hackathon]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.6.9" # same as the Dockerfile
+          enable-cache: true
+
+      # The Docker image does the same: CPU dependencies, locked versions
+      - run: cp pyproject.cpu.toml pyproject.toml
+      - run: uv sync --frozen --no-install-project
+
+      - run: uv run pytest test/ -q
+      - run: uv run ruff check --select E,F --ignore E501 just_os test eval scripts ingest config

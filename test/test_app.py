@@ -2,7 +2,9 @@ import json
 
 import fakeredis
 import pytest
+from flask import request
 
+from config import settings
 from just_os.app import FlaskApp
 
 
@@ -63,3 +65,22 @@ def test_arena_hides_models_until_vote(app):
 def test_arena_rejects_bad_vote(app):
     client = app.app.test_client()
     assert client.post("/arena/vote", json={"battle_id": "x", "vote": "maybe"}).status_code == 400
+
+
+# --- finding 13: ProxyFix only when configured
+
+
+def client_ip(flask_app):
+    """The IP the app sees for a request that came through a proxy."""
+    flask_app.app.add_url_rule("/ip", "ip", lambda: request.remote_addr)
+    response = flask_app.app.test_client().get("/ip", headers={"X-Forwarded-For": "203.0.113.7"})
+    return response.get_data(as_text=True)
+
+
+def test_proxy_fix_uses_forwarded_ip(monkeypatch):
+    monkeypatch.setitem(settings.DEFAULT_CONFIG, "PROXY_FIX_X_FOR", 1)
+    assert client_ip(FlaskApp()) == "203.0.113.7"
+
+
+def test_no_proxy_fix_by_default(app):
+    assert client_ip(app) != "203.0.113.7"  # a client cannot fake its IP

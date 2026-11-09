@@ -73,19 +73,19 @@ JUST-OS answers open-science questions with citations to the FORRT resource libr
 | 10 | Tooltip `innerHTML` → stored XSS | **Fixed** (#5): `textContent`, http(s) links only |
 | 11 | Model names fixed to RUG names | **Fixed** (`BASE_URL`, `LLM_API_KEY`, `CITATION_MODEL`, `GENERAL_MODEL`, `OPENSCHOLAR_*`) |
 | 12 | OpenScholar prompt used for every model | **Fixed** (#11): `PROMPT_STYLE=short`; eval comparison pending |
-| 13 | Rate limit key = proxy IP | Open (Phase 3) |
+| 13 | Rate limit key = proxy IP | **Fixed** (#30): `PROXY_FIX_X_FOR` (set to 1 on prod behind the proxy) |
 | 14 | `/up` route missing | **Fixed** |
 | 15 | Each worker loads the models lazily | **Fixed**: `post_worker_init` preload, `WEB_CONCURRENCY=1` |
-| 16 | `distutils` import in `config/gunicorn.py` | Open (Phase 3) |
-| 17 | Unpaywall title search takes the first result | Open (Phase 3) |
-| 18 | PDF download saves any response as `.pdf` | Open (Phase 3) |
+| 16 | `distutils` import in `config/gunicorn.py` | **Fixed** (#30) |
+| 17 | Unpaywall title search takes the first result | **Fixed** (#30): `best_title_match` ≥ 0.9 |
+| 18 | PDF download saves any response as `.pdf` | **Fixed** (#30): `%PDF` check |
 | 19 | No `uv.lock` | **Fixed** |
 | 20 | No tests, no `ruff` | **Fixed** |
 | 21 | Index upload only via Google Drive OAuth | Open |
 | 22 | FAISS L2 while bge expects cosine | Open |
 | 23 | Setup needs a symlink and a manual settings copy | **Fixed** (`COMPOSE_FILE` in `.env`; `settings.py` is in Git) |
-| 24 | Unused `session["user_id"]` | Open (Phase 3) |
-| — | 10 documents with dict-valued metadata (duplicate `doi_hash`) | Open (new, see [data.md](data.md)) |
+| 24 | Unused `session["user_id"]` | **Fixed** (#30) |
+| — | 10 documents with dict-valued metadata (duplicate `doi_hash`) | **Fixed in `embed.py`** (#24); the current index keeps them until the next build |
 
 ## 7. Designs (not built yet)
 
@@ -129,7 +129,7 @@ FORRT sheets → triage: DOI + OA → PDF (check `%PDF`) → marker; web pages �
 | Week | Work | Done when |
 |---|---|---|
 | 1 | Merge `hackathon` → `main`; close/relabel issues; model decision record (scores, cost, licence, providers, GPU) | `main` green; decision recorded |
-| 2 | #13 ProxyFix, #16 distutils, #24, CI (`pytest` + `ruff` on each PR) | Tests green in CI |
+| 2 | Set `PROXY_FIX_X_FOR=1` on prod; CI is in place (`.github/workflows/tests.yml`) | Tests green in CI |
 | 3–4 | Retrieval: hybrid BM25 + dense, per-paper cap, inner product (#22), multilingual re-ranker | Eval shows a gain, or the change is rejected |
 | 5–6 | Coverage: HTML route, resource cards, incremental ingest (#17, #18), versioned index | Coverage report; more resources indexed |
 | 7 | Staging deploy (EU VM) | Staging URL works |

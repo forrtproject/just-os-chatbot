@@ -7,7 +7,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Dict, Any, Generator, Optional
 
-from flask import Flask, Response, abort, render_template, request, session, jsonify
+from flask import Flask, Response, abort, render_template, request, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -100,6 +101,9 @@ class FlaskApp:
         self.app = Flask(__name__, static_folder="../public", static_url_path="")
         self.app.secret_key = os.getenv("SECRET_KEY", secrets.token_hex(16))
         self.app.config.update(self.config)
+        if self.config["PROXY_FIX_X_FOR"]:
+            # Behind a trusted reverse proxy: rate-limit by the client IP in X-Forwarded-For
+            self.app.wsgi_app = ProxyFix(self.app.wsgi_app, x_for=self.config["PROXY_FIX_X_FOR"])
 
         # Initialize components
         self.chat_manager = ChatManager()
@@ -187,11 +191,6 @@ class FlaskApp:
             Chat endpoint that processes user messages and returns responses.
             Uses server-sent events for streaming responses.
             """
-            # Initialize session if not already done
-            if "user_id" not in session:
-                session["user_id"] = secrets.token_hex(8)
-                logger.debug(f"Created new user session: {session['user_id']}")
-
             # Extract request data
             try:
                 user_message = request.json["message"]
