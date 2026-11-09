@@ -14,9 +14,11 @@ from tqdm import tqdm
 
 import logging
 
+from just_os.references import normalize_doi
+
 # Configuration
 load_dotenv()
-EMAIL = os.environ["UNPAYWALL_EMAIL"]
+EMAIL = os.environ.get("UNPAYWALL_EMAIL", "")
 UNPAYWALL_API_BASE = "https://api.unpaywall.org/v2"
 # List of URLs that will be combined
 URL_FORRT = [
@@ -24,8 +26,6 @@ URL_FORRT = [
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vQy-x6byM-pT1j_Fa8RnKrR-XJS0nbrdrmqP8c9-BVGzWdcL7znJt0XmAOocHMe-bgrAD7TcLyF3o46/pub?gid=0&single=true&output=csv"
 ]
 
-# Regular expressions
-doi_pattern = re.compile(r"10\.\d{4,}/[\w/.-]+")
 
 
 def execute_concurrent_tasks(
@@ -112,8 +112,7 @@ def download_and_save_pdf(pdf_url: str, doi: str, output_dir: Path) -> str:
 # Data extraction utilities
 def get_doi_from_url(url: str) -> Union[str, None]:
     """Extract a DOI from a URL if present."""
-    match = doi_pattern.search(url)
-    return match.group() if match else None
+    return normalize_doi(url)
 
 
 def wrangle_data_forrt(df):

@@ -11,13 +11,26 @@ The full list is in [indexed_documents.csv](indexed_documents.csv) (`just_os_id,
 
 | Group | Documents | Source PDF |
 |---|---|---|
-| Matched to a JUST-OS ID, PDF found | 409 | `data/NWO JUST-OS/Content/<id>.pdf` (IDs 950–1299 in sub-folders `950 tot 999/` …) |
-| Matched to a JUST-OS ID, PDF not in `Content/` | 60 | Downloaded by `bootstrap_local_database.py`/`add_new_resources.py`; only the Markdown is left |
+| Matched to a JUST-OS ID, PDF found | 432 | `data/NWO JUST-OS/Content/<id>.pdf` (IDs 950–1299 in sub-folders `950 tot 999/` …; IDs below 1000 there have no leading zero, `950.pdf`) |
+| Matched to a JUST-OS ID, PDF not in `Content/` | 37 | Downloaded by `bootstrap_local_database.py`/`add_new_resources.py`; only the Markdown is left |
 | No JUST-OS ID (added from the live FORRT sheets by DOI) | 44 | Unpaywall download (`add_new_resources.py`); PDF not kept |
+
+### Why only part of `Content/` is in the index
+
+`Content/` has 657 PDFs. Traced one by one (sheet snapshot → DOI → open-access list `just-os_db_latest.csv` → Markdown → index):
+
+| Stage | PDFs | Has Markdown already | Reason |
+|---|---|---|---|
+| In the index | 434 | 351 | — |
+| **Not open access** (Unpaywall `is_oa` false or not found) | 190 | 165 | Deliberate: `bootstrap_local_database.py` keeps only OA papers, and `embed.py` embeds only Markdown whose `doi_hash` is in the OA list (licence / copyright of shown passages) |
+| No DOI in the sheet | 22 | 19 | No DOI → no `doi_hash` → never in the OA list (mostly "Reading" and "Primary Source") |
+| Open access + Markdown, but not in the index | 11 | 11 | Probably duplicate `doi_hash` / title mismatch (IDs 161, 423, 455, 568, 579, 609, 614, 675, 927, 1041, 1048); see issue #24 |
+
+So **184 PDFs (165 + 19) are converted already** and could go in without running marker again, **if** the licence allows it. Paywalled papers are a policy question for FORRT: index them for search but show only title + link (issue R5, #6), or leave them out.
 
 How a PDF got in: open access (Unpaywall `is_oa`) **and** a DOI → `data/pdfs/by-doi/<md5(doi)>.pdf` → marker → Markdown → `scripts/embed.py`. The Markdown of the original build is in `data/NWO JUST-OS/BOT/markdown/markdown/` (546 files, `NNNN.md`).
 
-Licence of the 513 documents (field `conditions_of_use`, free text from the form): CC BY (all spellings) ≈ 280, "I don't see any of these" 184, CC BY-NC-ND 14, public domain 8, other. Issue R5 uses this to decide where a passage may be shown.
+Licence of the 513 documents (field `conditions_of_use`, free text from the form): CC BY (all spellings) ≈ 280, "I don't see any of these" 184, CC BY-NC-ND 14, public domain 8, other. The tooltip shows a passage only for CC BY (incl. SA), CC0 and public domain (`passage_allowed`, issue #6); other sources show title + link.
 
 **Known metadata defect:** 10 documents have every metadata value stored as a one-item dict (`{"<doi_hash>": "title"}`) because `just-os_db_latest.csv` has duplicate `doi_hash` rows and `embed.py` calls `metadata.loc[hash].to_dict()`. Their references show wrong titles and years (issue in [issues.md](issues.md)).
 
@@ -43,6 +56,7 @@ VECTOR_STORE=data/processed/vs_latest_bge-small-en-v1.5
 ### In Git (seed data)
 | File | Rows | Content |
 |---|---|---|
+| `data/raw/pub_years.csv` | 509 | Publication year per DOI of the index (OpenAlex, `scripts/get_pub_years.py`); 4 of 513 DOIs have no year → "n.d." |
 | `data/raw/forrt_db_250627.csv` | 1,234 | JUST-OS sheet snapshot (June 2025), with "JUST-OS internal identifier" and "Downloaded?" |
 | `data/raw/forrt_sheet1_261028.csv` | 1,504 | Live FORRT resource sheet (28 Oct 2026) |
 | `data/raw/forrt_sheet2_261028.csv` | 285 | FORRT reference list (28 Oct 2026) |

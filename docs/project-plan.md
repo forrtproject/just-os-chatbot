@@ -63,14 +63,14 @@ JUST-OS answers open-science questions with citations to the FORRT resource libr
 |---|---|---|
 | 1 | Citation numbers used the pre-rerank node list | **Fixed** (test `test_citations_use_ranked_nodes`) |
 | 2 | Re-rank failure → empty answer | **Fixed**: falls back to vector order |
-| 3 | Year is the form time stamp | Open → issue R1 |
-| 4 | Raw links; DOI regex cuts or keeps bad characters | Open → R2 |
-| 5 | One reference per chunk (duplicates) | Open → R3 |
+| 3 | Year is the form time stamp | **Fixed** (#2): OpenAlex year table, "n.d." fallback |
+| 4 | Raw links; DOI regex cuts or keeps bad characters | **Fixed** (#3): `normalize_doi`, `https://doi.org/` links |
+| 5 | One reference per chunk (duplicates) | **Fixed** (#4) |
 | 6 | Classify API error shown as a refusal | **Fixed** (`CLASSIFY_ERROR_RESPONSE`) |
 | 7 | Forced tool calls fail on some models | **Fixed**: JSON fallback |
 | 8 | Remote `/rerank` endpoint | **Fixed**: local CrossEncoder |
 | 9 | Index not available to contributors | **Partly**: `scripts/get_index.py` + zip ready; upload link missing |
-| 10 | Tooltip `innerHTML` → stored XSS | Open → R4 |
+| 10 | Tooltip `innerHTML` → stored XSS | **Fixed** (#5): `textContent`, http(s) links only |
 | 11 | Model names fixed to RUG names | **Fixed** (`BASE_URL`, `LLM_API_KEY`, `CITATION_MODEL`, `GENERAL_MODEL`, `OPENSCHOLAR_*`) |
 | 12 | OpenScholar prompt used for every model | Open → M2 |
 | 13 | Rate limit key = proxy IP | Open (Phase 3) |

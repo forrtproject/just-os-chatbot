@@ -31,6 +31,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # RANKING SETTINGS
     "MIN_RELEVANCE": 0.1,
     "MAX_CHUNKS": 7,
+    # doi,year table for the reference year (scripts/get_pub_years.py); missing → "n.d."
+    "PUB_YEARS_FILE": "data/raw/pub_years.csv",
     # Redis settings
     "REDIS_HOST": "redis",
     "REDIS_PORT": 6379,

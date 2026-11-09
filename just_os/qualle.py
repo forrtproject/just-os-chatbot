@@ -15,6 +15,13 @@ from sentence_transformers import CrossEncoder
 
 from just_os.chat_manager import ChatManager
 from just_os.openscholar import generation_instance_prompts_w_references, system_prompt
+from just_os.references import (
+    document_key,
+    load_publication_years,
+    passage_allowed,
+    publication_year,
+    reference_url,
+)
 
 # Load environment variables
 load_dotenv()
@@ -24,9 +31,8 @@ logger = logging.getLogger(__name__)
 
 # Constants for metadata keys
 CREATOR_KEY = "creators"
-TIMESTAMP_KEY = "timestamp"
 TITLE_KEY = "title"
-URL_DOI_KEY = "link_to_resource"
+LICENCE_KEY = "conditions_of_use"
 
 # Default response for non-Open Science questions
 NON_OS_RESPONSE = "Sorry, I'm only able to answer questions related to Open Science."
@@ -451,12 +457,29 @@ class OpenAIClientManager:
 
 class ReferenceProcessor:
     """
-    Handles processing of references in markdown text.
+    Turns [n] citations into clickable references and a source list.
+
+    One number per document (chunks of the same paper share it), the publication
+    year (not the form time stamp), https://doi.org/ links, and the passage only
+    when the licence allows it.
     """
 
-    @staticmethod
+    def __init__(self, pub_years: Optional[Dict[str, str]] = None):
+        self.pub_years = pub_years or {}
+
+    def reference_data(self, node) -> Dict[str, Any]:
+        """Tooltip data for one cited chunk. The front end inserts it as text, not HTML."""
+        meta = node.metadata
+        return {
+            "title": meta.get(TITLE_KEY, "Unknown Title"),
+            "authors": meta.get(CREATOR_KEY, "Unknown Author"),
+            "year": publication_year(meta, self.pub_years),
+            "url": reference_url(meta),
+            "text": node.text if passage_allowed(meta.get(LICENCE_KEY)) else "",
+        }
+
     def process_markdown_with_references(
-        markdown_text: str, references_nodes: List[Any]
+        self, markdown_text: str, references_nodes: List[Any]
     ) -> Tuple[str, List[int]]:
         """
         Convert markdown to HTML and add clickable references with tooltips.
@@ -466,131 +489,99 @@ class ReferenceProcessor:
             references_nodes: List of reference nodes
 
         Returns:
-            Tuple of (HTML text with clickable references, list of used reference indices)
+            Tuple of (HTML text with clickable references, list of node indices:
+            the first cited chunk of each document, in order of appearance)
         """
         try:
-            # First convert markdown to HTML
             html_text = markdown.markdown(markdown_text)
-
-            # Parse the HTML
             soup = BeautifulSoup(html_text, "html.parser")
-
-            # Find all reference patterns like [1], [2], etc.
             reference_pattern = r"\[(\d+)\]"
+            text_nodes = soup.find_all(string=True)
 
-            # Get all text nodes and track references in order of appearance
-            text_nodes = soup.find_all(text=True)
-            used_refs_ordered = []  # Will store refs in order of appearance
-            ref_mapping = {}  # Maps old ref numbers to new ones
+            used_refs_ordered = []  # first node index of each cited document
+            doc_numbers = {}  # document key -> new number
+            ref_mapping = {}  # old node index -> new number
 
-            # First pass - collect references in order of appearance
+            # First pass - number documents in order of appearance
             for text in text_nodes:
                 for match in re.finditer(reference_pattern, text):
                     ref_idx = int(match.group(1))
-                    if ref_idx < len(references_nodes) and ref_idx not in ref_mapping:
+                    if ref_idx >= len(references_nodes) or ref_idx in ref_mapping:
+                        continue
+                    key = document_key(references_nodes[ref_idx].metadata)
+                    if key not in doc_numbers:
+                        doc_numbers[key] = len(doc_numbers) + 1
                         used_refs_ordered.append(ref_idx)
-                        ref_mapping[ref_idx] = len(
-                            used_refs_ordered
-                        )  # New number is position + 1
+                    ref_mapping[ref_idx] = doc_numbers[key]
 
-            logger.debug(f"Used refs: {used_refs_ordered}")
-            logger.debug(f"Mapping: {ref_mapping}")
+            logger.debug(f"Used refs: {used_refs_ordered}, mapping: {ref_mapping}")
 
             # Second pass - replace references with new numbers
             for text in text_nodes:
-                if re.search(reference_pattern, text):
-                    # Get all matches first to determine their positions
-                    matches = list(re.finditer(reference_pattern, text))
-                    # Process the string from right to left to maintain correct positions
-                    new_text = text
-
-                    for match in reversed(matches):
-                        old_ref_num = int(match.group(1))
-                        start, end = match.span()
-
-                        if old_ref_num in ref_mapping and old_ref_num < len(
-                            references_nodes
-                        ):
-                            new_ref_num = ref_mapping[old_ref_num]
-                            ref_node = references_nodes[old_ref_num]
-
-                            # Create reference data
-                            reference_data = {
-                                "title": ref_node.metadata.get(
-                                    TITLE_KEY, "Unknown Title"
-                                ),
-                                "authors": ref_node.metadata.get(
-                                    CREATOR_KEY, "Unknown Author"
-                                ),
-                                "year": ref_node.metadata.get(
-                                    TIMESTAMP_KEY, "Unknown Year"
-                                ),
-                                "url": ref_node.metadata.get(URL_DOI_KEY, "#"),
-                                "text": html.escape(ref_node.text),
-                            }
-
-                            # Create JSON string and escape special characters for HTML safety
-                            data_string = json.dumps(
-                                reference_data, ensure_ascii=True, separators=(",", ":")
-                            )
-                            # HTML escape the entire data string for safe attribute insertion
-                            escaped_data_string = html.escape(data_string, quote=True)
-
-                            # Create the reference link with data attributes using new number
-                            reference_html = (
-                                f'<a href="#" class="reference-link" '
-                                f'data-reference="{escaped_data_string}">'
-                                f"[{new_ref_num}]"
-                                f"</a>"
-                            )
-
-                            # Replace this specific reference
-                            new_text = (
-                                new_text[:start] + reference_html + new_text[end:]
-                            )
-
-                    # Replace the text node with the new HTML
-                    text.replace_with(BeautifulSoup(new_text, "html.parser"))
+                matches = list(re.finditer(reference_pattern, text))
+                if not matches:
+                    continue
+                new_text = text
+                # Right to left, so earlier positions stay valid
+                for match in reversed(matches):
+                    old_ref_num = int(match.group(1))
+                    if old_ref_num not in ref_mapping:
+                        continue
+                    start, end = match.span()
+                    # Each citation keeps the passage of the chunk it cites
+                    data_string = json.dumps(
+                        self.reference_data(references_nodes[old_ref_num]),
+                        ensure_ascii=True,
+                        separators=(",", ":"),
+                    )
+                    reference_html = (
+                        f'<a href="#" class="reference-link" '
+                        f'data-reference="{html.escape(data_string, quote=True)}">'
+                        f"[{ref_mapping[old_ref_num]}]"
+                        f"</a>"
+                    )
+                    new_text = new_text[:start] + reference_html + new_text[end:]
+                text.replace_with(BeautifulSoup(new_text, "html.parser"))
 
             return str(soup), used_refs_ordered
         except Exception as e:
             logger.error(f"Error processing references: {str(e)}")
-            # Return original markdown as HTML if processing fails
             return markdown.markdown(markdown_text), []
 
-    @staticmethod
     def references_from_nodes(
-        nodes: List[Any], used_refs_ordered: Optional[List[int]] = None
+        self, nodes: List[Any], used_refs_ordered: Optional[List[int]] = None
     ) -> str:
         """
-        Generate reference list from nodes.
+        Generate the source list, one line per document.
 
         Args:
             nodes: List of reference nodes
-            used_refs_ordered: Optional list of reference indices in order of appearance.
-                              If None, all references will be included in original order.
+            used_refs_ordered: Node indices in order of appearance (one per document).
+                              If None, every document in nodes is listed in order.
 
         Returns:
             Formatted reference list as a string
         """
         try:
             if not used_refs_ordered:
-                return "\n".join(
-                    f"[{idx + 1}] {node.metadata.get(CREATOR_KEY, 'Unknown Author')} "
-                    f"({node.metadata.get(TIMESTAMP_KEY, 'Unknown Year')}). "
-                    f"{node.metadata.get(TITLE_KEY, 'Unknown Title')}. "
-                    f"{node.metadata.get(URL_DOI_KEY, '#')}"
-                    for idx, node in enumerate(nodes)
-                )
+                seen = set()
+                used_refs_ordered = []
+                for idx, node in enumerate(nodes):
+                    key = document_key(node.metadata)
+                    if key not in seen:
+                        seen.add(key)
+                        used_refs_ordered.append(idx)
 
-            return "\n".join(
-                f"[{idx + 1}] {nodes[ref_idx].metadata.get(CREATOR_KEY, 'Unknown Author')} "
-                f"({nodes[ref_idx].metadata.get(TIMESTAMP_KEY, 'Unknown Year')}). "
-                f"{nodes[ref_idx].metadata.get(TITLE_KEY, 'Unknown Title')}. "
-                f"{nodes[ref_idx].metadata.get(URL_DOI_KEY, '#')}"
-                for idx, ref_idx in enumerate(used_refs_ordered)
-                if ref_idx < len(nodes)
-            )
+            lines = []
+            for number, ref_idx in enumerate(
+                (i for i in used_refs_ordered if i < len(nodes)), start=1
+            ):
+                data = self.reference_data(nodes[ref_idx])
+                lines.append(
+                    f"[{number}] {data['authors']} ({data['year']}). {data['title']}."
+                    + (f" {data['url']}" if data["url"] else "")
+                )
+            return "\n".join(lines)
         except Exception as e:
             logger.error(f"Error generating references: {str(e)}")
             return "References could not be generated due to an error."
@@ -622,7 +613,9 @@ class Qualle:
         self.client_manager = OpenAIClientManager(config)
 
         # Initialize reference processor
-        self.reference_processor = ReferenceProcessor()
+        self.reference_processor = ReferenceProcessor(
+            load_publication_years(config.get("PUB_YEARS_FILE"))
+        )
 
         # Initialize query processor
         self.query_processor = QueryProcessor(self.client_manager, config, chat_manager)

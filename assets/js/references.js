@@ -16,16 +16,27 @@ export function setupReferenceHandlers() {
 
       const data = JSON.parse(this.getAttribute("data-reference"));
 
-      tooltip.innerHTML = `
-                <div class="title">${data.title}</div>
-                <div class="metadata">${data.authors} (${data.year})</div>
-                <div class="content">${data.text}</div>
-                ${
-                  data.url
-                    ? `<a href="${data.url}" target="_blank" class="source-link">View source →</a>`
-                    : ""
-                }
-            `;
+      // Metadata comes from a public form: insert it as text, never as HTML
+      const add = (tag, className, text) => {
+        const el = document.createElement(tag);
+        el.className = className;
+        el.textContent = text;
+        tooltip.appendChild(el);
+        return el;
+      };
+      add("div", "title", data.title);
+      add("div", "metadata", `${data.authors} (${data.year})`);
+      add(
+        "div",
+        "content",
+        data.text || "The licence of this source does not allow showing the passage."
+      );
+      if (/^https?:\/\//i.test(data.url || "")) {
+        const a = add("a", "source-link", "View source →");
+        a.href = data.url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+      }
 
       // Position tooltip near the click
       const rect = this.getBoundingClientRect();
