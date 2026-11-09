@@ -5,7 +5,6 @@ from pathlib import Path
 import pandas as pd
 
 from config.settings import CREDENTIALS_FILE, GDRIVE_FOLDER_ID, URL_JUST_OS_DB
-from ingest.drive import authenticate, upload_file
 from ingest.helpers import (
     URL_FORRT,
     download_and_save_pdf,
@@ -89,6 +88,15 @@ if __name__ == "__main__":
         [df_just_os, df_to_append.query("~doi_hash.isin(@df_just_os.doi_hash)")],
         ignore_index=True,
     ).to_csv("data/processed/just-os_db.csv", index=False)
+
+    print("wrote data/processed/just-os_db.csv")
+
+    if not Path(CREDENTIALS_FILE).exists():
+        # Optional: the team shares the index with scripts/make_share_bundle.py instead
+        print(f"No {CREDENTIALS_FILE}: skipping the Google Drive upload")
+        raise SystemExit(0)
+    # Google Drive upload needs the optional "ingest" dependency group
+    from ingest.drive import authenticate, upload_file
 
     creds = authenticate(CREDENTIALS_FILE)
     upload_file(

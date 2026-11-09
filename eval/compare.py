@@ -15,10 +15,16 @@ def rate(rows, key):
     return f"{mean(values):.2f}" if values else "–"
 
 
+def judge(rows):
+    """Mean judge_support (eval/judge.py), "–" when the run was not judged."""
+    values = [float(r["judge_support"]) for r in rows if r.get("judge_support") not in (None, "")]
+    return f"{mean(values):.2f}" if values else "–"
+
+
 def summarize(paths):
     lines = [
-        "| Run | n | Correct | Answered (should answer) | Refused (should refuse) | Errors | hit@7 | Citations valid | Mean s | p95 s | Tokens / q | USD / 1k q |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "| Run | n | Correct | Answered (should answer) | Refused (should refuse) | Errors | hit@7 | Citations valid | Judge support | Mean s | p95 s | Tokens / q | USD / 1k q |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for path in paths:
         rows = list(csv.DictReader(open(path, encoding="utf-8")))
@@ -34,7 +40,7 @@ def summarize(paths):
             f"| {sum(r['outcome'] == 'answered' for r in answer)}/{len(answer)} "
             f"| {sum(r['outcome'] == 'refused' for r in refuse)}/{len(refuse)} "
             f"| {sum(r['outcome'] == 'error' for r in rows)} "
-            f"| {rate(rows, 'hit')} | {rate(rows, 'citations_valid')} "
+            f"| {rate(rows, 'hit')} | {rate(rows, 'citations_valid')} | {judge(rows)} "
             f"| {mean(seconds):.1f} | {seconds[int(0.95 * (len(seconds) - 1))]:.1f} "
             f"| {tokens:.0f} | {cost:.2f} |"
         )

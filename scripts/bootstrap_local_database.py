@@ -1,7 +1,6 @@
 import hashlib
 import json
 from pathlib import Path
-from ingest.drive import authenticate, upload_file
 
 from config.settings import CREDENTIALS_FILE, GDRIVE_FOLDER_ID
 
@@ -72,6 +71,14 @@ if __name__ == "__main__":
     df.query("is_oa == True").drop(
         ["just_os_id", "is_downloaded", "pdf_exists", "is_oa"], axis=1
     ).to_csv("data/processed/just-os_db.csv", index=False)
+    print("wrote data/processed/just-os_db.csv")
+
+    if not Path(CREDENTIALS_FILE).exists():
+        # Optional: the team shares the index with scripts/make_share_bundle.py instead
+        print(f"No {CREDENTIALS_FILE}: skipping the Google Drive upload")
+        raise SystemExit(0)
+    # Google Drive upload needs the optional "ingest" dependency group
+    from ingest.drive import authenticate, upload_file
 
     creds = authenticate(CREDENTIALS_FILE)
     upload_file(

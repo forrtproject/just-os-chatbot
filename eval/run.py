@@ -30,7 +30,7 @@ from just_os.rag_service import create_rag_service  # noqa: E402
 FIELDS = [
     "id", "lang", "expect", "outcome", "correct", "hit", "n_citations",
     "citations_valid", "seconds", "prompt_tokens", "completion_tokens", "cost_usd",
-    "retrieved_dois", "question", "answer",
+    "retrieved_dois", "question", "answer", "passages",
 ]
 
 
@@ -124,6 +124,8 @@ def main():
                 "retrieved_dois": " ".join(ranked_dois),
                 "question": q["question"],
                 "answer": (seen["raw"] or "")[:2000],
+                # what the answer model saw, for eval/judge.py
+                "passages": json.dumps([" ".join(n.text.split())[:800] for n in seen["ranked"]]),
             })
             f.flush()
             print(f"{q['id']:6} {outcome:10} {seconds:5.1f}s")

@@ -73,7 +73,12 @@ if __name__ == "__main__":
     )
 
     index.storage_context.persist(output_path)
+    print(f"wrote {output_path}")
 
+    if not Path(CREDENTIALS_FILE).exists():
+        # Optional: the team shares the index with scripts/make_share_bundle.py instead
+        print(f"No {CREDENTIALS_FILE}: skipping the Google Drive upload")
+        raise SystemExit(0)
     creds = authenticate(
         CREDENTIALS_FILE, justos_settings.GDRIVE_AUTHENTICATION_SERVER_PORT
     )
