@@ -340,18 +340,18 @@ class FlaskApp:
             if any(label not in battle["answers"] for label in ratings):
                 return jsonify({"status": "error", "message": "Unknown answer label."}), 400
             now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-            for label, scores in ratings.items():
-                answer = battle["answers"][label]
-                self.chat_manager.redis.rpush(
-                    "arena:ratings",
-                    json.dumps({
-                        "time": now,
-                        "question": battle["question"],
-                        "model": answer["model"],
-                        "seconds": answer["seconds"],
-                        **scores,
-                    }),
-                )
+            rows = [
+                json.dumps({
+                    "time": now,
+                    "question": battle["question"],
+                    "model": battle["answers"][label]["model"],
+                    "seconds": battle["answers"][label]["seconds"],
+                    **scores,
+                })
+                for label, scores in ratings.items()
+            ]
+            self.chat_manager.redis.rpush("arena:ratings", *rows)
+            self._save_ratings_to_file(rows)
             return jsonify({
                 "status": "ok",
                 "models": {label: a["model"] for label, a in battle["answers"].items()},
@@ -370,6 +370,18 @@ class FlaskApp:
             if not self.config["ARENA_ENABLED"]:
                 abort(404)
             return jsonify(self._arena_ratings())
+
+    def _save_ratings_to_file(self, rows: list[str]) -> None:
+        """Append ratings to ARENA_RATINGS_FILE; Redis stays the source of the leaderboard."""
+        path = self.config.get("ARENA_RATINGS_FILE")
+        if not path:
+            return
+        try:
+            os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+            with open(path, "a", encoding="utf-8") as file:
+                file.write("".join(row + "\n" for row in rows))
+        except OSError as error:  # the rating is already in Redis: log, do not fail the request
+            logger.warning("Could not append arena ratings to %s: %s", path, error)
 
     def _arena_ratings(self) -> list[dict]:
         return [json.loads(r) for r in self.chat_manager.redis.lrange("arena:ratings", 0, -1)]

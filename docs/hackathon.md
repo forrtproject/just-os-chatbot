@@ -45,7 +45,7 @@ Done before the hackathon (closed): references R1–R5, M2 prompt comparison, C1
 | Eval run | `docker compose exec -e OMP_NUM_THREADS=8 web python eval/run.py --model <id> [--limit 5]` | `eval/results/run_<date>_<model>.csv` |
 | Eval table | `docker compose exec web python eval/compare.py` | Markdown table of all runs |
 | Embedding comparison | `python eval/compare_embeddings.py` (needs a GPU or the API; see the script) | `eval/results/embeddings_<date>.csv` |
-| Arena | http://localhost:8000/arena | ratings at `/arena/leaderboard`, raw data at `/arena/ratings` |
+| Arena | http://localhost:8000/arena | ratings at `/arena/leaderboard`, raw data at `/arena/ratings` and in `data/arena/ratings.jsonl` (the server commits it at each stand-up) |
 | Change a model | `CITATION_MODEL=...` in `.env`, then `docker compose up -d web` | — |
 | OpenScholar (self-hosted) | `OPENSCHOLAR_BASE_URL` + `OPENSCHOLAR_API_KEY` in `.env`, then `--model openscholar-8b` | — |
 

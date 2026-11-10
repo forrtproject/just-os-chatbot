@@ -89,6 +89,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "ARENA_MAX_MODELS": 10,
     # true: hide the model names until the answers are rated (blind rating)
     "ARENA_BLIND": False,
+    # Each rating is also appended here (JSON lines, in Git for the team); empty = Redis only
+    "ARENA_RATINGS_FILE": "data/arena/ratings.jsonl",
     # Google Drive settings
     "CREDENTIALS_FILE": "credentials.json",
     "GDRIVE_FOLDER_ID": "1EqOxpkb-ksYjRmvSHl1XjULlcPxZINdD",

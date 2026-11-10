@@ -21,8 +21,9 @@ class FakeRag:
 
 
 @pytest.fixture
-def app():
+def app(tmp_path):
     flask_app = FlaskApp()
+    flask_app.config["ARENA_RATINGS_FILE"] = str(tmp_path / "arena" / "ratings.jsonl")
     flask_app.chat_manager.redis = fakeredis.FakeRedis()
     flask_app._rag_service = FakeRag()
     flask_app.config.update(ARENA_ENABLED=True, ARENA_MODELS="m1,m2", RATE_LIMIT="1000/minute")
@@ -96,6 +97,10 @@ def test_arena_rating_reveals_models_and_builds_leaderboard(app):
                         "clarity": 5.0, "overall": 5.0, "seconds": 1.0}
     assert board[1]["overall"] == 2.0
     assert client.get("/arena/ratings").get_json()[0]["question"] == "What is open data?"
+
+    with open(app.config["ARENA_RATINGS_FILE"], encoding="utf-8") as file:
+        saved = [json.loads(line) for line in file]
+    assert saved == client.get("/arena/ratings").get_json()  # same rows as Redis
 
 
 def test_arena_rejects_bad_ratings(app):

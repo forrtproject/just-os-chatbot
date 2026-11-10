@@ -75,6 +75,8 @@ services:
       - "${DOCKER_WEB_PORT_FORWARD:-127.0.0.1:8000}:${PORT:-8000}"
     volumes:
       - "./data:/app/data:ro"
+      # Writable: arena ratings are appended here (ARENA_RATINGS_FILE)
+      - "./data/arena:/app/data/arena"
       # Keep downloaded embedding/re-ranker models when the container is recreated
       - "hf-cache:/home/python/.cache/huggingface"
     networks:

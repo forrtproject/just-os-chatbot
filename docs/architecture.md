@@ -156,6 +156,7 @@ Each step yields a status line (`{"status": "in-progress", "message": ...}`). Th
 | Answer cache (only with `ANSWER_CACHE_TTL` > 0) | Redis list `answer_cache:<hash of models, index, prompt, retrieval settings>`: question vector + final answer, newest first, max `ANSWER_CACHE_MAX_ITEMS` | `ANSWER_CACHE_TTL` seconds | A first question with cosine ≥ `ANSWER_CACHE_MIN_SIMILARITY` to a recent one gets the stored answer: no LLM call. Shared by all users (stores question text) |
 | Arena rounds | Redis `arena:battle:{id}` (question, label → model + seconds) | 1 day, deleted when rated | Hide model names until the ratings are in |
 | Arena ratings | Redis list `arena:ratings` (time, question, model, seconds, correct, references, clarity) | No expiry (`redis-cli DEL arena:ratings`) | Leaderboard. The old two-model votes stay in `arena:votes` (unused) |
+| Arena ratings (copy) | `data/arena/ratings.jsonl` (`ARENA_RATINGS_FILE`), same rows, one JSON per line, appended on each rating | Kept; in Git | Backup and sharing: commit it to share the ratings with the team. Survives `docker compose down -v`. Not read by the app |
 | Redis data | Docker volume `redis` | Until the volume is deleted | |
 | Static files | `public/` with digest names (`flask-static-digest`) | Until the next build | Browser cache busting |
 | Eval embeddings | `data/processed/emb_cache/<model>.npy` (float16, one row per chunk) | Until deleted | `compare_embeddings.py` embeds the 59,473 chunks one time per model |
