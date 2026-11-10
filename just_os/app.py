@@ -347,6 +347,8 @@ class FlaskApp:
                     "model": battle["answers"][label]["model"],
                     "seconds": battle["answers"][label]["seconds"],
                     **scores,
+                    "answer": battle["answers"][label].get("answer", ""),
+                    "sources": battle["answers"][label].get("sources", ""),
                 })
                 for label, scores in ratings.items()
             ]
@@ -413,7 +415,12 @@ class FlaskApp:
                 battle_id = str(uuid.uuid4())
                 answers = {}
                 for label, response in zip(ARENA_LABELS, chunk["responses"]):
-                    answers[label] = {"model": response["model"], "seconds": response["seconds"]}
+                    answers[label] = {
+                        "model": response["model"],
+                        "seconds": response["seconds"],
+                        "answer": response.get("message", ""),  # HTML, as shown on the card
+                        "sources": response.get("sources", ""),
+                    }
                     response["label"] = label
                     if self.config["ARENA_BLIND"]:
                         del response["model"]  # names appear after the ratings

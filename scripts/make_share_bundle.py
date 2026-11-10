@@ -33,13 +33,13 @@ COMPARE = [
 
 SETUP = """# JUST-OS team bundle
 
-Contents (unzip in the root of your clone of forrtproject/just-os-chatbot, branch `hackathon`):
+Contents (unzip in the root of your clone of forrtproject/just-os-chatbot, branch `main`):
 {contents}
 
 ## Run the bot
 
 1. Install Docker Desktop (Windows: with WSL2) and Git.
-2. `git clone https://github.com/forrtproject/just-os-chatbot.git && cd just-os-chatbot && git checkout hackathon`
+2. `git clone https://github.com/forrtproject/just-os-chatbot.git && cd just-os-chatbot`
 3. Unzip this file in that folder (the paths inside the zip start at the repository root).
 4. {env_step}
 5. `docker compose up -d --build` (the first build takes 10-20 minutes).

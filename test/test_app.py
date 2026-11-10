@@ -96,7 +96,11 @@ def test_arena_rating_reveals_models_and_builds_leaderboard(app):
     assert board[0] == {"model": models["A"], "ratings": 1, "correct": 5.0, "references": 5.0,
                         "clarity": 5.0, "overall": 5.0, "seconds": 1.0}
     assert board[1]["overall"] == 2.0
-    assert client.get("/arena/ratings").get_json()[0]["question"] == "What is open data?"
+    rows = client.get("/arena/ratings").get_json()
+    assert rows[0]["question"] == "What is open data?"
+    # the rated text is kept, so a low score can be read next to the answer
+    assert {r["answer"] for r in rows} == {"<p>answer 0</p>", "<p>answer 1</p>"}
+    assert all("sources" in r for r in rows)
 
     with open(app.config["ARENA_RATINGS_FILE"], encoding="utf-8") as file:
         saved = [json.loads(line) for line in file]
