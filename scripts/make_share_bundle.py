@@ -17,21 +17,29 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "share" / "just-os-team-bundle.zip"
 
 # (path, needed for) — the index is what the app loads (VECTOR_STORE)
-RUN = [("data/processed/vs_latest_bge-m3", "the bot: default index (bge-m3)")]
+RUN = [
+    ("data/processed/vs_latest_bge-m3", "the bot: default index (bge-m3)"),
+    ("data/raw/pub_years.csv", "the bot: publication years in the references (PUB_YEARS_FILE)"),
+    ("data/raw/forrt_sheet1_261028.csv", "the bot: FORRT lookup mode (FORRT_SHEET_FILE)"),
+]
 COMPARE = [
     ("data/processed/vs_latest_bge-small-en-v1.5", "embedding comparison: E1 index + chunk texts"),
     ("data/processed/emb_cache", "embedding comparison: E2, E4, E5, E6 vectors"),
+    ("data/raw/forrt_sheet2_261028.csv", "coverage audit and cluster PDF matching"),
+    ("data/raw/forrt_db_250627.csv", "coverage audit: the sheet the index was built from"),
+    ("data/interim/questions_and_text.csv", "eval/make_retrieval_set.py"),
+    ("data/interim/cluster_pdf_metadata.csv", "cluster PDF matches so far (#17)"),
 ]
 
 SETUP = """# JUST-OS team bundle
 
-Contents (unzip in the root of your clone of forrtproject/just-os-chatbot, branch `dev`):
+Contents (unzip in the root of your clone of forrtproject/just-os-chatbot, branch `hackathon`):
 {contents}
 
 ## Run the bot
 
 1. Install Docker Desktop (Windows: with WSL2) and Git.
-2. `git clone https://github.com/forrtproject/just-os-chatbot.git && cd just-os-chatbot && git checkout dev`
+2. `git clone https://github.com/forrtproject/just-os-chatbot.git && cd just-os-chatbot && git checkout hackathon`
 3. Unzip this file in that folder (the paths inside the zip start at the repository root).
 4. {env_step}
 5. `docker compose up -d --build` (the first build takes 10-20 minutes).
@@ -68,7 +76,7 @@ if __name__ == "__main__":
             lines.append("- `.env`: settings and API keys (OpenRouter, OpenScholar) for the team")
         for rel, purpose in parts:
             size = add_tree(archive, rel)
-            lines.append(f"- `{rel}/` ({size / 1e6:.0f} MB): {purpose}")
+            lines.append(f"- `{rel}{'/' if (ROOT / rel).is_dir() else ''}` ({size / 1e6:.0f} MB): {purpose}")
             print(f"added {rel} ({size / 1e6:.0f} MB)")
         env_step = (
             "`.env` is in the bundle. Change the keys to your own if the project lead asks you to."

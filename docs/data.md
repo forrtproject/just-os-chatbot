@@ -133,7 +133,7 @@ Limits: step 1 does not download PDFs and reads the June 2025 snapshot; step 3 r
 
 ## 6. What to share with a teammate (not in Git)
 
-`python scripts/make_share_bundle.py` puts all of it in one file: `share/just-os-team-bundle.zip` (the `share/` folder is git- and docker-ignored). It holds `.env`, the bge-m3 index, the bge-small index and `emb_cache/`, plus `TEAM_SETUP.md`. `--minimal` leaves out the embedding-comparison files; `--no-env` leaves out your keys. The embedding/re-ranker model weights are not in it: Docker downloads them one time (README step 5).
+`python scripts/make_share_bundle.py` puts all of it in one file: `share/just-os-team-bundle.zip` (the `share/` folder is git- and docker-ignored). It holds `.env`, the bge-m3 index, `pub_years.csv` and the FORRT sheet 1 (both read by the bot), the bge-small index, `emb_cache/`, FORRT sheet 2, `forrt_db_250627.csv`, `questions_and_text.csv` and `cluster_pdf_metadata.csv`, plus `TEAM_SETUP.md`. `--minimal` keeps only what the bot reads; `--no-env` leaves out your keys. The embedding/re-ranker model weights are not in it: Docker downloads them one time (README step 5).
 
 
 | Need | Item | How |

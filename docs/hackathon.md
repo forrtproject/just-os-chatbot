@@ -31,10 +31,12 @@ Issues with files, approach and "done when": [issues.md](issues.md) (also on Git
 
 | Track | Goal by Friday 14:00 | Issues |
 |---|---|---|
-| **Models** | Eval of 4–6 models; prompt comparison; arena votes; faster answers | M1–M6 |
-| **Evaluation** | 40–60 reviewed questions with expected sources; LLM judge; classifier comparison | E1–E3 |
-| **References** | Correct year, DOI links, one reference per paper, safe tooltip, passages by licence | R1–R5 |
-| **Coverage** | Why FORRT resources are not in the index (chart); metadata for the cluster PDFs; HTML route | C1–C3 |
+| **Evaluation** | 40–60 reviewed questions with expected sources (first: the other tracks need them); LLM judge; classifier comparison | E1–E3 (#7, #8, #9) |
+| **Models** | Eval of 4–6 models; arena ratings; faster answers; memory methods; FORRT lookup mode | M1, M3–M6 (#10, #12–#15) |
+| **Retrieval & quality** | Multilingual re-ranker; embedding model for production; hallucination check | N3, N4, Q1 (#21, #22, #23) |
+| **Coverage** | Metadata for the cluster PDFs; HTML route for web resources; ingestion for curators | C2–C4 (#17, #18, #25) |
+
+Done before the hackathon (closed): references R1–R5, M2 prompt comparison, C1 coverage audit, N1 hybrid search, N2 source variety, Q2 metadata fix, O2 CI, O4 answer cache. Most open issues already have code; the issue comments on GitHub say what is left.
 
 ## 4. Tools you will use
 
@@ -43,7 +45,7 @@ Issues with files, approach and "done when": [issues.md](issues.md) (also on Git
 | Eval run | `docker compose exec -e OMP_NUM_THREADS=8 web python eval/run.py --model <id> [--limit 5]` | `eval/results/run_<date>_<model>.csv` |
 | Eval table | `docker compose exec web python eval/compare.py` | Markdown table of all runs |
 | Embedding comparison | `python eval/compare_embeddings.py` (needs a GPU or the API; see the script) | `eval/results/embeddings_<date>.csv` |
-| Arena | http://localhost:8000/arena | votes at `/arena/votes` |
+| Arena | http://localhost:8000/arena | ratings at `/arena/leaderboard`, raw data at `/arena/ratings` |
 | Change a model | `CITATION_MODEL=...` in `.env`, then `docker compose up -d web` | — |
 | OpenScholar (self-hosted) | `OPENSCHOLAR_BASE_URL` + `OPENSCHOLAR_API_KEY` in `.env`, then `--model openscholar-8b` | — |
 
@@ -65,7 +67,7 @@ Costs: one eval run of 44 questions costs less than 0.10 USD for most models. Lo
 1. Eval scorecard before and after (`eval/compare.py`).
 2. A live answer with correct citation numbers, years, `https://doi.org/` links, one reference per paper, passage tooltip.
 3. Off-topic question → refusal; model outage → an error message, not a refusal.
-4. Model comparison table and arena leaderboard.
+4. Model comparison table and arena leaderboard (`/arena/leaderboard`).
 5. Change `CITATION_MODEL` in `.env`, restart, ask again.
 6. Coverage chart.
 

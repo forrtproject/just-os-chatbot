@@ -77,7 +77,7 @@ just-os-chatbot/
 ### `scripts/` (run from the repository root)
 | File | Command | What it does |
 |---|---|---|
-| `make_share_bundle.py` | `python scripts/make_share_bundle.py [--minimal] [--no-env]` | Zips `.env`, the index and the embedding-comparison vectors into `share/just-os-team-bundle.zip` (git- and docker-ignored) with a `TEAM_SETUP.md` |
+| `make_share_bundle.py` | `python scripts/make_share_bundle.py [--minimal] [--no-env]` | Zips `.env`, the index, the CSVs the bot and eval scripts read, and the embedding-comparison vectors into `share/just-os-team-bundle.zip` (git- and docker-ignored) with a `TEAM_SETUP.md` |
 | `get_index.py` | `python scripts/get_index.py <zip-url>` | Downloads an index zip and unpacks it into `data/processed/` (standard library only) |
 | `bootstrap_local_database.py` | `uv run python -m scripts.bootstrap_local_database` | Ingestion step 1: checks open access (Unpaywall) for the downloaded PDFs, copies them to `data/pdfs/by-doi/<doi_hash>.pdf`, writes `data/processed/just-os_db.csv`, uploads to Drive |
 | `marker.sh` | `./scripts/marker.sh` | Step 2: PDF → Markdown with `marker` (GPU recommended) into `data/processed/markdown/` |
