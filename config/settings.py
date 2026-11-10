@@ -19,6 +19,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "OPENSCHOLAR_BASE_URL": "",
     "OPENSCHOLAR_API_KEY": os.getenv("OPENSCHOLAR_API_KEY"),
     "OPENSCHOLAR_MODEL": "openscholar-8b",
+    # Seconds for one OpenScholar answer (the self-hosted CPU server needs minutes)
+    "OPENSCHOLAR_TIMEOUT": 600,
     # Multilingual; must match VECTOR_STORE. English-only option: BAAI/bge-small-en-v1.5
     # with data/processed/vs_latest_bge-small-en-v1.5
     "EMBEDDING_MODEL": "BAAI/bge-m3",

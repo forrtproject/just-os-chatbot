@@ -179,3 +179,12 @@ def test_llm_calls_have_a_time_limit():
     )
     assert manager.client.timeout == 7
     assert manager.client.max_retries == 1
+
+
+def test_openscholar_has_its_own_time_limit():
+    manager = qualle.OpenAIClientManager({
+        "LLM_API_KEY": "k", "BASE_URL": "https://openrouter.ai/api/v1", "LLM_TIMEOUT": 60,
+        "OPENSCHOLAR_BASE_URL": "http://openscholar.test/v1", "OPENSCHOLAR_API_KEY": "os", "OPENSCHOLAR_TIMEOUT": 600,
+    })
+    assert (manager.openscholar_client.timeout, manager.openscholar_client.max_retries) == (600, 0)
+    assert (manager.client.timeout, manager.client.max_retries) == (60, 1)

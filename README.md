@@ -51,6 +51,7 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 | `GENERAL_MODEL` | classifies and rephrases the question |
 | `EMBEDDING_MODEL` + `VECTOR_STORE` | search; the two must match (default `BAAI/bge-m3`) |
 | `ARENA_MODELS` | models offered on `/arena`, comma separated (default: the 9 OpenRouter candidates + `openscholar-8b`) |
+| `OPENSCHOLAR_TIMEOUT` | seconds for one OpenScholar answer (default 600, no retry): the self-hosted CPU server needs minutes for the chatbot's long prompt |
 | `LLM_TIMEOUT` | seconds before an LLM call gives up (default 120); a slow model then shows an error instead of holding up the answer |
 | `ARENA_MAX_MODELS` | most models per arena question (default 10) |
 | `PROMPT_STYLE` | `openscholar` (default) or `short` (model-neutral answer prompt) |

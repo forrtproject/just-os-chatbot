@@ -495,7 +495,13 @@ class OpenAIClientManager:
         self.client = self._create_client(self.api_key, config["BASE_URL"])
         # The self-hosted OpenScholar server has its own URL and key
         self.openscholar_client = (
-            self._create_client(config.get("OPENSCHOLAR_API_KEY"), config["OPENSCHOLAR_BASE_URL"])
+            self._create_client(
+                config.get("OPENSCHOLAR_API_KEY"),
+                config["OPENSCHOLAR_BASE_URL"],
+                # self-hosted on CPU: minutes for a long prompt; a retry would only double that
+                timeout=config.get("OPENSCHOLAR_TIMEOUT", 600),
+                retries=0,
+            )
             if config.get("OPENSCHOLAR_BASE_URL")
             else None
         )
@@ -505,7 +511,9 @@ class OpenAIClientManager:
             return self.openscholar_client
         return self.client
 
-    def _create_client(self, api_key: Optional[str], base_url: str) -> Optional[OpenAI]:
+    def _create_client(
+        self, api_key: Optional[str], base_url: str, timeout: Optional[float] = None, retries: int = 1
+    ) -> Optional[OpenAI]:
         """
         Create an OpenAI client instance.
 
@@ -517,8 +525,8 @@ class OpenAIClientManager:
             return OpenAI(
                 api_key=api_key,
                 base_url=base_url,
-                timeout=self.config.get("LLM_TIMEOUT", 60),
-                max_retries=1,
+                timeout=timeout or self.config.get("LLM_TIMEOUT", 60),
+                max_retries=retries,
             )
         except Exception as e:
             logger.error(f"Failed to initialize OpenAI client: {str(e)}")
