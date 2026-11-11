@@ -9,6 +9,7 @@ public/*
 .env*
 !.env.example
 docker-compose.override.yml
+.openscholar-pod.lock
 
 # Data and indexes stay out of Git (plan B2.3). Small seed files are tracked.
 data/**

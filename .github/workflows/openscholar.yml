@@ -1,0 +1,39 @@
+# Start or stop the self-hosted OpenScholar-8B GPU server (scripts/openscholar_pod.sh).
+# Anyone with write access runs it from the Actions tab: "OpenScholar server" > Run workflow.
+# The app then reaches it at the fixed OPENSCHOLAR_BASE_URL; a stopped server answers 503.
+# The keys live in the "openscholar" environment, which only the main branch can use.
+name: OpenScholar server
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: start (2-5 min, ~$0.25/hr while running), stop, or status
+        type: choice
+        options: [status, start, stop]
+        default: status
+  schedule:
+    - cron: "0 22 * * *"  # stop every night at 22:00 UTC, in case it was left running
+
+# One run at a time: two starts would rent two GPUs
+concurrency:
+  group: openscholar-server
+  cancel-in-progress: false
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    environment: openscholar
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: ${{ github.event.inputs.action || 'stop' }}
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+          OPENSCHOLAR_API_KEY: ${{ secrets.OPENSCHOLAR_API_KEY }}
+          OPENSCHOLAR_PROXY_URL: ${{ vars.OPENSCHOLAR_PROXY_URL }}
+        run: |
+          set -o pipefail
+          scripts/openscholar_pod.sh "${{ github.event.inputs.action || 'stop' }}" | tee out.txt
+          [ "${{ github.event.inputs.action || 'stop' }}" = status ] || scripts/openscholar_pod.sh status | tee -a out.txt
+          { echo '```'; cat out.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
