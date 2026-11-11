@@ -51,6 +51,11 @@ Rules for every issue: [project-plan.md](project-plan.md) section 8 (small PR, a
 - **Candidates:** `openai/gpt-oss-20b`, `meta-llama/llama-3.1-8b-instruct`, `qwen/qwen3.7-flash`, `typesafe/jev-router`, `perplexity/sonar` (no tool calls: uses the new JSON fallback; 0.005 USD per request for web search), and a no-LLM baseline with the bge embedding.
 - **Done when:** a table with accuracy, false refusals, time and cost per 1,000 questions.
 
+### E4. One command that runs a named configuration and adds a scorecard row (#32)
+- **Why:** #31 section 1. Comparing configurations now means editing `.env`, restarting, then running `eval/run.py`, `eval/judge.py` and `eval/compare.py` by hand.
+- **Approach:** a named configuration (answer model, embedding model, re-ranker, top-k rule, routing on/off, verification on/off) in a config file or as flags; one command runs the eval and the judge for it and the row appears in the `eval/compare.py` table with the configuration name.
+- **Done when:** five configurations have scorecard rows from the same question set (E1), each made with one command.
+
 ---
 
 ## track:models — models and speed
@@ -81,6 +86,17 @@ Rules for every issue: [project-plan.md](project-plan.md) section 8 (small PR, a
 ### M6. FORRT lookup mode
 - See [project-plan.md](project-plan.md) 7.2: three classes (`open_science`, `forrt_lookup`, `off_topic`); lookup over all FORRT sheet rows; `/chat` API stays the same.
 - **Done when:** 10 lookup questions in the eval set answer with the correct FORRT link.
+
+### M7. FORRT questions without a router: FORRT pages in the index, and mixed questions (#34)
+- **Why:** #31 section 4. The router (M6) is one option; the simpler one is to put forrt.org pages and FORRT resource rows in the same index and let retrieval find them.
+- **Approach:** add forrt.org pages (`scripts/fetch_web_resources.py`, C3) and FORRT sheet rows to a copy of the index (`scripts/add_to_index.py --output ...`); run the FORRT lookup questions from E1 with `FORRT_LOOKUP` off and compare with M6. Example questions are in the #15 comments.
+- **Also decide:** mixed questions such as "how can I learn more about [cluster topic]?", which may need both literature and FORRT links.
+- **Done when:** a decision record compares router vs no router on the same 10+ FORRT questions (correct FORRT link, false refusals) and picks one; `/chat` fields unchanged.
+
+### M8. Arena rating protocol and first results (#35)
+- **Why:** #31 section 6. M3 collects the ratings; this says how, so they can be compared.
+- **Approach:** a short protocol in `docs/`: which questions raters ask (a fixed list and their own), which configurations are compared, whether model names are hidden (`ARENA_BLIND=true`), and how ratings are summarised.
+- **Done when:** the protocol is in `docs/`; first results are summarised in #31: which configurations win (each linked to its scorecard row), how far ratings agree with the LLM judge (E2), and what raters noticed that the judge missed.
 
 ---
 
@@ -121,6 +137,11 @@ Rules for every issue: [project-plan.md](project-plan.md) section 8 (small PR, a
 - **Data:** [evaluation.md](evaluation.md) 3.1: bge-m3 (local, 0.50 hit@5) vs qwen3-embedding-8b (API, 0.53).
 - **Done when:** a decision record (quality, speed, privacy, cost); unused index folders removed from the shared bundle.
 
+### N5. Adaptive top-k: relative score cutoff with a minimum and maximum (#33)
+- **Why:** #31 section 3 and #1. A fixed number of passages gives targeted questions junk and broad questions too little.
+- **Approach:** over-retrieve, re-rank, keep passages within X% of the top re-ranker score, bounded by a minimum and maximum k. Keep the per-paper cap and `MIN_RELEVANCE`. Behind a setting, off by default.
+- **Done when:** an eval row shows it is not worse than the fixed `RETRIEVER_TOP_K` default; the rule is written into the source-selection decision record (with N3, N4, M4).
+
 ## track:quality — answer quality (new)
 
 ### Q1. Hallucination check before the answer is sent
@@ -139,6 +160,11 @@ Rules for every issue: [project-plan.md](project-plan.md) section 8 (small PR, a
 - **Why:** question 3 of the FORRT brief: add resources without the current technical skill.
 - **Approach:** one command (or a GitHub Action) that reads new FORRT sheet rows, fetches OA PDFs / web pages, converts them, and **adds** them to the existing index (no full rebuild).
 - **Done when:** a new sheet row with an OA DOI is in the index after one command; a coverage report lists skipped rows with a reason.
+
+### C5. Faster PDF conversion and chunking: GROBID vs marker, chunk size (#36)
+- **Why:** #31 "Other tracks" (optional extra). marker is slow without a GPU, and chunks are a fixed 350 tokens. See [data.md](data.md).
+- **Approach:** convert a sample of PDFs with GROBID and with marker; compare time and body-text fidelity. Separately, try another chunk size or splitting rule on a re-embedded copy of the index.
+- **Done when:** a table of time per PDF and text quality for both converters; any chunking change has an eval row against the current index.
 
 ## track:ops — setup and hygiene (new)
 
