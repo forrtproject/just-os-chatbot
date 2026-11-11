@@ -20,7 +20,7 @@ import judge  # noqa: E402
 import make_retrieval_set  # noqa: E402
 import run  # noqa: E402
 from just_os import qualle  # noqa: E402
-from scripts import add_to_index, fetch_web_resources, make_share_bundle, match_cluster_pdfs  # noqa: E402
+from scripts import add_to_index, convert_cluster_pdfs, fetch_web_resources, make_share_bundle, match_cluster_pdfs  # noqa: E402
 from test_qualle import CONFIG, FakeChatManager, FakeClient, completion  # noqa: E402
 
 
@@ -60,6 +60,15 @@ def test_cluster_pdf_name_and_match():
     refs = [{"author": "cruwell", "year": "2019", "title": "Seven easy steps"}, {"author": "baker", "year": "2016"}]
     assert match_cluster_pdfs.match((1, 1, "t", "cruwell", "2019"), refs)["title"] == "Seven easy steps"
     assert match_cluster_pdfs.match((1, 1, "t", "cruwell", "2020"), refs) is None
+
+
+def test_cluster_pdf_title_check():
+    page = "Seven Easy Steps to Open\nSci-\nence: An Annotated Reading List\nSophia Crüwell"
+    assert convert_cluster_pdfs.title_in_text("Seven easy steps to open science: an annotated reading list", page)
+    assert not convert_cluster_pdfs.title_in_text("Designing a research integrity promotion plan", page)
+    assert not convert_cluster_pdfs.title_in_text("Open", page)  # too short to tell
+    with_doi = {"doi": "10.1/x", "title": "A"}
+    assert convert_cluster_pdfs.doi_hash(with_doi) == convert_cluster_pdfs.doi_hash({**with_doi, "title": "B"})
 
 
 # --- #18 HTML route

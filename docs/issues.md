@@ -109,6 +109,7 @@ Rules for every issue: [project-plan.md](project-plan.md) section 8 (small PR, a
 ### C2. Metadata for the FORRT cluster PDFs
 - **Data:** `data/FORRT Clusters pdfs/` (1,061 PDFs, names `C01_SC01_<topic>_<author>_<year>.pdf`), working lists `01.FORRT_Clusters_Working_Document_v1.xlsx` and `FORRT Cluster_s.xlsx`, sheet 2.
 - **Done when:** a CSV with title, authors, year, DOI and licence for each cluster PDF (match rate reported); these PDFs can then go through `scripts/marker.sh` and `scripts/embed.py`.
+- **Status (11 Nov 2026):** 133 checked papers are in both indexes (`convert_cluster_pdfs.py` + `add_to_index.py`; counts in [data.md](data.md)). Open: the 693 unmatched files, the 71 rejected matches, and authors/licence for the added papers.
 
 ### C3. HTML route for web resources
 - **Approach:** fetch + `trafilatura` for OSF/Carpentries/GitHub pages; a sample of 50 rows.

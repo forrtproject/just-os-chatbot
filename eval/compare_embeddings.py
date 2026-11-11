@@ -26,7 +26,8 @@ from dotenv import load_dotenv
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from openai import OpenAI
 
-SOURCE_INDEX = "data/processed/vs_latest_bge-small-en-v1.5"
+# Frozen copies from before the cluster PDFs (#17): the emb_cache vectors are for these 59,473 chunks
+SOURCE_INDEX = "data/processed/vs_261111_bge-small-en-v1.5_before_clusters"
 QUESTIONS = "eval/retrieval_questions.jsonl"
 CACHE = Path("data/processed/emb_cache")
 QWEN_QUERY = "Instruct: Given a question, retrieve passages that answer the question\nQuery: "
@@ -36,7 +37,7 @@ TOP_K = 20
 MODELS = {
     "E1": {"name": "BAAI/bge-small-en-v1.5", "index": SOURCE_INDEX},
     "E2": {"name": "intfloat/multilingual-e5-small", "query": "query: ", "text": "passage: "},
-    "E3": {"name": "BAAI/bge-m3", "index": "data/processed/vs_latest_bge-m3"},
+    "E3": {"name": "BAAI/bge-m3", "index": "data/processed/vs_261111_bge-m3_before_clusters"},
     "E4": {"name": "Qwen/Qwen3-Embedding-0.6B", "query": QWEN_QUERY},
     "E5": {"name": "qwen/qwen3-embedding-4b", "api": True, "query": QWEN_QUERY},
     "E6": {"name": "qwen/qwen3-embedding-8b", "api": True, "query": QWEN_QUERY},

@@ -27,7 +27,7 @@ from openai import OpenAI
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from just_os.references import plain_metadata  # noqa: E402
 
-DOCSTORE = "data/processed/vs_latest_bge-small-en-v1.5/docstore.json"
+DOCSTORE = "data/processed/vs_261111_bge-small-en-v1.5_before_clusters/docstore.json"
 OUTPUT = "eval/retrieval_questions.jsonl"
 MAX_PER_DOC = 3  # so a few long documents do not dominate the set
 N_SYNTHETIC = 150

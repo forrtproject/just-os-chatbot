@@ -58,7 +58,7 @@ Why the scores look low: many documents are on the same subject (for example, ma
 
 ### 3.1 Embedding models (28 October 2026, `eval/results/embeddings_261028.csv`)
 
-All models embed the **same 59,473 chunks** from 513 documents (see [data.md](data.md)), so only the model is different.
+All models embed the **same 59,473 chunks** from 513 documents (see [data.md](data.md)), so only the model is different. Since the cluster papers were added (11 Nov 2026), `compare_embeddings.py` reads the frozen copies `vs_261111_*_before_clusters/`, so these results stay reproducible.
 
 | ID | Model | Format | Dims | hit@5 all | hit@5 en | hit@5 nl | hit@5 de | hit@5 es | hit@20 | MRR@20 | Time per query | Index build |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|

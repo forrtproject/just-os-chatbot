@@ -9,7 +9,7 @@ JUST-OS answers open-science questions with citations to the FORRT resource libr
 
 ## 2. Current state (November 2026)
 
-- Flask + Gunicorn + Redis in Docker; LlamaIndex + FAISS; index of 513 open-access documents (59,473 chunks), embedding `BAAI/bge-m3`; local re-ranker `BAAI/bge-reranker-base` with fallback to vector order.
+- Flask + Gunicorn + Redis in Docker; LlamaIndex + FAISS; index of 646 documents (79,808 chunks: 513 open-access JUST-OS documents + 133 FORRT cluster papers), embedding `BAAI/bge-m3`; local re-ranker `BAAI/bge-reranker-base` with fallback to vector order.
 - LLM: any OpenAI-compatible API. Default OpenRouter (`meta-llama/llama-3.1-8b-instruct`). OpenScholar-8B is self-hosted (`OPENSCHOLAR_BASE_URL`); the old RUG gateway still works with the four `.env` lines.
 - Tools: eval (`eval/run.py`, `eval/compare.py`), embedding comparison, arena (`/arena`), unit tests in `test/`.
 - See [architecture.md](architecture.md), [data.md](data.md), [evaluation.md](evaluation.md).

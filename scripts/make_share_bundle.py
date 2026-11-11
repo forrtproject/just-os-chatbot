@@ -23,7 +23,8 @@ RUN = [
     ("data/raw/forrt_sheet1_261028.csv", "the bot: FORRT lookup mode (FORRT_SHEET_FILE)"),
 ]
 COMPARE = [
-    ("data/processed/vs_latest_bge-small-en-v1.5", "embedding comparison: E1 index + chunk texts"),
+    ("data/processed/vs_261111_bge-small-en-v1.5_before_clusters", "embedding comparison: E1 index + chunk texts"),
+    ("data/processed/vs_261111_bge-m3_before_clusters", "embedding comparison: E3 index"),
     ("data/processed/emb_cache", "embedding comparison: E2, E4, E5, E6 vectors"),
     ("data/raw/forrt_sheet2_261028.csv", "coverage audit and cluster PDF matching"),
     ("data/raw/forrt_db_250627.csv", "coverage audit: the sheet the index was built from"),

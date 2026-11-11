@@ -16,7 +16,9 @@ from pathlib import Path
 from just_os.references import normalize_doi
 
 PDF_DIR = Path("data/FORRT Clusters pdfs")
-SHEETS = {"data/raw/forrt_sheet1_261028.csv": "APA reference", "data/raw/forrt_sheet2_261028.csv": "reference"}
+RAW = Path("data/raw")
+# Newest copy of each sheet (forrt_sheet{1,2}_<YYMMDD>.csv) → the column with the APA reference
+SHEETS = {sorted(RAW.glob("forrt_sheet1_*.csv"))[-1]: "APA reference", sorted(RAW.glob("forrt_sheet2_*.csv"))[-1]: "reference"}
 OUT = Path("data/interim/cluster_pdf_metadata.csv")
 NAME = re.compile(r"^C(\d+)_SC(\d+)_(.+?)_([^_]+?)_(\d{4})[a-z]?(?:_b)?$", re.I)
 

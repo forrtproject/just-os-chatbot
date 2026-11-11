@@ -14,10 +14,10 @@
 | **FORRT Database 2.0** (`gid=1924034107`): the main resource list | 1,507 | 1,482 | 843 | 1,243 | 669 | 553 | 530 |
 | **clusters_panos** (`gid=0`): reference list of the FORRT clusters | 285 | 270 | 252 | 27 | 25 | 15 | 32 |
 
-Counts are rows (a few rows point to the same paper, so a count can be higher than the number of files). The index was **not** built from these live sheets directly: it was built from the June 2025 JUST-OS copy of FORRT Database 2.0 (`data/raw/forrt_db_250627.csv`, with the "JUST-OS internal identifier") plus 44 papers that `add_new_resources.py` added by DOI. The PDFs for `clusters_panos` are in `data/FORRT Clusters pdfs/` and are not in the index yet (issue #17).
+Counts are rows (a few rows point to the same paper, so a count can be higher than the number of files). The index was **not** built from these live sheets directly: it was built from the June 2025 JUST-OS copy of FORRT Database 2.0 (`data/raw/forrt_db_250627.csv`, with the "JUST-OS internal identifier") plus 44 papers that `add_new_resources.py` added by DOI. The PDFs for `clusters_panos` are in `data/FORRT Clusters pdfs/`; 133 of them were added to the index on 11 Nov 2026 (issue #17, see "FORRT Clusters pdfs" below).
 
 
-The default index `data/processed/vs_latest_bge-m3/` has **513 documents → 59,473 chunks** (chunk size 350 tokens). The old index `vs_latest_bge-small-en-v1.5` has the same chunks (built 26 Aug 2025); `scripts/reembed.py` made the bge-m3 index from them.
+The default index `data/processed/vs_latest_bge-m3/` has **646 documents → 79,808 chunks** (chunk size 350 tokens): the 513 JUST-OS documents (59,473 chunks) plus 133 FORRT cluster papers (11 Nov 2026). The old index `vs_latest_bge-small-en-v1.5` has the same chunks (first built 26 Aug 2025); `scripts/reembed.py` made the bge-m3 index from them. The copies from before the cluster papers are `vs_261111_*_before_clusters/` (section 2).
 
 The full list is in [indexed_documents.csv](indexed_documents.csv) (`just_os_id, title, doi, pdf_path, chunks, licence`). It was made by matching the index metadata (title, then DOI) to `data/raw/forrt_db_250627.csv`:
 
@@ -50,9 +50,12 @@ Licence of the 513 documents (field `conditions_of_use`, free text from the form
 
 | Path | What | Size | Status |
 |---|---|---|---|
-| `data/processed/vs_latest_bge-m3/` | **Default index** (FAISS, 1024 dims) | 556 MB | Used by the app (`VECTOR_STORE`) |
-| `data/processed/vs_latest_bge-m3.zip` | Same index, zipped for `scripts/get_index.py` | 173 MB | Share with the team |
-| `data/processed/vs_latest_bge-small-en-v1.5/` | Old production index (FAISS, 384 dims) | 406 MB | For the E1 baseline and `compare_embeddings.py` (source of the chunk texts) |
+| `data/processed/vs_latest_bge-m3/` | **Default index** (FAISS, 1024 dims), 646 documents | 679 MB | Used by the app (`VECTOR_STORE`) |
+| `data/processed/vs_latest_bge-m3.zip` | Zipped index for `scripts/get_index.py` | 173 MB | **Out of date**: still the 513-document index |
+| `data/processed/vs_latest_bge-small-en-v1.5/` | Old production index (FAISS, 384 dims), 646 documents | 486 MB | English-only option for the app |
+| `data/processed/vs_261111_bge-m3_before_clusters/` | bge-m3 index before the cluster papers (513 documents, 59,473 chunks) | 531 MB | E3 in `compare_embeddings.py`; before/after comparisons |
+| `data/processed/vs_261111_bge-small-en-v1.5_before_clusters/` | bge-small index before the cluster papers | 387 MB | E1 + chunk texts for `compare_embeddings.py` and `make_retrieval_set.py` (the `emb_cache` rows are these chunks) |
+| `data/processed/cluster_markdown/` | Markdown of the 153 checked cluster papers, `metadata.csv`, `rejected.csv` | | Input of `add_to_index.py` (#17) |
 | `data/processed/emb_cache/*.npy` | Chunk vectors for E2, E4, E5, E6 (float16, 59,473 rows each) | 959 MB | Eval only (see [evaluation.md](evaluation.md)) |
 | `data/NWO JUST-OS/BOT/vs_latest_bge-small-en-v1.5/` | Byte-identical copy of the old index | 406 MB | Not needed (original from Drive) |
 | `data/processed/storage_m3/` | Index of Oct 2024 (different chunks, `multi_embed_store.pkl`) | 757 MB | The current code cannot load it. Not used |
@@ -68,10 +71,11 @@ VECTOR_STORE=data/processed/vs_latest_bge-small-en-v1.5
 ### In Git (seed data)
 | File | Rows | Content |
 |---|---|---|
-| `data/raw/pub_years.csv` | 509 | Publication year per DOI of the index (OpenAlex, `scripts/get_pub_years.py`); 4 of 513 DOIs have no year → "n.d." |
+| `data/raw/pub_years.csv` | 628 | Publication year per DOI of the index (OpenAlex, `scripts/get_pub_years.py`); 10 of 638 DOIs have no year → "n.d." |
 | `data/raw/forrt_db_250627.csv` | 1,234 | JUST-OS sheet snapshot (June 2025), with "JUST-OS internal identifier" and "Downloaded?" |
 | `data/raw/forrt_sheet1_261028.csv` | 1,504 | Live FORRT resource sheet (28 Oct 2026) |
 | `data/raw/forrt_sheet2_261028.csv` | 285 | FORRT reference list (28 Oct 2026) |
+| `data/raw/forrt_sheet1_261111.csv`, `forrt_sheet2_261111.csv` | 1,507 / 285 | Same sheets, 11 Nov 2026 (used by `match_cluster_pdfs.py`, which takes the newest copy) |
 | `data/interim/questions_and_text.csv` | 1,282 | Generated (question, source text) pairs; eval seed |
 
 `ingest/helpers.py` (`URL_FORRT`) reads the live sheets directly; the CSVs are fixed copies. For a new copy, download again and put the date in the name (`YYMMDD`).
@@ -88,7 +92,19 @@ VECTOR_STORE=data/processed/vs_latest_bge-small-en-v1.5
 | Everything else (`AERN/`, `Application NWO/`, `Grants/`, `Logo_s and designs/`, `Meeting Agendas-Notes/`, `Memorandum of understanding (MOU)_/`, `SURF/`, `Website/`, `Writing/`, `*.pptx`, `Email and Social Media information, Login.docx`) | Project admin, **private** | Not for the bot |
 
 ### `data/FORRT Clusters pdfs/`
-1,061 PDFs + 930 `.docx` in `Cluster 1–11/` (name `C01_SC01_<topic>_<author>_<year>.pdf`) and two working lists (`01.FORRT_Clusters_Working_Document_v1.xlsx`, `FORRT Cluster_s.xlsx`). **Not in the index.** They need a metadata table first (title, authors, year, DOI, licence): a match on first author + year finds only 352 of 963 files (issue C2).
+1,061 PDFs + 930 `.docx` in `Cluster 1–11/` (name `C01_SC01_<topic>_<author>_<year>.pdf`) and two working lists (`01.FORRT_Clusters_Working_Document_v1.xlsx`, `FORRT Cluster_s.xlsx`). **133 papers are in the index** (11 Nov 2026, issue #17):
+
+| Step | Count |
+|---|---|
+| PDF files (814 unique by content; the same paper is often in several sub-clusters) | 1,061 |
+| `.docx` files (not used) | 930 |
+| Name matched to a reference in the newest sheets (first author + year, `match_cluster_pdfs.py`); all matches are references of sheet 2, 63 are also in sheet 1 | 368 files, 229 unique |
+| Matched title found in the first 3 pages (`convert_cluster_pdfs.py`, pymupdf4llm) → Markdown | 153 papers |
+| Rejected: title not in the PDF (a different paper by the same author and year, or a reference without title) | 71 (`rejected.csv`) |
+| Already in the index (same DOI or title) | 20 |
+| **Added** (`add_to_index.py`, both indexes) | **133** |
+
+Their licence is unknown (`conditions_of_use` empty), so the bot answers from them but shows only title + link. 693 files have no match yet: they need the working lists or a person.
 
 ### Other
 - `data/archive/`: old prototypes (Oct–Dec 2024: first agent, `storage_m3` build, chunk classification, marker script). The code does not use them; kept for reference.
