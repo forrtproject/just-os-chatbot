@@ -272,6 +272,32 @@ class FlaskApp:
                 mimetype="text/event-stream",
             )
 
+        @self.app.route("/chat/feedback", methods=["POST"])
+        @self.rate_limit_manager.limiter.limit(
+            self.rate_limit_manager.get_chat_rate_limit
+        )
+        def chat_feedback():
+            """Store Good/Bad and an optional comment for one answer (once per turn)."""
+            data = request.get_json(silent=True) or {}
+            rating, comment = data.get("rating"), data.get("comment") or ""
+            if rating not in ("good", "bad") or not isinstance(comment, str) or len(comment) > 2000:
+                return jsonify({"status": "error", "message": "Send rating good or bad and a comment of at most 2000 characters."}), 400
+            turn_id = data.get("turn_id")
+            # getdel: one feedback per answer
+            turn = self.chat_manager.redis.getdel(f"chat:turn:{turn_id}") if isinstance(turn_id, str) else None
+            if turn is None:
+                return jsonify({"status": "error", "message": "Unknown or already rated answer."}), 404
+            turn = json.loads(turn)
+            row = {
+                "time": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "rating": rating,
+                "comment": comment.strip(),
+                **{k: turn[k] for k in ("turn_id", "chat_id", "model", "question", "outcome", "answer", "references")},
+                "answer_time": turn["time"],
+            }
+            self._append_jsonl(self.config.get("CHAT_FEEDBACK_FILE"), [json.dumps(row)])
+            return jsonify({"status": "ok"})
+
         @self.app.route("/up")
         def up():
             """Health check for Docker and load balancers."""
@@ -376,15 +402,43 @@ class FlaskApp:
 
     def _save_ratings_to_file(self, rows: list[str]) -> None:
         """Append ratings to ARENA_RATINGS_FILE; Redis stays the source of the leaderboard."""
-        path = self.config.get("ARENA_RATINGS_FILE")
+        self._append_jsonl(self.config.get("ARENA_RATINGS_FILE"), rows)
+
+    def _append_jsonl(self, path: Optional[str], rows: list[str]) -> None:
+        """Append JSON lines to path (empty path: do nothing)."""
         if not path:
             return
         try:
             os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
             with open(path, "a", encoding="utf-8") as file:
                 file.write("".join(row + "\n" for row in rows))
-        except OSError as error:  # the rating is already in Redis: log, do not fail the request
-            logger.warning("Could not append arena ratings to %s: %s", path, error)
+        except OSError as error:  # a log write must never fail the user's request
+            logger.warning("Could not append to %s: %s", path, error)
+
+    def _log_turn(
+        self, question: str, chat_id: str, model: Optional[str], response: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Append a final chat message to CHAT_LOG_FILE and keep it one day in Redis, so
+        feedback can refer to it by turn_id. Returns the message with its turn_id."""
+        turn_id = str(uuid.uuid4())
+        default = "answered" if response.get("status") == "complete" else "error"
+        row = json.dumps({
+            "time": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "turn_id": turn_id,
+            "chat_id": chat_id,
+            "model": model or self.config["CITATION_MODEL"],
+            "question": question,
+            "outcome": response.get("outcome", default),  # cached answers have none
+            "answer": response.get("message", ""),  # HTML, as shown
+            "references": (response.get("metadata") or {}).get("references", []),
+        })
+        self._append_jsonl(self.config.get("CHAT_LOG_FILE"), [row])
+        try:
+            self.chat_manager.redis.set(f"chat:turn:{turn_id}", row, ex=86400)
+        except Exception as error:  # no Redis: the answer still goes out, without feedback
+            logger.warning("Could not keep chat turn for feedback: %s", error)
+            return response
+        return {**response, "turn_id": turn_id}
 
     def _arena_ratings(self) -> list[dict]:
         return [json.loads(r) for r in self.chat_manager.redis.lrange("arena:ratings", 0, -1)]
@@ -451,6 +505,8 @@ class FlaskApp:
             rag_service = self.get_rag_service()
             if rag_service:
                 for response in rag_service.get_response(user_message, chat_id, model):
+                    if response.get("status") != "in-progress":
+                        response = self._log_turn(user_message, chat_id, model, response)
                     yield json.dumps(response) + "\n"
             else:
                 yield (
@@ -465,15 +521,8 @@ class FlaskApp:
 
         except Exception as e:
             logger.error(f"Error processing chat request: {str(e)}")
-            yield (
-                json.dumps(
-                    {
-                        "status": "error",
-                        "message": msg.message("unexpected_error", user_message),
-                    }
-                )
-                + "\n"
-            )
+            error = {"status": "error", "message": msg.message("unexpected_error", user_message), "outcome": "error"}
+            yield json.dumps(self._log_turn(user_message, chat_id, model, error)) + "\n"
 
     def get_rag_service(self):
         """

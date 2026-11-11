@@ -91,6 +91,11 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "ARENA_BLIND": False,
     # Each rating is also appended here (JSON lines, in Git for the team); empty = Redis only
     "ARENA_RATINGS_FILE": "data/arena/ratings.jsonl",
+    # Chat page: every answered turn (question, answer, outcome: answered/off_topic/
+    # no_sources/error/forrt_lookup) and every Good/Bad feedback are appended here as JSON
+    # lines. Not in Git: they hold what users type. Empty = not saved.
+    "CHAT_LOG_FILE": "data/chats/chats.jsonl",
+    "CHAT_FEEDBACK_FILE": "data/chats/feedback.jsonl",
     # Google Drive settings
     "CREDENTIALS_FILE": "credentials.json",
     "GDRIVE_FOLDER_ID": "1EqOxpkb-ksYjRmvSHl1XjULlcPxZINdD",

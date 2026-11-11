@@ -54,6 +54,7 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 | `OPENSCHOLAR_TIMEOUT` | seconds for one OpenScholar answer (default 600, no retry): the self-hosted CPU server needs minutes for the chatbot's long prompt |
 | `LLM_TIMEOUT` | seconds before an LLM call gives up (default 120); a slow model then shows an error instead of holding up the answer |
 | `ARENA_MAX_MODELS` | most models per arena question (default 10) |
+| `CHAT_LOG_FILE`, `CHAT_FEEDBACK_FILE` | every chat turn and every Good/Bad feedback are appended here (default `data/chats/chats.jsonl`, `data/chats/feedback.jsonl`; not in Git); empty = not saved |
 | `PROMPT_STYLE` | `openscholar` (default) or `short` (model-neutral answer prompt) |
 | `ANSWER_CACHE_TTL` | seconds to reuse answers to near-identical first questions; `0` = off (default) |
 | `PROXY_FIX_X_FOR` | number of trusted reverse proxies (prod: `1`), so the rate limit uses the client IP; `0` = none (default) |

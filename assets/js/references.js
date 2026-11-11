@@ -120,6 +120,13 @@ export function renderSources(references, fallbackText = "") {
       item.append(" ", link);
     }
     if (ref.unverified) item.append(" ", span("source-unverified", "not verified"));
+    // The sentence of the source that the answer used (only for open licences)
+    if (ref.snippet) {
+      const quote = document.createElement("blockquote");
+      quote.className = "source-snippet";
+      quote.textContent = `“${ref.snippet}”`;
+      item.append(quote);
+    }
     list.appendChild(item);
   }
   box.append(heading, list);

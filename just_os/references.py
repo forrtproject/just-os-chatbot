@@ -88,6 +88,20 @@ def passage_allowed(conditions_of_use: Optional[str]) -> bool:
     return bool(OPEN_LICENCE.search(text)) and not RESTRICTED.search(text)
 
 
+SNIPPET_MAX = 300  # characters of the quote under a source
+WORD = re.compile(r"[a-z0-9]{3,}")
+
+
+def best_snippet(claim: str, passage: str) -> str:
+    """The sentence of the passage that shares the most words with the claim citing it
+    (Markdown marks removed, cut at SNIPPET_MAX). Empty for an empty passage."""
+    plain = re.sub(r"[#*_|>`]+|\s+", " ", passage).strip()
+    sentences = [s for s in re.split(r"(?<=[.!?])\s+", plain) if len(s) >= 40] or [plain]
+    words = set(WORD.findall(claim.lower()))
+    best = max(sentences, key=lambda s: len(words & set(WORD.findall(s.lower()))))
+    return best if len(best) <= SNIPPET_MAX else best[:SNIPPET_MAX].rsplit(" ", 1)[0] + " …"
+
+
 def load_publication_years(path: Optional[str]) -> Dict[str, str]:
     """Read a doi,year CSV (made by scripts/get_pub_years.py). Missing file → empty dict."""
     if not path or not Path(path).exists():

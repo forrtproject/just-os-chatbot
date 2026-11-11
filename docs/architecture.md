@@ -45,7 +45,7 @@ just-os-chatbot/
 |---|---|---|
 | `app.py` | `FlaskApp`: routes, CORS allow-list, input validation, rate limits (`RateLimitManager`, Flask-Limiter on Redis; `PROXY_FIX_X_FOR` > 0 trusts `X-Forwarded-For` from that many proxies), NDJSON streaming. `get_app()` is the Gunicorn entry point | `rag_service`, `chat_manager`, `extensions`, templates |
 | `rag_service.py` | Builds the pipeline once per worker (singleton): embedding model → FAISS index from `VECTOR_STORE` → retriever (wrapped in `HybridRetriever` if `HYBRID_SEARCH`) → `Qualle` | `qualle`, `chat_manager`, `config.settings` |
-| `qualle.py` | The RAG pipeline. `QueryProcessor` (rephrase + classify, or `classify_intent` into open_science / forrt_lookup / off_topic; tool call with JSON fallback), `DocumentRetriever` (FAISS top-k + local CrossEncoder re-rank; falls back to vector order; `MAX_CHUNKS_PER_DOC` caps chunks per paper; `RERANK_THREADS` CPU threads; `unsupported_citations` for `VERIFY_CITATIONS`; logs `Timing:` lines), `ResponseGenerator` (prompt chosen by `PROMPT_STYLE`: `openscholar` or `short`; LLM call; post-processing), `OpenAIClientManager` (OpenAI-compatible clients with a `LLM_TIMEOUT` limit and 1 retry, OpenScholar `OPENSCHOLAR_TIMEOUT` and no retry; sends `OPENSCHOLAR_MODEL` to the self-hosted server), `ReferenceProcessor` (citation numbers → HTML + source list: one number per paper, publication year, doi.org links, passage only for open licences), `Qualle` (`get_response`, `get_arena_response`) | `openscholar`, `chat_manager` |
+| `qualle.py` | The RAG pipeline. `QueryProcessor` (rephrase + classify, or `classify_intent` into open_science / forrt_lookup / off_topic; tool call with JSON fallback), `DocumentRetriever` (FAISS top-k + local CrossEncoder re-rank; falls back to vector order; `MAX_CHUNKS_PER_DOC` caps chunks per paper; `RERANK_THREADS` CPU threads; `unsupported_citations` for `VERIFY_CITATIONS`; logs `Timing:` lines), `ResponseGenerator` (prompt chosen by `PROMPT_STYLE`: `openscholar` or `short`; LLM call; post-processing), `OpenAIClientManager` (OpenAI-compatible clients with a `LLM_TIMEOUT` limit and 1 retry, OpenScholar `OPENSCHOLAR_TIMEOUT` and no retry; sends `OPENSCHOLAR_MODEL` to the self-hosted server), `ReferenceProcessor` (citation numbers → HTML + source list: one number per paper, publication year, doi.org links, passage only for open licences; `snippets`: per cited paper the sentence of the cited chunk that best matches the answer sentence citing it, `best_snippet` in `references.py`, same licence rule), `Qualle` (`get_response`, `get_arena_response`) | `openscholar`, `chat_manager` |
 | `messages.py` | Refusal and error texts in the language of the question: reads `config/refusals.csv`, detects the language with lingua over all its languages (Kannada by its script, which lingua lacks), falls back to English for a language without a row or one it cannot tell | `qualle`, `app`, `eval/run` |
 | `answer_cache.py` | `AnswerCache`: semantic answer cache in Redis (`ANSWER_CACHE_TTL` > 0 turns it on) | `qualle` |
 | `forrt_lookup.py` | `FORRT_LOOKUP=true`: `ForrtLookup` searches every row of the FORRT sheet (BM25 over title, abstract, clusters, tags) and answers with a list of links (titles escaped, http(s) only) | `qualle` |
@@ -75,7 +75,8 @@ Limitations (measured 11 Nov with lingua 2.2.0 over all languages):
 | Route | Method | Purpose |
 |---|---|---|
 | `/` | GET | Built-in chat page with an "Answer model" dropdown (`CITATION_MODEL` first, then `ARENA_MODELS`) |
-| `/chat` | POST | Main API (`message`, `chat_id`, optional `model` from the chat page's list) → NDJSON stream. The forrt.org widget uses it and sends no `model`: **do not change the existing fields** |
+| `/chat` | POST | Main API (`message`, `chat_id`, optional `model` from the chat page's list) → NDJSON stream. The forrt.org widget uses it and sends no `model`: **do not change the existing fields**. The final message also carries `outcome` (`answered`, `off_topic`, `no_sources`, `error`, `forrt_lookup`), `turn_id` (for feedback) and a `snippet` per entry of `metadata.references`; each final message is appended to `CHAT_LOG_FILE` |
+| `/chat/feedback` | POST | `{turn_id, rating: good\|bad, comment?}` (comment ≤ 2000 characters); one feedback per answer; appended to `CHAT_FEEDBACK_FILE` with the question and answer |
 | `/up` | GET | Health check (Docker) |
 | `/arena` | GET | Arena page (only if `ARENA_ENABLED`); lists `ARENA_MODELS` (OpenScholar only when `OPENSCHOLAR_BASE_URL` is set) |
 | `/arena/chat` | POST | `{message, models}`: each chosen model (1 to `ARENA_MAX_MODELS`) answers from the same sources; cards labelled A, B, C… in random order |
@@ -101,7 +102,8 @@ Limitations (measured 11 Nov with lingua 2.2.0 over all languages):
 | `get_pub_years.py` | `python -m scripts.get_pub_years [index-dir]` | Asks OpenAlex for the publication year of every DOI in the index → `data/raw/pub_years.csv` (tracked; read via `PUB_YEARS_FILE`). Run again after a new index build |
 | `add_to_index.py` | `python -m scripts.add_to_index <md-dir> <metadata.csv>` | Adds new Markdown documents to an existing index (skips DOIs/titles already in it) without a full rebuild |
 | `fetch_web_resources.py` | `python -m scripts.fetch_web_resources [--sample 50]` | HTML route: web resources without DOI → Markdown + metadata in `data/processed/web_markdown/` |
-| `match_cluster_pdfs.py` | `python -m scripts.match_cluster_pdfs` | Cluster PDF file names → title/DOI from the FORRT sheets → `data/interim/cluster_pdf_metadata.csv` |
+| `match_cluster_pdfs.py` | `python -m scripts.match_cluster_pdfs` | Cluster PDF file names → title/DOI from the FORRT sheets → `data/interim/cluster_pdf_metadata.csv` (newest sheet copies) |
+| `convert_cluster_pdfs.py` | `python -m scripts.convert_cluster_pdfs` (needs `pip install pymupdf4llm`) | Matched cluster PDFs whose title is in the PDF → `data/processed/cluster_markdown/<doi_hash>.md` + `metadata.csv`, input of `add_to_index.py` |
 | `add_new_resources.py` | `uv run python -m scripts.add_new_resources` | Adds rows from the live FORRT sheets (`URL_FORRT`): DOI → Unpaywall → PDF download |
 
 `python -m scripts.<name>` keeps the repository root on the import path, so `config` and `ingest` import correctly.
@@ -122,19 +124,19 @@ Limitations (measured 11 Nov with lingua 2.2.0 over all languages):
 |---|---|
 | `test_qualle.py` | Citation mapping, classify error ≠ refusal, JSON fallback, OpenScholar routing |
 | `test_messages.py` | Every row of `config/refusals.csv` is valid, language detection, refusals and errors in the question's language in chat and arena, English fallback |
-| `test_references.py` | DOI normalisation, doi.org links, licence gate, publication year, one reference per paper |
+| `test_references.py` | DOI normalisation, doi.org links, licence gate, publication year, one reference per paper, snippet per source |
 | `test_retrieval.py` | Per-paper cap, BM25, rank fusion, hybrid retriever |
 | `test_answer_cache.py` | Answer cache hit/miss/expiry/namespace/size, no LLM call on a hit, `PROMPT_STYLE` |
 | `test_ingest.py` | Title match, `%PDF` check, `unique_metadata`, gunicorn reload flag |
 | `test_pipeline_options.py` | Chosen chat model, per-model answer cache, history keeps the user's words, `CONTEXT_METHOD=history`, citation check, FORRT lookup |
-| `test_scripts.py` | Judge, classifier summary, cluster PDF names, HTML text, adding to an index |
+| `test_scripts.py` | Judge, classifier summary, cluster PDF names and title check, HTML text, adding to an index, team bundle, dict-valued metadata in eval |
 | `test_rerank.py` | Re-ranker order and fallback to vector order |
-| `test_app.py` | Arena: chosen models, hidden names, OpenScholar filter, ratings, leaderboard, bad input; ProxyFix on/off |
+| `test_app.py` | Arena: chosen models, hidden names, OpenScholar filter, ratings, leaderboard, bad input; ProxyFix on/off; chat log with outcome, feedback once per answer |
 | `test_compare.py` | `eval/compare.py` summary numbers |
 | `test_coverage.py` | Coverage reasons in `eval/coverage.py` |
 
 ### `assets/` (front end)
-`js/app.js` (chat page), `js/arena.js` (arena page), `js/references.js` (shared source tooltip; inserts metadata with `textContent`, links only for http(s) URLs), `css/app.css` (Tailwind). `esbuild.config.mjs` bundles `app.js` and `arena.js` into `public/js/`. The `js` and `css` compose services build them.
+`js/app.js` (chat page; "How was this answer?" Good/Bad + optional comment under each answer → `/chat/feedback`), `js/arena.js` (arena page), `js/references.js` (shared source tooltip and source list with the quoted snippet; inserts metadata with `textContent`, links only for http(s) URLs), `css/app.css` (Tailwind). `esbuild.config.mjs` bundles `app.js` and `arena.js` into `public/js/`. The `js` and `css` compose services build them.
 
 ## 3. Request flow (`POST /chat`)
 
@@ -173,6 +175,9 @@ Each step yields a status line (`{"status": "in-progress", "message": ...}`). Th
 | Arena rounds | Redis `arena:battle:{id}` (question, label → model + seconds) | 1 day, deleted when rated | Hide model names until the ratings are in |
 | Arena ratings | Redis list `arena:ratings` (time, question, model, seconds, correct, references, clarity, answer (HTML), sources) | No expiry (`redis-cli DEL arena:ratings`) | Leaderboard. The old two-model votes stay in `arena:votes` (unused) |
 | Arena ratings (copy) | `data/arena/ratings.jsonl` (`ARENA_RATINGS_FILE`), same rows, one JSON per line, appended on each rating | Kept; in Git | Backup and sharing: commit it to share the ratings with the team. Survives `docker compose down -v`. Not read by the app |
+| Chat turns | Redis `chat:turn:{turn_id}` (the log row below) | 1 day, deleted when feedback is given | Lets `/chat/feedback` store the question and answer with the rating |
+| Chat log | `data/chats/chats.jsonl` (`CHAT_LOG_FILE`): time, turn_id, chat_id, model, question, outcome, answer (HTML), references; one JSON per line, appended on every final chat message | Kept; **not in Git** (user text) | Find refusals (`outcome` `off_topic`), errors (`error`) and weak answers. Writable mount `./data/chats` in `compose.yaml` |
+| Chat feedback | `data/chats/feedback.jsonl` (`CHAT_FEEDBACK_FILE`): time, rating, comment, answer_time + the chat log fields | Kept; not in Git | "How was this answer?" under each chat answer |
 | Redis data | Docker volume `redis` | Until the volume is deleted | |
 | Static files | `public/` with digest names (`flask-static-digest`) | Until the next build | Browser cache busting |
 | Eval embeddings | `data/processed/emb_cache/<model>.npy` (float16, one row per chunk) | Until deleted | `compare_embeddings.py` embeds the 59,473 chunks one time per model |

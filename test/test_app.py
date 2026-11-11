@@ -24,6 +24,8 @@ class FakeRag:
 def app(tmp_path):
     flask_app = FlaskApp()
     flask_app.config["ARENA_RATINGS_FILE"] = str(tmp_path / "arena" / "ratings.jsonl")
+    flask_app.config["CHAT_LOG_FILE"] = str(tmp_path / "chats" / "chats.jsonl")
+    flask_app.config["CHAT_FEEDBACK_FILE"] = str(tmp_path / "chats" / "feedback.jsonl")
     flask_app.chat_manager.redis = fakeredis.FakeRedis()
     flask_app._rag_service = FakeRag()
     flask_app.config.update(ARENA_ENABLED=True, ARENA_MODELS="m1,m2", RATE_LIMIT="1000/minute")
@@ -164,3 +166,63 @@ def test_chat_stream_error_in_the_language_of_the_question(app):
     final = json.loads(response.data.decode().splitlines()[-1])
     assert final["status"] == "error"
     assert final["message"] == "İsteğiniz işlenirken beklenmeyen bir hata oluştu."
+    assert read_jsonl(app.config["CHAT_LOG_FILE"])[0]["outcome"] == "error"
+
+
+# --- chat log and feedback
+
+
+def read_jsonl(path):
+    with open(path, encoding="utf-8") as file:
+        return [json.loads(line) for line in file]
+
+
+class ChatRag:
+    def __init__(self, *finals):
+        self.finals = list(finals)
+
+    def get_response(self, query, chat_id, model):
+        yield {"status": "in-progress", "message": "Finding relevant sources"}
+        yield self.finals.pop(0)
+
+
+def chat(client, message="What is open data?"):
+    response = client.post("/chat", json={"message": message, "chat_id": "c1"})
+    return json.loads(response.data.decode().splitlines()[-1])
+
+
+def test_every_chat_turn_is_logged_with_its_outcome(app):
+    refs = [{"number": 1, "title": "Open data", "snippet": "Open data is free."}]
+    app._rag_service = ChatRag(
+        {"status": "complete", "message": "<p>Open data is [1].</p>", "outcome": "answered", "metadata": {"references": refs}},
+        {"status": "complete", "message": "<p>Sorry, I'm only able to answer questions related to Open Science and FORRT.</p>", "outcome": "off_topic"},
+        {"status": "complete", "message": "<p>cached</p>"},  # cached answers carry no outcome
+    )
+    client = app.app.test_client()
+    finals = [chat(client), chat(client, "Best pizza in town?"), chat(client)]
+    assert all(f["turn_id"] for f in finals)
+    rows = read_jsonl(app.config["CHAT_LOG_FILE"])
+    assert [r["outcome"] for r in rows] == ["answered", "off_topic", "answered"]
+    assert rows[0]["question"] == "What is open data?" and rows[0]["references"] == refs
+    assert rows[1]["answer"].startswith("<p>Sorry") and rows[1]["chat_id"] == "c1"
+    assert [r["turn_id"] for r in rows] == [f["turn_id"] for f in finals]
+
+
+def test_feedback_is_stored_once_with_the_question_and_answer(app):
+    app._rag_service = ChatRag({"status": "complete", "message": "<p>answer</p>", "outcome": "answered"})
+    client = app.app.test_client()
+    turn = chat(client)["turn_id"]
+    sent = client.post("/chat/feedback", json={"turn_id": turn, "rating": "bad", "comment": " Wrong source. "})
+    assert sent.status_code == 200
+    again = client.post("/chat/feedback", json={"turn_id": turn, "rating": "good"})
+    assert again.status_code == 404  # one feedback per answer
+    [row] = read_jsonl(app.config["CHAT_FEEDBACK_FILE"])
+    assert (row["rating"], row["comment"], row["question"], row["answer"]) == ("bad", "Wrong source.", "What is open data?", "<p>answer</p>")
+
+
+def test_feedback_rejects_bad_input(app):
+    client = app.app.test_client()
+    for body in ({"turn_id": "x", "rating": "meh"}, {"turn_id": "x", "rating": "good", "comment": "x" * 2001},
+                 {"turn_id": "x", "rating": "good", "comment": 5}):
+        assert client.post("/chat/feedback", json=body).status_code == 400
+    assert client.post("/chat/feedback", json={"turn_id": ["x"], "rating": "good"}).status_code == 404

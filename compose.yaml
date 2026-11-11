@@ -77,6 +77,8 @@ services:
       - "./data:/app/data:ro"
       # Writable: arena ratings are appended here (ARENA_RATINGS_FILE)
       - "./data/arena:/app/data/arena"
+      # Writable: chat turns and feedback are appended here (CHAT_LOG_FILE, CHAT_FEEDBACK_FILE)
+      - "./data/chats:/app/data/chats"
       # Keep downloaded embedding/re-ranker models when the container is recreated
       - "hf-cache:/home/python/.cache/huggingface"
     networks:

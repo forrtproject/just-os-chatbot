@@ -20,6 +20,7 @@ from just_os.forrt_lookup import ForrtLookup
 from just_os import messages as msg
 from just_os.openscholar import generation_instance_prompts_w_references, system_prompt
 from just_os.references import (
+    best_snippet,
     document_key,
     load_publication_years,
     passage_allowed,
@@ -669,8 +670,11 @@ class ReferenceProcessor:
         nodes: List[Any],
         used_refs_ordered: Optional[List[int]] = None,
         unverified: frozenset = frozenset(),
+        answer: str = "",
     ) -> List[Dict[str, Any]]:
-        """The source list as data, one entry per document, for the page to format."""
+        """The source list as data, one entry per document, for the page to format.
+        With the answer (Markdown with the original [n] numbers) each entry gets a snippet."""
+        snippets = self.snippets(nodes, answer)
         if not used_refs_ordered:
             seen, used_refs_ordered = set(), []
             for idx, node in enumerate(nodes):
@@ -690,8 +694,24 @@ class ReferenceProcessor:
                 "title": data["title"],
                 "url": data["url"],
                 "unverified": document_key(plain_metadata(nodes[ref_idx].metadata)) in flagged,
+                "snippet": snippets.get(document_key(plain_metadata(nodes[ref_idx].metadata)), ""),
             })
         return entries
+
+    def snippets(self, nodes: List[Any], answer: str) -> Dict[str, str]:
+        """Per document: the sentence of a cited chunk that best matches the first answer
+        sentence citing it. Only for licences that allow showing a passage."""
+        found: Dict[str, str] = {}
+        for sentence in re.split(r"(?<=[.!?])\s+", answer):
+            claim = re.sub(r"\[\d+\]", "", sentence).strip()
+            for ref in sorted({int(m) for m in re.findall(r"\[(\d+)\]", sentence)}):
+                if not claim or ref >= len(nodes):
+                    continue
+                meta = plain_metadata(nodes[ref].metadata)
+                key = document_key(meta)
+                if key not in found and passage_allowed(meta.get(LICENCE_KEY)):
+                    found[key] = best_snippet(claim, nodes[ref].text)
+        return found
 
     def references_from_nodes(
         self,
@@ -814,7 +834,7 @@ class Qualle:
         text = msg.message("no_sources", query)
         self.chat_manager.add_message(chat_id, {"role": "user", "content": query})
         self.chat_manager.add_message(chat_id, {"role": "assistant", "content": text})
-        yield {"status": "complete", "message": markdown.markdown(text)}
+        yield {"status": "complete", "message": markdown.markdown(text), "outcome": "no_sources"}
 
     def get_response(
         self, query: str, chat_id: str, model: Optional[str] = None
@@ -873,19 +893,20 @@ class Qualle:
                 yield {
                     "status": "error",
                     "message": markdown.markdown(msg.message("model_unavailable", user_query)),
+                    "outcome": "error",
                 }
                 return
 
             if intent == "forrt_lookup":
                 answer = self.forrt_lookup.answer(user_query if history_for_answer else query)
                 remember(answer)
-                yield {"status": "complete", "message": markdown.markdown(answer)}
+                yield {"status": "complete", "message": markdown.markdown(answer), "outcome": "forrt_lookup"}
                 return
 
             if intent == "off_topic":
                 refusal = msg.message("off_topic", user_query)
                 remember(refusal)
-                yield {"status": "complete", "message": markdown.markdown(refusal)}
+                yield {"status": "complete", "message": markdown.markdown(refusal), "outcome": "off_topic"}
                 return
 
             yield {"status": "in-progress", "message": "Finding relevant sources"}
@@ -905,7 +926,7 @@ class Qualle:
                 logger.error("Failed to generate response")
                 error = msg.message("generation_error", user_query)
                 remember(error)
-                yield {"status": "complete", "message": markdown.markdown(error)}
+                yield {"status": "complete", "message": markdown.markdown(error), "outcome": "error"}
                 return
 
             processed_message = self.response_generator.post_process_response(response_text)
@@ -921,13 +942,14 @@ class Qualle:
             final = {
                 "status": "complete",
                 "message": html_message,
+                "outcome": "answered",
                 "metadata": {
                     # text for the forrt.org widget; "references" is the same list as data
                     "sources": self.reference_processor.references_from_nodes(
                         ranked_nodes, used_refs, unverified
                     ),
                     "references": self.reference_processor.reference_list(
-                        ranked_nodes, used_refs, unverified
+                        ranked_nodes, used_refs, unverified, processed_message
                     ),
                 },
             }
@@ -939,6 +961,7 @@ class Qualle:
             yield {
                 "status": "error",
                 "message": markdown.markdown(msg.message("unexpected_error", user_query)),
+                "outcome": "error",
             }
 
     def get_arena_response(
@@ -1008,7 +1031,9 @@ class Qualle:
                     "sources": self.reference_processor.references_from_nodes(
                         ranked_nodes, used_refs
                     ),
-                    "references": self.reference_processor.reference_list(ranked_nodes, used_refs),
+                    "references": self.reference_processor.reference_list(
+                        ranked_nodes, used_refs, answer=processed
+                    ),
                     "seconds": round(time.time() - start, 1),
                 }
 

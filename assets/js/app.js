@@ -1,6 +1,59 @@
 import { renderSources, setupReferenceHandlers } from "./references.js";
 
-function addMessage(message, sender, sources = null) {
+// "How was this answer?" under each answer: Good/Bad, then an optional comment, sent once
+function feedbackBar(turnId) {
+  const bar = document.createElement("div");
+  bar.className = "feedback";
+  const question = document.createElement("span");
+  question.textContent = "How was this answer?";
+  const form = document.createElement("form");
+  form.className = "feedback-form";
+  form.hidden = true;
+  const comment = document.createElement("textarea");
+  comment.maxLength = 2000;
+  comment.placeholder = "Tell us more (optional)";
+  comment.setAttribute("aria-label", "Feedback comment");
+  const send = document.createElement("button");
+  send.type = "submit";
+  send.textContent = "Send feedback";
+  form.append(comment, send);
+
+  let rating = null;
+  const choice = (value, icon, label) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "feedback-choice";
+    button.title = label;
+    button.setAttribute("aria-pressed", "false");
+    button.innerHTML = `<i class="fas ${icon}" aria-hidden="true"></i> ${label}`;
+    button.addEventListener("click", () => {
+      rating = value;
+      bar.querySelectorAll(".feedback-choice").forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
+      form.hidden = false;
+      comment.focus();
+    });
+    return button;
+  };
+  bar.append(question, choice("good", "fa-thumbs-up", "Good"), choice("bad", "fa-thumbs-down", "Bad"), form);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    send.disabled = true;
+    try {
+      const response = await fetch("/chat/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ turn_id: turnId, rating, comment: comment.value }),
+      });
+      bar.textContent = response.ok ? "Thanks for your feedback." : "Could not send the feedback.";
+    } catch {
+      bar.textContent = "Could not send the feedback.";
+    }
+  });
+  return bar;
+}
+
+function addMessage(message, sender, sources = null, turnId = null) {
   const chatMessages = document.getElementById("chat-messages");
 
   const messageDiv = document.createElement("div");
@@ -18,6 +71,9 @@ function addMessage(message, sender, sources = null) {
 
   if (sources && sources.length) {
     messageDiv.appendChild(renderSources(sources));
+  }
+  if (turnId) {
+    messageDiv.appendChild(feedbackBar(turnId));
   }
 
   chatMessages.appendChild(messageDiv);
@@ -115,7 +171,7 @@ async function sendMessage(message) {
 
             if (data.status === "complete") {
               endStream();
-              addMessage(data.message, "bot", data.metadata?.references);
+              addMessage(data.message, "bot", data.metadata?.references, data.turn_id);
             } else {
               baseMessage = data.message;
             }
@@ -136,7 +192,7 @@ async function sendMessage(message) {
         const data = JSON.parse(buffer);
         if (data.status === "complete") {
           endStream();
-          addMessage(data.message, "bot");
+          addMessage(data.message, "bot", data.metadata?.references, data.turn_id);
         } else {
           baseMessage = data.message;
         }

@@ -17,6 +17,8 @@ data/**
 !data/interim/questions_and_text.csv
 !data/arena/ratings.jsonl
 !data/arena/.gitkeep
+# Chat logs hold what users type: only the empty folder is in Git
+!data/chats/.gitkeep
 archive/
 
 

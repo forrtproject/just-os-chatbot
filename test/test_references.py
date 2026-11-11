@@ -162,3 +162,29 @@ def test_reference_list_is_structured_and_deduplicated():
     entries = qualle.ReferenceProcessor({"10.1234/m": "2020"}).reference_list(nodes, None, {2})
     assert [(e["number"], e["title"], e["year"], e["unverified"]) for e in entries] == [(1, "Manual", "2020", False), (2, "Other", "n.d.", True)]
     assert entries[0]["url"] == "https://doi.org/10.1234/m"
+
+
+# --- snippet under each source
+
+
+def test_best_snippet_picks_the_sentence_that_matches_the_claim():
+    from just_os.references import best_snippet
+    passage = ("## Methods\nWe surveyed researchers in three countries about their habits. "
+               "Preregistration reduced questionable research practices by a third in our sample. "
+               "Funding came from the **NWO**.")
+    assert best_snippet("Preregistration reduces questionable research practices", passage) == (
+        "Preregistration reduced questionable research practices by a third in our sample.")
+    assert best_snippet("anything", "x " * 400).endswith(" …")  # long text is cut
+    assert len(best_snippet("anything", "x " * 400)) <= 302
+
+
+def test_reference_list_snippet_follows_the_cited_chunk_and_the_licence():
+    nodes = [
+        chunk("Open", "10.1234/o", "Open data makes results easier to check for other researchers. Unrelated closing words here."),
+        chunk("Closed", "10.1234/c", "Data sharing is common in genetics research nowadays.", licence="CC BY-NC-ND"),
+    ]
+    answer = "Open data helps others check results [0]. Sharing is common [1]."
+    entries = qualle.ReferenceProcessor().reference_list(nodes, [0, 1], answer=answer)
+    assert entries[0]["snippet"] == "Open data makes results easier to check for other researchers."
+    assert entries[1]["snippet"] == ""  # licence does not allow showing a passage
+    assert qualle.ReferenceProcessor().reference_list(nodes, [0])[0]["snippet"] == ""  # no answer, no snippet
