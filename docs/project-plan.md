@@ -113,7 +113,7 @@ FORRT sheets → triage: DOI + OA → PDF (check `%PDF`) → marker; web pages �
 
 ## 8. Rules
 
-1. Two long-lived branches: `main` (protected) and `dev` (project lead). Others branch from `main` (`feat/<topic>` or `fix/<topic>`) and open PRs to `main`.
+1. Two long-lived branches: `main` (protected) and `dev` (project lead). Others branch from `main` (`feat/<topic>` or `fix/<topic>`) and open PRs to `dev`; the project lead merges `dev` into `main`.
 2. One problem per PR, under ~300 changed lines, link the issue.
 3. A bug fix has a test that fails before the fix; `pytest` passes before merge.
 4. Changes to prompts, models, retrieval or chunking include the eval table before and after.
@@ -128,7 +128,7 @@ FORRT sheets → triage: DOI + OA → PDF (check `%PDF`) → marker; web pages �
 
 | Week | Work | Done when |
 |---|---|---|
-| 1 | All hackathon PRs merged into `main`, `main` merged into `dev`; close/relabel issues; model decision record (scores, cost, licence, providers, GPU) | `main` green; decision recorded |
+| 1 | All hackathon PRs merged into `dev`, `dev` merged into `main`; close/relabel issues; model decision record (scores, cost, licence, providers, GPU) | `main` green; decision recorded |
 | 2 | Set `PROXY_FIX_X_FOR=1` on prod; CI is in place (`.github/workflows/tests.yml`) | Tests green in CI |
 | 3–4 | Retrieval: hybrid BM25 + dense, per-paper cap, inner product (#22), multilingual re-ranker | Eval shows a gain, or the change is rejected |
 | 5–6 | Coverage: HTML route, resource cards, incremental ingest (#17, #18), versioned index | Coverage report; more resources indexed |
