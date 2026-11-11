@@ -17,7 +17,7 @@ Rule: a change to prompts, models, retrieval or chunking needs an eval table bef
 | Arena (human ratings) | http://localhost:8000/arena with `ARENA_ENABLED=true`: pick models, rate each answer 1-5 on correct / references / clarity | `/arena/leaderboard`, `/arena/ratings` |
 
 Question sets:
-- `eval/questions.jsonl`: 54 questions for the full pipeline (32 should answer, 22 should refuse, 13 not English: nl, de, es, and tr, it, hi, mr, kn as translations of pr01 and off01, checked by native speakers; 12 with `expected_dois`).
+- `eval/questions.jsonl`: 54 questions for the full pipeline (32 should answer, 22 should refuse, 13 not English: translations of pr03 (nl), pr01 (de) and pr05 (es), and in tr, it, hi, mr and kn of pr01 and off01, checked by native speakers; 12 with `expected_dois`).
 - `eval/retrieval_questions.jsonl`: 474 questions for retrieval only (24 from `data/interim/questions_and_text.csv`, 150 synthetic, 300 translations to nl/de/es).
 
 ## 2. What the numbers mean
