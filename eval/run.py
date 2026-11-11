@@ -26,6 +26,7 @@ from config.settings import get_config  # noqa: E402
 from just_os.chat_manager import ChatManager  # noqa: E402
 from just_os.qualle import NON_OS_RESPONSE  # noqa: E402
 from just_os.rag_service import create_rag_service  # noqa: E402
+from just_os.references import normalize_doi, plain_metadata  # noqa: E402
 
 FIELDS = [
     "id", "lang", "expect", "outcome", "correct", "hit", "n_citations",
@@ -42,6 +43,12 @@ def outcome_of(final):
     if "couldn't find any relevant information" in final.get("message", ""):
         return "no_sources"
     return "answered"
+
+
+def doi_of(node) -> str:
+    """The node's bare DOI, or "". Unwraps the dict values of the 10 documents from #24,
+    which would otherwise never match an expected DOI and contain a space."""
+    return normalize_doi(plain_metadata(node.metadata).get("doi")) or ""
 
 
 def main():
@@ -104,7 +111,7 @@ def main():
             seconds = time.time() - start
 
             outcome = outcome_of(final)
-            ranked_dois = [str(n.metadata.get("doi", "")).lower() for n in seen["ranked"]]
+            ranked_dois = [doi_of(n) for n in seen["ranked"]]
             expected = [d.lower() for d in q.get("expected_dois", [])]
             refs = [int(n) for n in re.findall(r"\[(\d+)\]", seen["raw"] or "")]
             writer.writerow({
