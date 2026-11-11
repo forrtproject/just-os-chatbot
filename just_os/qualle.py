@@ -17,6 +17,7 @@ from sentence_transformers import CrossEncoder
 from just_os.answer_cache import AnswerCache
 from just_os.chat_manager import ChatManager
 from just_os.forrt_lookup import ForrtLookup
+from just_os import messages as msg
 from just_os.openscholar import generation_instance_prompts_w_references, system_prompt
 from just_os.references import (
     document_key,
@@ -39,15 +40,9 @@ CREATOR_KEY = "creators"
 TITLE_KEY = "title"
 LICENCE_KEY = "conditions_of_use"
 
-# Default response for non-Open Science questions
-NON_OS_RESPONSE = "Sorry, I'm only able to answer questions related to Open Science."
 # CONTEXT_METHOD=history: number of earlier messages passed to the answer model
 HISTORY_TURNS = 4
 INTENTS = ("open_science", "forrt_lookup", "off_topic")
-# Shown when the language model cannot be reached (not a refusal)
-CLASSIFY_ERROR_RESPONSE = (
-    "Sorry, the language model is not available at the moment. Please try again later."
-)
 
 # PROMPT_STYLE=short: a short, model-neutral prompt instead of the OpenScholar prompt
 # (~1.5k tokens with a worked example, made for the fine-tuned OpenScholar model)
@@ -797,6 +792,9 @@ class Qualle:
             else None
         )
 
+        # Refusal and error texts in the language of the question (just_os/messages.py)
+        msg.preload()
+
         logger.debug("Qualle service initialized")
 
     def no_relevant_nodes_handler(
@@ -813,20 +811,10 @@ class Qualle:
             Response message
         """
         logger.warning(f"No relevant nodes found for query: {query}")
+        text = msg.message("no_sources", query)
         self.chat_manager.add_message(chat_id, {"role": "user", "content": query})
-        self.chat_manager.add_message(
-            chat_id,
-            {
-                "role": "assistant",
-                "content": "I couldn't find any relevant information about that topic in Open Science.",
-            },
-        )
-        yield {
-            "status": "complete",
-            "message": markdown.markdown(
-                "I couldn't find any relevant information about that topic in Open Science."
-            ),
-        }
+        self.chat_manager.add_message(chat_id, {"role": "assistant", "content": text})
+        yield {"status": "complete", "message": markdown.markdown(text)}
 
     def get_response(
         self, query: str, chat_id: str, model: Optional[str] = None
@@ -882,7 +870,10 @@ class Qualle:
             logger.debug(f"Query intent: {intent}")
 
             if intent is None:
-                yield {"status": "error", "message": markdown.markdown(CLASSIFY_ERROR_RESPONSE)}
+                yield {
+                    "status": "error",
+                    "message": markdown.markdown(msg.message("model_unavailable", user_query)),
+                }
                 return
 
             if intent == "forrt_lookup":
@@ -892,8 +883,9 @@ class Qualle:
                 return
 
             if intent == "off_topic":
-                remember(NON_OS_RESPONSE)
-                yield {"status": "complete", "message": markdown.markdown(NON_OS_RESPONSE)}
+                refusal = msg.message("off_topic", user_query)
+                remember(refusal)
+                yield {"status": "complete", "message": markdown.markdown(refusal)}
                 return
 
             yield {"status": "in-progress", "message": "Finding relevant sources"}
@@ -911,7 +903,7 @@ class Qualle:
             logger.info(f"Timing: answer {time.time() - start:.1f}s ({model or self.config.get('CITATION_MODEL')})")
             if not response_text:
                 logger.error("Failed to generate response")
-                error = "I'm sorry, I encountered an error while generating a response."
+                error = msg.message("generation_error", user_query)
                 remember(error)
                 yield {"status": "complete", "message": markdown.markdown(error)}
                 return
@@ -946,9 +938,7 @@ class Qualle:
             logger.error(f"Error in get_response: {str(e)}")
             yield {
                 "status": "error",
-                "message": markdown.markdown(
-                    "An unexpected error occurred while processing your request."
-                ),
+                "message": markdown.markdown(msg.message("unexpected_error", user_query)),
             }
 
     def get_arena_response(
@@ -975,11 +965,14 @@ class Qualle:
             if concerns_open_science is None:
                 yield {
                     "status": "error",
-                    "message": markdown.markdown(CLASSIFY_ERROR_RESPONSE),
+                    "message": markdown.markdown(msg.message("model_unavailable", query)),
                 }
                 return
             if not concerns_open_science:
-                yield {"status": "complete", "message": markdown.markdown(NON_OS_RESPONSE)}
+                yield {
+                    "status": "complete",
+                    "message": markdown.markdown(msg.message("off_topic", query)),
+                }
                 return
 
             yield {"status": "in-progress", "message": "Finding relevant sources"}
@@ -987,9 +980,7 @@ class Qualle:
             if not ranked_nodes:
                 yield {
                     "status": "complete",
-                    "message": markdown.markdown(
-                        "I couldn't find any relevant information about that topic in Open Science."
-                    ),
+                    "message": markdown.markdown(msg.message("no_sources", query)),
                 }
                 return
             context = self.document_retriever.context_from_nodes(ranked_nodes)
@@ -1028,7 +1019,5 @@ class Qualle:
             logger.error(f"Error in get_arena_response: {str(e)}")
             yield {
                 "status": "error",
-                "message": markdown.markdown(
-                    "An unexpected error occurred while processing your request."
-                ),
+                "message": markdown.markdown(msg.message("unexpected_error", query)),
             }

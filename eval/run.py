@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config.settings import get_config  # noqa: E402
 from just_os.chat_manager import ChatManager  # noqa: E402
-from just_os.qualle import NON_OS_RESPONSE  # noqa: E402
+from just_os.messages import all_texts  # noqa: E402
 from just_os.rag_service import create_rag_service  # noqa: E402
 from just_os.references import normalize_doi, plain_metadata  # noqa: E402
 
@@ -38,9 +38,11 @@ FIELDS = [
 def outcome_of(final):
     if final.get("status") == "error":
         return "error"
-    if NON_OS_RESPONSE in final.get("message", ""):
+    # Refusals are in the language of the question (config/refusals.csv)
+    text = final.get("message", "")
+    if any(t in text for t in all_texts("off_topic")):
         return "refused"
-    if "couldn't find any relevant information" in final.get("message", ""):
+    if any(t in text for t in all_texts("no_sources")):
         return "no_sources"
     return "answered"
 

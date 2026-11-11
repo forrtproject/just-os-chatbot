@@ -24,6 +24,7 @@ JUST-OS answers open-science questions with citations to the FORRT resource libr
 | 28 Oct | Multilingual answers are in scope (may come after the hackathon) |
 | 28 Oct | Test Perplexity Sonar and `typesafe/jev-router` only as **classifiers**, not as answer models |
 | 9 Nov | OpenScholar-8B is self-hosted on an OpenAI-compatible server with a Bearer key; only `CITATION_MODEL` goes there, classify/rephrase stay on OpenRouter |
+| 11 Nov | Refusal and error texts are in the language of the question: hand translations in `config/refusals.csv` (en, nl, de, it, tr, hi, mr, kn), language detected with lingua; other languages get English (see [architecture.md](architecture.md) 2.1) |
 | Proposed | Memory over many chats with an anonymous browser ID, no login, 1 h TTL (see 7.1) |
 
 ## 4. Goals and success measures
@@ -66,7 +67,7 @@ JUST-OS answers open-science questions with citations to the FORRT resource libr
 | 3 | Year is the form time stamp | **Fixed** (#2): OpenAlex year table, "n.d." fallback |
 | 4 | Raw links; DOI regex cuts or keeps bad characters | **Fixed** (#3): `normalize_doi`, `https://doi.org/` links |
 | 5 | One reference per chunk (duplicates) | **Fixed** (#4) |
-| 6 | Classify API error shown as a refusal | **Fixed** (`CLASSIFY_ERROR_RESPONSE`) |
+| 6 | Classify API error shown as a refusal | **Fixed** (`model_unavailable` in `config/refusals.csv`) |
 | 7 | Forced tool calls fail on some models | **Fixed**: JSON fallback |
 | 8 | Remote `/rerank` endpoint | **Fixed**: local CrossEncoder |
 | 9 | Index not available to contributors | **Partly**: `scripts/get_index.py` + zip ready; upload link missing |
@@ -106,7 +107,7 @@ Memory over many chats (proposed, no login): the widget makes a random `client_i
 "Where is X on FORRT?" / "How do I contribute?" needs a link and a short description, not a summary. Proposal: classify into `open_science`, `forrt_lookup`, `off_topic`; lookup searches the metadata of **all** sheet rows plus forrt.org pages; `/chat` stays the same.
 
 ### 7.3 Multilingual
-97 % of the sources are English. bge-m3 solved retrieval for nl/de/es; the English re-ranker still drops non-English questions → test `BAAI/bge-reranker-v2-m3`. Tell the model to answer in the user's language.
+97 % of the sources are English. bge-m3 solved retrieval for nl/de/es; the English re-ranker still drops non-English questions → test `BAAI/bge-reranker-v2-m3`. Tell the model to answer in the user's language. The fixed refusal and error texts already follow the question's language (decision of 11 Nov).
 
 ### 7.4 Target ingestion
 FORRT sheets → triage: DOI + OA → PDF (check `%PDF`) → marker; web pages → HTML fetch + trafilatura; paywalled DOI → resource card (OpenAlex title + abstract); video/course → resource card from the FORRT description → normalise metadata (`doi`, `pub_year`, authors, licence) → chunk + embed → versioned index + coverage report.
