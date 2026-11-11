@@ -17,6 +17,7 @@ from werkzeug.exceptions import TooManyRequests
 from config.settings import get_config
 from just_os.chat_manager import ChatManager
 from just_os.extensions import flask_static_digest
+from just_os import messages as msg
 
 # INFO shows the "Timing:" lines of each answer in `docker compose logs web`
 logging.basicConfig(
@@ -468,7 +469,7 @@ class FlaskApp:
                 json.dumps(
                     {
                         "status": "error",
-                        "message": "An error occurred while processing your request.",
+                        "message": msg.message("unexpected_error", user_message),
                     }
                 )
                 + "\n"

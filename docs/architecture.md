@@ -37,6 +37,7 @@ just-os-chatbot/
 | File | What it does | Used by |
 |---|---|---|
 | `settings.py` | One dict `DEFAULT_CONFIG` with every setting (models, index path, Redis, rate limit, arena, OpenScholar server). An environment variable with the same name overrides each key (the type follows the default: bool, int, float, str). `get_config()` returns a copy | Everything |
+| `refusals.csv` | The fixed refusal and error texts, one row per language (ISO 639-1 code, then `off_topic`, `no_sources`, `model_unavailable`, `generation_error`, `unexpected_error`); see 2.1 | `just_os/messages.py`, `eval/run.py` |
 | `gunicorn.py` | Gunicorn settings from env (`WEB_CONCURRENCY`, `WEB_TIMEOUT`, `WEB_RELOAD`). `post_worker_init` loads the models and index when a worker starts, so the first request does not time out | Gunicorn (`CMD` in the Dockerfile) |
 
 ### `just_os/` (the web app)
@@ -45,6 +46,7 @@ just-os-chatbot/
 | `app.py` | `FlaskApp`: routes, CORS allow-list, input validation, rate limits (`RateLimitManager`, Flask-Limiter on Redis; `PROXY_FIX_X_FOR` > 0 trusts `X-Forwarded-For` from that many proxies), NDJSON streaming. `get_app()` is the Gunicorn entry point | `rag_service`, `chat_manager`, `extensions`, templates |
 | `rag_service.py` | Builds the pipeline once per worker (singleton): embedding model → FAISS index from `VECTOR_STORE` → retriever (wrapped in `HybridRetriever` if `HYBRID_SEARCH`) → `Qualle` | `qualle`, `chat_manager`, `config.settings` |
 | `qualle.py` | The RAG pipeline. `QueryProcessor` (rephrase + classify, or `classify_intent` into open_science / forrt_lookup / off_topic; tool call with JSON fallback), `DocumentRetriever` (FAISS top-k + local CrossEncoder re-rank; falls back to vector order; `MAX_CHUNKS_PER_DOC` caps chunks per paper; `RERANK_THREADS` CPU threads; `unsupported_citations` for `VERIFY_CITATIONS`; logs `Timing:` lines), `ResponseGenerator` (prompt chosen by `PROMPT_STYLE`: `openscholar` or `short`; LLM call; post-processing), `OpenAIClientManager` (OpenAI-compatible clients with a `LLM_TIMEOUT` limit and 1 retry, OpenScholar `OPENSCHOLAR_TIMEOUT` and no retry; sends `OPENSCHOLAR_MODEL` to the self-hosted server), `ReferenceProcessor` (citation numbers → HTML + source list: one number per paper, publication year, doi.org links, passage only for open licences), `Qualle` (`get_response`, `get_arena_response`) | `openscholar`, `chat_manager` |
+| `messages.py` | Refusal and error texts in the language of the question: reads `config/refusals.csv`, detects the language with lingua over all its languages (Kannada by its script, which lingua lacks), falls back to English for a language without a row or one it cannot tell | `qualle`, `app`, `eval/run` |
 | `answer_cache.py` | `AnswerCache`: semantic answer cache in Redis (`ANSWER_CACHE_TTL` > 0 turns it on) | `qualle` |
 | `forrt_lookup.py` | `FORRT_LOOKUP=true`: `ForrtLookup` searches every row of the FORRT sheet (BM25 over title, abstract, clusters, tags) and answers with a list of links (titles escaped, http(s) only) | `qualle` |
 | `hybrid.py` | `HYBRID_SEARCH=true`: `BM25` keyword index (scikit-learn sparse matrix, built from the docstore at start-up, ~7 s) + `HybridRetriever` (vector and keyword lists merged by reciprocal rank fusion) | `rag_service` |
@@ -55,6 +57,15 @@ just-os-chatbot/
 | `extensions.py` | `flask_static_digest` instance (fingerprinted static files) | `app` |
 | `templates/index.html` | Built-in chat page | `public/js/app.js`, `public/css/app.css` |
 | `templates/arena.html` | Arena page: model picker, one card per answer, 1-5 ratings, leaderboard | `public/js/arena.js` |
+
+### 2.1 Adding a language for refusals and errors
+1. Open `config/refusals.csv` in a spreadsheet and add a row: the ISO 639-1 code in `language` (for example `pt`), then the five texts. Save as **CSV UTF-8**; other encodings break non-Latin scripts. The spreadsheet quotes texts that contain commas.
+2. Run `uv run pytest test/test_messages.py`: it fails on a row with an unknown code or an empty text. The app itself logs such a row and skips it.
+3. Open a PR. The row takes effect when the web container restarts (dev) or the image is rebuilt (production).
+
+The code must be one lingua detects (75 languages, listed in the [lingua README](https://github.com/pemistahl/lingua-py#3-which-languages-are-supported)). A language lingua lacks needs its script added to `SCRIPTS` in `just_os/messages.py`, as for Kannada, which works only for a script no other language uses.
+
+Open check: Hindi and Marathi share the Devanagari script, and lingua may confuse them on very short questions; test it on real questions before relying on it.
 
 ### Routes (`just_os/app.py`)
 | Route | Method | Purpose |
@@ -106,6 +117,7 @@ just-os-chatbot/
 | File | Covers |
 |---|---|
 | `test_qualle.py` | Citation mapping, classify error ≠ refusal, JSON fallback, OpenScholar routing |
+| `test_messages.py` | Every row of `config/refusals.csv` is valid, language detection, refusals and errors in the question's language in chat and arena, English fallback |
 | `test_references.py` | DOI normalisation, doi.org links, licence gate, publication year, one reference per paper |
 | `test_retrieval.py` | Per-paper cap, BM25, rank fusion, hybrid retriever |
 | `test_answer_cache.py` | Answer cache hit/miss/expiry/namespace/size, no LLM call on a hit, `PROMPT_STYLE` |

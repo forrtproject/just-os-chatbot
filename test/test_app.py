@@ -150,3 +150,17 @@ def test_chat_page_offers_models_with_default_first(app):
     assert app.chat_models() == ["m2", "m1"]
     html = app.app.test_client().get("/").get_data(as_text=True)
     assert '<select id="model-select">' in html and "m2 (default)" in html
+
+
+def test_chat_stream_error_in_the_language_of_the_question(app):
+    class BrokenRag:
+        def get_response(self, query, chat_id, model):
+            raise RuntimeError("broken")
+            yield
+
+    app._rag_service = BrokenRag()
+    question = "Akademide kariyer ilerlemesi için hangi beceriler gereklidir?"
+    response = app.app.test_client().post("/chat", json={"message": question, "chat_id": "c"})
+    final = json.loads(response.data.decode().splitlines()[-1])
+    assert final["status"] == "error"
+    assert final["message"] == "İsteğiniz işlenirken beklenmeyen bir hata oluştu."
