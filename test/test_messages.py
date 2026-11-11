@@ -56,6 +56,16 @@ def test_bad_row_is_skipped(tmp_path, caplog):
     assert "line 3" in caplog.text and "line 4" in caplog.text
 
 
+def test_row_with_an_unquoted_comma_is_skipped(tmp_path, caplog):
+    # An unquoted comma splits a text in two, so every later text moves one column
+    path = tmp_path / "refusals.csv"
+    write_csv(path, [["en", "a", "b", "c", "d", "e"], ["it", "Mi dispiace", " posso", "b", "c", "d", "e"]])
+    with caplog.at_level(logging.ERROR):
+        loaded = messages.load_messages(path)
+    assert set(loaded) == {"en"}
+    assert "line 3" in caplog.text and "1 field too many" in caplog.text
+
+
 def test_second_row_for_a_language_is_skipped(tmp_path, caplog):
     path = tmp_path / "refusals.csv"
     write_csv(path, [["en", "a", "b", "c", "d", "e"], ["EN", "x", "b", "c", "d", "e"]])

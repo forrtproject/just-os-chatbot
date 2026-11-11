@@ -13,7 +13,7 @@ import logging
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +31,13 @@ DEFAULT_LANGUAGE = "en"
 SCRIPTS = {"kn": re.compile(r"[ಀ-೿]")}
 
 
-def row_problems(row: Dict[str, str]) -> List[str]:
+def row_problems(row: Dict[Optional[str], Any]) -> List[str]:
     """What is wrong with one CSV row (an empty list for a good row)."""
     problems = []
+    # csv.DictReader puts the fields beyond the header under the key None
+    extra = row.get(None)
+    if extra:
+        problems.append(f"{len(extra)} field{'s' if len(extra) > 1 else ''} too many (an unquoted comma?)")
     code = (row.get("language") or "").strip().lower()
     if code not in SCRIPTS:
         from lingua import IsoCode639_1

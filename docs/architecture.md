@@ -60,7 +60,7 @@ just-os-chatbot/
 
 ### 2.1 Adding a language for refusals and errors
 1. Open `config/refusals.csv` in a spreadsheet and add a row: the ISO 639-1 code in `language` (for example `pt`), then the five texts. Save as **CSV UTF-8**; other encodings break non-Latin scripts. The spreadsheet quotes texts that contain commas.
-2. Run `uv run pytest test/test_messages.py`: it fails on a row with an unknown code or an empty text. The app itself logs such a row and skips it.
+2. Run `uv run pytest test/test_messages.py`: it fails on a row with an unknown code, an empty text or too many fields, which an unquoted comma causes. The app itself logs such a row and skips it.
 3. Open a PR. The row takes effect when the web container restarts (dev) or the image is rebuilt (production).
 
 The code must be one lingua detects (75 languages, listed in the [lingua README](https://github.com/pemistahl/lingua-py#3-which-languages-are-supported)). A language lingua lacks needs its script added to `SCRIPTS` in `just_os/messages.py`, as for Kannada, which works only for a script no other language uses.
