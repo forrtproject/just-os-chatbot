@@ -1,11 +1,15 @@
-"""Glossary eval items (E1 pilot)."""
+"""Glossary eval items and the rubric judge (E1 pilot)."""
 
+import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eval"))
 
 import glossary_items  # noqa: E402
+import rubric_judge  # noqa: E402
+
+RUBRIC = [{"id": "r1", "type": "core", "criterion": "a"}, {"id": "r2", "type": "detail", "criterion": "b"}]
 
 
 def test_select_terms_keeps_terms_citing_an_indexed_doi():
@@ -16,3 +20,35 @@ def test_select_terms_keeps_terms_citing_an_indexed_doi():
     ]
     terms = glossary_items.select_terms(english, {"10.1000/abc"})
     assert [(t["title"], dois) for t, dois in terms] == [("A", ["10.1000/abc"])]
+
+
+def test_coverage_over_all_items_and_core_items():
+    scores = {"r1": 4, "r2": 2}
+    assert rubric_judge.coverage(scores, RUBRIC) == 0.75
+    assert rubric_judge.coverage(scores, RUBRIC, "core") == 1.0
+
+
+def test_doi_recall_counts_only_cited_sources():
+    item = {"expected_dois": ["10.1/a", "10.1/b"]}
+    row = {"retrieved_dois": "10.1/x 10.1/a 10.1/b", "answer": "One [1]. Out of range [9]."}
+    assert rubric_judge.doi_recall(row, item) == 0.5
+    assert rubric_judge.doi_recall({"retrieved_dois": "", "answer": "x"}, item) == ""
+
+
+class FakeResponse:
+    def __init__(self, content):
+        self.usage = type("U", (), {"cost": 0.001})()
+        self.choices = [type("C", (), {"message": type("M", (), {"content": content})()})()]
+
+
+class FakeManager:
+    def __init__(self, content):
+        create = lambda **kw: FakeResponse(content)  # noqa: E731
+        self.client = type("Cl", (), {"chat": type("Ch", (), {"completions": type("Co", (), {"create": staticmethod(create)})})})
+
+
+def test_judge_clamps_scores_and_survives_bad_output():
+    cost = [0.0]
+    good = rubric_judge.judge(FakeManager(json.dumps({"scores": {"r1": 7, "r2": -1}})), "m", "q", "a", RUBRIC, cost)
+    assert good == {"r1": 4, "r2": 0} and cost[0] == 0.001
+    assert rubric_judge.judge(FakeManager("not json"), "m", "q", "a", RUBRIC, cost) is None
