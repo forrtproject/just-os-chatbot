@@ -1,7 +1,9 @@
 """Eval and ingestion scripts: judge (#8), classifier comparison (#9), cluster PDFs (#17),
-HTML route (#18), adding to an index (#25)."""
+HTML route (#18), adding to an index (#25), team bundle."""
 
+import stat
 import sys
+import zipfile
 from pathlib import Path
 
 import faiss
@@ -15,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eval"))
 import classify  # noqa: E402
 import judge  # noqa: E402
 from just_os import qualle  # noqa: E402
-from scripts import add_to_index, fetch_web_resources, match_cluster_pdfs  # noqa: E402
+from scripts import add_to_index, fetch_web_resources, make_share_bundle, match_cluster_pdfs  # noqa: E402
 from test_qualle import CONFIG, FakeChatManager, FakeClient, completion  # noqa: E402
 
 
@@ -92,3 +94,18 @@ def test_add_to_index_skips_documents_already_in_it(tmp_path):
     assert documents[0].text == "new text "  # citation marks removed, as in embed.py
     assert add_to_index.add_documents(loaded, documents) == 1
     assert len(loaded.docstore.docs) == before + 1
+
+
+# --- team bundle
+
+
+def test_bundle_env_is_private_whatever_its_mode(tmp_path):
+    env = tmp_path / ".env"
+    env.write_text("OPENROUTER_API_KEY=secret\n")
+    env.chmod(0o666)
+    with zipfile.ZipFile(tmp_path / "b.zip", "w") as archive:
+        make_share_bundle.add_env(archive, env)
+    with zipfile.ZipFile(tmp_path / "b.zip") as archive:
+        info = archive.getinfo(".env")
+        assert stat.S_IMODE(info.external_attr >> 16) == 0o600
+        assert archive.read(".env") == b"OPENROUTER_API_KEY=secret\n"

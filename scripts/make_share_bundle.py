@@ -64,6 +64,14 @@ def add_tree(archive, rel):
     return sum(f.stat().st_size for f in files)
 
 
+def add_env(archive, path):
+    """Add .env with mode 600, whatever mode the builder's system reports (Windows gives 666)."""
+    info = zipfile.ZipInfo.from_file(path, ".env")
+    info.external_attr = 0o100600 << 16
+    info.compress_type = zipfile.ZIP_DEFLATED
+    archive.writestr(info, path.read_bytes())
+
+
 if __name__ == "__main__":
     parts = list(RUN) if "--minimal" in sys.argv else RUN + COMPARE
     with_env = "--no-env" not in sys.argv and (ROOT / ".env").exists()
@@ -72,7 +80,7 @@ if __name__ == "__main__":
     with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
         lines = []
         if with_env:
-            archive.write(ROOT / ".env", ".env")
+            add_env(archive, ROOT / ".env")
             lines.append("- `.env`: settings and API keys (OpenRouter, OpenScholar) for the team")
         for rel, purpose in parts:
             size = add_tree(archive, rel)
