@@ -33,12 +33,12 @@ IMAGE=${OPENSCHOLAR_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda-b12282}
 HF_MODEL=bartowski/Llama-3.1_OpenScholar-8B-GGUF:Q5_K_M
 ALIAS=openscholar-8b
 POD_NAME=openscholar-8b-q5  # also in scripts/openscholar_proxy/worker.js
-# 4 parallel slots x 8k tokens. Answers are capped at 1200 tokens: with 4 requests at once
-# a slot generates ~15 tokens/s, and RunPod's proxy cuts
-# requests after ~100 s (typical answers: 350-500 tokens, 23-27 s)
+# 4 parallel slots x 8k tokens. Answers are capped at 2048 tokens against runaway output
+# (typical answers: 350-500 tokens, 23-27 s with 4 requests at once). The app streams the
+# answer: RunPod's proxy cuts requests that send nothing for ~100 s
 CTX=32768
 PARALLEL=4
-MAX_TOKENS=1200
+MAX_TOKENS=2048
 # Highest price accepted ($/hr). Cards with >= 16 GB are tried cheapest first,
 # Community and Secure Cloud mixed. 8B Q5 + KV cache needs ~11 GB.
 MAX_PRICE=${OPENSCHOLAR_MAX_PRICE:-0.90}
