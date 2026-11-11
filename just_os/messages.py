@@ -85,7 +85,7 @@ def detector():
     """
     from lingua import LanguageDetectorBuilder
 
-    return LanguageDetectorBuilder.from_all_languages().with_preloaded_language_models().build()
+    return LanguageDetectorBuilder.from_all_languages().build()
 
 
 def detect_language(text: str) -> Optional[str]:
