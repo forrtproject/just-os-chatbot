@@ -5,6 +5,9 @@ Runs in the web container (it needs the index, the models and Redis):
     docker compose exec web python eval/run.py --model openai/gpt-oss-20b
     docker compose exec web python eval/run.py --model openai/gpt-oss-20b --limit 5
 
+--no-retrieval asks the answer model the question directly, with no sources and no
+classifier, to measure what the model knows without the library.
+
 --model changes the answer model (CITATION_MODEL). The classify/rephrase model
 (GENERAL_MODEL) stays as configured unless --general-model is given, so a run
 compares answer models only. Output: eval/results/run_<YYMMDD-HHMM>_<model>.csv
@@ -54,12 +57,32 @@ def doi_of(node) -> str:
     return normalize_doi(plain_metadata(node.metadata).get("doi")) or ""
 
 
+DIRECT_PROMPT = (
+    "You answer questions about open science and research methods. Answer in about "
+    "150-250 words, in the language of the question."
+)
+
+
+def answer_directly(qualle, config, question, seen):
+    """The answer model alone, with no sources: the baseline for what the library adds."""
+    response = qualle.client_manager.create_chat_completion(
+        model=config["CITATION_MODEL"],
+        messages=[{"role": "system", "content": DIRECT_PROMPT}, {"role": "user", "content": question}],
+        temperature=config["TEMPERATURE"],
+    )
+    if response is None:
+        return {"status": "error", "message": ""}
+    seen["raw"] = response.choices[0].message.content or ""
+    return {"message": seen["raw"]}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", help="answer model (CITATION_MODEL)")
     parser.add_argument("--general-model", help="classify/rephrase model (GENERAL_MODEL)")
     parser.add_argument("--questions", default="eval/questions.jsonl")
     parser.add_argument("--limit", type=int, help="only the first N questions")
+    parser.add_argument("--no-retrieval", action="store_true", help="answer without sources")
     args = parser.parse_args()
 
     config = get_config()
@@ -100,7 +123,8 @@ def main():
     questions = questions[: args.limit] if args.limit else questions
 
     out = Path("eval/results") / (
-        f"run_{datetime.now():%y%m%d-%H%M}_{config['CITATION_MODEL'].replace('/', '__')}.csv"
+        f"run_{datetime.now():%y%m%d-%H%M}_{config['CITATION_MODEL'].replace('/', '__')}"
+        f"{'_noretrieval' if args.no_retrieval else ''}.csv"
     )
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w", newline="", encoding="utf-8") as f:
@@ -114,7 +138,10 @@ def main():
             seen.clear()
             seen.update(ranked=[], raw=None, prompt_tokens=0, completion_tokens=0, cost=0.0)
             start = time.time()
-            final = list(qualle.get_response(q["question"], chat_id))[-1]
+            if args.no_retrieval:
+                final = answer_directly(qualle, config, q["question"], seen)
+            else:
+                final = list(qualle.get_response(q["question"], chat_id))[-1]
             seconds = time.time() - start
 
             outcome = outcome_of(final)
