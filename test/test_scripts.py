@@ -104,7 +104,7 @@ def test_add_to_index_skips_documents_already_in_it(tmp_path):
 
 def test_bundle_env_is_private_whatever_its_mode(tmp_path):
     env = tmp_path / ".env"
-    env.write_text("OPENROUTER_API_KEY=secret\n")
+    env.write_bytes(b"OPENROUTER_API_KEY=secret\n")  # write_text gives \r\n on Windows
     env.chmod(0o666)
     with zipfile.ZipFile(tmp_path / "b.zip", "w") as archive:
         make_share_bundle.add_env(archive, env)
