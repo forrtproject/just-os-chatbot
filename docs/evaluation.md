@@ -13,6 +13,7 @@ Rule: a change to prompts, models, retrieval or chunking needs an eval table bef
 | Classifier comparison (#9) | `docker compose exec web python eval/classify.py --models a,b [--intent]` | Markdown table: accuracy, false refusals, false answers, errors, time, cost |
 | Retrieval question set | `python eval/make_retrieval_set.py` | `eval/retrieval_questions.jsonl` |
 | Embedding comparison | `python eval/compare_embeddings.py [E2 E4 ...]` (GPU or API) | `eval/results/embeddings_<YYMMDD>.csv` |
+| Re-ranker comparison | `python eval/compare_rerankers.py` (quality, GPU); `python eval/compare_rerankers.py --device cpu --threads 6 --limit 20` (time on CPU) | `eval/results/rerankers_<YYMMDD>_<device>.csv`; prints paired differences and a gate check |
 | Coverage audit | `python eval/coverage.py` | `eval/results/coverage_<YYMMDD>.{csv,md,svg}` (see [data.md](data.md) 4) |
 | Arena (human ratings) | http://localhost:8000/arena with `ARENA_ENABLED=true`: pick models, rate each answer 1-5 on correct / references / clarity | `/arena/leaderboard`, `/arena/ratings` |
 
@@ -109,3 +110,25 @@ Speed (5 Nov, warm server): classify 0.4 s, retrieval + re-rank 31 s (re-ranker 
 | `perplexity/sonar` | 1.00 / 1.00 | no | no | no | Searches the web itself: not a fair comparison |
 
 Free (`:free`) and router models can change or log prompts: do not use them in production.
+
+### 3.4 Re-ranking and the "no sources" gate (11 November 2026, `eval/compare_rerankers.py`)
+
+Retrieval only, on the 474 questions of `eval/retrieval_questions.jsonl` and the bge-m3 index. Every arm starts from the FAISS top 20. hit@7: a chunk of the question's document is among the first 7 chunks, what the answer model sees (chunk positions, so not comparable with the document-level hit@5 of 3.1). Gate: chunks with a re-ranker score ≤ `MIN_RELEVANCE` (0.1) are dropped, and none left means "no sources". Time: CPU of the laptop, 6 threads (`RERANK_THREADS`), 20 questions, query embedding included.
+
+| Arm | hit@7 all | en | nl | de | es | No sources | hit@7 vs vector [95% CI] | CPU ms mean / p95 |
+|---|---|---|---|---|---|---|---|---|
+| Vector order | 0.49 | 0.51 | 0.48 | 0.48 | 0.49 | 0 | — | 93 / 124 |
+| Hybrid (BM25 + RRF) | 0.46 | 0.52 | 0.43 | 0.43 | 0.43 | 0 | −0.027 [−0.051, −0.006] | 96 / 125 |
+| Vector + `bge-reranker-base` | 0.52 | 0.53 | 0.54 | 0.47 | 0.52 | 0 | +0.023 [−0.002, +0.049] | 4,391 / 5,093 |
+| Vector + `bge-reranker-v2-m3` | 0.54 | 0.54 | 0.57 | 0.53 | 0.50 | 0 | +0.044 [+0.017, +0.072] | 14,576 / 18,126 |
+| **Vector + base + gate (production)** | **0.25** | 0.44 | 0.19 | 0.11 | 0.12 | **226** | −0.241 [−0.283, −0.198] | 4,391 / 5,093 |
+| Vector + v2-m3 + gate | 0.50 | 0.52 | 0.52 | 0.48 | 0.46 | 41 | +0.008 [−0.023, +0.040] | 14,576 / 18,126 |
+
+Files: `eval/results/rerankers_261111_cuda.csv` (quality, all arms including hybrid + re-ranker), `eval/results/rerankers_261111_cpu.csv` (times; its hit numbers come from 20 questions only). Findings:
+1. The gate, not the order, causes most misses: production answers "no sources" for 226 of 474 questions, most of them not English. Without the gate the same re-ranker reaches 0.52.
+2. Re-ranking adds little over vector order: +0.044 for v2-m3, +0.023 (inside the noise) for base, at 4–15 s per question on CPU.
+3. Hybrid search is a little worse than vector order, worse in nl/de/es (BM25 over English text gets nothing from those questions) and equal in English. This set has no exact-term questions (acronyms, names), the case hybrid is for.
+4. A cosine gate on the best vector match separates on-topic from general-knowledge questions: at 0.55 it keeps all 474 retrieval questions (lowest 0.561) and all 27 "answer" questions of `eval/questions.jsonl` (lowest 0.598), and drops 10 of 11 general-knowledge off-topic questions. Off-topic questions close to academia (grants, careers) score 0.57–0.72, so refusing them stays with the classifier.
+5. v2-m3 lets ml02 (de) and ml03 (es) pass the gate (best scores 0.95 and 0.83, base 0.07); whether they then cite the expected papers needs `eval/run.py`.
+
+Limits: the questions were written by an LLM from one chunk each and the translations are an LLM's; no question here needs an exact term. Not yet measured: the full pipeline (`eval/run.py`) with the re-ranker off and a cosine gate, which needs a code change.
