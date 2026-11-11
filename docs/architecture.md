@@ -65,7 +65,11 @@ just-os-chatbot/
 
 The code must be one lingua detects (75 languages, listed in the [lingua README](https://github.com/pemistahl/lingua-py#3-which-languages-are-supported)). A language lingua lacks needs its script added to `SCRIPTS` in `just_os/messages.py`, as for Kannada, which works only for a script no other language uses.
 
-Open check: Hindi and Marathi share the Devanagari script, and lingua may confuse them on very short questions; test it on real questions before relying on it.
+Limitations (measured 11 Nov with lingua 2.2.0 over all languages):
+- **Hindi and Marathi** share the Devanagari script. Lingua told them apart on the eval questions, but on short questions its confidence for the right one is 0.50 to 0.78, so a short question can get the other language. Still to check on real questions.
+- **A language lingua does not know gets the row of a language with the same script.** Nepali gets the Hindi or Marathi text (confidence 0.56 to 0.61), Konkani the Marathi text (0.92). A language lingua does not know in a script no row uses (Malayalam, Sinhala, Amharic, Odia, Burmese) gets English.
+- **Very short questions in a Latin script often get English**, because lingua is unsure on a few words, more so with English terms in them: "Was ist OSF?" and "Wat is open science?" get English.
+- A **minimum confidence** does not fix the second point: Nepali and Konkani score as high as real Hindi and Marathi, so any cut-off that sends them to English also sends real Hindi and Marathi questions to English.
 
 ### Routes (`just_os/app.py`)
 | Route | Method | Purpose |
