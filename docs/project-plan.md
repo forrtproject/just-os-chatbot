@@ -33,7 +33,7 @@ JUST-OS answers open-science questions with citations to the FORRT resource libr
 | Accurate, well-sourced answers | Retrieval hit@5 ≥ 0.85; citation support ≥ 0.90 (LLM judge) |
 | Correct references | Citation number → correct document 100 %; DOIs resolve 100 %; 0 duplicate papers; year = publication year |
 | Correct refusals | ≥ 0.95 refusal off-topic; ≤ 0.05 false refusal in scope; API errors shown as errors |
-| Sustainable hosting | Model served by ≥ 2 API providers **and** self-hostable on 1 GPU; monthly cost under a cap |
+| Sustainable hosting | Model served by ≥ 2 API providers **or** self-hostable on 1 GPU; monthly cost under a cap |
 | Coverage | Reason for every non-indexed FORRT row; one new ingestion route for the largest group |
 | Easy contribution | Fresh clone → running bot in ≤ 30 min; `pytest` runs without the index |
 
