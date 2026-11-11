@@ -16,11 +16,16 @@ import json
 import os
 import random
 import re
+import sys
 from collections import Counter, defaultdict
+from pathlib import Path
 
 import pandas as pd
 from dotenv import load_dotenv
 from openai import OpenAI
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from just_os.references import plain_metadata  # noqa: E402
 
 DOCSTORE = "data/processed/vs_latest_bge-small-en-v1.5/docstore.json"
 OUTPUT = "eval/retrieval_questions.jsonl"
@@ -43,7 +48,7 @@ def load_documents():
         node = value["__data__"]
         doc_id = node["relationships"]["1"]["node_id"]
         texts[doc_id].append(node["text"])
-        titles[doc_id] = node["metadata"].get("title", "")
+        titles[doc_id] = plain_metadata(node["metadata"]).get("title") or ""
     return texts, titles
 
 

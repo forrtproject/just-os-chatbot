@@ -44,7 +44,7 @@ How a PDF got in: open access (Unpaywall `is_oa`) **and** a DOI → `data/pdfs/b
 
 Licence of the 513 documents (field `conditions_of_use`, free text from the form): CC BY (all spellings) ≈ 280, "I don't see any of these" 184, CC BY-NC-ND 14, public domain 8, other. The tooltip shows a passage only for CC BY (incl. SA), CC0 and public domain (`passage_allowed`, issue #6); other sources show title + link.
 
-**Known metadata defect:** 10 documents have every metadata value stored as a one-item dict (`{"<doi_hash>": "title"}`) because `just-os_db_latest.csv` has duplicate `doi_hash` rows and `embed.py` calls `metadata.loc[hash].to_dict()`. Their references show wrong titles and years. `scripts/embed.py` now keeps one row per `doi_hash` (#24); the current index keeps the defect until it is built again.
+**Known metadata defect:** 10 documents have every metadata value stored as a one-item dict (`{"<doi_hash>": "title"}`) because `just-os_db_latest.csv` has duplicate `doi_hash` rows and `embed.py` calls `metadata.loc[hash].to_dict()`. Their references showed wrong titles and years. `scripts/embed.py` now keeps one row per `doi_hash` (#24); the current index keeps the defect until it is built again. Code that reads chunk metadata unwraps these values with `plain_metadata` (`just_os/references.py`): the references shown to users, `eval/run.py` (`retrieved_dois` and `hit`) and `eval/make_retrieval_set.py` (titles). `scripts/reembed.py` copies the chunks with their metadata, so an index it builds keeps the defect.
 
 ## 2. Indexes and vector files
 

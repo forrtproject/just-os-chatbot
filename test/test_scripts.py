@@ -1,6 +1,7 @@
 """Eval and ingestion scripts: judge (#8), classifier comparison (#9), cluster PDFs (#17),
-HTML route (#18), adding to an index (#25)."""
+HTML route (#18), adding to an index (#25), dict-valued metadata in eval (#24)."""
 
+import json
 import sys
 from pathlib import Path
 
@@ -14,6 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eval"))
 
 import classify  # noqa: E402
 import judge  # noqa: E402
+import make_retrieval_set  # noqa: E402
+import run  # noqa: E402
 from just_os import qualle  # noqa: E402
 from scripts import add_to_index, fetch_web_resources, match_cluster_pdfs  # noqa: E402
 from test_qualle import CONFIG, FakeChatManager, FakeClient, completion  # noqa: E402
@@ -92,3 +95,31 @@ def test_add_to_index_skips_documents_already_in_it(tmp_path):
     assert documents[0].text == "new text "  # citation marks removed, as in embed.py
     assert add_to_index.add_documents(loaded, documents) == 1
     assert len(loaded.docstore.docs) == before + 1
+
+
+# --- dict-valued metadata of the 10 documents from #24 in the eval scripts
+
+
+class Node:
+    def __init__(self, metadata):
+        self.metadata = metadata
+
+
+def test_eval_run_unwraps_dict_valued_dois():
+    wrapped = Node({"doi": {"15971e768acb8a3c4817369e0d6b1f95": "10.1002/ICD.2315"}})
+    assert run.doi_of(wrapped) == "10.1002/icd.2315"
+    assert run.doi_of(Node({"doi": "https://doi.org/10.1177/1745691612459058"})) == "10.1177/1745691612459058"
+    assert run.doi_of(Node({})) == ""
+
+
+def test_retrieval_set_unwraps_dict_valued_titles(tmp_path, monkeypatch):
+    def node(doc_id, title):
+        return {"__data__": {"text": "t", "metadata": {"title": title}, "relationships": {"1": {"node_id": doc_id}}}}
+
+    store = {"docstore/data": {"a": node("d1", {"hash": "Scientific Utopia II"}), "b": node("d2", "Plain title")}}
+    path = tmp_path / "docstore.json"
+    path.write_text(json.dumps(store), encoding="utf-8")
+    monkeypatch.setattr(make_retrieval_set, "DOCSTORE", str(path))
+    _, titles = make_retrieval_set.load_documents()
+    assert titles == {"d1": "Scientific Utopia II", "d2": "Plain title"}
+
