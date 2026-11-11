@@ -129,6 +129,14 @@ def test_source_list_without_citations_lists_each_paper_once():
     assert qualle.ReferenceProcessor().references_from_nodes(nodes).count("Manual") == 1
 
 
+def test_answer_without_citations_has_no_sources():
+    # A refusal cites nothing: [] means "no sources", only None means "list every paper"
+    nodes = [chunk("Manual", "10.1234/m"), chunk("Other", "10.1234/o")]
+    processor = qualle.ReferenceProcessor()
+    assert processor.references_from_nodes(nodes, []) == ""
+    assert processor.reference_list(nodes, []) == []
+
+
 def test_tooltip_hides_passage_for_closed_licence_and_never_shows_timestamp():
     nodes = [chunk("Closed", "10.1234/c", "secret passage", licence="I don't see any of these")]
     html, _ = qualle.ReferenceProcessor().process_markdown_with_references("X [0].", nodes)

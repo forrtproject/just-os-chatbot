@@ -675,7 +675,7 @@ class ReferenceProcessor:
         """The source list as data, one entry per document, for the page to format.
         With the answer (Markdown with the original [n] numbers) each entry gets a snippet."""
         snippets = self.snippets(nodes, answer)
-        if not used_refs_ordered:
+        if used_refs_ordered is None:
             seen, used_refs_ordered = set(), []
             for idx, node in enumerate(nodes):
                 key = document_key(plain_metadata(node.metadata))
@@ -731,7 +731,7 @@ class ReferenceProcessor:
             Formatted reference list as a string
         """
         try:
-            if not used_refs_ordered:
+            if used_refs_ordered is None:
                 seen = set()
                 used_refs_ordered = []
                 for idx, node in enumerate(nodes):
