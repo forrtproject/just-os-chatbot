@@ -1,13 +1,15 @@
 """Refusals and errors in the language of the question (config/refusals.csv)."""
 
 import csv
+import importlib.util
 import logging
+from pathlib import Path
 
 import markdown
 import pytest
 
 from just_os import messages
-from test_qualle import make_qualle
+from test_qualle import make_qualle, node
 
 TR_OFF_TOPIC = "Akademide kariyer ilerlemesi için hangi beceriler gereklidir?"
 KN_OFF_TOPIC = "ಶೈಕ್ಷಣಿಕ ವೃತ್ತಿಜೀವನದಲ್ಲಿ ಮುನ್ನಡೆಯಲು ಯಾವ ಕೌಶಲ್ಯಗಳು ಬೇಕು?"
@@ -135,3 +137,40 @@ def test_arena_refusal_in_turkish():
     q = make_qualle(False, [], [], "unused")
     final = list(q.get_arena_response(TR_OFF_TOPIC, ["a", "b"]))[-1]
     assert table()["tr"]["off_topic"] in final["message"]
+
+
+def test_generation_error_in_turkish():
+    q = make_qualle(True, [node("Paper")], [node("Paper")], "")  # the answer model returns nothing
+    final = list(q.get_response(TR_OFF_TOPIC, "chat"))[-1]
+    assert table()["tr"]["generation_error"] in final["message"]
+
+
+def test_unexpected_error_in_turkish():
+    q = make_qualle(True, [], [], "unused")
+
+    def fail(query):
+        raise RuntimeError("index broken")
+
+    q.document_retriever.retrieve_and_rerank = fail
+    final = list(q.get_response(TR_OFF_TOPIC, "chat"))[-1]
+    assert final["status"] == "error"
+    assert table()["tr"]["unexpected_error"] in final["message"]
+    arena = list(q.get_arena_response(TR_OFF_TOPIC, ["a"]))[-1]
+    assert table()["tr"]["unexpected_error"] in arena["message"]
+
+
+# --- eval/run.py counts a refusal in any language as a refusal
+
+
+def test_eval_outcome_recognises_translated_refusals():
+    spec = importlib.util.spec_from_file_location(
+        "eval_run", Path(__file__).resolve().parent.parent / "eval" / "run.py"
+    )
+    run = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(run)
+    for texts in table().values():
+        refusal = {"status": "complete", "message": markdown.markdown(texts["off_topic"])}
+        no_sources = {"status": "complete", "message": markdown.markdown(texts["no_sources"])}
+        assert run.outcome_of(refusal) == "refused"
+        assert run.outcome_of(no_sources) == "no_sources"
+    assert run.outcome_of({"status": "complete", "message": "<p>An answer [0].</p>"}) == "answered"
