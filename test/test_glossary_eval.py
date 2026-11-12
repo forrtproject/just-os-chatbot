@@ -82,3 +82,35 @@ def test_skip_classifier_routes_every_question_to_the_library():
     qualle = type("Q", (), {})()
     run.skip_classifier(qualle)
     assert qualle.route("anything") == qualle.route("anything", "jev") == "open_science"
+
+
+def test_grading_page_is_blind_and_rotates_generators(tmp_path):
+    import build_grading_page
+
+    rubric = [{"id": "r1", "type": "core", "criterion": "c"}]
+    items = {g: [{"id": f"gl0{n}en", "term": f"T{n}", "question": f"{g} q{n}", "rubric": rubric} for n in (1, 2, 3)]
+             for g in ("a/x", "b/y", "c/z")}
+    for g in items:
+        for mode in build_grading_page.MODES:
+            with open(tmp_path / f"glossary_{g.replace('/', '__')}_{mode}.csv", "w", encoding="utf-8") as f:
+                f.write("id,outcome,answer\n" + "".join(f"gl0{n}en,answered,{g} {mode} {n}\n" for n in (1, 2, 3)))
+    glossary = [{"en_title": f"T{n}", "definition": f"d{n}"} for n in (1, 2, 3)]
+    data, keys = build_grading_page.build(glossary, items, tmp_path)
+
+    assert len(data["part1"]) == 9 and len(data["part2"]) == 6
+    fields = {f for part in data.values() for entry in part for f in entry}
+    assert fields == {"key", "term", "definition", "question", "rubric", "answer"}
+    part2 = [k for k in keys if k["part"] == 2]
+    assert sorted((k["item"], k["generator"]) for k in part2 if k["condition"] == "library") == [
+        ("gl01en", "a/x"), ("gl02en", "b/y"), ("gl03en", "c/z")]
+    by_key = {e["key"]: e for e in data["part2"]}
+    assert all(by_key[k["key"]]["question"].startswith(k["generator"]) for k in part2)
+
+
+def test_answer_is_shown_as_the_app_shows_it_without_citations():
+    import build_grading_page as b
+
+    raw = "Plan.\n[Response_Start] HARKing is X [0], see [1, 2]. [Response_End]\n[0] Title: echoed passage"
+    assert b.shown_answer(raw) == "HARKing is X [0], see [1, 2]."
+    assert b.without_citations(b.shown_answer(raw)) == "HARKing is X, see."
+    assert b.shown_answer("No markers [3].") == "No markers [3]."
