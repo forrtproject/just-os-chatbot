@@ -1,7 +1,7 @@
 """Rubric judge for items with a rubric (eval/glossary_items.jsonl): how much of it does an answer cover?
 
     docker compose exec web python eval/rubric_judge.py eval/results/run_X.csv \
-        --items eval/glossary_items.jsonl [--model openai/gpt-4.1-mini]
+        --items eval/glossary_items.jsonl [--model google/gemini-3.8-flash]
 
 For each answered row, a judge model scores every rubric item from 0 (not covered) to
 4 (fully covered), the scale of ResearchQA. Columns added to the run CSV:
@@ -25,6 +25,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config.settings import get_config  # noqa: E402
 from just_os.qualle import OpenAIClientManager  # noqa: E402
+
+from build_grading_page import shown_answer  # noqa: E402  same folder
+from glossary_items import parse_json  # noqa: E402  same folder
 
 PROMPT = """You grade an answer against a rubric. For each rubric item, decide how fully the
 answer covers it, whatever the language of the answer:
@@ -54,7 +57,7 @@ def judge(manager, model, question, answer, rubric, cost):
             extra_body={"usage": {"include": True}},
         )
         cost[0] += getattr(response.usage, "cost", 0) or 0
-        scores = json.loads(response.choices[0].message.content)["scores"]
+        scores = parse_json(response.choices[0].message.content)["scores"]
         return {r["id"]: min(max(int(scores[r["id"]]), 0), 4) for r in rubric}
     except Exception as e:  # a failed judgement leaves the row empty, the run goes on
         print(f"judge failed: {e}")
@@ -79,7 +82,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("run_csv")
     parser.add_argument("--items", default="eval/glossary_items.jsonl")
-    parser.add_argument("--model", default="openai/gpt-4.1-mini", help="judge model (OpenRouter id)")
+    # A judge from a family that generated none of the items (gpt-4.1-mini, Claude, Qwen)
+    parser.add_argument("--model", default="google/gemini-3.8-flash", help="judge model (OpenRouter id)")
     parser.add_argument("--controls", action="store_true", help="also score reference answers")
     args = parser.parse_args()
 
@@ -93,7 +97,8 @@ def main():
         if not item or row.get("outcome") != "answered" or not row.get("answer"):
             print(f"{row['id']:7} skipped ({row.get('outcome')})")
             continue
-        scores = judge(manager, args.model, row["question"], row["answer"], item["rubric"], cost)
+        # the answer as the app shows it, without passages the model echoed after [Response_End]
+        scores = judge(manager, args.model, row["question"], shown_answer(row["answer"]), item["rubric"], cost)
         if scores:
             row.update(rubric_coverage=coverage(scores, item["rubric"]), rubric_core=coverage(scores, item["rubric"], "core"),
                        rubric_scores=json.dumps(scores))
