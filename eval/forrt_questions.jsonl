@@ -1,0 +1,32 @@
+{"id": "o01", "question": "What is FORRT?", "expected_urls": ["https://forrt.org/", "https://forrt.org/about/", "https://forrt.org/about/us/", "https://forrt.org/glossary/english/forrt/", "https://forrt.org/welcome/"], "kind": "org", "reviewed": false}
+{"id": "o02", "question": "How can I get involved with FORRT?", "expected_urls": ["https://forrt.org/about/get-involved/"], "kind": "org", "reviewed": false}
+{"id": "o03", "question": "Which FORRT teams can I join?", "expected_urls": ["https://forrt.org/about/teams/"], "kind": "org", "reviewed": false}
+{"id": "o04", "question": "Does FORRT have open positions or volunteer opportunities?", "expected_urls": ["https://forrt.org/about/get-involved/", "https://forrt.org/about/teams/"], "kind": "org", "reviewed": false}
+{"id": "o05", "question": "Which projects are currently looking for collaborators?", "expected_urls": ["https://forrt.org/about/get-involved/"], "kind": "org", "reviewed": false}
+{"id": "o06", "question": "Who is on FORRT's steering committee?", "expected_urls": ["https://forrt.org/about/steering-committee/"], "kind": "org", "reviewed": false}
+{"id": "o07", "question": "How do I cite FORRT?", "expected_urls": ["https://forrt.org/about/cite_us/"], "kind": "org", "reviewed": false}
+{"id": "o08", "question": "Who can I talk to confidentially about a code of conduct problem?", "expected_urls": ["https://forrt.org/about/confidential-advisor-ombuds/", "https://forrt.org/coc/"], "kind": "org", "reviewed": false}
+{"id": "o09", "question": "Is FORRT a registered charity?", "expected_urls": ["https://forrt.org/about/charity/"], "kind": "org", "reviewed": false}
+{"id": "o10", "question": "Who are FORRT's partners?", "expected_urls": ["https://forrt.org/about/partnerships/", "https://forrt.org/post/2026-06-peer-community-in-partner/"], "kind": "org", "reviewed": false}
+{"id": "p01", "question": "What is the Nowhere Lab?", "expected_urls": ["https://forrt.org/nowherelab/", "https://forrt.org/post/2026-05-nowhere-lab/", "https://forrt.org/educators-corner/013-introducing-nowhere-lab/", "https://forrt.org/curated_resources/introducing-nowhere-lab/"], "kind": "project", "reviewed": false}
+{"id": "p02", "question": "How do I submit a replication to FLoRA?", "expected_urls": ["https://forrt.org/replication-hub/submit/", "https://forrt.org/replication-hub/flora/"], "kind": "project", "reviewed": false}
+{"id": "p03", "question": "Is there a list of large-scale replication projects?", "expected_urls": ["https://forrt.org/replication-hub/large-scale-replication-projects/"], "kind": "project", "reviewed": false}
+{"id": "p04", "question": "What is the Academic Wheel of Privilege?", "expected_urls": ["https://forrt.org/awop/"], "kind": "project", "reviewed": false}
+{"id": "p05", "question": "Are there games for teaching open science?", "expected_urls": ["https://forrt.org/games/"], "kind": "project", "reviewed": false}
+{"id": "p06", "question": "Where can I find lesson plans for teaching open science?", "expected_urls": ["https://forrt.org/lesson-plans/", "https://forrt.org/teaching_os/", "https://forrt.org/syllabus/", "https://forrt.org/neurodiversity-lessonbank/"], "kind": "project", "reviewed": false}
+{"id": "p07", "question": "What does FORRT offer on neurodiversity?", "expected_urls": ["https://forrt.org/neurodiversity/", "https://forrt.org/neurodiversity-lessonbank/", "https://forrt.org/educators-corner/010-neurodiversity/"], "kind": "project", "reviewed": false}
+{"id": "p08", "question": "What is the JUST-OS chatbot?", "expected_urls": ["https://forrt.org/just_os_chatbot/", "https://forrt.org/post/2026-05-just-os-chatbot/"], "kind": "project", "reviewed": false}
+{"id": "p09", "question": "What are the FORRT clusters?", "expected_urls": ["https://forrt.org/clusters/", "https://forrt.org/forrt_clusters/"], "kind": "project", "reviewed": false}
+{"id": "p10", "question": "Is there a Chinese version of the FORRT glossary?", "expected_urls": ["https://forrt.org/post/2026-05-chinese-glossary/"], "kind": "project", "reviewed": false}
+{"id": "t01", "question": "Are there any upcoming FORRT conferences?", "expected_urls": ["https://forrt.org/post/", "https://forrt.org/ai-metascience/", "https://forrt.org/post/2026-10-ai-in-metascience-recordings/"], "kind": "time", "reviewed": false}
+{"id": "t02", "question": "Where can I watch the AI in Metascience conference talks?", "expected_urls": ["https://forrt.org/post/2026-10-ai-in-metascience-recordings/", "https://forrt.org/ai-metascience/"], "kind": "time", "reviewed": false}
+{"id": "t03", "question": "What awards has FORRT received?", "expected_urls": ["https://forrt.org/awards/", "https://forrt.org/post/2026-10-nwo-award/"], "kind": "time", "reviewed": false}
+{"id": "t04", "question": "What is new at FORRT?", "expected_urls": ["https://forrt.org/post/"], "kind": "time", "reviewed": false}
+{"id": "g01", "question": "What is HARKing?", "expected_urls": ["https://forrt.org/glossary/english/harking/"], "kind": "glossary", "reviewed": false}
+{"id": "g02", "question": "What is a registered report?", "expected_urls": ["https://forrt.org/glossary/english/registered_report/", "https://forrt.org/glossary/english/pci_registered_reports/"], "kind": "glossary", "reviewed": false}
+{"id": "g03", "question": "Where can I read FORRT's privacy policy?", "expected_urls": ["https://forrt.org/privacy/"], "kind": "org", "reviewed": false}
+{"id": "g04", "question": "Where are the newsletter archives?", "expected_urls": ["https://forrt.org/newsletters/", "https://forrt.org/post/"], "kind": "org", "reviewed": false}
+{"id": "m01", "question": "Wie kann ich bei FORRT mitmachen?", "expected_urls": ["https://forrt.org/about/get-involved/"], "kind": "multilingual", "reviewed": false}
+{"id": "m02", "question": "¿Qué es FORRT?", "expected_urls": ["https://forrt.org/", "https://forrt.org/about/", "https://forrt.org/about/us/", "https://forrt.org/glossary/english/forrt/", "https://forrt.org/welcome/"], "kind": "multilingual", "reviewed": false}
+{"id": "p11", "question": "What is Re-SearchTerms?", "expected_urls": ["https://forrt.org/re-searchterms/"], "kind": "project", "reviewed": false}
+{"id": "p12", "question": "How can I contribute definitions of research terms in German or Chinese?", "expected_urls": ["https://forrt.org/re-searchterms/"], "kind": "project", "reviewed": false}

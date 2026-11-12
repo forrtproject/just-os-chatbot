@@ -16,7 +16,9 @@ from sentence_transformers import CrossEncoder
 
 from just_os.answer_cache import AnswerCache
 from just_os.chat_manager import ChatManager
+from just_os.decisions import DecisionClient
 from just_os.forrt_lookup import ForrtLookup
+from just_os.forrt_pages import ForrtPages
 from just_os import messages as msg
 from just_os.openscholar import generation_instance_prompts_w_references, system_prompt
 from just_os.references import (
@@ -855,6 +857,10 @@ class Qualle:
     Main RAG service implementation that handles queries and responses.
     """
 
+    # set in __init__ when DECISION_ROUTER / FORRT_PAGES are on (class defaults keep test doubles working)
+    decisions: Optional[DecisionClient] = None
+    forrt_pages: Optional[ForrtPages] = None
+
     def __init__(
         self, config: Dict[str, Any], chat_manager: ChatManager, embed_model, retriever
     ):
@@ -898,6 +904,16 @@ class Qualle:
             else None
         )
 
+        # Decision-model router and FORRT page router (DECISION_ROUTER, FORRT_PAGES)
+        self.decisions = DecisionClient(config) if (config.get("DECISION_ROUTER") or config.get("FORRT_PAGES")) else None
+        self.forrt_pages = None
+        if config.get("FORRT_PAGES"):
+            try:
+                self.forrt_pages = ForrtPages(config, embed_model, self.client_manager, self.decisions)
+            except Exception as e:  # missing or broken index: start without the FORRT route, never crash
+                logger.error(f"FORRT_PAGES is on but the page index could not be loaded ({e}); "
+                             "run scripts/build_forrt_pages.py. FORRT questions use the other routes.")
+
         # Semantic answer cache (off when ANSWER_CACHE_TTL is 0)
         self.answer_cache = (
             AnswerCache(chat_manager.redis, embed_model, config)
@@ -909,6 +925,22 @@ class Qualle:
         msg.preload()
 
         logger.debug("Qualle service initialized")
+
+    def route(self, query: str) -> Optional[str]:
+        """open_science / forrt / both / off_topic (or forrt_lookup from the LLM classifier); None = model error.
+
+        DECISION_ROUTER: a decision model decides when it is confident enough; otherwise, and when it fails,
+        the LLM classifier decides (three classes when a FORRT route is set up, else open science or not).
+        """
+        if self.config.get("DECISION_ROUTER") and self.decisions is not None:
+            route, p, info = self.decisions.route(self.config.get("DECISION_ROUTER_MODEL", "cloudflare/clef"), query)
+            logger.info(f"Timing: decision router {info.get('ms')} ms -> {route} (p={p:.2f})")
+            if route and p >= self.config.get("DECISION_ROUTER_MIN_CONFIDENCE", 0.5):
+                return "off_topic" if route == "neither" else route
+        if (self.config.get("FORRT_LOOKUP") and self.forrt_lookup is not None) or self.forrt_pages is not None:
+            return self.query_processor.classify_intent(query)
+        is_open_science = self.query_processor.classify_query(query)
+        return None if is_open_science is None else ("open_science" if is_open_science else "off_topic")
 
     def no_relevant_nodes_handler(
         self, query: str, chat_id: str
@@ -975,11 +1007,7 @@ class Qualle:
                     logger.debug(f"Rephrased query: {query}")
 
             yield {"status": "in-progress", "message": "Classifying question"}
-            if self.config.get("FORRT_LOOKUP") and self.forrt_lookup is not None:
-                intent = self.query_processor.classify_intent(query)
-            else:
-                is_open_science = self.query_processor.classify_query(query)
-                intent = None if is_open_science is None else ("open_science" if is_open_science else "off_topic")
+            intent = self.route(query)
             logger.debug(f"Query intent: {intent}")
 
             if intent is None:
@@ -990,11 +1018,27 @@ class Qualle:
                 }
                 return
 
-            if intent == "forrt_lookup":
+            if intent in ("forrt", "forrt_lookup") and self.forrt_pages is not None:
+                yield {"status": "in-progress", "message": "Reading FORRT pages"}
+                result = self.forrt_pages.answer(query, model=model, language_text=user_query)
+                if result["text"] is None:
+                    error = msg.message("generation_error", user_query)
+                    remember(error)
+                    yield {"status": "complete", "message": markdown.markdown(error), "outcome": "error"}
+                    return
+                remember(result["text"])
+                yield {"status": "complete", "message": markdown.markdown(result["text"]),
+                       "outcome": "forrt" if result["found"] else "no_sources"}
+                return
+
+            if intent in ("forrt", "forrt_lookup") and self.forrt_lookup is not None:
                 answer = self.forrt_lookup.answer(user_query if history_for_answer else query)
                 remember(answer)
                 yield {"status": "complete", "message": markdown.markdown(answer), "outcome": "forrt_lookup"}
                 return
+
+            if intent in ("forrt", "forrt_lookup", "both"):
+                intent = "both" if intent == "both" else "open_science"  # no FORRT route set up: papers answer
 
             if intent == "off_topic":
                 refusal = msg.message("off_topic", user_query)
@@ -1072,6 +1116,13 @@ class Qualle:
                     ),
                 },
             }
+            if intent == "both" and self.forrt_pages is not None:
+                # the question also concerns FORRT itself: add the best forrt.org pages (no extra answer call)
+                links = self.forrt_pages.links(query)
+                if links:
+                    final["message"] += markdown.markdown(
+                        "**On forrt.org:**\n\n" + "\n".join(f"- [{link['title']}]({link['url']})" for link in links))
+                    final["outcome"] = "both"
             if use_cache:
                 self.answer_cache.store(query, final, processed_message, model)
             yield final

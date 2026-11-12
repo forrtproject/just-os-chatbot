@@ -42,6 +42,37 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "FORRT_LOOKUP": False,
     "FORRT_SHEET_FILE": "data/raw/forrt_sheet1_261028.csv",
     "FORRT_LOOKUP_TOP_K": 5,
+    # Decision-model router: one call to a decision model (TypeSafe Jev, Cloudflare Clef or
+    # Clef-flash via OpenRouter's decisions API) classifies the question as open_science /
+    # forrt / both / neither. Below DECISION_ROUTER_MIN_CONFIDENCE, or when the call fails,
+    # the LLM classifier above decides. Models: typesafe/jev-1.14, cloudflare/clef, cloudflare/clef-flash
+    "DECISION_ROUTER": True,
+    "DECISION_ROUTER_MODEL": "cloudflare/clef-flash",  # best of Jev/Clef/Clef-flash in docs/evaluation.md 3.6
+    "DECISION_ROUTER_MIN_CONFIDENCE": 0.5,
+    "DECISION_URL": "https://openrouter.ai/api/alpha/decisions",
+    "DECISION_TIMEOUT": 8,  # seconds; on timeout or error the LLM classifier decides
+    # FORRT page router (just_os/forrt_pages.py): "forrt" questions are answered from forrt.org's
+    # own pages; "both" questions get the paper answer plus links to FORRT pages. Needs the page
+    # index from scripts/build_forrt_pages.py in FORRT_PAGES_DIR.
+    "FORRT_PAGES": True,
+    "FORRT_PAGES_DIR": "vector_data/forrt_pages",  # in Git (~1 MB); rebuild with scripts/build_forrt_pages.py
+    "FORRT_SELECT_MODEL": "cloudflare/clef",  # decision model that picks the pages
+    "FORRT_ANSWER_MODEL": "",  # empty = CITATION_MODEL
+    "FORRT_DESCRIBE_MODEL": "openai/gpt-oss-20b",  # writes the page descriptions (build script)
+    "FORRT_TOP_K": 12,  # candidate pages from the search
+    "FORRT_MAX_PAGES": 4,  # pages read for one answer
+    "FORRT_DECISION_THRESHOLD": 0.7,  # keep pages with p >= this ...
+    "FORRT_DECISION_FLOOR": 0.2,  # ... or, if none, the plausible ones above this; below = not found
+    "FORRT_FETCH_TIMEOUT": 6,
+    "FORRT_CACHE_TTL": 3600,  # pages are always read live; seconds an answer may reuse a fetched page
+    "FORRT_FETCH_DOMAINS": "forrt.org",
+    "FORRT_MAX_CHARS_PER_PAGE": 6000,
+    "FORRT_MAX_ANSWER_TOKENS": 1500,
+    "FORRT_LISTING_URLS": "https://forrt.org/post/",  # read first for news/event questions
+    "FORRT_LEXICAL_WEIGHT": 0.1,
+    "FORRT_RECENCY_WEIGHT": 0.1,
+    "FORRT_RECENCY_HALF_LIFE": 90,
+    "FORRT_EXTRA_URLS_FILE": "config/forrt_extra_urls.txt",  # FORRT project sites missing from the sitemap
     # Answer prompt: "openscholar" (long, made for OpenScholar) or "short" (model-neutral)
     "PROMPT_STYLE": "openscholar",
     # Semantic answer cache: seconds to keep answers (0 = off); reuse if cosine >= limit

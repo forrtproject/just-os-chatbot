@@ -141,3 +141,54 @@ Findings:
 4. **Answers without `[n]`:** in German, 3 of 7 test answers had no citation, so the source list showed every retrieved paper. The prompt now asks for `[n]` in every language and an uncited answer is asked once more, but only if the first came back within `LLM_TIMEOUT`; the 5 uncited answers left in 1034 are slow non-English ones (nl, hi, mr, kn). Since #42 they show no sources instead of all.
 5. ml04 (Turkish) now passes the topic check but no chunk reaches `MIN_RELEVANCE` ("no sources").
 6. Correct moves within 2 of 54 questions and the model is not deterministic: read 0.91 → 0.93 as "not worse, multilingual better", not as a measured gain.
+
+### 3.6 FORRT page router and decision models (12 November 2026, prototype, `meta-llama/llama-3.1-8b-instruct`)
+
+Measured in a stand-alone prototype of `just_os/forrt_pages.py` (same steps; page vectors from bge-m3 via OpenRouter). **Question set:** 226 simulated visitor questions written by `google/gemma-4-31b-it` from the text of real forrt.org pages: one per menu / project / tool page, news posts and newsletters, 20 open-science questions from glossary and curated-resource pages, 12 off-topic questions and 32 hand-written ones. Styles: natural question, 2–5 word search query, vague "my situation" question, other languages (de, es, nl, pt, zh). **Judge:** `google/gemma-4-31b-it` (not one of the answer models) with the source page and the pages the bot read: correct / complete / helpful 1–5, invented facts, date error, language, pass. Calibrated by hand on 8 answers only: treat differences of a few points as noise.
+
+**Router** (`just_os/decisions.py`, 226 questions). Labels come from each question's source page (off-topic → neither; page in the FORRT scope → forrt; glossary, curated resources, clusters → open_science), so they are noisy: many "misroutes" are right on reading (*"Why is it a problem if studies only use one group of people?"*, written from an Educators' Corner page, is an open-science question). Read the numbers as a comparison between classifiers, not as accuracy.
+
+| Classifier | Exact | FORRT questions sent to "neither" | Mean / p95 s | USD / 1,000 q |
+|---|---|---|---|---|
+| Llama 3.1 8B with `classify_intent` (current) | 0.51 | 25 / 159 | 1.1 / 2.2 | 0.006 |
+| `typesafe/jev-1.14` | 0.59 | 16 | 1.1 / 3.1 | 0.020 |
+| `cloudflare/clef` | 0.58 (0.73 counting `both` as right) | 2 | 1.3 / 3.0 | 0.064 |
+| `cloudflare/clef-flash` | 0.62 | 2 | 1.3 / 2.6 | 0.007 |
+| **`cloudflare/clef-flash`, Llama below p 0.5** (the defaults) | **0.65** | – | – | – |
+
+A hand-labelled question set is needed for real accuracy; real errors seen include *"When is the OSF conference early-bird deadline?"* → forrt (p 0.91).
+
+**Page selector** (32 hand-written questions, the same 12 candidates for each): decision models pick as well as an LLM, 5–15× faster.
+
+| Selector | Right page picked | Top pick right | Mean / p95 s | USD / 1,000 q |
+|---|---|---|---|---|
+| top search result only | 25/32 | 25/32 | 0 | 0 |
+| `cloudflare/clef` | **30/32** | 28/32 | 2.8 / 7.9 | 0.60 |
+| `cloudflare/clef-flash` | 29/32 | **29/32** | 0.9 / 1.7 | 0.07 |
+| `typesafe/jev-1.14` | 29/32 | 28/32 | 0.7 / 1.9 | 0.09 |
+| `openai/gpt-oss-20b` (LLM) | 28/30 | 25/30 | 2.1 / 5.3 | – |
+| `meta-llama/llama-3.1-8b-instruct` (LLM) | 27/30 | 25/30 | 8.6 / 15.1 | – |
+
+**End to end, Clef + Llama 3.1 8B**, 171 questions in the new scope (menu pages, announcements, newsletters, project sites):
+
+| | Before: all 1,929 pages, no checks | After: 163 pages + checks in code (`forrt_checks.py`) |
+|---|---|---|
+| **Answers judged acceptable** | 0.75 | **0.77** |
+| Other languages (21 questions) | 0.50 | **0.76** |
+| News and events (22) | 0.52 | **0.65** |
+| Hand-written (28) | 0.73 | **0.85** |
+| Natural questions (59) | **0.89** | 0.79 |
+| Answers with `[n]` citations | 0.36 | **1.00** |
+| Answers with a link not in the pages read | 0.035 | **0.006** |
+| Answers with a broken link (`osf.io/af4nk\_v2` escapes) | 0.135 | **0.006** |
+| Past events called upcoming (time questions) | 0.17 | 0.14 |
+| Right page among 12 candidates / picked / top pick | 0.87 / 0.85 / 0.58 | **0.94 / 0.90 / 0.69** |
+| Off-topic refused | **12/12** | 11/12 |
+| Mean / p95 seconds | **10.1 / 20.9** | 12.9 / 23.7 |
+
+Findings:
+1. **Narrowing the scope helps search**: with the 1,474 curated-resource pages gone, the right page is a candidate for 94 % of questions (87 %) and the top pick for 69 % (58 %).
+2. **The checks in code fix what the prompt alone did not**: every answer cites its pages, invented and broken links are gone, and non-English questions are answered in their language (the one rewrite adds ~3 s on average).
+3. **Llama 3.1 8B is now the weak step**: of the remaining failures most are answer-model errors (invented references, "not found" although the page has the answer, irrelevant newsletter items, past events still called upcoming in 14 % of time questions). The drop for natural questions is part judge noise and part these errors. A stronger answer model (`FORRT_ANSWER_MODEL`; deepseek-v4-flash and qwen3.6-27b handled dates correctly in spot checks) is the next test.
+4. Of the 55 questions now out of scope (glossary, curated resources, clusters), the FORRT route still answered 48 from FORRT pages; with `DECISION_ROUTER` they go to the papers path instead.
+5. Questions and judge come from one model family and the judge was checked on 8 answers: re-run with a reviewed question set before relying on differences under ~5 points.
