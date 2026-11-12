@@ -1,10 +1,11 @@
-"""Rubric judge for items with a rubric (eval/glossary_items.jsonl): how much of it does an answer cover?
+"""Rubric judge for questions with a rubric (the FORRT glossary items): how much of it does an answer cover?
 
     docker compose exec web python eval/rubric_judge.py eval/results/run_X.csv \
-        --items eval/glossary_items.jsonl [--model google/gemini-3.8-flash]
+        [--items eval/questions.jsonl] [--model google/gemini-3.8-flash]
 
-For each answered row, a judge model scores every rubric item from 0 (not covered) to
-4 (fully covered), the scale of ResearchQA. Columns added to the run CSV:
+For each answered row whose question has a rubric in --items, a judge model scores every
+rubric item from 0 (not covered) to 4 (fully covered), the scale of ResearchQA. Columns
+added to the run CSV (empty for questions without a rubric):
 - rubric_coverage: mean score / 4 over all items (0-1)
 - rubric_core: the same over the "core" items only
 - rubric_scores: the scores per item id, as JSON
@@ -81,14 +82,14 @@ def doi_recall(row, item):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("run_csv")
-    parser.add_argument("--items", default="eval/glossary_items.jsonl")
+    parser.add_argument("--items", default="eval/questions.jsonl", help="questions; only those with a rubric are judged")
     # A judge from a family that generated none of the items (gpt-4.1-mini, Claude, Qwen)
     parser.add_argument("--model", default="google/gemini-3.8-flash", help="judge model (OpenRouter id)")
     parser.add_argument("--controls", action="store_true", help="also score reference answers")
     args = parser.parse_args()
 
     with open(args.items, encoding="utf-8") as f:
-        items = {i["id"]: i for i in map(json.loads, f)}
+        items = {i["id"]: i for i in map(json.loads, f) if i.get("rubric")}
     manager = OpenAIClientManager(get_config())
     cost = [0.0]
     with open(args.run_csv, encoding="utf-8") as f:
@@ -96,7 +97,9 @@ def main():
     for row in rows:
         item = items.get(row["id"])
         row.update(rubric_coverage="", rubric_core="", rubric_scores="", doi_recall="")
-        if not item or row.get("outcome") != "answered" or not row.get("answer"):
+        if not item:  # a question without a rubric
+            continue
+        if row.get("outcome") != "answered" or not row.get("answer"):
             print(f"{row['id']:7} skipped ({row.get('outcome')})")
             continue
         # the answer as the app shows it, without passages the model echoed after [Response_End]
