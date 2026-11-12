@@ -120,6 +120,7 @@ def strip_unsupported_links(text: str, pages: List[Dict[str, Any]]) -> Tuple[str
 
 def clean_citations(text: str, n_pages: int) -> str:
     text = re.sub(r"【(\d+)(?:†[^】]*)?】", r"[\1]", text)
+    text = re.sub(r"\s*\[(?:no|without|not)\b[^\]\n]{0,40}\b(?:page|citation|source|number)s?\b[^\]\n]{0,20}\]", "", text, flags=re.I)  # "[no specific page number]"
     return re.sub(r"\[(\d+)\](?!\()", lambda m: m.group(0) if 1 <= int(m.group(1)) <= n_pages else "", text)
 
 

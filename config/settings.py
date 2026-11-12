@@ -73,7 +73,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "FORRT_FETCH_TIMEOUT": 6,
     "FORRT_CACHE_TTL": 3600,  # pages are always read live; seconds an answer may reuse a fetched page
     "FORRT_FETCH_DOMAINS": "forrt.org",
-    "FORRT_MAX_CHARS_PER_PAGE": 6000,
+    "FORRT_MAX_CHARS_PER_PAGE": 12000,  # a typical long page whole (/about/us/ ~8,400); longer pages are trimmed
     "FORRT_MAX_ANSWER_TOKENS": 1500,
     "FORRT_LISTING_URLS": "https://forrt.org/post/",  # read first for news/event questions
     "FORRT_LEXICAL_WEIGHT": 0.1,
