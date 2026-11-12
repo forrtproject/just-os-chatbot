@@ -29,7 +29,7 @@ from just_os.rag_service import create_rag_service  # noqa: E402
 from just_os.references import normalize_doi, plain_metadata  # noqa: E402
 
 FIELDS = [
-    "id", "lang", "cluster", "type", "route", "expect", "outcome", "correct", "hit", "n_citations",
+    "id", "lang", "cluster", "type", "route", "expect", "outcome", "answered_from", "correct", "hit", "n_citations",
     "citations_valid", "seconds", "classify_s", "search_s", "rerank_s", "answer_s",
     "prompt_tokens", "completion_tokens", "cost_usd",
     "retrieved_dois", "question", "answer", "passages",
@@ -46,6 +46,15 @@ def outcome_of(final):
     if any(t in text for t in all_texts("no_sources")):
         return "no_sources"
     return "answered"
+
+
+def answer_source(seen, refs):
+    """Where the answer came from ("forrt pages", "papers" or "") and whether every [n] in it
+    points to one of its sources: forrt.org pages are numbered from 1, while the answer model
+    sees the papers numbered 0..len-1."""
+    if seen.get("forrt") is not None:
+        return "forrt pages", all(1 <= r <= len(seen["forrt"]["sources"]) for r in refs)
+    return ("papers" if seen["ranked"] else ""), all(0 <= r < len(seen["ranked"]) for r in refs)
 
 
 def doi_of(node) -> str:
@@ -96,6 +105,18 @@ def main():
     qualle.response_generator.generate_response = record_generate
     qualle.client_manager.create_chat_completion = record_complete
 
+    # A question the topic check sends to forrt.org is answered by ForrtPages, not by the
+    # answer step above: record its text and sources too
+    if qualle.forrt_pages is not None:
+        forrt_answer = qualle.forrt_pages.answer
+
+        def record_forrt(*a, **kw):
+            seen["forrt"] = forrt_answer(*a, **kw)
+            seen["raw"] = seen["forrt"]["text"]
+            return seen["forrt"]
+
+        qualle.forrt_pages.answer = record_forrt
+
     questions = [json.loads(line) for line in open(args.questions, encoding="utf-8")]
     questions = questions[: args.limit] if args.limit else questions
 
@@ -112,7 +133,7 @@ def main():
             for turn in q.get("history", []):
                 list(qualle.get_response(turn, chat_id))
             seen.clear()
-            seen.update(ranked=[], raw=None, prompt_tokens=0, completion_tokens=0, cost=0.0)
+            seen.update(ranked=[], raw=None, forrt=None, prompt_tokens=0, completion_tokens=0, cost=0.0)
             start = time.time()
             final = list(qualle.get_response(q["question"], chat_id))[-1]
             seconds = time.time() - start
@@ -121,6 +142,7 @@ def main():
             ranked_dois = [doi_of(n) for n in seen["ranked"]]
             expected = [d.lower() for d in q.get("expected_dois", [])]
             refs = [int(n) for n in re.findall(r"\[(\d+)\]", seen["raw"] or "")]
+            answered_from, valid = answer_source(seen, refs)
             writer.writerow({
                 "id": q["id"],
                 "lang": q.get("lang", "en"),
@@ -129,11 +151,11 @@ def main():
                 "route": q.get("route", ""),
                 "expect": q["expect"],
                 "outcome": outcome,
+                "answered_from": answered_from if outcome == "answered" else "",
                 "correct": int((outcome == "answered") == (q["expect"] == "answer") and outcome != "error"),
                 "hit": int(any(d in ranked_dois for d in expected)) if expected else "",
                 "n_citations": len(refs),
-                # The model sees sources numbered 0..len-1
-                "citations_valid": int(all(0 <= r < len(seen["ranked"]) for r in refs)) if refs else "",
+                "citations_valid": int(valid) if refs else "",
                 "seconds": round(seconds, 1),
                 # the bot's own step times (Qualle.get_response "timings"); empty when a step did not run
                 **{k: final.get("timings", {}).get(k, "") for k in ("classify_s", "search_s", "rerank_s", "answer_s")},
