@@ -29,7 +29,7 @@ from just_os.rag_service import create_rag_service  # noqa: E402
 from just_os.references import normalize_doi, plain_metadata  # noqa: E402
 
 FIELDS = [
-    "id", "lang", "expect", "outcome", "correct", "hit", "n_citations",
+    "id", "lang", "cluster", "type", "route", "expect", "outcome", "correct", "hit", "n_citations",
     "citations_valid", "seconds", "prompt_tokens", "completion_tokens", "cost_usd",
     "retrieved_dois", "question", "answer", "passages",
 ]
@@ -106,10 +106,14 @@ def main():
         writer = csv.DictWriter(f, fieldnames=FIELDS)
         writer.writeheader()
         for q in questions:
+            chat_id = f"eval-{uuid.uuid4()}"
+            # Multi-turn questions: the earlier turns go first in the same chat (not scored)
+            for turn in q.get("history", []):
+                list(qualle.get_response(turn, chat_id))
             seen.clear()
             seen.update(ranked=[], raw=None, prompt_tokens=0, completion_tokens=0, cost=0.0)
             start = time.time()
-            final = list(qualle.get_response(q["question"], f"eval-{uuid.uuid4()}"))[-1]
+            final = list(qualle.get_response(q["question"], chat_id))[-1]
             seconds = time.time() - start
 
             outcome = outcome_of(final)
@@ -119,6 +123,9 @@ def main():
             writer.writerow({
                 "id": q["id"],
                 "lang": q.get("lang", "en"),
+                "cluster": q.get("cluster", ""),
+                "type": q.get("type", ""),
+                "route": q.get("route", ""),
                 "expect": q["expect"],
                 "outcome": outcome,
                 "correct": int((outcome == "answered") == (q["expect"] == "answer") and outcome != "error"),

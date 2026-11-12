@@ -117,7 +117,7 @@ Limitations (measured 11 Nov with lingua 2.2.0 over all languages):
 ### `eval/`
 | File | What it does | Output |
 |---|---|---|
-| `run.py` | Runs the full pipeline (in the web container) on `questions.jsonl`; records outcome, hit@7, citation validity, time, tokens, cost | `results/run_<date>_<model>.csv` |
+| `run.py` | Runs the full pipeline (in the web container) on `questions.jsonl` (multi-turn rows: the `history` turns first, in the same chat); records cluster, type, route, outcome, hit@7, citation validity, time, tokens, cost | `results/run_<date>_<model>.csv` |
 | `compare.py` | Merges run CSVs into one Markdown table | stdout |
 | `make_retrieval_set.py` | Makes the retrieval question set (seed + synthetic + translated questions) | `retrieval_questions.jsonl` |
 | `coverage.py` | One reason per FORRT sheet resource for why it is (not) in the index | `results/coverage_<date>.{csv,md,svg}` |

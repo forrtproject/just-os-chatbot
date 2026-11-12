@@ -41,6 +41,7 @@ Rules for every issue: [project-plan.md](project-plan.md) section 8 (small PR, a
 - **Now:** 44 seed questions (24 answer, 17 refuse, 3 non-English), only 5 with `expected_dois`.
 - **Add:** `expected_dois` for most answer questions (search `data/processed/vs_latest_bge-m3/docstore.json` or the FORRT sheets); ~5 questions with no answer in the sources; follow-up (multi-turn) questions for the context-method work (M5).
 - **Done when:** two people reviewed each item; `python eval/run.py --limit 5` still runs.
+- **Status (12 Nov 2026):** 101 questions with the new fields (cluster, type, route, format, history, expected_urls; [evaluation.md](evaluation.md) section 1) after merging the question bank of Meltem and Mohit. Open: review of the drafted cluster/type/route labels, `expected_dois`/`expected_urls` for the new questions, questions for clusters 5 and 9.
 
 ### E2. LLM judge: does the cited passage support the sentence?
 - **Files:** new `eval/judge.py`, reads the `answer` and `retrieved_dois` columns of a run CSV (add the passage text to the CSV if needed).

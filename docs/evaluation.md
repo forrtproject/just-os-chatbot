@@ -17,7 +17,21 @@ Rule: a change to prompts, models, retrieval or chunking needs an eval table bef
 | Arena (human ratings) | http://localhost:8000/arena with `ARENA_ENABLED=true`: pick models, rate each answer 1-5 on correct / references / clarity | `/arena/leaderboard`, `/arena/ratings` |
 
 Question sets:
-- `eval/questions.jsonl`: 54 questions for the full pipeline (32 should answer, 22 should refuse, 13 not English: translations of pr03 (nl), pr01 (de) and pr05 (es), and in tr, it, hi, mr and kn of pr01 and off01, checked by native speakers; 12 with `expected_dois`).
+- `eval/questions.jsonl`: 101 questions for the full pipeline (73 should answer, 28 should refuse; 13 not English, checked by native speakers; 12 with `expected_dois`). The first 54 are the earlier set (unchanged); 47 come from the question bank of Meltem and Mohit (`data/raw/questions_bank_261112.csv`, 12 Nov; its 37 other rows were already in the set). Fields, in this order:
+
+  | Field | Values |
+  |---|---|
+  | `id` | `pr01`, `off07`, `ml04`, … (earlier set); `old17`, `new13`, … (bank ID; a multi-turn row has the ID of its first turn) |
+  | `cluster` | one of the 11 FORRT clusters (`data/raw/questions_bank_classes_261112.csv`), `FORRT Lookup` (about FORRT itself: its tools, glossary, pages), or empty (out of scope) |
+  | `type` | one of the 10 question types of the bank: Conceptual Questions, Teaching, Resource, How-to, Comparative, False premise, Replication fact, Out of scope, Adversarial, Multilingual |
+  | `lang`, `format` | ISO 639-1 code; `Single question`, `Multi-turn` or `Two questions in one turn` |
+  | `question` | the turn that is scored; `history` (multi-turn only) lists the earlier turns, which `eval/run.py` sends first in the same chat |
+  | `expect` | `answer` or `refuse` (what the bot should do) |
+  | `route` | gold label for the router (#43): `open_science`, `forrt`, `both` or `neither` (`neither` exactly when `expect` is `refuse`) |
+  | `expected_dois`, `expected_urls` | the reference answer: papers and pages a good answer cites |
+  | `source`, `note` | where the question comes from; free text |
+
+  **`cluster`, `type` and `route` are drafts** (12 Nov, from the definitions in the bank's Classes sheet): two people should review them, as for E1. Few questions test FORRT routing (3 `forrt`, 6 `both`); `eval/forrt_questions.jsonl` (#43) covers that. No question yet for cluster 5 (computation and analysis) and only one for cluster 9. `test/test_questions.py` checks the structure.
 - `eval/retrieval_questions.jsonl`: 474 questions for retrieval only (24 from `data/interim/questions_and_text.csv`, 150 synthetic, 300 translations to nl/de/es).
 
 ## 2. What the numbers mean
