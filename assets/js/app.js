@@ -53,6 +53,29 @@ function feedbackBar(turnId) {
   return bar;
 }
 
+// The answer while it is written (#41): plain Markdown without the [n] numbers, which are
+// renumbered at the end. The final message replaces it.
+function showDraft(text) {
+  let draft = document.getElementById("draft-answer");
+  if (!draft) {
+    draft = document.createElement("div");
+    draft.id = "draft-answer";
+    draft.classList.add("message", "bot-message");
+    draft.setAttribute("aria-live", "polite");
+    document.getElementById("chat-messages").appendChild(draft);
+  }
+  const plain = text.replace(/\s*\[\d+\]/g, "");
+  if (window.marked && window.DOMPurify) {
+    draft.innerHTML = DOMPurify.sanitize(marked.parse(plain));
+  } else {
+    draft.textContent = plain;
+  }
+}
+
+function removeDraft() {
+  document.getElementById("draft-answer")?.remove();
+}
+
 function addMessage(message, sender, sources = null, turnId = null) {
   const chatMessages = document.getElementById("chat-messages");
 
@@ -145,11 +168,13 @@ async function sendMessage(message) {
         message: message,
         chat_id: window.chatId,
         model: document.getElementById("model-select")?.value,
+        stream: true,
       }),
     });
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    let draft = "";
 
     while (true) {
       const { value, done } = await reader.read();
@@ -171,8 +196,14 @@ async function sendMessage(message) {
 
             if (data.status === "complete") {
               endStream();
+              removeDraft();
               addMessage(data.message, "bot", data.metadata?.references, data.turn_id);
+            } else if (data.status === "partial") {
+              draft += data.delta;
+              baseMessage = "Writing the answer";
+              showDraft(draft);
             } else {
+              removeDraft();
               baseMessage = data.message;
             }
           } catch (parseError) {
@@ -192,6 +223,7 @@ async function sendMessage(message) {
         const data = JSON.parse(buffer);
         if (data.status === "complete") {
           endStream();
+          removeDraft();
           addMessage(data.message, "bot", data.metadata?.references, data.turn_id);
         } else {
           baseMessage = data.message;

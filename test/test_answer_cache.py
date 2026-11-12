@@ -73,10 +73,16 @@ def test_short_prompt_style():
     generator = qualle.ResponseGenerator(client, {**CONFIG, "PROMPT_STYLE": "short"}, None)
     generator.generate_response("question", "[0] Title: T Text: t")
     messages = client.calls[0]["messages"]
-    assert messages[0]["content"] == qualle.SHORT_SYSTEM_PROMPT
+    assert messages[0]["content"] == qualle.SHORT_SYSTEM_PROMPT + " " + qualle.LANGUAGE_RULE
     assert "Question: question" in messages[1]["content"]
 
 
 def test_openscholar_prompt_is_default():
     generator = qualle.ResponseGenerator(FakeClient(), CONFIG, None)
-    assert generator.system_prompt != qualle.SHORT_SYSTEM_PROMPT
+    assert not generator.system_prompt.startswith(qualle.SHORT_SYSTEM_PROMPT)
+
+
+def test_both_prompt_styles_ask_for_the_question_language_and_english_terms():
+    for style in ("openscholar", "short"):
+        prompt = qualle.ResponseGenerator(FakeClient(), {**CONFIG, "PROMPT_STYLE": style}, None).system_prompt
+        assert "language of the question" in prompt and "preregistration" in prompt and "HARKing" in prompt

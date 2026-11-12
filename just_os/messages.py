@@ -94,8 +94,11 @@ def detect_language(text: str) -> Optional[str]:
     for code, script in SCRIPTS.items():
         if letters and sum(bool(script.match(c)) for c in letters) * 2 >= len(letters):
             return code
+    # English acronyms and field terms (DNA, HARKing, OSF, CRediT) made lingua read
+    # "Was ist DNA Replikation und HARKing" as Swedish: detect on the other words
+    words = [w for w in text.split() if sum(c.isupper() for c in w) < 2]
     try:
-        language = detector().detect_language_of(text)
+        language = detector().detect_language_of(" ".join(words) or text)
     except Exception as e:  # a detection failure must not hide the message itself
         logger.error(f"Language detection failed: {e}")
         return None

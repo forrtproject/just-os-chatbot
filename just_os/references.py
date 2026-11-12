@@ -83,6 +83,13 @@ def document_key(metadata: Dict) -> str:
     return _doi(metadata) or re.sub(r"[^a-z0-9]", "", str(metadata.get("title", "")).lower())
 
 
+def paper_key(metadata: Dict) -> str:
+    """One reference number per paper in an answer: the title, so a preprint without DOI
+    and its journal version (same title) share a number; document_key without a title."""
+    title = re.sub(r"[^a-z0-9]", "", str(metadata.get("title", "")).lower())
+    return title or document_key(metadata)
+
+
 def passage_allowed(conditions_of_use: Optional[str]) -> bool:
     """True for CC BY (and SA), CC0 and public domain; False for NC/ND and unknown licences."""
     text = str(conditions_of_use or "")

@@ -36,7 +36,7 @@ You need Docker (Docker Desktop with WSL2 on Windows), Git and Python 3. About 8
    ```
 5. One time on a new computer, download the embedding and re-ranker models (about 3.5 GB, kept in the `hf-cache` volume):
    ```bash
-   docker compose exec web python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; SentenceTransformer('BAAI/bge-m3'); CrossEncoder('BAAI/bge-reranker-base')"
+   docker compose exec web python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; SentenceTransformer('BAAI/bge-m3'); CrossEncoder('BAAI/bge-reranker-v2-m3')"
    docker compose restart web
    ```
 6. Open http://localhost:8000 (chat) or http://localhost:8000/arena (two models side by side, with `ARENA_ENABLED=true`). The server loads the models for about one minute after each start.
@@ -53,6 +53,7 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 | `ARENA_MODELS` | models offered on `/arena`, comma separated (default: the 9 OpenRouter candidates + `openscholar-8b`) |
 | `OPENSCHOLAR_TIMEOUT` | seconds for one OpenScholar answer (default 600, no retry): the self-hosted CPU server needs minutes for the chatbot's long prompt |
 | `LLM_TIMEOUT` | seconds before an LLM call gives up (default 120); a slow model then shows an error instead of holding up the answer |
+| `MAX_ANSWER_TOKENS` | longest answer in tokens (default 2000; `0` = no cap): stops answers that loop, seen in Kannada and Marathi |
 | `ARENA_MAX_MODELS` | most models per arena question (default 10) |
 | `CHAT_LOG_FILE`, `CHAT_FEEDBACK_FILE` | every chat turn and every Good/Bad feedback are appended here (default `data/chats/chats.jsonl`, `data/chats/feedback.jsonl`; not in Git); empty = not saved |
 | `PROMPT_STYLE` | `openscholar` (default) or `short` (model-neutral answer prompt) |

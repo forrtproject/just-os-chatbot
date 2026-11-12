@@ -244,6 +244,8 @@ class FlaskApp:
                 chat_id = request.json["chat_id"]
                 # Optional: the built-in page can choose the answer model; the widget sends none
                 model = request.json.get("model") or None
+                # Optional: the built-in page asks for "partial" messages (#41); the widget does not
+                stream = request.json.get("stream") is True
             except (KeyError, TypeError) as e:
                 logger.error(f"Invalid request data: {str(e)}")
                 return jsonify(
@@ -268,7 +270,7 @@ class FlaskApp:
                 return jsonify({"status": "error", "message": "Unknown model."}), 400
 
             return Response(
-                self._generate_chat_response(user_message, chat_id, model),
+                self._generate_chat_response(user_message, chat_id, model, stream),
                 mimetype="text/event-stream",
             )
 
@@ -496,7 +498,7 @@ class FlaskApp:
             yield json.dumps(chunk) + "\n"
 
     def _generate_chat_response(
-        self, user_message: str, chat_id: str, model: Optional[str] = None
+        self, user_message: str, chat_id: str, model: Optional[str] = None, stream: bool = False
     ) -> Generator[str, None, None]:
         """
         Generate chat responses as a stream.
@@ -512,8 +514,10 @@ class FlaskApp:
             # Lazy-load RAG service only when needed
             rag_service = self.get_rag_service()
             if rag_service:
-                for response in rag_service.get_response(user_message, chat_id, model):
-                    if response.get("status") != "in-progress":
+                # without the flag the call is exactly as before #41 (widget, older services)
+                options = {"stream": True} if stream else {}
+                for response in rag_service.get_response(user_message, chat_id, model, **options):
+                    if response.get("status") in ("complete", "error"):
                         response = self._log_turn(user_message, chat_id, model, response)
                     yield json.dumps(response) + "\n"
             else:

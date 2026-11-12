@@ -4,7 +4,7 @@ import logging
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Any, Optional, Generator, Tuple
+from typing import Dict, List, Any, Optional, Generator, Iterator, Tuple
 
 import markdown
 from bs4 import BeautifulSoup
@@ -22,6 +22,7 @@ from just_os.openscholar import generation_instance_prompts_w_references, system
 from just_os.references import (
     best_snippet,
     document_key,
+    paper_key,
     load_publication_years,
     passage_allowed,
     plain_metadata,
@@ -45,13 +46,56 @@ LICENCE_KEY = "conditions_of_use"
 HISTORY_TURNS = 4
 INTENTS = ("open_science", "forrt_lookup", "off_topic")
 
+
+def visible_answer(raw: str, marked: bool) -> str:
+    """The part of a streamed answer that can be shown yet (#41): with the OpenScholar
+    prompt (marked) nothing before [Response_Start]; nothing after [Response_End]; and not
+    a trailing "[..." that is still being written (a marker or a citation number)."""
+    if marked:
+        if "[Response_Start]" not in raw:
+            return ""
+        raw = raw.split("[Response_Start]", 1)[1]
+    raw = raw.split("[Response_End]")[0]
+    cut = raw.rfind("[")
+    return raw[:cut] if cut != -1 and "]" not in raw[cut:] else raw
+
 # PROMPT_STYLE=short: a short, model-neutral prompt instead of the OpenScholar prompt
 # (~1.5k tokens with a worked example, made for the fine-tuned OpenScholar model)
 SHORT_SYSTEM_PROMPT = (
     "You are JUST-OS, an assistant for questions about open and reproducible research. "
     "Answer only with information from the numbered sources. Cite every claim with the "
     "number of its source in square brackets, for example [0] or [2]. If the sources do "
-    "not answer the question, say so. Answer in the language of the question."
+    "not answer the question, say so."
+)
+
+# What the topic check counts as open science. Without it, Llama 3.1 8B refused short
+# non-English term questions ("Was ist Replikation?", "Was ist HARKing?"): 9 of 45 wrong, 0 with it
+OPEN_SCIENCE_SCOPE = """Open Science here is broad: open access, open data and materials, preregistration,
+registered reports, replication and reproducibility of research findings, questionable
+research practices (p-hacking, HARKing), research integrity, metascience, research
+methods and statistics, scholarly publishing and peer review, and open research training.
+The query can be in any language, and a short question that only asks what one of these
+terms means (for example "Was ist Replikation?") is about Open Science.
+Not about Open Science: everyday topics, and the same words in another field
+(for example DNA replication in biology)."""
+
+# Added to the system prompt of both PROMPT_STYLEs: the answer follows the question's
+# language, but these field terms stay in English (a translated term no longer matches
+# the literature, FORRT resources or what users search for).
+GLOSSARY_TERMS = (
+    "Open Science", "open access", "open data", "open materials", "open source",
+    "preregistration", "registered report", "replication", "replicability",
+    "reproducibility", "p-hacking", "HARKing", "questionable research practices",
+    "publication bias", "FAIR data", "preprint", "meta-analysis", "power analysis",
+    "CRediT", "FORRT",
+)
+LANGUAGE_RULE = (
+    "Always answer in the language of the question, even though the sources are in English. "
+    "In every language, cite only with the source number in square brackets, for example [0], "
+    "never with author names and years. "
+    "Keep these terms in English in every language: " + ", ".join(GLOSSARY_TERMS) + ". "
+    "In a non-English answer, add the usual local word in brackets after the first use of "
+    "such a term, if the language has one."
 )
 SHORT_PROMPT_TEMPLATE = (
     "Sources:\n{context_items}\n\nQuestion: {query}\n\n"
@@ -159,8 +203,9 @@ class QueryProcessor:
             (an error, which must not look like a refusal)
         """
         prompt = f"""You are an Open Science expert.
-Classify whether the following query is about Open Science:
-"{query}"
+Classify whether the following query is about Open Science.
+{OPEN_SCIENCE_SCOPE}
+Query: "{query}"
 Return your answer as a valid JSON object with a single boolean entry "concerns_open_science"
 """
         result = self._structured_output(prompt, "concerns_open_science", "boolean")
@@ -182,6 +227,7 @@ Classify the query into one category:
 - "open_science": a question about open science or research practice that needs an explained answer
 - "forrt_lookup": the user wants to find a FORRT resource, course, reading or page, or asks how to get involved with FORRT
 - "off_topic": anything else
+{OPEN_SCIENCE_SCOPE}
 Query: "{query}"
 Return your answer as a valid JSON object with a single string entry "category"
 """
@@ -383,11 +429,37 @@ class ResponseGenerator:
         self.reference_processor = reference_processor
         self.citation_model = config["CITATION_MODEL"]
         if config.get("PROMPT_STYLE", "openscholar") == "short":
-            self.system_prompt = SHORT_SYSTEM_PROMPT
+            self.system_prompt = SHORT_SYSTEM_PROMPT + " " + LANGUAGE_RULE
             self.prompt_template = SHORT_PROMPT_TEMPLATE
         else:
-            self.system_prompt = system_prompt
+            self.system_prompt = system_prompt + " " + LANGUAGE_RULE
             self.prompt_template = generation_instance_prompts_w_references
+        # The OpenScholar prompt asks for [Response_Start] ... [Response_End]
+        self.marks_response = config.get("PROMPT_STYLE", "openscholar") != "short"
+
+    def _messages(self, query: str, context: str, history: Optional[List[Dict[str, str]]]) -> List[Dict[str, str]]:
+        prompt = self.prompt_template.format(context_items=context, query=query)
+        return [
+            {"role": "system", "content": self.system_prompt},
+            # CONTEXT_METHOD=history: the earlier turns of the chat
+            *[{"role": m["role"], "content": m["content"]} for m in history or []],
+            {"role": "user", "content": prompt},
+        ]
+
+    def stream_response(
+        self,
+        query: str,
+        context: str,
+        model: Optional[str] = None,
+        history: Optional[List[Dict[str, str]]] = None,
+    ) -> Iterator[str]:
+        """The raw answer in pieces while the model writes it (#41)."""
+        yield from self.client_manager.stream_chat_completion(
+            model=model or self.citation_model,
+            messages=self._messages(query, context, history),
+            temperature=self.config.get("TEMPERATURE", 0.3),
+            max_tokens=self.config.get("MAX_ANSWER_TOKENS"),
+        )
 
     def generate_response(
         self,
@@ -407,22 +479,11 @@ class ResponseGenerator:
         Returns:
             Generated response or None if generation fails
         """
-        # Format prompt
-        prompt = self.prompt_template.format(context_items=context, query=query)
-
-        # Prepare messages for the LLM
-        history_openai_format = [
-            {"role": "system", "content": self.system_prompt},
-            # CONTEXT_METHOD=history: the earlier turns of the chat
-            *[{"role": m["role"], "content": m["content"]} for m in history or []],
-            {"role": "user", "content": prompt},
-        ]
-
-        # Generate response
         response = self.client_manager.create_chat_completion(
             model=model or self.citation_model,
-            messages=history_openai_format,
+            messages=self._messages(query, context, history),
             temperature=self.config.get("TEMPERATURE", 0.3),
+            max_tokens=self.config.get("MAX_ANSWER_TOKENS"),
         )
 
         if not response or not response.choices:
@@ -535,6 +596,7 @@ class OpenAIClientManager:
         temperature: float = 0.3,
         tools: Optional[List[Dict[str, Any]]] = None,
         tool_choice: Optional[Dict[str, Any]] = None,
+        max_tokens: Optional[int] = None,
     ) -> Optional[ChatCompletion]:
         """
         Create a chat completion with error handling.
@@ -556,6 +618,8 @@ class OpenAIClientManager:
 
         try:
             kwargs = {"model": model, "messages": messages, "temperature": temperature}
+            if max_tokens:
+                kwargs["max_tokens"] = max_tokens
 
             if tools:
                 kwargs["tools"] = tools
@@ -567,6 +631,29 @@ class OpenAIClientManager:
         except Exception as e:
             logger.error(f"OpenAI API error: {str(e)}")
             return None
+
+    def stream_chat_completion(
+        self, model: str, messages: List[Dict[str, str]], temperature: float = 0.3,
+        max_tokens: Optional[int] = None,
+    ) -> Iterator[str]:
+        """The answer text in pieces as the model writes it. An error ends the stream; the
+        caller treats an empty answer like a failed call.
+        shortcut: LLM_TIMEOUT limits each wait for a piece, not the whole answer; add a
+        deadline if a model ever trickles text for minutes (PR #40 has one)."""
+        client = self._client_for(model)
+        if not client:
+            logger.error("OpenAI client not initialized")
+            return
+        try:
+            for chunk in client.chat.completions.create(
+                model=model, messages=messages, temperature=temperature, stream=True,
+                **({"max_tokens": max_tokens} if max_tokens else {}),
+            ):
+                for choice in chunk.choices:
+                    if choice.delta.content:
+                        yield choice.delta.content
+        except Exception as e:
+            logger.error(f"OpenAI API error (stream): {str(e)}")
 
 
 class ReferenceProcessor:
@@ -623,7 +710,7 @@ class ReferenceProcessor:
                     ref_idx = int(match.group(1))
                     if ref_idx >= len(references_nodes) or ref_idx in ref_mapping:
                         continue
-                    key = document_key(plain_metadata(references_nodes[ref_idx].metadata))
+                    key = paper_key(plain_metadata(references_nodes[ref_idx].metadata))
                     if key not in doc_numbers:
                         doc_numbers[key] = len(doc_numbers) + 1
                         used_refs_ordered.append(ref_idx)
@@ -638,11 +725,17 @@ class ReferenceProcessor:
                     continue
                 new_text = text
                 # Right to left, so earlier positions stay valid
-                for match in reversed(matches):
+                for i in reversed(range(len(matches))):
+                    match = matches[i]
                     old_ref_num = int(match.group(1))
                     if old_ref_num not in ref_mapping:
                         continue
                     start, end = match.span()
+                    nxt = matches[i + 1] if i + 1 < len(matches) else None
+                    # "[0][2]" with both chunks from one paper would show "[1][1]": keep one
+                    if nxt and nxt.start() == end and ref_mapping.get(int(nxt.group(1))) == ref_mapping[old_ref_num]:
+                        new_text = new_text[:start] + new_text[end:]
+                        continue
                     # Each citation keeps the passage of the chunk it cites
                     data_string = json.dumps(
                         self.reference_data(
@@ -678,11 +771,11 @@ class ReferenceProcessor:
         if used_refs_ordered is None:
             seen, used_refs_ordered = set(), []
             for idx, node in enumerate(nodes):
-                key = document_key(plain_metadata(node.metadata))
+                key = paper_key(plain_metadata(node.metadata))
                 if key not in seen:
                     seen.add(key)
                     used_refs_ordered.append(idx)
-        flagged = {document_key(plain_metadata(nodes[i].metadata)) for i in unverified if i < len(nodes)}
+        flagged = {paper_key(plain_metadata(nodes[i].metadata)) for i in unverified if i < len(nodes)}
         entries = []
         for number, ref_idx in enumerate((i for i in used_refs_ordered if i < len(nodes)), start=1):
             data = self.reference_data(nodes[ref_idx])
@@ -693,8 +786,8 @@ class ReferenceProcessor:
                 "year": data["year"],
                 "title": data["title"],
                 "url": data["url"],
-                "unverified": document_key(plain_metadata(nodes[ref_idx].metadata)) in flagged,
-                "snippet": snippets.get(document_key(plain_metadata(nodes[ref_idx].metadata)), ""),
+                "unverified": paper_key(plain_metadata(nodes[ref_idx].metadata)) in flagged,
+                "snippet": snippets.get(paper_key(plain_metadata(nodes[ref_idx].metadata)), ""),
             })
         return entries
 
@@ -708,7 +801,7 @@ class ReferenceProcessor:
                 if not claim or ref >= len(nodes):
                     continue
                 meta = plain_metadata(nodes[ref].metadata)
-                key = document_key(meta)
+                key = paper_key(meta)
                 if key not in found and passage_allowed(meta.get(LICENCE_KEY)):
                     found[key] = best_snippet(claim, nodes[ref].text)
         return found
@@ -735,12 +828,12 @@ class ReferenceProcessor:
                 seen = set()
                 used_refs_ordered = []
                 for idx, node in enumerate(nodes):
-                    key = document_key(plain_metadata(node.metadata))
+                    key = paper_key(plain_metadata(node.metadata))
                     if key not in seen:
                         seen.add(key)
                         used_refs_ordered.append(idx)
 
-            flagged = {document_key(plain_metadata(nodes[i].metadata)) for i in unverified if i < len(nodes)}
+            flagged = {paper_key(plain_metadata(nodes[i].metadata)) for i in unverified if i < len(nodes)}
             lines = []
             for number, ref_idx in enumerate(
                 (i for i in used_refs_ordered if i < len(nodes)), start=1
@@ -749,7 +842,7 @@ class ReferenceProcessor:
                 lines.append(
                     f"[{number}] {data['authors']} ({data['year']}). {data['title']}."
                     + (f" {data['url']}" if data["url"] else "")
-                    + (" [not verified]" if document_key(plain_metadata(nodes[ref_idx].metadata)) in flagged else "")
+                    + (" [not verified]" if paper_key(plain_metadata(nodes[ref_idx].metadata)) in flagged else "")
                 )
             return "\n".join(lines)
         except Exception as e:
@@ -837,7 +930,7 @@ class Qualle:
         yield {"status": "complete", "message": markdown.markdown(text), "outcome": "no_sources"}
 
     def get_response(
-        self, query: str, chat_id: str, model: Optional[str] = None
+        self, query: str, chat_id: str, model: Optional[str] = None, stream: bool = False
     ) -> Generator[Dict[str, Any], None, None]:
         """
         Generate a response to a user query.
@@ -918,10 +1011,36 @@ class Qualle:
 
             yield {"status": "in-progress", "message": "Generating response"}
             start = time.time()
-            response_text = self.response_generator.generate_response(
-                query, context, model, history=history_for_answer
-            )
+            if stream:
+                # #41: send what can be shown while the model writes; the complete
+                # answer below still gets the citations, sources, cache and history
+                raw, shown = "", 0
+                for piece in self.response_generator.stream_response(
+                    query, context, model, history=history_for_answer
+                ):
+                    raw += piece
+                    visible = visible_answer(raw, self.response_generator.marks_response)
+                    if len(visible) > shown:
+                        yield {"status": "partial", "delta": visible[shown:]}
+                        shown = len(visible)
+                response_text = raw or None
+            else:
+                response_text = self.response_generator.generate_response(
+                    query, context, model, history=history_for_answer
+                )
             logger.info(f"Timing: answer {time.time() - start:.1f}s ({model or self.config.get('CITATION_MODEL')})")
+            # Llama 3.1 8B answered 3 of 7 German questions without any [n]: then the source
+            # list shows every retrieved paper and no snippet. Ask once more, but only after a
+            # quick first answer: a 150 s Kannada answer asked twice stalled the eval run.
+            if (
+                response_text
+                and not re.search(r"\[\d+\]", response_text)
+                and time.time() - start < self.config.get("LLM_TIMEOUT", 60)
+            ):
+                logger.info("Answer has no [n] citation, asking again")
+                response_text = self.response_generator.generate_response(
+                    query, context, model, history=history_for_answer
+                ) or response_text
             if not response_text:
                 logger.error("Failed to generate response")
                 error = msg.message("generation_error", user_query)

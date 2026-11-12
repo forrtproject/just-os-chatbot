@@ -45,7 +45,7 @@ Contents (unzip in the root of your clone of forrtproject/just-os-chatbot, branc
 4. {env_step}
 5. `docker compose up -d --build` (the first build takes 10-20 minutes).
 6. One time, download the embedding and re-ranker models (about 3.5 GB, kept in a Docker volume):
-   `docker compose exec web python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; SentenceTransformer('BAAI/bge-m3'); CrossEncoder('BAAI/bge-reranker-base')"`
+   `docker compose exec web python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; SentenceTransformer('BAAI/bge-m3'); CrossEncoder('BAAI/bge-reranker-v2-m3')"`
    then `docker compose restart web`.
 7. Open http://localhost:8000 (chat) or http://localhost:8000/arena (model comparison).
 8. Check: `docker compose exec web pytest test/ -q` (all tests pass).

@@ -225,6 +225,27 @@ def test_feedback_is_stored_once_with_the_question_and_answer(app):
     assert (row["rating"], row["comment"], row["question"], row["answer"]) == ("bad", "Wrong source.", "What is open data?", "<p>answer</p>")
 
 
+class StreamingRag:
+    def __init__(self):
+        self.options = []
+
+    def get_response(self, query, chat_id, model, **options):
+        self.options.append(options)
+        yield {"status": "partial", "delta": "Open data "}
+        yield {"status": "partial", "delta": "is good."}
+        yield {"status": "complete", "message": "<p>Open data is good [1].</p>", "outcome": "answered"}
+
+
+def test_partial_messages_only_on_request_and_never_logged(app):
+    rag = app._rag_service = StreamingRag()
+    client = app.app.test_client()
+    lines = client.post("/chat", json={"message": "What is open data?", "chat_id": "c1", "stream": True}).data.decode().splitlines()
+    assert [json.loads(line)["status"] for line in lines] == ["partial", "partial", "complete"]
+    client.post("/chat", json={"message": "What is open data?", "chat_id": "c1"}).data  # the widget sends no flag
+    assert rag.options == [{"stream": True}, {}]
+    assert [r["outcome"] for r in read_jsonl(app.config["CHAT_LOG_FILE"])] == ["answered", "answered"]
+
+
 def test_feedback_rejects_bad_input(app):
     client = app.app.test_client()
     for body in ({"turn_id": "x", "rating": "meh"}, {"turn_id": "x", "rating": "good", "comment": "x" * 2001},

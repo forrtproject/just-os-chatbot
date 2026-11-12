@@ -92,6 +92,7 @@ def test_english_row_is_required(tmp_path):
         (TR_OFF_TOPIC, "tr"),
         (KN_OFF_TOPIC, "kn"),
         ("Was ist Präregistrierung und warum ist sie wichtig?", "de"),
+        ("Was ist DNA Replikation und HARKing", "de"),  # acronyms made it Swedish
         ("Hoe kan ik kwalitatief onderzoek preregistreren?", "nl"),
         ("Cos'è la preregistrazione?", "it"),
         ("पूर्वनोंदणी म्हणजे काय आणि ती का महत्त्वाची आहे?", "mr"),

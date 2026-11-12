@@ -1,6 +1,7 @@
 import json
 from types import SimpleNamespace
 
+import pytest
 from bs4 import BeautifulSoup
 
 from just_os import qualle
@@ -117,6 +118,78 @@ def test_citations_use_ranked_nodes():
     assert "Other paper" not in final["metadata"]["sources"]
     link = BeautifulSoup(final["message"], "html.parser").find("a", class_="reference-link")
     assert json.loads(link["data-reference"])["title"] == "Ranked paper"
+
+
+def test_answer_without_citations_is_asked_again_once():
+    q = make_qualle(True, [node("Ranked paper")], [], "unused")
+    client = FakeClient(completion(content="Replikation ist wichtig."), completion(content="Replikation ist wichtig [0]."))
+    q.response_generator.client_manager = client
+    final = list(q.get_response("Was ist Replikation?", "chat"))[-1]
+    assert len(client.calls) == 2
+    assert BeautifulSoup(final["message"], "html.parser").find("a", class_="reference-link")
+
+    q = make_qualle(True, [node("Ranked paper")], [], "unused")
+    client = FakeClient(*[completion(content="No sources cited.")] * 2)
+    q.response_generator.client_manager = client
+    assert list(q.get_response("question", "chat"))[-1]["outcome"] == "answered"  # kept after one retry
+    assert len(client.calls) == 2
+
+    # a slow first answer is kept: no second wait
+    q = make_qualle(True, [node("Ranked paper")], [], "unused")
+    q.config = {**CONFIG, "LLM_TIMEOUT": 0}
+    client = FakeClient(completion(content="Replikation ist wichtig."))
+    q.response_generator.client_manager = client
+    assert list(q.get_response("Was ist Replikation?", "chat"))[-1]["outcome"] == "answered"
+    assert len(client.calls) == 1
+
+
+# --- #41 streaming
+
+
+@pytest.mark.parametrize(
+    "raw, marked, shown",
+    [
+        ("Let me think. [Response_St", True, ""),  # nothing before the marker
+        ("Let me think. [Response_Start] Open data", True, " Open data"),
+        ("[Response_Start] Open data is good [", True, " Open data is good "),  # citation still open
+        ("[Response_Start] Good [0]. Done.[Response_End] trailing", True, " Good [0]. Done."),
+        ("[Response_Start] Good [0]. Done.[Respon", True, " Good [0]. Done."),  # end marker still open
+        ("Short style has no markers [1", False, "Short style has no markers "),
+    ],
+)
+def test_visible_answer_holds_back_until_it_is_safe(raw, marked, shown):
+    assert qualle.visible_answer(raw, marked) == shown
+
+
+class StreamClient(FakeClient):
+    def __init__(self, pieces):
+        super().__init__()
+        self.pieces = pieces
+
+    def stream_chat_completion(self, **kwargs):
+        self.calls.append(kwargs)
+        yield from self.pieces
+
+
+def test_streamed_answer_shows_pieces_and_ends_like_the_unstreamed_one():
+    pieces = ["Thinking about it. ", "[Response_St", "art]Open data is good [", "0]. More", " text.[Response_End]x"]
+    q = make_qualle(True, [node("Ranked paper")], [], "".join(pieces))
+    unstreamed = list(q.get_response("question", "chat"))[-1]
+
+    q = make_qualle(True, [node("Ranked paper")], [], "unused")
+    q.response_generator.client_manager = StreamClient(pieces)
+    messages = list(q.get_response("question", "chat", stream=True))
+    partial = [m["delta"] for m in messages if m["status"] == "partial"]
+    assert "".join(partial) == "Open data is good [0]. More text."
+    assert not any("Thinking" in p or "Response" in p for p in partial)
+    assert messages[-1] == unstreamed
+
+
+def test_answer_length_is_capped():
+    client = FakeClient(completion(content="x [0]."))
+    generator = qualle.ResponseGenerator(client, {**CONFIG, "MAX_ANSWER_TOKENS": 50}, None)
+    generator.generate_response("question", "[0] Title: T Text: t")
+    assert client.calls[0]["max_tokens"] == 50
 
 
 def test_classify_error_is_not_a_refusal():

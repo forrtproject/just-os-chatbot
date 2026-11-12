@@ -9,7 +9,7 @@ JUST-OS answers open-science questions with citations to the FORRT resource libr
 
 ## 2. Current state (November 2026)
 
-- Flask + Gunicorn + Redis in Docker; LlamaIndex + FAISS; index of 646 documents (79,808 chunks: 513 open-access JUST-OS documents + 133 FORRT cluster papers), embedding `BAAI/bge-m3`; local re-ranker `BAAI/bge-reranker-base` with fallback to vector order.
+- Flask + Gunicorn + Redis in Docker; LlamaIndex + FAISS; index of 646 documents (79,808 chunks: 513 open-access JUST-OS documents + 133 FORRT cluster papers), embedding `BAAI/bge-m3`; local multilingual re-ranker `BAAI/bge-reranker-v2-m3` with fallback to vector order.
 - LLM: any OpenAI-compatible API. Default OpenRouter (`meta-llama/llama-3.1-8b-instruct`). OpenScholar-8B is self-hosted (`OPENSCHOLAR_BASE_URL`); the old RUG gateway still works with the four `.env` lines.
 - Tools: eval (`eval/run.py`, `eval/compare.py`), embedding comparison, arena (`/arena`), unit tests in `test/`.
 - See [architecture.md](architecture.md), [data.md](data.md), [evaluation.md](evaluation.md).
@@ -107,7 +107,7 @@ Memory over many chats (proposed, no login): the widget makes a random `client_i
 "Where is X on FORRT?" / "How do I contribute?" needs a link and a short description, not a summary. Proposal: classify into `open_science`, `forrt_lookup`, `off_topic`; lookup searches the metadata of **all** sheet rows plus forrt.org pages; `/chat` stays the same.
 
 ### 7.3 Multilingual
-97 % of the sources are English. bge-m3 solved retrieval for nl/de/es; the English re-ranker still drops non-English questions → test `BAAI/bge-reranker-v2-m3`. Tell the model to answer in the user's language. The fixed refusal and error texts already follow the question's language (decision of 11 Nov).
+97 % of the sources are English. bge-m3 solved retrieval for nl/de/es; the re-ranker is now the multilingual `BAAI/bge-reranker-v2-m3` (#21, 12 Nov). The answer prompt asks for the question's language, `[n]` citations, and English for field terms such as preregistration or HARKing (`GLOSSARY_TERMS`); no translation layer is needed. The fixed refusal and error texts already follow the question's language (decision of 11 Nov).
 
 ### 7.4 Target ingestion
 FORRT sheets → triage: DOI + OA → PDF (check `%PDF`) → marker; web pages → HTML fetch + trafilatura; paywalled DOI → resource card (OpenAlex title + abstract); video/course → resource card from the FORRT description → normalise metadata (`doi`, `pub_year`, authors, licence) → chunk + embed → versioned index + coverage report.

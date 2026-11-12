@@ -156,7 +156,7 @@ textarea#user-input {
 
 .sources {
     font-size: smaller;
-    text-align: end;
+    text-align: start;
 }
 
 #chat .form-control {

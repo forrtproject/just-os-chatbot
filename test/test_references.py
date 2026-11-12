@@ -174,6 +174,17 @@ def test_reference_list_is_structured_and_deduplicated():
     assert entries[0]["url"] == "https://doi.org/10.1234/m"
 
 
+def test_preprint_and_journal_version_share_a_number_and_repeats_collapse():
+    nodes = [chunk("What is replication?", "10.1371/journal.pbio.3000691", "journal"),
+             SimpleNamespace(text="preprint", metadata={"title": "What is Replication?", "creators": "Nosek",
+                                                         "link_to_resource": "https://osf.io/preprints/metaarxiv/u4g6t/"}),
+             chunk("Other", "10.1234/o")]
+    processor = qualle.ReferenceProcessor()
+    html, used = processor.process_markdown_with_references("A [0][1]. B [2]. C [1].", nodes)
+    assert [text for text, _ in links(html)] == ["[1]", "[2]", "[1]"]  # "[1][1]" became "[1]"
+    assert [e["title"] for e in processor.reference_list(nodes, used)] == ["What is replication?", "Other"]
+
+
 # --- snippet under each source
 
 

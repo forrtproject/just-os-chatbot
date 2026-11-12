@@ -74,7 +74,7 @@ Findings:
 2. **E3 `bge-m3` is the default** (decided 28 Oct). It is almost equal to E6, has the same score in all four languages, is free, runs on the server CPU and sends no question to a provider.
 3. E6 is a little better in English, but the difference is inside the uncertainty. It needs the API for each question and sends each user question to a provider.
 4. E4 is low for its size and very slow on CPU; the configuration (pooling or prompt) can be wrong.
-5. Next: test the multilingual re-ranker `BAAI/bge-reranker-v2-m3`; `bge-reranker-base` is English-focused.
+5. The multilingual re-ranker `BAAI/bge-reranker-v2-m3` is the default since 12 Nov (section 3.5, #21).
 
 Limits: synthetic questions come from one chunk and some are vague; the translations are from an LLM.
 
@@ -122,3 +122,22 @@ Findings:
 2. hit@7 is unchanged, but it still uses only the few questions with expected DOIs (issue E1).
 3. The difference is 2 of 54 questions and the answer model is not deterministic, so "not worse" is the safe reading, not "better".
 4. **The times of the 12 Nov run cannot be compared** (mean 146 s against 22.5 s). Every question took about 140 s more, also refused ones that never search (0.2 s on 11 Nov). The run was started with `docker run` without the Redis container and logged "Error -2 connecting to redis:6379", so the likely cause is the wait for Redis, not the index. Without that constant an answered question took about 12 s. Run the eval with `docker compose run` to get real times for the larger index.
+
+### 3.5 Multilingual changes (12 November 2026, 54 questions, `meta-llama/llama-3.1-8b-instruct`)
+
+Same index (1,354 documents, bge-m3, `HYBRID_SEARCH=true`). Each row adds changes to the one above. Runs 0734–1034 ran outside Docker on the same laptop CPU, so their times compare with each other but not with 0302.
+
+| Run | Change | Correct | Answered | Refused | Citations valid | Answers without `[n]` | Mean s | p95 s | Longest s | Completion tokens / q |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `run_261112-0302` | baseline (`bge-reranker-base`) | 0.91 | 28/32 | 21/22 | 0.96 | 5 | (146) | (171) | (262) | 379 |
+| `run_261112-0734` | multilingual re-ranker `bge-reranker-v2-m3` + language/glossary rule in the answer prompt | 0.93 | 29/32 | 21/22 | 0.93 | 3 | 12.9 | 37.5 | 346 | 420 |
+| `run_261112-0939` | + topic check with `OPEN_SCIENCE_SCOPE`, retry of answers without `[n]` | 0.93 | 30/32 | 20/22 | 0.90 | 2 | 57.6 | 114.0 | 748 | 1,137 |
+| **`run_261112-1034`** | **+ `MAX_ANSWER_TOKENS=2000`, retry only after a quick first answer** | **0.93** | **30/32** | 20/22 | **0.96** | 5 | 22.3 | 79.7 | 135 | 457 |
+
+Findings:
+1. **The multilingual re-ranker fixes German and Spanish** (#21): ml02 (de) and ml03 (es) were "no sources" with `bge-reranker-base`; now both are answered with 9 and 8 citations. Re-rank of 20 chunks on the server CPU: 14–17 s (`Timing:` log), about the same as before.
+2. **The topic check refused short non-English term questions** ("Was ist Replikation?", "Was ist HARKing?", Turkish "Ön kayıt nedir…"): 9 of 45 decisions wrong in a 15-question check (3 tries each), 0 with `OPEN_SCIENCE_SCOPE`. Side effect: the Marathi and Kannada translations of the off-topic question off01 (ml11, ml13) are now answered; the English off01 is still refused. Mixed questions ("Was ist DNA Replikation und HARKing") are still refused; a prompt line for them changed nothing.
+3. **Answer length had no cap.** In 0939 Llama 3.1 8B looped in Kannada and Marathi up to 16,384 tokens (ml12, ml13: 9–12 min per question; this also stalled two runs). `MAX_ANSWER_TOKENS=2000` brings the longest question to 135 s and the mean tokens back to 457.
+4. **Answers without `[n]`:** in German, 3 of 7 test answers had no citation, so the source list showed every retrieved paper. The prompt now asks for `[n]` in every language and an uncited answer is asked once more, but only if the first came back within `LLM_TIMEOUT`; the 5 uncited answers left in 1034 are slow non-English ones (nl, hi, mr, kn). Since #42 they show no sources instead of all.
+5. ml04 (Turkish) now passes the topic check but no chunk reaches `MIN_RELEVANCE` ("no sources").
+6. Correct moves within 2 of 54 questions and the model is not deterministic: read 0.91 → 0.93 as "not worse, multilingual better", not as a measured gain.

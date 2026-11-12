@@ -133,6 +133,7 @@ Rules for every issue: [project-plan.md](project-plan.md) section 8 (small PR, a
 ### N3. Multilingual re-ranker
 - **Now:** `BAAI/bge-reranker-base` gives German/Spanish questions scores under `MIN_RELEVANCE` → "no sources" (eval 5 Nov).
 - **Approach:** test `BAAI/bge-reranker-v2-m3` (quality and speed on CPU); see M4.
+- **Status (12 Nov 2026):** done. `RERANK_MODEL=BAAI/bge-reranker-v2-m3` is the default; ml02/ml03 are answered; p95 79.7 s for the whole answer (re-rank 14–17 s on CPU). See [evaluation.md](evaluation.md) 3.5.
 - **Done when:** ml02/ml03 in `eval/questions.jsonl` get an answer; p95 time reported.
 
 ### N4. Choose the embedding model for production

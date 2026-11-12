@@ -14,6 +14,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "GENERAL_MODEL": "meta-llama/llama-3.1-8b-instruct",
     # Seconds before an LLM call gives up (the answer then shows an error, not a hang)
     "LLM_TIMEOUT": 60,
+    # Longest answer in tokens. Without a cap Llama 3.1 8B looped in Kannada and Marathi up to
+    # 16k tokens (12 min, eval 12 Nov); English answers stay under ~1k. 0 = no cap
+    "MAX_ANSWER_TOKENS": 2000,
     # Self-hosted OpenScholar (OpenAI-compatible). When OPENSCHOLAR_BASE_URL is set,
     # calls for OPENSCHOLAR_MODEL go to that server; all other models stay on BASE_URL.
     "OPENSCHOLAR_BASE_URL": "",
@@ -24,8 +27,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # Multilingual; must match VECTOR_STORE. English-only option: BAAI/bge-small-en-v1.5
     # with data/processed/vs_latest_bge-small-en-v1.5
     "EMBEDDING_MODEL": "BAAI/bge-m3",
-    # Local CrossEncoder on CPU
-    "RERANK_MODEL": "BAAI/bge-reranker-base",
+    # Local CrossEncoder on CPU; multilingual (bge-reranker-base is English-focused and
+    # dropped German/Spanish questions as "no sources", eval 5 Nov)
+    "RERANK_MODEL": "BAAI/bge-reranker-v2-m3",
     # CPU threads for the re-ranker and embedding (20 chunks: ~25 s with 1 thread, ~13 s with 6)
     "RERANK_THREADS": 6,
     # Follow-up questions: "rephrase" (one LLM call makes a stand-alone question) or
