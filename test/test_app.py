@@ -252,3 +252,13 @@ def test_feedback_rejects_bad_input(app):
                  {"turn_id": "x", "rating": "good", "comment": 5}):
         assert client.post("/chat/feedback", json=body).status_code == 400
     assert client.post("/chat/feedback", json={"turn_id": ["x"], "rating": "good"}).status_code == 404
+
+
+def test_every_page_links_to_the_others_and_marks_itself(app):
+    client = app.app.test_client()
+    for path in ("/", "/arena", "/eval"):
+        html = client.get(path).get_data(as_text=True)
+        assert 'class="top-nav"' in html and 'href="/eval"' in html and 'href="/arena"' in html, path
+        assert f'href="{path}" aria-current="page"' in html, path
+    app.config["ARENA_ENABLED"] = False  # production: no link to a page that is off
+    assert 'href="/arena"' not in client.get("/").get_data(as_text=True)

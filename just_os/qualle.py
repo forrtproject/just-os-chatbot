@@ -91,6 +91,20 @@ GLOSSARY_TERMS = (
     "publication bias", "FAIR data", "preprint", "meta-analysis", "power analysis",
     "CRediT", "FORRT",
 )
+# Answers are Markdown rendered with these extensions (the chat page draft uses marked, which
+# also renders tables). Without "tables" a model's table came out as one line of | cells.
+MARKDOWN_EXTENSIONS = ["tables"]
+# Also added to both system prompts: what the page can show, and speak to the person asking
+# (12 Nov: of six arena models only one answered "How should I decide which study to
+# replicate?" as advice to the asker; the others wrote a general overview).
+ANSWER_STYLE = (
+    "Speak to the person who asked: answer their question directly as advice to them, "
+    "using \"you\", not as a general overview or literature review. "
+    "Your answer is shown as Markdown: use short paragraphs, bullet or numbered lists and "
+    "**bold**; use a table only to compare several items, as a standard Markdown table with a "
+    "header row and one row per line. Do not use HTML or headings."
+)
+
 LANGUAGE_RULE = (
     "Always answer in the language of the question, even though the sources are in English. "
     "In every language, cite only with the source number in square brackets, for example [0], "
@@ -431,10 +445,10 @@ class ResponseGenerator:
         self.reference_processor = reference_processor
         self.citation_model = config["CITATION_MODEL"]
         if config.get("PROMPT_STYLE", "openscholar") == "short":
-            self.system_prompt = SHORT_SYSTEM_PROMPT + " " + LANGUAGE_RULE
+            self.system_prompt = SHORT_SYSTEM_PROMPT + " " + LANGUAGE_RULE + " " + ANSWER_STYLE
             self.prompt_template = SHORT_PROMPT_TEMPLATE
         else:
-            self.system_prompt = system_prompt + " " + LANGUAGE_RULE
+            self.system_prompt = system_prompt + " " + LANGUAGE_RULE + " " + ANSWER_STYLE
             self.prompt_template = generation_instance_prompts_w_references
         # The OpenScholar prompt asks for [Response_Start] ... [Response_End]
         self.marks_response = config.get("PROMPT_STYLE", "openscholar") != "short"
@@ -697,7 +711,7 @@ class ReferenceProcessor:
             the first cited chunk of each document, in order of appearance)
         """
         try:
-            html_text = markdown.markdown(markdown_text)
+            html_text = markdown.markdown(markdown_text, extensions=MARKDOWN_EXTENSIONS)
             soup = BeautifulSoup(html_text, "html.parser")
             reference_pattern = r"\[(\d+)\]"
             text_nodes = soup.find_all(string=True)
@@ -758,7 +772,7 @@ class ReferenceProcessor:
             return str(soup), used_refs_ordered
         except Exception as e:
             logger.error(f"Error processing references: {str(e)}")
-            return markdown.markdown(markdown_text), []
+            return markdown.markdown(markdown_text, extensions=MARKDOWN_EXTENSIONS), []
 
     def reference_list(
         self,
@@ -1027,7 +1041,7 @@ class Qualle:
                     yield {"status": "complete", "message": markdown.markdown(error), "outcome": "error"}
                     return
                 remember(result["text"])
-                yield {"status": "complete", "message": markdown.markdown(result["text"]),
+                yield {"status": "complete", "message": markdown.markdown(result["text"], extensions=MARKDOWN_EXTENSIONS),
                        "outcome": "forrt" if result["found"] else "no_sources"}
                 return
 

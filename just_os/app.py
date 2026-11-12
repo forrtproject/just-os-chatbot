@@ -16,6 +16,7 @@ from werkzeug.exceptions import TooManyRequests
 
 from config.settings import get_config
 from just_os.chat_manager import ChatManager
+from just_os import eval_report
 from just_os.extensions import flask_static_digest
 from just_os import messages as msg
 
@@ -206,6 +207,11 @@ class FlaskApp:
     def setup_routes(self):
         """Set up all application routes."""
 
+        @self.app.context_processor
+        def page_links():
+            """For templates/_nav.html: link to the arena only when it is on."""
+            return {"nav_arena": self.config["ARENA_ENABLED"]}
+
         @self.app.route("/")
         def home():
             """Home page route."""
@@ -299,6 +305,25 @@ class FlaskApp:
             }
             self._append_jsonl(self.config.get("CHAT_FEEDBACK_FILE"), [json.dumps(row)])
             return jsonify({"status": "ok"})
+
+        @self.app.route("/eval")
+        def eval_page():
+            """Eval results per model: answer runs, classifiers, embeddings, arena ratings."""
+            folder = self.config.get("EVAL_RESULTS_DIR", "eval/results")
+            arena = []
+            if self.config["ARENA_ENABLED"]:
+                try:
+                    arena = leaderboard(self._arena_ratings())
+                except Exception as error:  # no Redis: the tables from files still show
+                    logger.warning("Arena ratings unavailable for /eval: %s", error)
+            return render_template(
+                "eval.html",
+                runs=eval_report.answer_runs(folder),
+                classifiers=eval_report.classifier_runs(folder),
+                embeddings=eval_report.embedding_runs(folder),
+                arena=arena,
+                criteria=ARENA_CRITERIA,
+            )
 
         @self.app.route("/up")
         def up():

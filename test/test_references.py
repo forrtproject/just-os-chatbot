@@ -185,6 +185,14 @@ def test_preprint_and_journal_version_share_a_number_and_repeats_collapse():
     assert [e["title"] for e in processor.reference_list(nodes, used)] == ["What is replication?", "Other"]
 
 
+def test_markdown_tables_render_as_tables():
+    answer = "Criteria:\n\n| Criterion | Why |\n|---|---|\n| Theory | it matters [0] |\n"
+    html, _ = qualle.ReferenceProcessor().process_markdown_with_references(answer, [chunk("T", "10.1/t")])
+    table = BeautifulSoup(html, "html.parser").find("table")
+    assert table is not None and len(table.find_all("tr")) == 2
+    assert table.find("a", class_="reference-link")  # citations inside cells still link
+
+
 # --- snippet under each source
 
 
@@ -195,8 +203,22 @@ def test_best_snippet_picks_the_sentence_that_matches_the_claim():
                "Funding came from the **NWO**.")
     assert best_snippet("Preregistration reduces questionable research practices", passage) == (
         "Preregistration reduced questionable research practices by a third in our sample.")
-    assert best_snippet("anything", "x " * 400).endswith(" …")  # long text is cut
-    assert len(best_snippet("anything", "x " * 400)) <= 302
+    long = "Open data " * 60 + "."
+    assert best_snippet("anything", long).endswith(" …")  # long text is cut
+    assert len(best_snippet("anything", long)) <= 302
+
+
+def test_broken_quotes_are_cleaned_or_withheld():
+    from just_os.references import best_snippet
+    # the converter's link debris from the screenshot of 12 Nov: withheld (starts mid-sentence)
+    debris = "\\(2021\\]( page-7-27); for further discussion on which studies deserve replication attempts see [Heirene,]( page-7-26) [2021\\]( page-7-26)."
+    assert best_snippet("which studies deserve replication", debris) == ""
+    # links and anchors are cleaned when the sentence itself is fine
+    linked = "Replication attempts should target studies with high [theoretical value]( page-3-2) and uncertain results."
+    assert best_snippet("which studies to replicate", linked) == (
+        "Replication attempts should target studies with high theoretical value and uncertain results.")
+    # a row of numbers is not a quote
+    assert best_snippet("effect sizes", "Table 2. 0.31 0.12 0.45 0.08 0.22 0.19 0.33 0.27 0.41 0.05 0.16 (n = 120).") == ""
 
 
 def test_reference_list_snippet_follows_the_cited_chunk_and_the_licence():

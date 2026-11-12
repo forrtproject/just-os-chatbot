@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "helvetica",
+        "createdAt": "2026-11-12T11:42:32.647Z",
+        "reason": "Claude: project house UI font, used 9 times in assets/css/app.css (sources heading, arena leaderboard) before the /eval page matched it"
+      }
+    ]
+  }
+}

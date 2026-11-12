@@ -10,7 +10,7 @@ Rule: a change to prompts, models, retrieval or chunking needs an eval table bef
 | Full pipeline eval | `docker compose exec -e OMP_NUM_THREADS=8 web python eval/run.py --model <id> [--general-model <id>] [--limit 5]` | `eval/results/run_<YYMMDD-HHMM>_<model>.csv` |
 | Table of runs | `docker compose exec web python eval/compare.py [csv ...]` | Markdown table (with "Judge support" once judged) |
 | LLM judge (#8) | `docker compose exec web python eval/judge.py eval/results/run_X.csv [--model ...]` | adds `judge_support` (0-1) to the run CSV; needs runs made after 10 Nov (they save the passages) |
-| Classifier comparison (#9) | `docker compose exec web python eval/classify.py --models a,b [--intent]` | Markdown table: accuracy, false refusals, false answers, errors, time, cost |
+| Classifier comparison (#9) | `docker compose exec web python eval/classify.py --models a,b [--intent]` | Markdown table: accuracy, false refusals, false answers, errors, time, cost; also `eval/results/classify_<YYMMDD-HHMM>.csv` |
 | Retrieval question set | `python eval/make_retrieval_set.py` | `eval/retrieval_questions.jsonl` |
 | Embedding comparison | `python eval/compare_embeddings.py [E2 E4 ...]` (GPU or API) | `eval/results/embeddings_<YYMMDD>.csv` |
 | Coverage audit | `python eval/coverage.py` | `eval/results/coverage_<YYMMDD>.{csv,md,svg}` (see [data.md](data.md) 4) |
@@ -33,6 +33,8 @@ Question sets:
 
   **`cluster`, `type` and `route` are drafts** (12 Nov, from the definitions in the bank's Classes sheet): two people should review them, as for E1. Few questions test FORRT routing (3 `forrt`, 6 `both`); `eval/forrt_questions.jsonl` (#43) covers that. No question yet for cluster 5 (computation and analysis) and only one for cluster 9. `test/test_questions.py` checks the structure.
 - `eval/retrieval_questions.jsonl`: 474 questions for retrieval only (24 from `data/interim/questions_and_text.csv`, 150 synthetic, 300 translations to nl/de/es).
+
+All result files in `eval/results/` are shown on the page **`/eval`** (answer models, classifiers, embedding models, arena ratings), newest first.
 
 ## 2. What the numbers mean
 

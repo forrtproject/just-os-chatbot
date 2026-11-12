@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JUST-OS Evaluation</title>
+    <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+</head>
+
+<body>
+    <div id="header-bar">
+        <img src='/images/qualle.png' id="header-logo" alt="JUST-OS">
+    </div>
+    {% include "_nav.html" %}
+    <main id="eval-page">
+        <h1>Evaluation</h1>
+        <p class="eval-note">Results of the eval scripts in <code>eval/</code> (files in <code>eval/results/</code>),
+            newest first. What each number means: <a href="https://github.com/forrtproject/just-os-chatbot/blob/dev/docs/evaluation.md">docs/evaluation.md</a>.</p>
+
+        <section>
+            <h2>Answer models</h2>
+            <p class="eval-note">The full pipeline on <code>eval/questions.jsonl</code> (<code>eval/run.py</code>).
+                Correct = answered when it should answer, refused when it should refuse. Runs on different
+                machines or settings differ in time; compare runs of one setup.</p>
+            {% if runs %}
+            <div class="eval-table">
+                <table>
+                    <thead>
+                        <tr><th>Run</th><th>Answer model</th><th>n</th><th>Correct</th><th>Answered</th><th>Refused</th>
+                            <th>Errors</th><th>hit@7</th><th>Citations valid</th><th>Judge</th>
+                            <th>Mean s</th><th>p95 s</th><th>Tokens / q</th><th>USD / 1k q</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for r in runs %}
+                        <tr><td>{{ r.run }}</td><td>{{ r.model }}</td><td>{{ r.n }}</td><td>{{ r.correct }}</td>
+                            <td>{{ r.answered }}</td><td>{{ r.refused }}</td><td>{{ r.errors }}</td>
+                            <td>{{ r.hit if r.hit is not none else "–" }}</td>
+                            <td>{{ r.citations_valid if r.citations_valid is not none else "–" }}</td>
+                            <td>{{ r.judge if r.judge is not none else "–" }}</td>
+                            <td>{{ r.mean_s }}</td><td>{{ r.p95_s }}</td><td>{{ r.tokens }}</td><td>{{ r.usd_per_1k }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}<p class="eval-empty">No runs yet: <code>python eval/run.py</code>.</p>{% endif %}
+        </section>
+
+        <section>
+            <h2>Classification models</h2>
+            <p class="eval-note">The topic check or router alone on <code>eval/questions.jsonl</code> (<code>eval/classify.py</code>).
+                A false refusal turns away an in-scope question; a false answer lets an off-topic one through.</p>
+            {% if classifiers %}
+            <div class="eval-table">
+                <table>
+                    <thead>
+                        <tr><th>Run</th><th>Classifier</th><th>n</th><th>Accuracy</th><th>False refusals</th>
+                            <th>False answers</th><th>Errors</th><th>Mean s</th><th>USD / 1k q</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for r in classifiers %}
+                        <tr><td>{{ r.run }}</td><td>{{ r.model }}</td><td>{{ r.n }}</td><td>{{ r.accuracy }}</td>
+                            <td>{{ r.false_refusals }}</td><td>{{ r.false_answers }}</td><td>{{ r.errors }}</td>
+                            <td>{{ r.mean_s }}</td><td>{{ r.usd_per_1k }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}<p class="eval-empty">No classifier runs yet: <code>python eval/classify.py --models ...</code>.</p>{% endif %}
+        </section>
+
+        <section>
+            <h2>Embedding models (search only)</h2>
+            <p class="eval-note">How often the right document is in the top 5 or 20 results, all languages
+                (<code>eval/compare_embeddings.py</code>, 474 questions of <code>eval/retrieval_questions.jsonl</code>).</p>
+            {% if embeddings %}
+            <div class="eval-table">
+                <table>
+                    <thead><tr><th>Embedding model</th><th>Dims</th><th>hit@5</th><th>hit@20</th><th>MRR@20</th><th>ms / query</th></tr></thead>
+                    <tbody>
+                        {% for r in embeddings %}
+                        <tr><td>{{ r.model }}</td><td>{{ r.dim }}</td><td>{{ r.hit5 }}</td><td>{{ r.hit20 }}</td><td>{{ r.mrr20 }}</td><td>{{ r.ms }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}<p class="eval-empty">No embedding comparison yet.</p>{% endif %}
+        </section>
+
+        <section>
+            <h2>Arena ratings</h2>
+            <p class="eval-note">Mean rating from 1 to 5 given by people on <a href="/arena">/arena</a>; few ratings give unstable numbers.</p>
+            {% if arena %}
+            <div class="eval-table">
+                <table>
+                    <thead>
+                        <tr><th>Model</th><th>Ratings</th>
+                            {% for key, text in criteria.items() %}<th title="{{ text }}">{{ text.split(':')[0] }}</th>{% endfor %}
+                            <th>Overall</th><th>Mean s</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for r in arena %}
+                        <tr><td>{{ r.model }}</td><td>{{ r.ratings }}</td>
+                            {% for key in criteria %}<td>{{ r[key] }}</td>{% endfor %}
+                            <td>{{ r.overall }}</td><td>{{ r.seconds }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}<p class="eval-empty">No arena ratings yet.</p>{% endif %}
+        </section>
+    </main>
+</body>
+
+</html>

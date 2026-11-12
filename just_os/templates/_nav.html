@@ -1,0 +1,6 @@
+{# Shared page links (index, arena, eval). nav_arena comes from the context processor in app.py #}
+<nav class="top-nav" aria-label="Pages">
+    <a href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>Chat</a>
+    {% if nav_arena %}<a href="/arena" {% if request.path == '/arena' %}aria-current="page"{% endif %}>Arena</a>{% endif %}
+    <a href="/eval" {% if request.path == '/eval' %}aria-current="page"{% endif %}>Evaluation</a>
+</nav>

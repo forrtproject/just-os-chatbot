@@ -100,11 +100,37 @@ SNIPPET_MAX = 300  # characters of the quote under a source
 WORD = re.compile(r"[a-z0-9]{3,}")
 
 
+MIN_LETTER_SHARE = 0.75  # below this a "sentence" is mostly numbers, links or table cells
+
+
+def clean_markdown(text: str) -> str:
+    """Plain text from converted-PDF Markdown: [text](link) -> text, no "( page-7-27)"
+    anchors, no backslash escapes, no #*_|>` marks, single spaces."""
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)  # Markdown links keep their words
+    text = re.sub(r"\(\s*#?page-[\d-]+\s*\)", "", text)  # page anchors from the PDF converter
+    text = re.sub(r"\\([\\()\[\]*_#.-])", r"\1", text)
+    return re.sub(r"[#*_|>`]+|\s+", " ", text).strip()
+
+
+def readable(sentence: str) -> bool:
+    """A full sentence of words: starts with a capital letter or a digit (not mid-sentence)
+    and at least MIN_LETTER_SHARE of its non-space characters are letters."""
+    chars = [c for c in sentence if not c.isspace()]
+    first = sentence[:1]
+    return (
+        len(sentence) >= 40
+        and (first.isdigit() or (first.isalpha() and not first.islower()))
+        and sum(c.isalpha() for c in chars) >= MIN_LETTER_SHARE * len(chars)
+    )
+
+
 def best_snippet(claim: str, passage: str) -> str:
-    """The sentence of the passage that shares the most words with the claim citing it
-    (Markdown marks removed, cut at SNIPPET_MAX). Empty for an empty passage."""
-    plain = re.sub(r"[#*_|>`]+|\s+", " ", passage).strip()
-    sentences = [s for s in re.split(r"(?<=[.!?])\s+", plain) if len(s) >= 40] or [plain]
+    """The readable sentence of the passage that shares the most words with the claim
+    citing it, cut at SNIPPET_MAX. Empty when no sentence is readable: a broken quote
+    (reference lists, tables, link debris) is withheld rather than shown."""
+    sentences = [s for s in re.split(r"(?<=[.!?])\s+", clean_markdown(passage)) if readable(s)]
+    if not sentences:
+        return ""
     words = set(WORD.findall(claim.lower()))
     best = max(sentences, key=lambda s: len(words & set(WORD.findall(s.lower()))))
     return best if len(best) <= SNIPPET_MAX else best[:SNIPPET_MAX].rsplit(" ", 1)[0] + " …"

@@ -128,6 +128,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "ARENA_RATINGS_FILE": "data/arena/ratings.jsonl",
     # Every arena question with all answers, rated or not (JSON lines); empty = not saved
     "ARENA_ROUNDS_FILE": "data/arena/rounds.jsonl",
+    # Page /eval reads the result CSVs of eval/run.py, eval/classify.py and eval/compare_embeddings.py here
+    "EVAL_RESULTS_DIR": "eval/results",
     # Chat page: every answered turn (question, answer, outcome: answered/off_topic/
     # no_sources/error/forrt_lookup/forrt/both) and every Good/Bad feedback are appended here as JSON
     # lines. Empty = not saved. These and the arena files are in Git during the test phase

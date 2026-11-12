@@ -11,6 +11,37 @@ body {
     margin: 0 auto
 }
 
+/* Chat / Arena / Evaluation links under the logo (templates/_nav.html) */
+.top-nav {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    margin: -4px auto 12px;
+    font-family: "Helvetica", sans-serif;
+    font-size: small;
+}
+
+.top-nav a {
+    padding: 4px 12px;
+    border-radius: 12px;
+    color: #004055;
+    text-decoration: none;
+}
+
+.top-nav a:hover {
+    background: #eef3f5;
+}
+
+.top-nav a:focus-visible {
+    outline: 2px solid #004055;
+    outline-offset: 2px;
+}
+
+.top-nav a[aria-current="page"] {
+    background: #004055;
+    color: white;
+}
+
 #header-logo {
     height: 100px;
     margin-bottom: 10px;
@@ -535,6 +566,68 @@ button#send-button:disabled {
     text-align: start;
 }
 
+/* /eval page: result tables, scroll sideways on narrow screens */
+#eval-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 16px 32px;
+    font-family: "Helvetica", sans-serif;
+}
+
+#eval-page h1,
+#eval-page h2 {
+    color: #004055;
+    line-height: 1.2;
+}
+
+#eval-page h1 {
+    font-size: 2rem;
+    margin: 16px 0 8px;
+}
+
+#eval-page h2 {
+    font-size: 1.35rem;
+    margin: 0 0 4px;
+}
+
+#eval-page section {
+    margin-top: 24px;
+}
+
+.eval-note,
+.eval-empty {
+    font-size: small;
+    color: #555;
+    max-width: 75ch;
+}
+
+.eval-table {
+    overflow-x: auto;
+    background: white;
+    border: 1px solid #e1e4e8;
+    border-radius: 4px;
+}
+
+.eval-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: small;
+    font-variant-numeric: tabular-nums;
+}
+
+.eval-table th,
+.eval-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #e1e4e8;
+    text-align: start;
+    white-space: nowrap;
+}
+
+.eval-table th {
+    background: #eef3f5;
+    color: #004055;
+}
+
 .visually-hidden {
     position: absolute;
     width: 1px;
@@ -574,6 +667,32 @@ button#send-button:disabled {
     color: #b00020;
     font-size: small;
     margin: 4px 0;
+}
+
+/* Markdown tables in answers (chat and arena): scroll sideways on narrow screens */
+.bot-message table,
+.arena-body table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    margin: 8px 0;
+    font-size: smaller;
+}
+
+.bot-message th,
+.bot-message td,
+.arena-body th,
+.arena-body td {
+    border: 1px solid #d0d7de;
+    padding: 4px 8px;
+    text-align: start;
+    vertical-align: top;
+}
+
+.bot-message th,
+.arena-body th {
+    background: #eef3f5;
 }
 
 .source-snippet {

@@ -24,8 +24,9 @@
     </style>
 </head>
 <div id="header-bar">
-    <img src='/images/qualle.png' id="header-logo">
+    <img src='/images/qualle.png' id="header-logo" alt="JUST-OS">
 </div>
+{% include "_nav.html" %}
 <div id="container">
     <div id="chat-messages">{{ message_history | safe }}</div>
     <div id="status-message"></div>

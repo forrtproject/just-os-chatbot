@@ -10,9 +10,11 @@ Prints a Markdown table: accuracy, false refusals, false answers, errors, time, 
 """
 
 import argparse
+import csv
 import json
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 from statistics import mean
 
@@ -54,6 +56,12 @@ def main():
     args = parser.parse_args()
 
     questions = [json.loads(line) for line in open(args.questions, encoding="utf-8")]
+    # One row per model and question, for the /eval page (just_os/eval_report.py)
+    out = Path("eval/results") / f"classify_{datetime.now():%y%m%d-%H%M}.csv"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    f = open(out, "w", newline="", encoding="utf-8")
+    writer = csv.writer(f)
+    writer.writerow(["model", "id", "gold", "predicted", "seconds", "usd"])
     print("| Classifier | n | Accuracy | False refusals | False answers | Errors | Mean s | USD / 1k q |")
     print("|---|---|---|---|---|---|---|---|")
     for model in [m.strip() for m in args.models.split(",") if m.strip()]:
@@ -76,6 +84,10 @@ def main():
             predicted = predict(processor, q["question"], args.intent)
             results.append((gold(q, args.intent), predicted, time.time() - start, cost["usd"]))
         print(summarize(model, results), flush=True)
+        writer.writerows([model, q["id"], g, p or "", round(s, 2), c] for q, (g, p, s, c) in zip(questions, results))
+        f.flush()
+    f.close()
+    print(f"-> {out}")
 
 
 if __name__ == "__main__":
