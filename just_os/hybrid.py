@@ -1,12 +1,17 @@
-"""Hybrid retrieval: keyword search (BM25) next to vector search (issue N1, #19).
+"""The search step, chosen by SEARCH_MODE: vector, keyword (BM25) or both (issue N1, #19).
 
 Vector search misses exact terms (names, acronyms such as "HARKing" or "CRediT");
-BM25 finds them. The two ranked lists are merged with reciprocal rank fusion.
-On with HYBRID_SEARCH=true. Builds the keyword index from the docstore at start-up.
+BM25 finds them. SEARCH_MODE=hybrid merges the two ranked lists with reciprocal rank
+fusion, SEARCH_MODE=bm25 uses the keywords alone. Both build the keyword index from the
+docstore at start-up.
+
+A vector hit keeps its FAISS score, the squared L2 distance of unit vectors, from which
+vector_cosine gives the cosine; a keyword hit has score None (hybrid) or its BM25 score
+(bm25), which is on no fixed scale.
 """
 
 import logging
-from typing import Any, List
+from typing import Any, List, Optional
 
 import numpy as np
 from llama_index.core.schema import NodeWithScore
@@ -73,6 +78,43 @@ class HybridRetriever:
         keyword_ids = [self.nodes[i].node_id for i in self.bm25.top(query, self.top_k)]
         fused = reciprocal_rank_fusion([hit.node.node_id for hit in vector_hits], keyword_ids)
         return [
-            found.get(node_id) or NodeWithScore(node=self.by_id[node_id], score=0.0)
+            found.get(node_id) or NodeWithScore(node=self.by_id[node_id], score=None)
             for node_id in fused[: self.top_k]
         ]
+
+
+class KeywordRetriever:
+    """SEARCH_MODE=bm25: the top_k chunks by BM25 alone, with their BM25 score. Keeps the
+    vector retriever for what needs the FAISS index, such as the cosine router."""
+
+    def __init__(self, nodes: List[Any], top_k: int, vector_retriever=None):
+        self.vector_retriever = vector_retriever
+        self.nodes = nodes
+        self.top_k = top_k
+        logger.info(f"Building the BM25 keyword index over {len(nodes)} chunks")
+        self.bm25 = BM25([node.get_content() for node in nodes])
+
+    def retrieve(self, query: str) -> List[NodeWithScore]:
+        scores = self.bm25.scores(query)
+        return [NodeWithScore(node=self.nodes[i], score=float(scores[i])) for i in self.bm25.top(query, self.top_k)]
+
+
+SEARCH_MODES = ("vector", "bm25", "hybrid")
+
+
+def search_retriever(mode: str, vector_retriever, nodes: List[Any], top_k: int):
+    """The retriever for SEARCH_MODE; nodes (the docstore's chunks) are only read for bm25 and hybrid."""
+    if mode == "vector":
+        return vector_retriever
+    if mode == "bm25":
+        return KeywordRetriever(nodes, top_k, vector_retriever)
+    if mode == "hybrid":
+        return HybridRetriever(vector_retriever, nodes, top_k)
+    raise ValueError(f"SEARCH_MODE must be one of {', '.join(SEARCH_MODES)}, not {mode!r}")
+
+
+def vector_cosine(hits: List[NodeWithScore]) -> Optional[float]:
+    """Cosine of the best vector hit (FAISS IndexFlatL2 over unit vectors: cosine = 1 - d / 2),
+    or None when no hit came from the vector search."""
+    distances = [hit.score for hit in hits if hit.score is not None]
+    return 1 - min(distances) / 2 if distances else None

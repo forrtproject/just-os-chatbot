@@ -1,4 +1,5 @@
 import os
+import warnings
 from typing import Dict, Any
 
 # Default configuration values
@@ -97,8 +98,15 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "MAX_CHUNKS": 7,
     # At most this many chunks of one paper in the context (0 = no limit), for variety
     "MAX_CHUNKS_PER_DOC": 0,
-    # Keyword (BM25) + vector search, merged by reciprocal rank fusion (just_os/hybrid.py)
-    "HYBRID_SEARCH": False,
+    # Search: "vector" (FAISS), "bm25" (keywords) or "hybrid" (both, merged by reciprocal
+    # rank fusion); just_os/hybrid.py. Replaces HYBRID_SEARCH=true, now SEARCH_MODE=hybrid
+    "SEARCH_MODE": "vector",
+    # Re-rank the found chunks with RERANK_MODEL and drop those at or below MIN_RELEVANCE;
+    # false keeps the search order and does not load the re-ranker (unless VERIFY_CITATIONS)
+    "RERANK": True,
+    # With RERANK=false: "no sources" when the best vector match of the question has a lower
+    # cosine (vector and hybrid search; 0 = no check). 0.55 from docs/evaluation.md 3.4 (#21)
+    "MIN_VECTOR_SIMILARITY": 0.55,
     # doi,year table for the reference year (scripts/get_pub_years.py); missing → "n.d."
     "PUB_YEARS_FILE": "data/raw/pub_years.csv",
     # Redis settings
@@ -164,6 +172,9 @@ for key in DEFAULT_CONFIG:
             DEFAULT_CONFIG[key] = float(os.environ.get(key))
         else:
             DEFAULT_CONFIG[key] = os.environ.get(key)
+
+if os.environ.get("HYBRID_SEARCH"):
+    warnings.warn("HYBRID_SEARCH is no longer read; set SEARCH_MODE=hybrid instead", stacklevel=1)
 
 # Export all configuration values to module level for backward compatibility
 for key, value in DEFAULT_CONFIG.items():

@@ -20,6 +20,7 @@ from just_os.chat_manager import ChatManager
 from just_os.decisions import DECISION_ROUTERS, DecisionClient
 from just_os.forrt_lookup import ForrtLookup
 from just_os.forrt_pages import ForrtPages
+from just_os.hybrid import vector_cosine
 from just_os import messages as msg
 from just_os.openscholar import generation_instance_prompts_w_references, system_prompt
 from just_os.references import (
@@ -305,7 +306,12 @@ class DocumentRetriever:
         self._retriever = retriever
         # The container sets OMP_NUM_THREADS=1; the re-ranker is ~2x faster with 6 threads
         torch.set_num_threads(config.get("RERANK_THREADS", 6))
-        self.reranker = CrossEncoder(config["RERANK_MODEL"])
+        self.rerank = config.get("RERANK", True)
+        self.search_mode = config.get("SEARCH_MODE", "vector")
+        self.min_vector_similarity = config.get("MIN_VECTOR_SIMILARITY", 0.0)
+        # VERIFY_CITATIONS also scores with the re-ranker model
+        needed = self.rerank or config.get("VERIFY_CITATIONS")
+        self.reranker = CrossEncoder(config["RERANK_MODEL"]) if needed else None
         self.verify_min_score = config.get("VERIFY_MIN_SCORE", 0.1)
         self.n_context_items = config["MAX_CHUNKS"]
         self.min_relevance = config["MIN_RELEVANCE"]
@@ -326,7 +332,7 @@ class DocumentRetriever:
                 if claim and ref < len(nodes):
                     pairs.append((claim, self.node_to_text(nodes[ref])))
                     refs.append(ref)
-        if not pairs:
+        if not pairs or self.reranker is None:
             return set()
         try:
             scores = self.reranker.predict(pairs)
@@ -350,6 +356,17 @@ class DocumentRetriever:
                     kept.append(node)
             nodes = kept
         return nodes[: self.n_context_items]
+
+    def search_order(self, query: str, nodes: List[Any]) -> List[Any]:
+        """RERANK=false: the chunks in search order, or none ("no sources") when the best vector
+        match is below MIN_VECTOR_SIMILARITY. BM25 scores have no fixed scale, so bm25 search
+        has no such check."""
+        if self.search_mode != "bm25" and self.min_vector_similarity > 0:
+            cosine = vector_cosine(nodes)
+            if cosine is not None and cosine < self.min_vector_similarity:
+                logger.info(f"No sources: best vector match {cosine:.3f} < MIN_VECTOR_SIMILARITY for {query[:60]!r}")
+                return []
+        return self.limit_per_document(nodes)
 
     def node_to_text(self, node) -> str:
         """
@@ -403,6 +420,9 @@ class DocumentRetriever:
 
         if not nodes:
             return [], []
+
+        if not self.rerank:
+            return self.search_order(query, nodes), nodes
 
         try:
             scores = self.reranker.predict(
@@ -954,7 +974,7 @@ class Qualle:
         Thresholds from eval/questions.jsonl + eval/forrt_questions.jsonl (docs/evaluation.md 3.7)."""
         q = np.asarray([self._embed_model.get_query_embedding(query)], dtype=np.float32)
         q /= np.linalg.norm(q)
-        vector_retriever = getattr(self._retriever, "vector_retriever", self._retriever)  # HybridRetriever wraps it
+        vector_retriever = getattr(self._retriever, "vector_retriever", self._retriever)  # bm25 and hybrid wrap it
         distance, _ = vector_retriever._index.vector_store._faiss_index.search(q, 1)
         paper = 1 - float(distance[0][0]) / 2  # squared L2 of unit vectors → cosine
         page = float((self.forrt_pages.vectors @ q[0]).max()) if self.forrt_pages is not None else -1.0
