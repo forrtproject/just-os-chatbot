@@ -689,6 +689,14 @@ button#send-button:disabled {
     color: #555;
 }
 
+/* Arena: the topic check sits with the model picker, on the left */
+#model-choice.arena-topic-check {
+    justify-content: flex-start;
+    font-size: 0.9rem;
+    color: #004055;
+    margin: 8px 0;
+}
+
 #model-select,
 #router-select {
     font-family: "Roboto Mono", monospace;

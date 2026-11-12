@@ -1232,11 +1232,10 @@ class Qualle:
             yield {"status": "in-progress", "message": "Classifying question"}
             timings: Dict[str, float] = {}
             step = time.time()
-            if router:  # the arena's dropdown: the router only decides answer or refuse
-                intent = self.route(query, router)
-                concerns_open_science = None if intent is None else intent != "off_topic"
-            else:
-                concerns_open_science = self.query_processor.classify_query(query)
+            # Same topic check as the chat (the dropdown, else ROUTER / DECISION_ROUTER); in the
+            # arena it only decides answer or refuse: the cards always answer from the papers
+            intent = self.route(query, router)
+            concerns_open_science = None if intent is None else intent != "off_topic"
             timings["classify_s"] = time.time() - step
             if concerns_open_science is None:
                 yield {
