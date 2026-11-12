@@ -91,9 +91,12 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "ARENA_BLIND": False,
     # Each rating is also appended here (JSON lines, in Git for the team); empty = Redis only
     "ARENA_RATINGS_FILE": "data/arena/ratings.jsonl",
+    # Every arena question with all answers, rated or not (JSON lines); empty = not saved
+    "ARENA_ROUNDS_FILE": "data/arena/rounds.jsonl",
     # Chat page: every answered turn (question, answer, outcome: answered/off_topic/
     # no_sources/error/forrt_lookup) and every Good/Bad feedback are appended here as JSON
-    # lines. Not in Git: they hold what users type. Empty = not saved.
+    # lines. Empty = not saved. These and the arena files are in Git during the test phase
+    # only: remove them from Git (and .gitignore) before the bot goes live.
     "CHAT_LOG_FILE": "data/chats/chats.jsonl",
     "CHAT_FEEDBACK_FILE": "data/chats/feedback.jsonl",
     # Google Drive settings

@@ -17,8 +17,12 @@ data/**
 !data/interim/questions_and_text.csv
 !data/arena/ratings.jsonl
 !data/arena/.gitkeep
-# Chat logs hold what users type: only the empty folder is in Git
+!data/arena/rounds.jsonl
+# Test phase only: chats and feedback are shared with the team in this public repo.
+# Remove these lines (and the files from Git) before the bot goes live.
 !data/chats/.gitkeep
+!data/chats/chats.jsonl
+!data/chats/feedback.jsonl
 archive/
 
 

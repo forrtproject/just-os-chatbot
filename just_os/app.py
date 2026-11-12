@@ -370,6 +370,7 @@ class FlaskApp:
             rows = [
                 json.dumps({
                     "time": now,
+                    "battle_id": data.get("battle_id"),
                     "question": battle["question"],
                     "model": battle["answers"][label]["model"],
                     "seconds": battle["answers"][label]["seconds"],
@@ -484,6 +485,13 @@ class FlaskApp:
                     json.dumps({"question": user_message, "answers": answers}),
                     ex=86400,
                 )
+                # Every round, rated or not (ratings.jsonl rows carry the same battle_id)
+                self._append_jsonl(self.config.get("ARENA_ROUNDS_FILE"), [json.dumps({
+                    "time": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                    "battle_id": battle_id,
+                    "question": user_message,
+                    "answers": answers,
+                })])
                 chunk["battle_id"] = battle_id
             yield json.dumps(chunk) + "\n"
 

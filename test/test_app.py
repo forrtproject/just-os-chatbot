@@ -24,6 +24,7 @@ class FakeRag:
 def app(tmp_path):
     flask_app = FlaskApp()
     flask_app.config["ARENA_RATINGS_FILE"] = str(tmp_path / "arena" / "ratings.jsonl")
+    flask_app.config["ARENA_ROUNDS_FILE"] = str(tmp_path / "arena" / "rounds.jsonl")
     flask_app.config["CHAT_LOG_FILE"] = str(tmp_path / "chats" / "chats.jsonl")
     flask_app.config["CHAT_FEEDBACK_FILE"] = str(tmp_path / "chats" / "feedback.jsonl")
     flask_app.chat_manager.redis = fakeredis.FakeRedis()
@@ -107,6 +108,10 @@ def test_arena_rating_reveals_models_and_builds_leaderboard(app):
     with open(app.config["ARENA_RATINGS_FILE"], encoding="utf-8") as file:
         saved = [json.loads(line) for line in file]
     assert saved == client.get("/arena/ratings").get_json()  # same rows as Redis
+    # every round is logged, and its ratings point back to it
+    [round_row] = read_jsonl(app.config["ARENA_ROUNDS_FILE"])
+    assert round_row["question"] == "What is open data?" and set(round_row["answers"]) == {"A", "B"}
+    assert {r["battle_id"] for r in saved} == {round_row["battle_id"]} == {battle}
 
 
 def test_arena_rejects_bad_ratings(app):
