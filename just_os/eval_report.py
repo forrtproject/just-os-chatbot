@@ -54,6 +54,7 @@ def answer_runs(folder: str) -> List[Dict]:
             "hit": _mean(r["hit"] for r in rows),
             "citations_valid": _mean(r["citations_valid"] for r in rows),
             "judge": _mean(r.get("judge_support") for r in rows),
+            "rubric": _mean(r.get("rubric_coverage") for r in rows),
             "mean_s": round(mean(seconds), 1),
             "p95_s": _p95(seconds),
             # mean seconds per step (runs from 12 Nov on; older runs: None)

@@ -29,7 +29,7 @@
                 <table>
                     <thead>
                         <tr><th>Answer model</th><th>Runs</th><th>Newest run</th><th>n</th><th>Correct</th><th>Answered</th>
-                            <th>Refused</th><th>Errors</th><th>hit@7</th><th>Citations valid</th><th>Judge</th>
+                            <th>Refused</th><th>Errors</th><th>hit@7</th><th>Citations valid</th><th>Judge</th><th>Rubric coverage</th>
                             <th>Mean s</th><th>p95 s</th><th>Topic check s</th><th>Search s</th><th>Re-rank s</th><th>LLM answer s</th>
                             <th>Tokens / q</th><th>USD / 1k q</th></tr>
                     </thead>
@@ -40,6 +40,7 @@
                             <td>{{ r.hit if r.hit is not none else "–" }}</td>
                             <td>{{ r.citations_valid if r.citations_valid is not none else "–" }}</td>
                             <td>{{ r.judge if r.judge is not none else "–" }}</td>
+                            <td>{{ r.rubric if r.rubric is not none else "–" }}</td>
                             <td>{{ r.mean_s }}</td><td>{{ r.p95_s }}</td>
                             {% for k in ("classify_s", "search_s", "rerank_s", "answer_s") %}<td>{{ r[k] if r[k] is not none else "–" }}</td>{% endfor %}
                             <td>{{ r.tokens }}</td><td>{{ r.usd_per_1k }}</td></tr>
@@ -125,7 +126,7 @@
                     <table>
                         <thead>
                             <tr><th>Run</th><th>Answer model</th><th>n</th><th>Correct</th><th>Answered</th><th>Refused</th>
-                                <th>Errors</th><th>hit@7</th><th>Citations valid</th><th>Judge</th>
+                                <th>Errors</th><th>hit@7</th><th>Citations valid</th><th>Judge</th><th>Rubric coverage</th>
                                 <th>Mean s</th><th>p95 s</th><th>Tokens / q</th><th>USD / 1k q</th></tr>
                         </thead>
                         <tbody>
@@ -135,6 +136,7 @@
                                 <td>{{ r.hit if r.hit is not none else "–" }}</td>
                                 <td>{{ r.citations_valid if r.citations_valid is not none else "–" }}</td>
                                 <td>{{ r.judge if r.judge is not none else "–" }}</td>
+                                <td>{{ r.rubric if r.rubric is not none else "–" }}</td>
                                 <td>{{ r.mean_s }}</td><td>{{ r.p95_s }}</td><td>{{ r.tokens }}</td><td>{{ r.usd_per_1k }}</td></tr>
                             {% endfor %}
                         </tbody>
@@ -177,6 +179,7 @@
                 <dt>hit@7</dt><dd>For questions with known source papers (<code>expected_dois</code>): share where at least one of them was among the 7 sources the answer model saw. Only a few questions have them.</dd>
                 <dt>Citations valid</dt><dd>Share of answers whose every <code>[n]</code> points to a source that exists (no invented numbers).</dd>
                 <dt>Judge</dt><dd>Mean score of <code>eval/judge.py</code>: does the cited passage support the sentence? "–" when the run was not judged.</dd>
+                <dt>Rubric coverage</dt><dd>Mean score of <code>eval/rubric_judge.py</code> over the questions with a rubric (the FORRT glossary items): how much of the rubric the answer covers, from 0 to 1. "–" when the run was not judged.</dd>
                 <dt>Mean s, p95 s</dt><dd>Seconds from the question to the complete answer: the mean, and the time 95% of questions stay under.</dd>
                 <dt>Topic check s, Search s, Re-rank s, LLM answer s</dt><dd>Mean seconds of each step, measured inside the bot: the topic check (router or classifier), the vector and keyword search, the re-ranker that picks the best passages, and the answer model writing the answer (with its one retry). Refused questions stop after the topic check, so the later steps average over the questions that reached them. Questions answered from forrt.org instead of the papers record <code>forrt_pages_s</code> (page search, live fetch and answer) in the logs. "–" for runs from before 12 Nov. The chat log (<code>data/chats/chats.jsonl</code>) and the arena logs record the same steps for every real question.</dd>
                 <dt>Tokens / q</dt><dd>Mean prompt + completion tokens per question, all model calls together (topic check, answer, retry).</dd>
