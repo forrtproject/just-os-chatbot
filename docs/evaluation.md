@@ -13,11 +13,12 @@ Rule: a change to prompts, models, retrieval or chunking needs an eval table bef
 | Classifier comparison (#9) | `docker compose exec web python eval/classify.py --models a,b [--intent]` | Markdown table: accuracy, false refusals, false answers, errors, time, cost; also `eval/results/classify_<YYMMDD-HHMM>.csv` |
 | Retrieval question set | `python eval/make_retrieval_set.py` | `eval/retrieval_questions.jsonl` |
 | Embedding comparison | `python eval/compare_embeddings.py [E2 E4 ...]` (GPU or API) | `eval/results/embeddings_<YYMMDD>.csv` |
+| Reviewer sheet | `python eval/export_questions.py [eval/results/run_X.csv]` (host: needs openpyxl) | `eval/questions.xlsx`: each question with expected DOIs/URLs (+ titles), the DOIs the bot cited and retrieved in the newest run, the matches, and empty columns to judge them |
 | Coverage audit | `python eval/coverage.py` | `eval/results/coverage_<YYMMDD>.{csv,md,svg}` (see [data.md](data.md) 4) |
 | Arena (human ratings) | http://localhost:8000/arena with `ARENA_ENABLED=true`: pick models, rate each answer 1-5 on correct / references / clarity | `/arena/leaderboard`, `/arena/ratings` |
 
 Question sets:
-- `eval/questions.jsonl`: 101 questions for the full pipeline (73 should answer, 28 should refuse; 13 not English, checked by native speakers; 12 with `expected_dois`). The first 54 are the earlier set (unchanged); 47 come from the question bank of Meltem and Mohit (`data/raw/questions_bank_261112.csv`, 12 Nov; its 37 other rows were already in the set). Fields, in this order:
+- `eval/questions.jsonl`: 101 questions for the full pipeline (73 should answer, 28 should refuse; 13 not English, checked by native speakers; 70 with `expected_dois`, 8 with `expected_urls`). The first 54 are the earlier set (unchanged); 47 come from the question bank of Meltem and Mohit (`data/raw/questions_bank_261112.csv`, 12 Nov; its 37 other rows were already in the set). Fields, in this order:
 
   | Field | Values |
   |---|---|
@@ -30,6 +31,8 @@ Question sets:
   | `route` | gold label for the router (#43): `open_science`, `forrt`, `both` or `neither` (`neither` exactly when `expect` is `refuse`) |
   | `expected_dois`, `expected_urls` | the reference answer: papers and pages a good answer cites |
   | `source`, `note` | where the question comes from; free text |
+
+  **`expected_dois` and `expected_urls` are drafts too** (12 Nov): the 12 DOIs from `BOT/Questions.docx` were kept; the rest were picked by hand from the bge-m3 search results and a title/full-text search of the production index (`VECTOR_STORE`), so every DOI is an indexed paper; URLs are pages of the FORRT page index (`vector_data/forrt_pages`), only for `forrt`/`both` questions. Translations (`source: translation of …`) share the picks of their English question. Without DOIs: refusals, `qa03` (about the bot itself), `new10` (no indexed paper on assigning a DOI to an article) and `new33` (false premise: no such FORRT tool). Meltem and Mohit review them in `eval/questions.xlsx`; the `hit` column of `eval/run.py` uses them.
 
   **`cluster`, `type` and `route` are drafts** (12 Nov, from the definitions in the bank's Classes sheet): two people should review them, as for E1. Few questions test FORRT routing (3 `forrt`, 6 `both`); `eval/forrt_questions.jsonl` (#43) covers that. No question yet for cluster 5 (computation and analysis) and only one for cluster 9. `test/test_questions.py` checks the structure.
 - `eval/retrieval_questions.jsonl`: 474 questions for retrieval only (24 from `data/interim/questions_and_text.csv`, 150 synthetic, 300 translations to nl/de/es).

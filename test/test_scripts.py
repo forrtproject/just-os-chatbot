@@ -16,6 +16,7 @@ from llama_index.vector_stores.faiss import FaissVectorStore
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eval"))
 
 import classify  # noqa: E402
+import export_questions  # noqa: E402
 import judge  # noqa: E402
 import make_retrieval_set  # noqa: E402
 import run  # noqa: E402
@@ -200,3 +201,10 @@ def test_retrieval_set_unwraps_dict_valued_titles(tmp_path, monkeypatch):
     _, titles = make_retrieval_set.load_documents()
     assert titles == {"d1": "Scientific Utopia II", "d2": "Plain title"}
 
+
+
+def test_reviewer_sheet_maps_citations_to_dois():
+    # Source 1 has no DOI (empty slot); [3] is out of range; [2] is cited twice
+    row = {"retrieved_dois": "10.1/a  10.1/c 10.1/a", "answer": "x [0]. y [2] [2]. z [1] [3]."}
+    assert export_questions.bot_dois(row) == (["10.1/a", "10.1/c"], ["10.1/a", "10.1/c"])
+    assert export_questions.bot_dois({"retrieved_dois": float("nan"), "answer": "no refs"}) == ([], [])
