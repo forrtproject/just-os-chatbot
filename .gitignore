@@ -246,3 +246,6 @@ token.json
 
 # Team bundle made by scripts/make_share_bundle.py (contains keys and data)
 share/
+
+# Office lock files (created while a file is open; contain the user name)
+~$*
