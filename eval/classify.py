@@ -1,12 +1,17 @@
-"""Classifier comparison (issue E3, #9): which GENERAL_MODEL decides best what to answer?
+"""Topic check comparison (issue E3, #9): which check decides best where a question goes?
 
+    docker compose exec web python eval/classify.py --routers jev,clef-flash,llm,cosine,none \
+        --questions eval/questions.jsonl,eval/forrt_questions.jsonl
     docker compose exec web python eval/classify.py --models openai/gpt-oss-20b,qwen/qwen3.7-flash
     docker compose exec web python eval/classify.py --models ... --intent   # 3 classes (FORRT_LOOKUP)
 
-Runs only the classify step (no retrieval, no index needed) on eval/questions.jsonl.
-"expect": answer → should be open science; refuse → should not. With --intent, an
-optional "intent" field in a question gives the gold class (default: from "expect").
-Prints a Markdown table: accuracy, false refusals, false answers, errors, time, cost.
+Runs only the topic check (no retrieval, no answer). --routers runs the whole check
+(Qualle.route), one ROUTERS strategy at a time, scored against the 4 "route" labels; a
+question without "route" counts as forrt. --models runs only the LLM classifier
+(GENERAL_MODEL) with each model: "expect": answer → should be open science; refuse →
+should not. With --intent, an optional "intent" field gives the gold class instead.
+Prints a Markdown table: accuracy, false refusals, false answers, errors, time, cost,
+and writes eval/results/classify_<YYMMDD-HHMM>.csv for the /eval page.
 """
 
 import argparse

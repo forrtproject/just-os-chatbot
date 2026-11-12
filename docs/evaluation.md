@@ -3,6 +3,13 @@
 How we measure the bot, the results so far, and what each number means.
 Rule: a change to prompts, models, retrieval or chunking needs an eval table before and after (see [hackathon.md](hackathon.md)).
 
+The bot first checks the topic of a question (open science, FORRT, both or neither), then answers it from the papers or from the FORRT pages, or refuses it. Two evaluations follow these two steps:
+
+- **Topic check** (`eval/classify.py`): runs only the check, on each question of `eval/questions.jsonl`, and compares the label it gives with the question's gold label. No answer is written, so it is fast and cheap (section 2, Topic check).
+- **Answering** (`eval/run.py`): runs the whole bot, topic check included, and scores what comes out against `expect` (answer or refuse), the expected sources and, where a question has one, its rubric; `eval/judge.py` scores whether the cited passages support the answer (section 2, Full pipeline eval).
+
+A wrong refusal or a missing source in the answering eval can come from either step: the topic check turning a question away or sending a paper question to the FORRT pages, or the search finding nothing above the relevance threshold ("no sources"). Read a drop in the answering eval's Correct together with a topic check run on the same questions.
+
 ## 1. Tools
 
 | Tool | Command | Output |
@@ -66,14 +73,36 @@ Why the scores look low: many documents are on the same subject (for example, ma
 
 | Column | Meaning |
 |---|---|
-| **outcome** | `answered`, `refused` (classifier said "not open science", or no sources), `error` (API failure) |
+| **outcome** | `answered` (from the papers or the FORRT pages), `refused` (the topic check said neither open science nor FORRT), `no_sources` (no passage passed the relevance threshold), `error` (API failure) |
 | **expect** | Gold label in `questions.jsonl`: `answer` or `refuse` |
 | **Correct** | Share of questions where the outcome matches `expect` |
 | **Answered / Refused** | Counts against the gold label (22/27 = 22 of the 27 "answer" questions got an answer) |
 | **hit@7** | For questions with `expected_dois`: one of them is in the 7 sources that the LLM saw |
+| **Judge support** | After `eval/judge.py`: mean share of cited sentences that their source passage supports (0-1); "–" when the run was not judged |
 | **Citations valid** | Share of answers where every `[n]` in the text points to a source in the list |
 | **Mean s / p95 s** | Mean and 95th-percentile answer time in seconds (target p95 ≤ 15 s) |
 | **USD / 1k q** | OpenRouter cost for 1,000 questions (from the token counts) |
+
+### Topic check (`eval/classify.py`)
+
+Two modes, both writing `eval/results/classify_<YYMMDD-HHMM>.csv` (one row per strategy or model and question), shown on `/eval`:
+
+| Mode | What runs | Gold label |
+|---|---|---|
+| `--routers jev,clef-flash,clef,llm,cosine,none` | the whole topic check (`Qualle.route`), one strategy at a time, as the "Topic check" dropdown offers them | `route`: `open_science`, `forrt`, `both` or `neither`; a question file without `route` (`eval/forrt_questions.jsonl`) counts as `forrt` |
+| `--models a,b` | only the LLM classifier (`GENERAL_MODEL`), with each model | from `expect`: `answer` → open science, `refuse` → off topic; with `--intent`, the optional `intent` field (open_science, forrt_lookup, off_topic) |
+
+`--questions` takes several files, comma separated (default `eval/questions.jsonl`).
+
+| Column | Meaning |
+|---|---|
+| **Accuracy** | Share of questions whose predicted label equals the gold label |
+| **False refusals** | In-scope questions (open science, FORRT or both) that the check turned away |
+| **False answers** | Off-topic questions that the check let through |
+| **Errors** | No label at all (the call failed and nothing could fall back) |
+| **Mean s, USD / 1k q** | Time and cost of the topic check alone per question |
+
+A strategy tuned on these questions, such as the thresholds of `cosine`, scores too high on them; check it on questions it was not tuned on (section 3.7).
 
 ## 3. Results
 
