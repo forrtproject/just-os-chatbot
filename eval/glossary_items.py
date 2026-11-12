@@ -101,14 +101,17 @@ def parse_json(text):
     return json.loads(text)
 
 
-def ask(manager, model, prompt, cost):
+def ask(manager, model, prompt, cost, reasoning=True):
     """One JSON-mode call; adds its cost (USD, from OpenRouter usage) to cost[0]."""
+    extra = {"usage": {"include": True}}
+    if not reasoning:  # some models (Claude) refuse the field even when they do not reason by default
+        extra["reasoning"] = {"enabled": False}
     response = manager.client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.2,
         response_format={"type": "json_object"},
-        extra_body={"usage": {"include": True}},
+        extra_body=extra,
     )
     cost[0] += getattr(response.usage, "cost", 0) or 0
     return parse_json(response.choices[0].message.content)
@@ -120,6 +123,8 @@ def main():
     parser.add_argument("--model", default="openai/gpt-4.1-mini", help="generator (OpenRouter id)")
     parser.add_argument("--terms", help="file of English term titles, one per line")
     parser.add_argument("--index", default="data/processed/vs_latest_bge-m3", help="index folder")
+    parser.add_argument("--no-reasoning", action="store_true",
+                        help="switch reasoning off, for a model that reasons by default (Qwen 3.7)")
     parser.add_argument("--german", action="store_true", help="also write each question in German")
     parser.add_argument("--out", help="default eval/glossary_items_<model>.jsonl")
     args = parser.parse_args()
@@ -134,7 +139,8 @@ def main():
     cost = [0.0]
     with open(out, "w", encoding="utf-8") as f:
         for n, (t, dois) in enumerate(terms, 1):
-            item = ask(manager, args.model, ITEM_PROMPT.format(term=t["title"], definition=t["definition"]), cost)
+            item = ask(manager, args.model, ITEM_PROMPT.format(term=t["title"], definition=t["definition"]), cost,
+                       not args.no_reasoning)
             rubric = [{"id": f"r{i}", "type": r["type"], "criterion": r["criterion"]} for i, r in enumerate(item["rubric"], 1)]
             base = {"expect": "answer", "expected_dois": dois, "source": "FORRT glossary", "term": t["en_title"],
                     "generator": args.model, "reference_answer": item["reference_answer"], "rubric": rubric}
@@ -142,7 +148,7 @@ def main():
             if args.german:
                 term_de = german.get(t["en_title"], t["title"])
                 questions.append(("de", ask(manager, args.model, TRANSLATE_PROMPT.format(
-                    term=t["title"], term_de=term_de, question=item["question"]), cost)["question"]))
+                    term=t["title"], term_de=term_de, question=item["question"]), cost, not args.no_reasoning)["question"]))
             for lang, question in questions:
                 f.write(json.dumps({"id": f"gl{n:02d}{lang}", "question": question, "lang": lang, **base},
                                    ensure_ascii=False) + "\n")
