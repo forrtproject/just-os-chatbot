@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from just_os import decisions, forrt_checks, qualle
-from just_os.forrt_pages import ForrtPages, extract
+from just_os.forrt_pages import ForrtPages, extract, trim
 from test_qualle import CONFIG, completion, make_qualle
 
 
@@ -128,6 +128,38 @@ def test_forrt_answer_from_the_picked_page(tmp_path):
     assert "https://forrt.slack.com/x" in result["text"]
     assert result["text"].rstrip().endswith("1. [Teams](https://forrt.org/about/teams/)")  # source list
     assert "Team Credit" in client.calls[0]["messages"][1]["content"]  # the page text reached the model
+
+
+def test_a_typical_long_page_reaches_the_model_whole(tmp_path):
+    # /about/us/ is ~8,400 characters; with a 6,000 limit the trim kept the blocks sharing words with
+    # "When was FORRT founded?" and dropped the History section, which says "initiated", not "founded"
+    pages, client = make_pages(tmp_path, ["FORRT was initiated at the 2018 SIPS meeting [1]."], [0.95, 0.1])
+    mission = "".join(f"<p>FORRT supports educators who teach open and reproducible science, point {i}. "
+                      + "It builds pedagogical infrastructure, community and teaching resources. " * 5 + "</p>"
+                      for i in range(20))
+    history = ("<h2>History</h2><p>This project was initiated at the 2018 meeting of the Society for the Improvement of "
+               "Psychological Science. " + "The initial framework was developed by a working group of researchers. " * 12 + "</p>")
+    pages.http.pages["https://forrt.org/about/teams/"] = f"<html><body><main>{mission}{history}</main></body></html>"
+    pages.answer("When was FORRT founded?")
+    assert "initiated at the 2018 meeting" in client.calls[0]["messages"][1]["content"]
+
+
+def test_a_huge_list_keeps_the_entry_the_question_asks_about():
+    # /contributors/ is ~212,000 characters in one block (a list without blank lines): the trim kept
+    # only the intro, so "What has Rohan contributed to FORRT?" got "not found"
+    entries = "\n".join(f"- **[Person {i}](https://orcid.org/{i})** contributed to\n  - Project {i} with *Writing*"
+                        for i in range(3000))
+    target = "- **[Rohan V. Tondlekar](https://orcid.org/x)** contributed to\n  - FLoRA Extractor with *Software*"
+    markdown = "FORRT is driven by a large community of contributors.\n\n" + entries.replace(
+        "- **[Person 2500]", target + "\n- **[Person 2500]")
+    kept = trim(markdown, "What has Rohan contributed to FORRT?", 12000)
+    assert len(kept) < 13000 and "Rohan V. Tondlekar" in kept and "FLoRA Extractor" in kept
+
+
+def test_placeholder_citations_are_removed():
+    # Llama 3.1 8B wrote "[no specific page number]" after each bullet instead of [1]
+    text = forrt_checks.clean_citations("FLoRA Extractor with *Software* [no specific page number]\n* Zotero plugin [1]", 1)
+    assert "no specific page number" not in text and "Zotero plugin [1]" in text
 
 
 def test_nothing_relevant_gives_the_no_sources_message(tmp_path):

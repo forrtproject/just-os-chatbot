@@ -16,6 +16,7 @@ project sites; not the curated resources, clusters or glossary terms (open-scien
 import json
 import logging
 import re
+from collections import Counter
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -134,22 +135,46 @@ def extract(html: str, url: str) -> Dict[str, Any]:
 
 
 def trim(markdown: str, question: str, max_chars: int) -> str:
-    """Keep the blocks of a long page that share most words with the question, in page order."""
+    """Keep the parts of a long page that best match the question, in page order.
+
+    The page is cut into paragraphs; a paragraph longer than 1,500 characters (a long list, such as
+    /contributors/ with 200,000 characters in one block) is cut further into ~500-character pieces of
+    whole lines. Pieces are scored by the question words they contain, rare words counting more
+    ("Rohan" appears once, "contributed" in every entry). The best pieces and the piece after each
+    (a list entry often continues there) are kept, then the rest in page order while space is left.
+    """
     if len(markdown) <= max_chars:
         return markdown
-    blocks = [b for b in re.split(r"\n\s*\n|\n(?=#)", markdown) if b.strip()]
+    pieces: List[str] = []
+    for block in re.split(r"\n\s*\n|\n(?=#)", markdown):
+        if not block.strip():
+            continue
+        if len(block) <= 1500:
+            pieces.append(block)
+            continue
+        window: List[str] = []
+        for line in block.split("\n"):
+            window.append(line)
+            if sum(len(x) + 1 for x in window) >= 500:
+                pieces.append("\n".join(window))
+                window = []
+        if window:
+            pieces.append("\n".join(window))
     q = tokens(question)
-    order = sorted(range(1, len(blocks)), key=lambda i: -len(q & tokens(blocks[i])))
-    keep, used = {0}, len(blocks[0])
-    for i in order:
-        if used + len(blocks[i]) <= max_chars:
-            keep.add(i)
-            used += len(blocks[i])
+    piece_tokens = [tokens(p) & q for p in pieces]
+    df = Counter(t for ts in piece_tokens for t in ts)
+    score = [sum(1.0 / df[t] for t in ts) for ts in piece_tokens]
+    keep, used = {0}, len(pieces[0])
+    for i in sorted(range(1, len(pieces)), key=lambda i: -score[i]):
+        for j in ((i, i + 1) if score[i] > 0 else (i,)):
+            if j < len(pieces) and j not in keep and used + len(pieces[j]) <= max_chars:
+                keep.add(j)
+                used += len(pieces[j])
     out, last = [], -1
     for i in sorted(keep):
         if last >= 0 and i != last + 1:
             out.append("[…]")
-        out.append(blocks[i])
+        out.append(pieces[i])
         last = i
     return "\n\n".join(out)
 
@@ -273,7 +298,7 @@ class ForrtPages:
             fetched = list(pool.map(lambda r: {**self.fetch(r["url"]), "rec": r}, chosen))
         pages = []
         for f in fetched:
-            excerpt = trim(f["markdown"], question, self.config.get("FORRT_MAX_CHARS_PER_PAGE", 6000))
+            excerpt = trim(f["markdown"], question, self.config.get("FORRT_MAX_CHARS_PER_PAGE", 12000))
             if excerpt.strip():
                 pages.append({"n": len(pages) + 1, "url": f["rec"]["url"], "title": f["rec"]["title"],
                               "date": f["rec"].get("date"), "excerpt": excerpt, "status": f["status"]})
