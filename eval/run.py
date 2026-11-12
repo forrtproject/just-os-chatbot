@@ -31,9 +31,18 @@ from just_os.references import normalize_doi, plain_metadata  # noqa: E402
 FIELDS = [
     "id", "lang", "cluster", "type", "route", "expect", "outcome", "answered_from", "correct", "hit", "n_citations",
     "citations_valid", "seconds", "classify_s", "search_s", "rerank_s", "answer_s",
-    "prompt_tokens", "completion_tokens", "cost_usd",
+    "prompt_tokens", "completion_tokens", "cost_usd", "retrieval",
     "retrieved_dois", "question", "answer", "passages",
 ]
+
+
+def retrieval_label(config):
+    """The search and ranking a run used, such as "hybrid+rerank" or "vector, cos>=0.55"."""
+    mode = config.get("SEARCH_MODE", "vector")
+    if config.get("RERANK", True):
+        return f"{mode}+rerank"
+    gate = config.get("MIN_VECTOR_SIMILARITY", 0) if mode != "bm25" else 0
+    return f"{mode}, cos>={gate}" if gate else mode
 
 
 def outcome_of(final):
@@ -162,6 +171,7 @@ def main():
                 "prompt_tokens": seen["prompt_tokens"],
                 "completion_tokens": seen["completion_tokens"],
                 "cost_usd": round(seen["cost"], 6),
+                "retrieval": retrieval_label(config),
                 "retrieved_dois": " ".join(ranked_dois),
                 "question": q["question"],
                 "answer": (seen["raw"] or "")[:2000],

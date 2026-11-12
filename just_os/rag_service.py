@@ -7,6 +7,7 @@ from llama_index.vector_stores.faiss import FaissVectorStore
 
 from config.settings import get_config
 from just_os.chat_manager import ChatManager
+from just_os.hybrid import search_retriever
 from just_os.qualle import Qualle
 
 logger = logging.getLogger(__name__)
@@ -55,12 +56,9 @@ def create_retriever(config: Dict[str, Any], embed_model):
         )
 
         retriever = index.as_retriever(similarity_top_k=config["RETRIEVER_TOP_K"])
-        if config.get("HYBRID_SEARCH"):
-            from just_os.hybrid import HybridRetriever
-
-            nodes = list(index.docstore.docs.values())
-            return HybridRetriever(retriever, nodes, config["RETRIEVER_TOP_K"])
-        return retriever
+        mode = config.get("SEARCH_MODE", "vector")
+        nodes = list(index.docstore.docs.values()) if mode != "vector" else []
+        return search_retriever(mode, retriever, nodes, config["RETRIEVER_TOP_K"])
     except Exception as e:
         logger.error(f"Failed to initialize retriever: {str(e)}")
         raise

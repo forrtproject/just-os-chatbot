@@ -49,6 +49,12 @@ def test_other_model_has_its_own_cache():
     assert b.lookup("What is preregistration?") is None
 
 
+
+def test_each_search_path_has_its_own_cache():
+    keys = {cache(SEARCH_MODE=mode, RERANK=rerank).key for mode in ("vector", "bm25", "hybrid") for rerank in (True, False)}
+    assert len(keys) == 6
+    assert cache(RERANK=False, MIN_VECTOR_SIMILARITY=0.55).key != cache(RERANK=False, MIN_VECTOR_SIMILARITY=0.6).key
+
 def test_cache_keeps_at_most_max_items():
     c = cache()
     for q in VECTORS:

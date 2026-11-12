@@ -3,7 +3,9 @@ from types import SimpleNamespace
 from llama_index.core.schema import NodeWithScore, TextNode
 
 from just_os import qualle
-from just_os.hybrid import BM25, HybridRetriever, reciprocal_rank_fusion
+import pytest
+
+from just_os.hybrid import BM25, HybridRetriever, KeywordRetriever, reciprocal_rank_fusion, search_retriever, vector_cosine
 
 
 # --- N2 (#20): at most MAX_CHUNKS_PER_DOC chunks of one paper
@@ -54,3 +56,29 @@ def test_hybrid_adds_keyword_hits_to_vector_hits():
     ids = [h.node.node_id for h in hits]
     assert set(ids) == {"n0", "n1"}
     assert hits[ids.index("n0")].score == 0.9  # vector hit keeps its score
+    assert hits[ids.index("n1")].score is None  # a keyword hit has no vector score
+
+
+def test_keyword_retriever_returns_bm25_hits_best_first():
+    nodes = [TextNode(id_=f"n{i}", text=t) for i, t in enumerate(["open data", "HARKing and HARKing", "HARKing once"])]
+    hits = KeywordRetriever(nodes, top_k=5).retrieve("HARKing")
+    assert [h.node.node_id for h in hits] == ["n1", "n2"]
+    assert hits[0].score > hits[1].score > 0
+
+
+def test_search_mode_picks_the_retriever():
+    vector = object()
+    nodes = [TextNode(id_="n0", text="open data")]
+    assert search_retriever("vector", vector, [], 5) is vector
+    assert isinstance(search_retriever("bm25", vector, nodes, 5), KeywordRetriever)
+    assert search_retriever("bm25", vector, nodes, 5).vector_retriever is vector  # for the cosine router
+    assert isinstance(search_retriever("hybrid", vector, nodes, 5), HybridRetriever)
+    with pytest.raises(ValueError, match="SEARCH_MODE"):
+        search_retriever("vectors", vector, nodes, 5)
+
+
+def test_vector_cosine_from_faiss_l2_distance():
+    hits = [NodeWithScore(node=TextNode(text="a"), score=0.9), NodeWithScore(node=TextNode(text="b"), score=None),
+            NodeWithScore(node=TextNode(text="c"), score=0.6)]
+    assert vector_cosine(hits) == pytest.approx(0.7)  # best match: squared distance 0.6
+    assert vector_cosine(hits[1:2]) is None  # keyword hits only

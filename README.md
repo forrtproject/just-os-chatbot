@@ -65,7 +65,9 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 | `CONTEXT_METHOD` | follow-ups: `rephrase` (default) or `history` (earlier turns in the answer prompt) |
 | `VERIFY_CITATIONS` | `true`: check each cited sentence against its source and mark weak citations "not verified" |
 | `FORRT_LOOKUP` | `true`: "where on FORRT / how to contribute" questions get a list of FORRT links |
-| `HYBRID_SEARCH` | `true`: keyword (BM25) + vector search (default `false`) |
+| `SEARCH_MODE` | `vector` (default), `bm25` (keywords alone) or `hybrid` (vector + BM25, merged by reciprocal rank fusion); replaces `HYBRID_SEARCH=true`, which is now `SEARCH_MODE=hybrid` |
+| `RERANK` | `true` (default): re-rank the found chunks with `RERANK_MODEL` and drop those at or below `MIN_RELEVANCE`; `false`: keep the search order without loading the re-ranker |
+| `MIN_VECTOR_SIMILARITY` | with `RERANK=false`: "no sources" when the best vector match of the question has a lower cosine (default 0.55; `0` = no check; not used with `SEARCH_MODE=bm25`) |
 | `MAX_CHUNKS_PER_DOC` | at most this many chunks of one paper in the context; `0` = no limit (default) |
 
 | `OPENSCHOLAR_BASE_URL` + `OPENSCHOLAR_API_KEY` | self-hosted OpenScholar server; calls for `OPENSCHOLAR_MODEL` (`openscholar-8b`) go there, all other models stay on OpenRouter |
