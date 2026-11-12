@@ -3,6 +3,7 @@ services:
     volumes:
       - "./just_os:/app/just_os"
       - "./config:/app/config"
+      - "./vector_data:/app/vector_data"
       - "./test:/app/test"
       - "./eval:/app/eval"
       - "./scripts:/app/scripts"

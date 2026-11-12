@@ -70,6 +70,12 @@ EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
 VECTOR_STORE=data/processed/vs_latest_bge-small-en-v1.5
 ```
 
+### FORRT page index (`FORRT_PAGES`)
+
+`vector_data/forrt_pages/` (**in Git**, about 1 MB; `vector_data/` is the folder for small vector indexes kept in Git, while `data/` stays git-ignored; so the FORRT route works without a build; rebuild with `python -m scripts.build_forrt_pages` and commit the result): about 160 forrt.org pages (menu pages, announcements `/post/`, newsletters, Educators' Corner, Pedagogies, Neurodiversity lesson bank, Replication Hub, and the FORRT project sites in `config/forrt_extra_urls.txt`). Not included: the 1,474 curated-resource pages (the same resources as the FORRT sheet; open-science content), cluster pages and glossary terms. **The index holds links and short descriptions, not page content:** `index.json` has one record per page (its `url`, title, date and an LLM-written description: summary, use when, example questions, key links), `vectors.npy` one bge-m3 vector per record (of the description, not the page). The page content is fetched live from forrt.org for every question and is never stored (format: [architecture.md](architecture.md) section 5).
+
+forrt.org's sitemap misses many pages: the ~25 project sites published from separate repositories at `forrt.org/<repo>/` (Zotero Replication Checker, FReD, Replication Handbook, Re-SearchTerms …) and the monthly newsletter pages. They are listed in `config/forrt_extra_urls.txt`. Question sets for this route: `eval/forrt_questions.jsonl` (32 hand-written) and `eval/forrt_sim_questions.jsonl` (226 simulated, see [evaluation.md](evaluation.md) 3.6).
+
 ## 3. Data inventory
 
 ### In Git (seed data)

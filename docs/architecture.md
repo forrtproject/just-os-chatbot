@@ -28,6 +28,7 @@ just-os-chatbot/
 ├── assets/                Front-end source (JS, Tailwind CSS, images) → built into public/
 ├── public/                Built static files (git-ignored, made by the js/css containers)
 ├── docs/                  All documentation
+├── vector_data/           Small vector indexes kept in Git: forrt_pages/ (FORRT page index, ~1 MB)
 └── data/                  Data, PDFs, indexes (git-ignored except seed CSVs)
 ```
 
@@ -49,6 +50,9 @@ just-os-chatbot/
 | `messages.py` | Refusal and error texts in the language of the question: reads `config/refusals.csv`, detects the language with lingua over all its languages (Kannada by its script, which lingua lacks), falls back to English for a language without a row or one it cannot tell | `qualle`, `app`, `eval/run`; words with two or more capitals (DNA, HARKing) are ignored for detection |
 | `answer_cache.py` | `AnswerCache`: semantic answer cache in Redis (`ANSWER_CACHE_TTL` > 0 turns it on) | `qualle` |
 | `forrt_lookup.py` | `FORRT_LOOKUP=true`: `ForrtLookup` searches every row of the FORRT sheet (BM25 over title, abstract, clusters, tags) and answers with a list of links (titles escaped, http(s) only) | `qualle` |
+| `decisions.py` | `DecisionClient` (`DECISION_ROUTER`, on by default): decision models (TypeSafe Jev, Cloudflare Clef / Clef-flash) through OpenRouter's decisions API (`DECISION_URL`, alpha): typed questions in, calibrated probabilities out. `route` classifies a question as open_science / forrt / both / neither (`DECISION_ROUTER`); `decide` is also used to pick FORRT pages | `qualle`, `forrt_pages` |
+| `forrt_pages.py` | `FORRT_PAGES` (on by default): `ForrtPages` answers questions about FORRT from forrt.org's own pages: search the page index (`FORRT_PAGES_DIR`, the app's embedding model) → the decision model `FORRT_SELECT_MODEL` scores each candidate yes/no (keep p ≥ `FORRT_DECISION_THRESHOLD`; if none, the plausible ones ≥ `FORRT_DECISION_FLOOR` plus the top search result; none → `no_sources`) → fetch the pages live from forrt.org (in-memory cache `FORRT_CACHE_TTL`; no stored page text; a page that cannot be read is skipped; news questions always read `FORRT_LISTING_URLS`) → answer with today's date and each page's age → `forrt_checks` → Markdown with a numbered source list. `links` gives the best pages without an answer (the `both` route). Its own HTML → Markdown (BeautifulSoup) | `decisions`, `forrt_checks`, `messages` |
+| `forrt_checks.py` | Rules for FORRT-page answers, enforced in code: links and emails not in the pages read are removed, `【1】` → `[1]`, citations to no page removed; an English answer to a non-English question (or the reverse) or "upcoming" next to a past date triggers one rewrite | `forrt_pages` |
 | `hybrid.py` | `HYBRID_SEARCH=true`: `BM25` keyword index (scikit-learn sparse matrix, built from the docstore at start-up, ~7 s) + `HybridRetriever` (vector and keyword lists merged by reciprocal rank fusion) | `rag_service` |
 | `references.py` | Pure helpers (no heavy imports): `normalize_doi`, `reference_url` (`https://doi.org/<doi>`, else an http(s) link), `document_key` (one key per paper), `passage_allowed` (licence gate), `publication_year` + `load_publication_years` (`PUB_YEARS_FILE`) | `qualle`, `ingest/helpers`, `scripts/get_pub_years` |
 | `openscholar.py` | The OpenScholar system prompt and answer template (keep the Apache-2.0 header) | `qualle` |
@@ -75,7 +79,7 @@ Limitations (measured 11 Nov with lingua 2.2.0 over all languages):
 | Route | Method | Purpose |
 |---|---|---|
 | `/` | GET | Built-in chat page with an "Answer model" dropdown (`CITATION_MODEL` first, then `ARENA_MODELS`) |
-| `/chat` | POST | Main API (`message`, `chat_id`, optional `model` from the chat page's list) → NDJSON stream. The forrt.org widget uses it and sends no `model`: **do not change the existing fields**. The final message also carries `outcome` (`answered`, `off_topic`, `no_sources`, `error`, `forrt_lookup`), `turn_id` (for feedback) and a `snippet` per entry of `metadata.references`; each final message is appended to `CHAT_LOG_FILE`. With `"stream": true` (only the built-in page sends it) the answer also comes as `{"status": "partial", "delta": …}` messages while the model writes (#41): nothing before `[Response_Start]` or after `[Response_End]`, no unfinished `[…`; the `complete` message is the same as without streaming. Without the flag (the widget) nothing changes |
+| `/chat` | POST | Main API (`message`, `chat_id`, optional `model` from the chat page's list) → NDJSON stream. The forrt.org widget uses it and sends no `model`: **do not change the existing fields**. The final message also carries `outcome` (`answered`, `off_topic`, `no_sources`, `error`, `forrt_lookup`, `forrt`, `both`), `turn_id` (for feedback) and a `snippet` per entry of `metadata.references`; each final message is appended to `CHAT_LOG_FILE`. With `"stream": true` (only the built-in page sends it) the answer also comes as `{"status": "partial", "delta": …}` messages while the model writes (#41): nothing before `[Response_Start]` or after `[Response_End]`, no unfinished `[…`; the `complete` message is the same as without streaming. Without the flag (the widget) nothing changes |
 | `/chat/feedback` | POST | `{turn_id, rating: good\|bad, comment?}` (comment ≤ 2000 characters); one feedback per answer; appended to `CHAT_FEEDBACK_FILE` with the question and answer |
 | `/up` | GET | Health check (Docker) |
 | `/arena` | GET | Arena page (only if `ARENA_ENABLED`); lists `ARENA_MODELS` (OpenScholar only when `OPENSCHOLAR_BASE_URL` is set) |
@@ -102,6 +106,7 @@ Limitations (measured 11 Nov with lingua 2.2.0 over all languages):
 | `get_pub_years.py` | `python -m scripts.get_pub_years [index-dir]` | Asks OpenAlex for the publication year of every DOI in the index → `data/raw/pub_years.csv` (tracked; read via `PUB_YEARS_FILE`). Run again after a new index build |
 | `add_to_index.py` | `python -m scripts.add_to_index <md-dir> <metadata.csv>` | Adds new Markdown documents to an existing index (skips DOIs/titles already in it) without a full rebuild |
 | `fetch_web_resources.py` | `python -m scripts.fetch_web_resources [--sample 50]` | HTML route: web resources without DOI → Markdown + metadata in `data/processed/web_markdown/` |
+| `build_forrt_pages.py` | `python -m scripts.build_forrt_pages [--limit N] [--force] [--from-prototype DIR]` | Page index for `FORRT_PAGES`: forrt.org menu pages, announcements, newsletters, FORRT's own sections and `FORRT_EXTRA_URLS_FILE` (project sites missing from the sitemap); not curated resources, clusters or glossary terms. An LLM (`FORRT_DESCRIBE_MODEL`) describes each page (summary, use when, example questions, key links); the description is embedded with `EMBEDDING_MODEL`. Incremental by sitemap `lastmod`. Output: `FORRT_PAGES_DIR/index.json` and `vectors.npy` (default `vector_data/forrt_pages/`, in Git, ~1 MB); page text is not stored |
 | `match_cluster_pdfs.py` | `python -m scripts.match_cluster_pdfs` | Cluster PDF file names → title/DOI from the FORRT sheets → `data/interim/cluster_pdf_metadata.csv` (newest sheet copies) |
 | `convert_cluster_pdfs.py` | `python -m scripts.convert_cluster_pdfs` (needs a GROBID server on port 8070 and `pip install pymupdf4llm requests`) | Every unique cluster PDF → GROBID (body text without the reference list, title, authors, DOI) → DOI checked against the first pages, metadata from OpenAlex → `data/processed/cluster_markdown/<doi_hash>.md` + `metadata.csv`, input of `add_to_index.py`. Books over 80 pages and PDFs without a GROBID body use pymupdf4llm |
 | `justos_markdown_metadata.py` | `python -m scripts.justos_markdown_metadata` | Metadata for every JUST-OS Markdown file (also the papers that are not open access, marked "Not open access (Unpaywall)") → `data/interim/justos_markdown_metadata.csv`, input of `add_to_index.py` |
@@ -130,6 +135,7 @@ Limitations (measured 11 Nov with lingua 2.2.0 over all languages):
 | `test_answer_cache.py` | Answer cache hit/miss/expiry/namespace/size, no LLM call on a hit, `PROMPT_STYLE` |
 | `test_ingest.py` | Title match, `%PDF` check, `unique_metadata`, gunicorn reload flag |
 | `test_pipeline_options.py` | Chosen chat model, per-model answer cache, history keeps the user's words, `CONTEXT_METHOD=history`, citation check, FORRT lookup |
+| `test_forrt_pages.py` | Page extraction, link/citation/date checks, decision router and its fallback, FORRT page answer, language rewrite, `forrt` and `both` routes in `get_response` |
 | `test_scripts.py` | Judge, classifier summary, cluster PDF names and title check, HTML text, adding to an index, team bundle, dict-valued metadata in eval |
 | `test_rerank.py` | Re-ranker order and fallback to vector order |
 | `test_app.py` | Arena: chosen models, hidden names, OpenScholar filter, ratings, leaderboard, bad input; ProxyFix on/off; chat log with outcome, feedback once per answer |
@@ -147,8 +153,10 @@ flowchart LR
     A --> H[(Redis: chat history)]
     A --> Q[Qualle.get_response]
     Q -->|history| RP[1 Rephrase - GENERAL_MODEL, or history in the prompt if CONTEXT_METHOD=history]
-    RP --> C{2 Classify - GENERAL_MODEL}
+    RP --> C{2 Classify - decision model if DECISION_ROUTER and confident, else GENERAL_MODEL}
+    C -->|forrt, if FORRT_PAGES| FP[FORRT page router: page index → decision model picks pages → live fetch → answer → checks]
     C -->|forrt_lookup, if FORRT_LOOKUP| L[FORRT sheet search → list of links]
+    C -->|both| F
     C -->|API error| E[error message]
     C -->|not open science| R[refusal]
     C -->|yes| F[3 FAISS top-k = RETRIEVER_TOP_K, + BM25 if HYBRID_SEARCH]
@@ -199,3 +207,14 @@ An index folder (`data/processed/vs_latest_<model>/`) is a llama-index storage f
 | `graph_store.json`, `image__vector_store.json` | Empty (llama-index defaults) |
 
 `EMBEDDING_MODEL` and `VECTOR_STORE` must match: the question is embedded with the same model as the chunks.
+
+### FORRT page index (`vector_data/forrt_pages/`, `FORRT_PAGES`)
+
+**The index holds links and short descriptions, not page content.** It tells the router *which* forrt.org pages to read; the text of those pages is always fetched live from forrt.org when a question comes in (`ForrtPages.fetch`, in-memory cache `FORRT_CACHE_TTL`). No page text is stored in the index, in `vector_data/` or anywhere on disk, so answers always use the current version of a page.
+
+| File | Content |
+|---|---|
+| `index.json` | One record per page (about 160): `url` (the link that is fetched live), `title`, `section`, `lastmod` (from the sitemap), `date` (publish date, for news), `chars` (page length when described), and an LLM-written **description** used only for search and page selection: `summary` (2–3 sentences), `use_when`, `example_questions` (5), `page_kind`, `freshness`, `key_links` (up to 6 `{url, label}`), `described_by` |
+| `vectors.npy` | float32 array, one row per record in the same order: the `EMBEDDING_MODEL` vector of the record's description (title + summary + use when + example questions), not of the page text |
+
+`EMBEDDING_MODEL` must be the model the index was built with (bge-m3). Rebuild with `python -m scripts.build_forrt_pages` when pages are added or change: it reads each page live to (re)write its description, but keeps only the description.
