@@ -6,7 +6,9 @@ Runs in the web container (it needs the index, the models and Redis):
     docker compose exec web python eval/run.py --model openai/gpt-oss-20b --limit 5
 
 --no-retrieval asks the answer model the question directly, with no sources and no
-classifier, to measure what the model knows without the library.
+classifier, to measure what the model knows without the library. --skip-classifier
+treats every question as open science, so items about research methods are answered
+while the classifier is being changed; use it only for questions that all expect an answer.
 
 --model changes the answer model (CITATION_MODEL). The classify/rephrase model
 (GENERAL_MODEL) stays as configured unless --general-model is given, so a run
@@ -76,6 +78,11 @@ def answer_directly(qualle, config, question, seen):
     return {"message": seen["raw"]}
 
 
+def skip_classifier(qualle):
+    """Route every question to the library, with no call to the decision model or the classifier."""
+    qualle.route = lambda query, router=None: "open_science"
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", help="answer model (CITATION_MODEL)")
@@ -83,6 +90,7 @@ def main():
     parser.add_argument("--questions", default="eval/questions.jsonl")
     parser.add_argument("--limit", type=int, help="only the first N questions")
     parser.add_argument("--no-retrieval", action="store_true", help="answer without sources")
+    parser.add_argument("--skip-classifier", action="store_true", help="treat every question as open science")
     args = parser.parse_args()
 
     config = get_config()
@@ -91,6 +99,8 @@ def main():
     if args.general_model:
         config["GENERAL_MODEL"] = args.general_model
     qualle = create_rag_service(config, ChatManager())
+    if args.skip_classifier:
+        skip_classifier(qualle)
 
     # Record what each step did, without changing the pipeline
     seen = {}

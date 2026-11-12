@@ -74,3 +74,11 @@ def test_parse_json_accepts_a_code_fence():
     assert glossary_items.parse_json('```json\n{"question": "q"}\n```') == {"question": "q"}
     assert glossary_items.parse_json('{"question": "q"}') == {"question": "q"}
 
+
+def test_skip_classifier_routes_every_question_to_the_library():
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eval"))
+    import run
+
+    qualle = type("Q", (), {})()
+    run.skip_classifier(qualle)
+    assert qualle.route("anything") == qualle.route("anything", "jev") == "open_science"
