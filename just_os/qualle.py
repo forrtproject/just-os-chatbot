@@ -998,17 +998,22 @@ class Qualle:
 
         logger.debug("Qualle service initialized")
 
-    def cosine_route(self, query: str) -> str:
-        """Cosine router (no model call): the question's bge-m3 vector against the nearest paper
-        chunk (FAISS) and the nearest FORRT page description. Above COSINE_PAPER_MIN → papers,
-        above COSINE_PAGE_MIN → FORRT pages, both above → the closer one, neither → off topic.
-        Thresholds from eval/questions.jsonl + eval/forrt_questions.jsonl (docs/evaluation.md 3.7)."""
+    def similarities(self, query: str) -> Tuple[float, float]:
+        """bge-m3 cosine of the question to the nearest paper chunk (FAISS) and to the nearest
+        FORRT page description (-1 without FORRT pages)."""
         q = np.asarray([self._embed_model.get_query_embedding(query)], dtype=np.float32)
         q /= np.linalg.norm(q)
         vector_retriever = getattr(self._retriever, "vector_retriever", self._retriever)  # bm25 and hybrid wrap it
         distance, _ = vector_retriever._index.vector_store._faiss_index.search(q, 1)
         paper = 1 - float(distance[0][0]) / 2  # squared L2 of unit vectors → cosine
         page = float((self.forrt_pages.vectors @ q[0]).max()) if self.forrt_pages is not None else -1.0
+        return paper, page
+
+    def cosine_route(self, query: str) -> str:
+        """Cosine router (no model call): above COSINE_PAPER_MIN → papers, above COSINE_PAGE_MIN →
+        FORRT pages, both above → the closer one, neither → off topic.
+        Thresholds from eval/questions.jsonl + eval/forrt_questions.jsonl (docs/evaluation.md 3.7)."""
+        paper, page = self.similarities(query)
         is_paper = paper >= self.config.get("COSINE_PAPER_MIN", 0.62)
         is_page = page >= self.config.get("COSINE_PAGE_MIN", 0.51)
         logger.info(f"Cosine router: paper {paper:.3f}, page {page:.3f}")
@@ -1016,12 +1021,32 @@ class Qualle:
             return "open_science" if paper > page else "forrt"
         return "open_science" if is_paper else ("forrt" if is_page else "off_topic")
 
+    def banded_route(self, query: str) -> Optional[str]:
+        """Three bands of similarity (eval/tune_bands.py, docs/evaluation.md 3.11): below both low
+        thresholds → off topic, with no model call; close to the papers (at or above BAND_PAPER_HIGH)
+        and not close to a FORRT page (below BAND_PAGE_HIGH) → papers, with no model call; anything
+        else, including every question close to a FORRT page, → BAND_MIDDLE_ROUTER decides. Paper and
+        page similarities are on different scales, so similarity never routes to FORRT on its own.
+        The bands are set strictly: answering an off-topic question counts as the worse error."""
+        paper, page = self.similarities(query)
+        c = self.config
+        if paper < c.get("BAND_PAPER_LOW", 0.0) and page < c.get("BAND_PAGE_LOW", 0.0):
+            band, route = "low", "off_topic"
+        elif paper >= c.get("BAND_PAPER_HIGH", 1.0) and page < c.get("BAND_PAGE_HIGH", 1.0):
+            band, route = "high", "open_science"
+        else:
+            band = "middle"
+            middle = c.get("BAND_MIDDLE_ROUTER", "jev")
+            route = self.route(query, "jev" if middle == "banded" else middle)
+        logger.info(f"Banded router: paper {paper:.3f}, page {page:.3f}, {band} band -> {route}")
+        return route
+
     def route(self, query: str, router: Optional[str] = None) -> Optional[str]:
         """open_science / forrt / both / off_topic / small_talk (or forrt_lookup from the LLM classifier); None = model error.
 
         router (one of ROUTERS; the chat and arena dropdowns, eval/classify.py) picks one strategy:
         a decision model (clef-flash, clef, jev) with the LLM classifier only when the call fails,
-        "llm" (the LLM classifier alone), "cosine" (cosine_route) or "none" (no check: every question
+        "llm" (the LLM classifier alone), "cosine" (cosine_route), "banded" (banded_route) or "none" (no check: every question
         gets the papers and the FORRT pages; MIN_RELEVANCE still stops unrelated ones as "no sources").
         Without router (default): DECISION_ROUTER with DECISION_ROUTER_MODEL when it is confident
         enough, else the LLM classifier.
@@ -1033,6 +1058,8 @@ class Qualle:
             return "both"
         if router == "cosine":
             return self.cosine_route(query)
+        if router == "banded":
+            return self.banded_route(query)
         if router in DECISION_ROUTERS:
             self.decisions = self.decisions or DecisionClient(self.config)
             route, p, info = self.decisions.route(DECISION_ROUTERS[router], query)

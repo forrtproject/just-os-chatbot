@@ -55,6 +55,16 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # calibrated on eval/questions.jsonl + eval/forrt_questions.jsonl, docs/evaluation.md 3.7
     "COSINE_PAPER_MIN": 0.62,
     "COSINE_PAGE_MIN": 0.51,
+    # Banded router (ROUTER=banded): below both LOW → refuse; paper at or above BAND_PAPER_HIGH and
+    # page below BAND_PAGE_HIGH → papers; both with no model call. Anything else, including every
+    # question close to a FORRT page, → BAND_MIDDLE_ROUTER (a ROUTERS key). Set on held-out questions
+    # by eval/tune_bands.py, strictly: an answered off-topic question is the worse error
+    # eval/results/bands_261112.csv, docs/evaluation.md 3.11
+    "BAND_PAPER_LOW": 0.586,
+    "BAND_PAPER_HIGH": 0.701,
+    "BAND_PAGE_LOW": 0.461,
+    "BAND_PAGE_HIGH": 0.606,
+    "BAND_MIDDLE_ROUTER": "jev",
     "DECISION_ROUTER_MODEL": "cloudflare/clef-flash",  # best of Jev/Clef/Clef-flash in docs/evaluation.md 3.6
     "DECISION_ROUTER_MIN_CONFIDENCE": 0.5,
     "DECISION_URL": "https://openrouter.ai/api/alpha/decisions",
