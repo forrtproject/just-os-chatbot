@@ -49,7 +49,7 @@ def main():
     run_path = Path(sys.argv[1]) if len(sys.argv) > 1 else runs[-1]
     run = pd.read_csv(run_path).set_index("id")
     title = titles()
-    lines = lambda dois: "\n".join(f"{d} | {title.get(d, 'NOT IN INDEX')}" for d in dois)  # noqa: E731
+    link = lambda d: f"https://doi.org/{d} — {title.get(d, 'NOT IN INDEX')}"  # noqa: E731
 
     rows = []
     for line in open(ROOT / "eval/questions.jsonl", encoding="utf-8"):
@@ -59,27 +59,40 @@ def main():
         rows.append({
             "id": q["id"], "cluster": q["cluster"], "type": q["type"], "lang": q["lang"],
             "route": q["route"], "expect": q["expect"], "question": q["question"],
-            "expected_dois": lines(expected), "expected_urls": "\n".join(q["expected_urls"]),
+            # one DOI/URL per cell so each is a one-click link
+            **{f"expected_{i + 1}": link(d) for i, d in enumerate(expected)},
+            **{f"expected_url_{i + 1}": u for i, u in enumerate(q["expected_urls"])},
             "bot_outcome": run.loc[q["id"], "outcome"] if q["id"] in run.index else "not in run",
-            "bot_cited_dois": lines(cited), "bot_retrieved_dois": lines(retrieved),
-            "cited_match": "\n".join(d for d in cited if d in expected),
-            "retrieved_match": "\n".join(d for d in retrieved if d in expected),
+            **{f"cited_{i + 1}": link(d) for i, d in enumerate(cited)},
+            "bot_retrieved_dois": "\n".join(link(d) for d in retrieved),
+            "cited_match": "\n".join(f"https://doi.org/{d}" for d in cited if d in expected),
+            "retrieved_match": "\n".join(f"https://doi.org/{d}" for d in retrieved if d in expected),
             **{c: "" for c in REVIEW},
         })
     df = pd.DataFrame(rows)
+    # pandas orders columns by first appearance; put the numbered ones in their blocks
+    block = lambda p: sorted((c for c in df.columns if re.fullmatch(p + r"\d+", c)), key=lambda c: int(c.rsplit("_", 1)[1]))  # noqa: E731
+    head = ["id", "cluster", "type", "lang", "route", "expect", "question"]
+    df = df[head + block("expected_") + block("expected_url_") + ["bot_outcome"] + block("cited_")
+            + ["bot_retrieved_dois", "cited_match", "retrieved_match"] + REVIEW]
     with pd.ExcelWriter(OUTPUT, engine="openpyxl") as xl:
         df.to_excel(xl, sheet_name="questions", index=False)
         sheet = xl.sheets["questions"]
         sheet.freeze_panes = "H2"
         sheet.auto_filter.ref = sheet.dimensions
-        widths = {"question": 50, "expected_dois": 70, "bot_cited_dois": 70, "bot_retrieved_dois": 70, "expected_urls": 40}
+        widths = {"question": 50, "bot_retrieved_dois": 60}
         for i, col in enumerate(df.columns):
             letter = sheet.cell(row=1, column=i + 1).column_letter
-            sheet.column_dimensions[letter].width = widths.get(col, 18)
+            sheet.column_dimensions[letter].width = widths.get(col, 45 if col[-1].isdigit() else 18)
+            if col[-1].isdigit():
+                for cell in sheet[letter][1:]:
+                    if isinstance(cell.value, str) and cell.value.startswith("https://"):
+                        cell.hyperlink, cell.style = cell.value.split(" — ")[0], "Hyperlink"
         pd.DataFrame({"note": [
             f"Bot DOIs from {run_path.name}. Questions not in that run show 'not in run'.",
-            "expected_dois: picked from the production index (papers) and FORRT page index (URLs).",
-            "*_match: bot DOIs that are also expected. Judge in the last four columns.",
+            "expected_N: picked from the production index; expected_url_N: FORRT page index. Click a cell to open it.",
+            "cited_N: sources the answer cites with [n]. *_match: bot DOIs that are also expected.",
+            "Judge in the last four columns.",
         ]}).to_excel(xl, sheet_name="readme", index=False)
     print(f"{len(df)} questions -> {OUTPUT} (bot DOIs from {run_path.name})")
 
