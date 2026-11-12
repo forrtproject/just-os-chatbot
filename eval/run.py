@@ -17,7 +17,9 @@ compares answer models only. Output: eval/results/run_<YYMMDD-HHMM>_<model>.csv
 
 import argparse
 import csv
+import hashlib
 import json
+import pickle
 import re
 import sys
 import time
@@ -73,6 +75,17 @@ def answer_source(seen, refs):
     return ("papers" if seen["ranked"] else ""), all(0 <= r < len(seen["ranked"]) for r in refs)
 
 
+def hit_of(q, ranked_dois, forrt):
+    """1 when an expected DOI is among the ranked papers or an expected URL among the FORRT pages the
+    answer used (eval/forrt_questions.jsonl has expected_urls only); "" when the question expects neither."""
+    expected = [d.lower() for d in q.get("expected_dois", [])]
+    urls = {u.rstrip("/").lower() for u in q.get("expected_urls", [])}
+    if not expected and not urls:
+        return ""
+    pages = {s["url"].rstrip("/").lower() for s in (forrt or {}).get("sources", [])}
+    return int(any(d in ranked_dois for d in expected) or bool(urls & pages))
+
+
 def doi_of(node) -> str:
     """The node's bare DOI, or "". Unwraps the dict values of the 10 documents from #24,
     which would otherwise never match an expected DOI and contain a space."""
@@ -98,9 +111,32 @@ def answer_directly(qualle, config, question, seen):
     return {"message": seen["raw"]}
 
 
-def skip_classifier(qualle):
-    """Route every question to the library, with no call to the decision model or the classifier."""
-    qualle.route = lambda query, router=None: "open_science"
+def skip_classifier(qualle, route="open_science"):
+    """Send every question one way (the papers, or with route="forrt" the FORRT pages), with no
+    call to the decision model or the classifier. eval/pairs.py combines one run per way with each
+    topic check's decisions (eval/classify.py), so every topic check x answer model pair is scored."""
+    qualle.route = lambda query, router=None: route
+
+
+def cache_retrieval(qualle, config, folder=Path("eval/.retrieval_cache")):
+    """Keep the ranked chunks per question and retrieval settings on disk, so the re-ranker
+    (4-15 s per question on CPU) runs once for all answer models. Cached questions have no
+    search_s/rerank_s, so their seconds are answer time only."""
+    retrieve = qualle.document_retriever.retrieve_and_rerank
+    settings = json.dumps([retrieval_label(config), config.get("VECTOR_STORE"), config.get("RETRIEVER_TOP_K"),
+                           config.get("MAX_CHUNKS"), config.get("MIN_RELEVANCE"), config.get("MAX_CHUNKS_PER_DOC"),
+                           config.get("ADAPTIVE_TOP_K"), config.get("EMBEDDING_MODEL")])
+    folder.mkdir(parents=True, exist_ok=True)
+
+    def cached(query, *args, **kwargs):
+        path = folder / f"{hashlib.sha1((settings + query).encode('utf-8')).hexdigest()}.pkl"
+        if path.exists():
+            return pickle.loads(path.read_bytes())
+        result = retrieve(query, *args, **kwargs)
+        path.write_bytes(pickle.dumps(result))
+        return result
+
+    qualle.document_retriever.retrieve_and_rerank = cached
 
 
 def main():
@@ -114,6 +150,8 @@ def main():
                         help="keep the whole answer (default: the first 2000 characters)")
     parser.add_argument("--out", help="output CSV (default eval/results/run_<time>_<model>.csv)")
     parser.add_argument("--skip-classifier", action="store_true", help="treat every question as open science")
+    parser.add_argument("--route", choices=["open_science", "forrt"], help="send every question this way (no topic check)")
+    parser.add_argument("--cache-retrieval", action="store_true", help="reuse ranked chunks across runs (eval/.retrieval_cache)")
     args = parser.parse_args()
 
     config = get_config()
@@ -122,8 +160,10 @@ def main():
     if args.general_model:
         config["GENERAL_MODEL"] = args.general_model
     qualle = create_rag_service(config, ChatManager())
-    if args.skip_classifier:
-        skip_classifier(qualle)
+    if args.skip_classifier or args.route:
+        skip_classifier(qualle, args.route or "open_science")
+    if args.cache_retrieval:
+        cache_retrieval(qualle, config)
 
     # Record what each step did, without changing the pipeline
     seen = {}
@@ -176,6 +216,7 @@ def main():
         writer = csv.DictWriter(f, fieldnames=FIELDS)
         writer.writeheader()
         for q in questions:
+            q.setdefault("expect", "answer")  # eval/forrt_questions.jsonl: every question should be answered
             chat_id = f"eval-{uuid.uuid4()}"
             # Multi-turn questions: the earlier turns go first in the same chat (not scored)
             for turn in q.get("history", []):
@@ -191,7 +232,6 @@ def main():
 
             outcome = outcome_of(final)
             ranked_dois = [doi_of(n) for n in seen["ranked"]]
-            expected = [d.lower() for d in q.get("expected_dois", [])]
             refs = [int(n) for n in re.findall(r"\[(\d+)\]", seen["raw"] or "")]
             answered_from, valid = answer_source(seen, refs)
             writer.writerow({
@@ -204,7 +244,7 @@ def main():
                 "outcome": outcome,
                 "answered_from": answered_from if outcome == "answered" else "",
                 "correct": int((outcome == "answered") == (q["expect"] == "answer") and outcome != "error"),
-                "hit": int(any(d in ranked_dois for d in expected)) if expected else "",
+                "hit": hit_of(q, ranked_dois, seen["forrt"]),
                 "n_citations": len(refs),
                 "citations_valid": int(valid) if refs else "",
                 "seconds": round(seconds, 1),

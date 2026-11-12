@@ -78,3 +78,29 @@ def test_by_model_keeps_the_newest_run_and_counts_runs():
             {"model": "llama", "correct": 0.86, "run": "261105-2059"}]  # newest first, as answer_runs gives them
     rows = eval_report.by_model(runs, "correct")
     assert [(r["model"], r["run"], r["runs"]) for r in rows] == [("llama", "261112-1034", 2), ("gpt", "261105-2123", 1)]
+
+
+def test_run_labels_tell_full_runs_forced_runs_and_configurations_apart():
+    assert eval_report.run_label("openai__gpt-oss-20b") == {"model": "openai/gpt-oss-20b", "kind": "full pipeline", "config": ""}
+    assert eval_report.run_label("openai__gpt-oss-20b__route-forrt")["kind"] == "FORRT pages"
+    assert eval_report.run_label("cfg-search-bm25__route-open_science") == {"model": "search-bm25", "kind": "papers",
+                                                                           "config": "search-bm25"}
+
+
+def test_eval_page_shows_pairs_answer_models_and_search(tmp_path):
+    import fakeredis
+    from just_os.app import FlaskApp
+    pair = {"n": 2, "answered": 1, "should_answer": 1, "refused": 1, "should_refuse": 1, "hit": "", "citations_valid": 1,
+            "judge_support": 0.9, "mean_s": 3, "usd_per_1k": 0.1}
+    write(tmp_path / "pairs_261113-0600.csv", [{"topic_check": "jev", "answer_model": "m/a", "correct": 1.0, **pair},
+                                              {"topic_check": "clef", "answer_model": "m/a", "correct": 0.5, **pair}])
+    write(tmp_path / "run_261113-0100_m__a__route-open_science.csv", [{**run_row("a", "answer", "answered", 4), "judge_support": 0.7}])
+    write(tmp_path / "run_261113-0200_m__a__route-forrt.csv", [run_row("a", "answer", "answered", 2, hit=1)])
+    write(tmp_path / "run_261113-0300_cfg-search-bm25__route-open_science.csv", [run_row("a", "answer", "answered", 1, hit=1)])
+    assert eval_report.pair_results(str(tmp_path))["checks"] == ["jev", "clef"]  # best mean first
+    flask_app = FlaskApp()
+    flask_app.chat_manager.redis = fakeredis.FakeRedis()
+    flask_app.config.update(EVAL_RESULTS_DIR=str(tmp_path))
+    html = flask_app.app.test_client().get("/eval").get_data(as_text=True)
+    assert "Best pair<b>jev + m/a</b>" in html and "hsl(120 65% 85%)" in html  # summary card and green cell
+    assert "Best search<b>search-bm25</b>" in html and "<td>m/a</td><td><b>0.7</b></td>" in html

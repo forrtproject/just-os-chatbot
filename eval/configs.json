@@ -5,5 +5,11 @@
   "adaptive-top-k": {"ADAPTIVE_TOP_K": true},
   "verify-citations": {"VERIFY_CITATIONS": true},
   "gpt-oss-20b": {"CITATION_MODEL": "openai/gpt-oss-20b"},
-  "jev+gpt-oss-20b": {"ROUTER": "jev", "CITATION_MODEL": "openai/gpt-oss-20b"}
+  "jev+gpt-oss-20b": {"ROUTER": "jev", "CITATION_MODEL": "openai/gpt-oss-20b"},
+  "search-vector+rerank": {"SEARCH_MODE": "vector", "RERANK": true},
+  "search-vector": {"SEARCH_MODE": "vector", "RERANK": false},
+  "search-bm25+rerank": {"SEARCH_MODE": "bm25", "RERANK": true},
+  "search-bm25": {"SEARCH_MODE": "bm25", "RERANK": false},
+  "search-hybrid+rerank": {"SEARCH_MODE": "hybrid", "RERANK": true},
+  "search-hybrid": {"SEARCH_MODE": "hybrid", "RERANK": false}
 }

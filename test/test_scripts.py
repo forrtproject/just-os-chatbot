@@ -20,6 +20,7 @@ import export_questions  # noqa: E402
 import run_batches  # noqa: E402
 import scorecard  # noqa: E402
 import judge_sheet  # noqa: E402
+import pairs  # noqa: E402
 import judge  # noqa: E402
 import make_retrieval_set  # noqa: E402
 import run  # noqa: E402
@@ -265,3 +266,22 @@ def test_judge_sheet_lists_judged_answers_lowest_first_with_their_cited_passages
     assert text.index("## a2") < text.index("## a1") and "## r1" not in text  # lowest score first, unjudged left out
     assert "Passage [1]" in text and "P one" in text and "Passage [0]</summary>" in text
     assert "the citation is invalid" in text  # [5] has no passage
+
+
+def test_pairs_pick_the_answer_the_topic_check_would_have_sent(tmp_path):
+    papers = {"q1": {"expect": "answer", "outcome": "answered", "hit": "1", "citations_valid": "1",
+                     "judge_support": "0.8", "seconds": "5", "cost_usd": "0.001"},
+              "q2": {"expect": "answer", "outcome": "answered", "hit": "", "citations_valid": "1",
+                     "judge_support": "0.2", "seconds": "5", "cost_usd": "0.001"},
+              "q3": {"expect": "refuse", "outcome": "answered", "hit": "", "citations_valid": "1",
+                     "judge_support": "0.5", "seconds": "5", "cost_usd": "0.001"}}
+    forrt = {"q2": {"expect": "answer", "outcome": "answered", "hit": "1", "citations_valid": "1",
+                    "judge_support": "", "seconds": "3", "cost_usd": "0.002"}}
+    good = pairs.score({"q1": ("open_science", 1, 0), "q2": ("forrt", 1, 0), "q3": ("neither", 1, 0)}, papers, forrt)
+    assert (good["correct"], good["refused"], good["hit"], good["judge_support"]) == (1, 1, 1, 0.8)
+    bad = pairs.score({"q1": (None, 1, 0), "q2": ("both", 1, 0), "q3": ("open_science", 1, 0)}, papers, forrt)
+    assert bad["correct"] == round(1 / 3, 3) and bad["answered"] == 1  # q1 error, q2 papers, q3 wrongly answered
+    for name in ["run_261112-1800_a__b__route-open_science.csv", "run_261112-1900_a__b__route-forrt.csv",
+                 "run_261112-1800_c__route-forrt.csv"]:
+        (tmp_path / name).write_text("id" + chr(10))
+    assert list(pairs.routed_runs(tmp_path)) == ["a/b"]  # c has no papers run

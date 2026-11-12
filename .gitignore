@@ -251,4 +251,5 @@ share/
 ~$*
 
 # eval/run_batches.py working file
-eval/tmp_batch.jsonl
+eval/tmp_batch*.jsonl
+eval/.retrieval_cache/

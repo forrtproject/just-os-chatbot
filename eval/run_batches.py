@@ -49,34 +49,45 @@ def main():
     parser.add_argument("--since", required=True, help="first run to count, YYMMDD-HHMM")
     parser.add_argument("--questions", default="eval/questions.jsonl")
     parser.add_argument("--general-model", default="meta-llama/llama-3.1-8b-instruct")
+    parser.add_argument("--route", choices=["open_science", "forrt"],
+                        help="every question one way (eval/pairs.py); files are run_*_<model>__route-<route>.csv")
     args = parser.parse_args()
-    lines = open(ROOT / args.questions, encoding="utf-8").readlines()
+    lines = read_questions(args.questions)
     order = [json.loads(line)["id"] for line in lines]
 
     for model in args.models:
-        run_all(model, ["--model", model, "--general-model", args.general_model], args.since, lines, order)
-    TMP.unlink(missing_ok=True)
+        route = ["--route", args.route] if args.route else []
+        label = f"{model}__route-{args.route}" if args.route else model
+        run_all(label, ["--model", model, "--general-model", args.general_model, *route], args.since, lines, order)
+
+
+def read_questions(files):
+    """The question lines of one file or of several, comma-separated (eval/questions.jsonl,eval/forrt_questions.jsonl)."""
+    return [line.rstrip("\n") + "\n"
+            for f in files.split(",") for line in open(ROOT / f, encoding="utf-8") if line.strip()]
 
 
 def run_all(label, run_args, since, lines, order, env=None):
     """Run eval/run.py in batches until every question has a row in run_*_<label>.csv files made since
     `since`, then merge them. env: settings for this run, passed to the container (eval/scorecard.py)."""
     settings = [x for key, value in (env or {}).items() for x in ("-e", f"{key}={value}")]
+    tmp = TMP.with_name(f"tmp_batch_{label.replace('/', '__')}.jsonl")  # one per run, so runs can go in parallel
     while True:
         files = run_files(label, since)
         todo = [line for line, i in zip(lines, order) if i not in done_ids(files)]
         if not todo:
             break
         print(f"{label}: {len(order) - len(todo)}/{len(order)} done, next {min(BATCH, len(todo))}", flush=True)
-        TMP.write_text("".join(todo[:BATCH]), encoding="utf-8")
+        tmp.write_text("".join(todo[:BATCH]), encoding="utf-8")
         out = f"eval/results/run_{datetime.now():%y%m%d-%H%M}_{label.replace('/', '__')}.csv"
         subprocess.run(
             ["docker", "compose", "run", "--rm", "-T", "-e", "OMP_NUM_THREADS=8", *settings, "web", "python",
-             "eval/run.py", *run_args, "--questions", TMP.relative_to(ROOT).as_posix(), "--out", out],
+             "eval/run.py", *run_args, "--cache-retrieval", "--questions", tmp.relative_to(ROOT).as_posix(), "--out", out],
             cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
         )
         if len(done_ids(run_files(label, since))) == len(order) - len(todo):
             raise SystemExit(f"{label}: the batch finished no question; stopping")
+    tmp.unlink(missing_ok=True)
     merged = merge(run_files(label, since), order)
     print(f"{label}: complete -> {merged.name}", flush=True)
     return merged

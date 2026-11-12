@@ -1,6 +1,9 @@
 """Numbers for the /eval page, read from the CSVs in EVAL_RESULTS_DIR (eval/results):
 
     run_<YYMMDD-HHMM>_<model>.csv   eval/run.py: one row per question, full pipeline
+      ..._<model>__route-<route>.csv  every question forced to the papers or the FORRT pages (eval/pairs.py)
+      ..._cfg-<name>[...].csv         a named configuration of eval/configs.json (eval/scorecard.py)
+    pairs_<YYMMDD-HHMM>.csv         eval/pairs.py: one row per topic check x answer model
     classify_<YYMMDD-HHMM>.csv      eval/classify.py: model, id, gold, predicted, seconds, usd
     embeddings_<YYMMDD>.csv         eval/compare_embeddings.py: one row per model and language
 
@@ -32,6 +35,17 @@ def _p95(values: List[float]) -> float:
     return round(values[int(0.95 * (len(values) - 1))], 1)
 
 
+KINDS = {None: "full pipeline", "open_science": "papers", "forrt": "FORRT pages"}
+
+
+def run_label(name: str) -> Dict[str, str]:
+    """What a run file holds: "openai__gpt-oss-20b__route-forrt" -> model openai/gpt-oss-20b, kind
+    "FORRT pages"; "cfg-search-bm25__route-open_science" -> config search-bm25, kind "papers"."""
+    base, _, route = name.partition("__route-")
+    config = base.removeprefix("cfg-") if base.startswith("cfg-") else ""
+    return {"model": config or base.replace("__", "/"), "kind": KINDS.get(route or None, route), "config": config}
+
+
 def answer_runs(folder: str) -> List[Dict]:
     """One row per eval/run.py run, newest first."""
     out = []
@@ -45,12 +59,13 @@ def answer_runs(folder: str) -> List[Dict]:
         seconds = [float(r["seconds"]) for r in rows]
         out.append({
             "run": match.group(1),
-            "model": match.group(2).replace("__", "/"),
+            **run_label(match.group(2)),
             "n": len(rows),
             "correct": _mean(r["correct"] for r in rows),
             "answered": f"{sum(r['outcome'] == 'answered' for r in answer)}/{len(answer)}",
             "refused": f"{sum(r['outcome'] == 'refused' for r in refuse)}/{len(refuse)}",
             "errors": sum(r["outcome"] == "error" for r in rows),
+            "no_sources": sum(r["outcome"] == "no_sources" for r in answer),
             "hit": _mean(r["hit"] for r in rows),
             "citations_valid": _mean(r["citations_valid"] for r in rows),
             "judge": _mean(r.get("judge_support") for r in rows),
@@ -113,3 +128,21 @@ def embedding_runs(folder: str) -> List[Dict]:
          "mrr20": float(r["mrr@20"]), "ms": round(float(r["ms_per_query"]))}
         for r in _rows(files[-1]) if r["lang"] == "all"
     ]
+
+
+def pair_results(folder: str) -> Dict:
+    """The newest eval/pairs.py table: rows best first, and a grid {answer model: {topic check: row}}."""
+    files = sorted(Path(folder).glob("pairs_*.csv"))
+    if not files:
+        return {}
+    rows = _rows(files[-1])
+    for r in rows:
+        for key in ("correct", "hit", "citations_valid", "judge_support", "mean_s", "usd_per_1k"):
+            r[key] = float(r[key]) if r[key] not in ("", None) else None
+    grid: Dict[str, Dict[str, Dict]] = {}
+    for r in rows:
+        grid.setdefault(r["answer_model"], {})[r["topic_check"]] = r
+    checks = sorted({r["topic_check"] for r in rows},
+                    key=lambda c: -mean(r["correct"] or 0 for r in rows if r["topic_check"] == c))
+    models = sorted(grid, key=lambda m: -max(r["correct"] or 0 for r in grid[m].values()))
+    return {"run": files[-1].stem.removeprefix("pairs_"), "rows": rows, "grid": grid, "checks": checks, "models": models}

@@ -12,6 +12,7 @@ import argparse
 import csv
 import json
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -56,9 +57,11 @@ def main():
     rows = list(csv.DictReader(open(args.run_csv, encoding="utf-8")))
     if rows and "passages" not in rows[0]:
         sys.exit("This run has no passages column: run eval/run.py again (it saves them since Nov 2026).")
-    for row in rows:
-        row["judge_support"] = judge_row(processor, row)
-        print(f"{row['id']:6} {row['judge_support']}")
+    # 8 at a time: the judge is an API call, and a full run has ~170 answers
+    with ThreadPoolExecutor(8) as pool:
+        for row, score in zip(rows, pool.map(lambda r: judge_row(processor, r), rows)):
+            row["judge_support"] = score
+            print(f"{row['id']:6} {score}", flush=True)
     fields = list(rows[0].keys()) if rows else []
     with open(args.run_csv, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fields)

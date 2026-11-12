@@ -50,19 +50,21 @@ def main():
     parser.add_argument("--limit", type=int, help="only the first N questions")
     parser.add_argument("--no-judge", action="store_true", help="skip eval/judge.py")
     parser.add_argument("--table", action="store_true", help="only print the table")
+    parser.add_argument("--route", choices=["open_science", "forrt"], help="every question one way (eval/pairs.py)")
     args = parser.parse_args()
     unknown = [n for n in args.names if n not in configs]
     if unknown:
         raise SystemExit(f"not in {CONFIGS.name}: {', '.join(unknown)}")
 
-    lines = open(ROOT / args.questions, encoding="utf-8").readlines()[: args.limit]
+    lines = run_batches.read_questions(args.questions)[: args.limit]
     order = [json.loads(line)["id"] for line in lines]
     for name in [] if args.table else args.names:
-        path = run_batches.run_all(label(name), [], args.since, lines, order, configs[name])
+        run_label = label(name) + (f"__route-{args.route}" if args.route else "")
+        path = run_batches.run_all(run_label, ["--route", args.route] if args.route else [], args.since, lines, order,
+                                   configs[name])
         if not args.no_judge:
             subprocess.run(["docker", "compose", "run", "--rm", "-T", "web", "python", "eval/judge.py",
                             path.relative_to(ROOT).as_posix()], cwd=ROOT, check=False)
-    run_batches.TMP.unlink(missing_ok=True)
     print(compare.summarize(latest_runs(args.names or configs)))
 
 

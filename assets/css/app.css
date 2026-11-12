@@ -663,6 +663,51 @@ button#send-button:disabled {
     color: #004055;
 }
 
+.eval-nav {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    padding: 8px 0;
+    background: #fffef4;
+    border-bottom: 1px solid #e1e4e8;
+    font-size: small;
+}
+
+.eval-nav a {
+    color: #004055;
+    text-decoration: none;
+}
+
+.eval-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.eval-card {
+    background: white;
+    border: 1px solid #e1e4e8;
+    border-left: 4px solid #004055;
+    border-radius: 4px;
+    padding: 10px 12px;
+    font-size: small;
+}
+
+.eval-card b {
+    display: block;
+    font-size: 1rem;
+    color: #313131;
+    margin: 2px 0;
+}
+
+.eval-grid td.cell {
+    text-align: center;
+    font-weight: bold;
+}
+
 .visually-hidden {
     position: absolute;
     width: 1px;

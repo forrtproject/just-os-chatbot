@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eval"))
 
 from compare import summarize  # noqa: E402
-from run import FIELDS, answer_source  # noqa: E402
+from run import FIELDS, answer_source, hit_of  # noqa: E402
 
 
 def test_summarize_counts_outcomes(tmp_path):
@@ -39,3 +39,11 @@ def test_answer_source_checks_citations_against_the_right_sources():
     assert answer_source(forrt, [1, 2]) == ("forrt pages", True)
     assert answer_source(forrt, [0]) == ("forrt pages", False)
     assert answer_source({"ranked": [], "forrt": None}, []) == ("", True)  # refused before any source
+
+
+def test_hit_counts_expected_dois_in_papers_and_expected_urls_in_forrt_pages():
+    forrt = {"sources": [{"n": 1, "title": "Teams", "url": "https://forrt.org/about/teams/"}]}
+    assert hit_of({"expected_urls": ["https://forrt.org/about/teams"]}, [], forrt) == 1  # trailing slash ignored
+    assert hit_of({"expected_urls": ["https://forrt.org/glossary/"]}, [], forrt) == 0
+    assert hit_of({"expected_dois": ["10.1/A"]}, ["10.1/a"], None) == 1
+    assert hit_of({"id": "x"}, ["10.1/a"], forrt) == ""
