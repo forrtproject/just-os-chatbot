@@ -23,7 +23,7 @@ Rule: a change to prompts, models, retrieval or chunking needs an eval table bef
 | Arena (human ratings) | http://localhost:8000/arena with `ARENA_ENABLED=true`: pick models, rate each answer 1-5 on correct / references / clarity | `/arena/leaderboard`, `/arena/ratings` |
 
 Question sets:
-- `eval/questions.jsonl`: 140 questions for the full pipeline (112 should answer, 28 should refuse; 14 not English, 13 of them checked by native speakers; 108 with `expected_dois`, 8 with `expected_urls`; 25 with a rubric). The first 54 are the earlier set (unchanged); 47 come from the question bank of Meltem and Mohit (`data/raw/questions_bank_261112.csv`, 12 Nov; its 37 other rows were already in the set) and 16 (`new51`-`new66`) from its revised version (`data/raw/questions_bank_261112b.csv`; the earlier rows are unchanged); 23 (`gl01`-`gl25`) are FORRT glossary items by gpt-4.1-mini (section 3.8), whose rubric the other two of its items (HARKing, Preregistration) add to `new60` and `pr01`, which ask the same. Fields, in this order:
+- `eval/questions.jsonl`: 140 questions for the full pipeline (112 should answer, 28 should refuse; 14 not English, 13 of them checked by native speakers; 108 with `expected_dois`, 8 with `expected_urls`; 25 with a rubric). The first 54 are the earlier set (unchanged); 47 come from the question bank of Meltem and Mohit (`data/raw/questions_bank_261112.csv`, 12 Nov; its 37 other rows were already in the set) and 16 (`new51`-`new66`) from its revised version (`data/raw/questions_bank_261112b.csv`; the earlier rows are unchanged); 23 (`gl01`-`gl25`) are FORRT glossary items by gpt-4.1-mini (section 3.8), whose rubric the other two of its items (HARKing, Preregistration) add to `new60` and `pr01`, which ask the same. The glossary-derived text is under CC BY-NC-SA 4.0 (section 3.8). Fields, in this order:
 
   | Field | Values |
   |---|---|
@@ -241,6 +241,8 @@ Findings:
 4. Each answer now also records its step times (topic check, search, re-rank, LLM answer): `timings` in the chat log and arena logs, and columns in `eval/run.py` results, shown per model on `/eval`.
 
 ### 3.8 Glossary items with rubrics (12 November 2026, 25 terms, `meta-llama/llama-3.1-8b-instruct`)
+
+**Licence of the glossary items:** the items in `eval/glossary_items_*.jsonl` and the questions with a rubric in `eval/questions.jsonl` (their question, `reference_answer` and `rubric`) are adapted from the [FORRT glossary](https://forrt.org/glossary/english/) ([data](https://github.com/forrtproject/forrt/tree/master/content/glossary)), licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). They were written by language models from the glossary definitions and are shared under the same licence, while the rest of this repository is under Apache 2.0.
 
 A question set that measures whether answers are complete, built the way ResearchQA mines survey sections: from each of 25 FORRT glossary terms (`eval/glossary_terms.txt`), a model writes a question, a reference answer and 3-5 rubric items from the definition only; the indexed DOIs the term cites become `expected_dois`. Three generators wrote items for the same terms; each set was answered with the library and without it (`--no-retrieval`), with the classifier skipped, and judged by `google/gemini-3.8-flash`, a family that generated none of the items, on the answer as the app shows it.
 
