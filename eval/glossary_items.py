@@ -67,7 +67,7 @@ def normalize(doi):
 
 def index_dois(index_dir="data/processed/vs_latest_bge-m3"):
     """Every DOI in the index's docstore; the 10 documents from #24 keep theirs in a dict."""
-    data = json.load(open(Path(index_dir) / "docstore.json", encoding="utf-8"))["docstore/data"]
+    data = json.loads((Path(index_dir) / "docstore.json").read_text(encoding="utf-8"))["docstore/data"]
     dois = set()
     for node in data.values():
         doi = node["__data__"].get("metadata", {}).get("doi")
@@ -130,9 +130,9 @@ def main():
     args = parser.parse_args()
     out = args.out or f"eval/glossary_items_{args.model.replace('/', '__')}.jsonl"
 
-    glossary = {lang: terms for block in json.load(open(args.glossary, encoding="utf-8")) for lang, terms in block.items()}
+    glossary = {lang: terms for block in json.loads(Path(args.glossary).read_text(encoding="utf-8")) for lang, terms in block.items()}
     german = {t["en_title"]: t["title"] for t in glossary["german"]}
-    titles = [line.strip() for line in open(args.terms, encoding="utf-8") if line.strip()] if args.terms else None
+    titles = [line.strip() for line in Path(args.terms).read_text(encoding="utf-8").splitlines() if line.strip()] if args.terms else None
     terms = select_terms(glossary["english"], index_dois(args.index), titles)
 
     manager = OpenAIClientManager(get_config())
@@ -149,9 +149,8 @@ def main():
                 term_de = german.get(t["en_title"], t["title"])
                 questions.append(("de", ask(manager, args.model, TRANSLATE_PROMPT.format(
                     term=t["title"], term_de=term_de, question=item["question"]), cost, not args.no_reasoning)["question"]))
-            for lang, question in questions:
-                f.write(json.dumps({"id": f"gl{n:02d}{lang}", "question": question, "lang": lang, **base},
-                                   ensure_ascii=False) + "\n")
+            f.writelines(json.dumps({"id": f"gl{n:02d}{lang}", "question": question, "lang": lang, **base},
+                                    ensure_ascii=False) + "\n" for lang, question in questions)
             print(f"gl{n:02d} {t['en_title']}: {item['question']}")
     print(f"wrote {out}, {len(terms)} terms, cost ${cost[0]:.4f}")
 

@@ -23,11 +23,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from config.settings import get_config  # noqa: E402
-from just_os.qualle import OpenAIClientManager  # noqa: E402
-
 from build_grading_page import shown_answer  # noqa: E402  same folder
 from glossary_items import parse_json  # noqa: E402  same folder
+
+from config.settings import get_config  # noqa: E402
+from just_os.qualle import OpenAIClientManager  # noqa: E402
 
 PROMPT = """You grade an answer against a rubric. For each rubric item, decide how fully the
 answer covers it, whatever the language of the answer:
@@ -59,7 +59,7 @@ def judge(manager, model, question, answer, rubric, cost):
         cost[0] += getattr(response.usage, "cost", 0) or 0
         scores = parse_json(response.choices[0].message.content)["scores"]
         return {r["id"]: min(max(int(scores[r["id"]]), 0), 4) for r in rubric}
-    except Exception as e:  # a failed judgement leaves the row empty, the run goes on
+    except Exception as e:  # noqa: BLE001  a failed judgement leaves the row empty, the run goes on
         print(f"judge failed: {e}")
         return None
 
@@ -87,10 +87,12 @@ def main():
     parser.add_argument("--controls", action="store_true", help="also score reference answers")
     args = parser.parse_args()
 
-    items = {i["id"]: i for i in map(json.loads, open(args.items, encoding="utf-8"))}
+    with open(args.items, encoding="utf-8") as f:
+        items = {i["id"]: i for i in map(json.loads, f)}
     manager = OpenAIClientManager(get_config())
     cost = [0.0]
-    rows = list(csv.DictReader(open(args.run_csv, encoding="utf-8")))
+    with open(args.run_csv, encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
     for row in rows:
         item = items.get(row["id"])
         row.update(rubric_coverage="", rubric_core="", rubric_scores="", doi_recall="")
