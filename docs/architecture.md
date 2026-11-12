@@ -103,7 +103,8 @@ Limitations (measured 11 Nov with lingua 2.2.0 over all languages):
 | `add_to_index.py` | `python -m scripts.add_to_index <md-dir> <metadata.csv>` | Adds new Markdown documents to an existing index (skips DOIs/titles already in it) without a full rebuild |
 | `fetch_web_resources.py` | `python -m scripts.fetch_web_resources [--sample 50]` | HTML route: web resources without DOI → Markdown + metadata in `data/processed/web_markdown/` |
 | `match_cluster_pdfs.py` | `python -m scripts.match_cluster_pdfs` | Cluster PDF file names → title/DOI from the FORRT sheets → `data/interim/cluster_pdf_metadata.csv` (newest sheet copies) |
-| `convert_cluster_pdfs.py` | `python -m scripts.convert_cluster_pdfs` (needs `pip install pymupdf4llm`) | Matched cluster PDFs whose title is in the PDF → `data/processed/cluster_markdown/<doi_hash>.md` + `metadata.csv`, input of `add_to_index.py` |
+| `convert_cluster_pdfs.py` | `python -m scripts.convert_cluster_pdfs` (needs a GROBID server on port 8070 and `pip install pymupdf4llm requests`) | Every unique cluster PDF → GROBID (body text without the reference list, title, authors, DOI) → DOI checked against the first pages, metadata from OpenAlex → `data/processed/cluster_markdown/<doi_hash>.md` + `metadata.csv`, input of `add_to_index.py`. Books over 80 pages and PDFs without a GROBID body use pymupdf4llm |
+| `justos_markdown_metadata.py` | `python -m scripts.justos_markdown_metadata` | Metadata for every JUST-OS Markdown file (also the papers that are not open access, marked "Not open access (Unpaywall)") → `data/interim/justos_markdown_metadata.csv`, input of `add_to_index.py` |
 | `add_new_resources.py` | `uv run python -m scripts.add_new_resources` | Adds rows from the live FORRT sheets (`URL_FORRT`): DOI → Unpaywall → PDF download |
 
 `python -m scripts.<name>` keeps the repository root on the import path, so `config` and `ingest` import correctly.

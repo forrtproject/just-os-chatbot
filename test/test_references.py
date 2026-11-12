@@ -57,6 +57,8 @@ def test_reference_url_prefers_doi_and_blocks_javascript():
         ("CC BY-NC-ND", False),
         ("CC BY-NC", False),
         ("I don't see any of these", False),
+        ("FORRT cluster PDF (open access)", True),
+        ("Not open access (Unpaywall)", False),
         ("", False),
         (None, False),
     ],

@@ -17,9 +17,9 @@
 Counts are rows (a few rows point to the same paper, so a count can be higher than the number of files). The index was **not** built from these live sheets directly: it was built from the June 2025 JUST-OS copy of FORRT Database 2.0 (`data/raw/forrt_db_250627.csv`, with the "JUST-OS internal identifier") plus 44 papers that `add_new_resources.py` added by DOI. The PDFs for `clusters_panos` are in `data/FORRT Clusters pdfs/`; 133 of them were added to the index on 11 Nov 2026 (issue #17, see "FORRT Clusters pdfs" below).
 
 
-The default index `data/processed/vs_latest_bge-m3/` has **646 documents → 79,808 chunks** (chunk size 350 tokens): the 513 JUST-OS documents (59,473 chunks) plus 133 FORRT cluster papers (11 Nov 2026). The old index `vs_latest_bge-small-en-v1.5` has the same chunks (first built 26 Aug 2025); `scripts/reembed.py` made the bge-m3 index from them. The copies from before the cluster papers are `vs_261111_*_before_clusters/` (section 2).
+The default index `data/processed/vs_latest_bge-m3/` has **1,354 documents → 146,899 chunks** (chunk size 350 tokens, 12 Nov 2026): 706 JUST-OS documents (79,860 chunks; 163 of them are not open access and show only title + link) plus 648 FORRT cluster papers (67,039 chunks). The index `vs_latest_bge-small-en-v1.5` has the same chunks. Earlier states are kept: `vs_261111_*_before_clusters` (the 513 open-access JUST-OS documents; bge-small first built 26 Aug 2025, bge-m3 made from it by `scripts/reembed.py`) and `vs_261111_*_646_documents` (11 Nov, with the first 133 cluster papers). All counts and reasons: [data-inventory.md](data-inventory.md).
 
-The full list is in [indexed_documents.csv](indexed_documents.csv) (`just_os_id, title, doi, pdf_path, chunks, licence`). It was made by matching the index metadata (title, then DOI) to `data/raw/forrt_db_250627.csv`:
+The list of the 513 documents of the first build is in [indexed_documents.csv](indexed_documents.csv) (`just_os_id, title, doi, pdf_path, chunks, licence`). It was made by matching the index metadata (title, then DOI) to `data/raw/forrt_db_250627.csv`:
 
 | Group | Documents | Source PDF |
 |---|---|---|
@@ -29,7 +29,7 @@ The full list is in [indexed_documents.csv](indexed_documents.csv) (`just_os_id,
 
 ### Why only part of `Content/` is in the index
 
-`Content/` has 657 PDFs. Traced one by one (sheet snapshot → DOI → open-access list `just-os_db_latest.csv` → Markdown → index):
+`Content/` has 657 PDFs. State until 11 Nov, traced one by one (sheet snapshot → DOI → open-access list `just-os_db_latest.csv` → Markdown → index):
 
 | Stage | PDFs | Has Markdown already | Reason |
 |---|---|---|---|
@@ -38,11 +38,11 @@ The full list is in [indexed_documents.csv](indexed_documents.csv) (`just_os_id,
 | No DOI in the sheet | 22 | 19 | No DOI → no `doi_hash` → never in the OA list (mostly "Reading" and "Primary Source") |
 | Open access + Markdown, but not in the index | 11 | 11 | Probably duplicate `doi_hash` / title mismatch (IDs 161, 423, 455, 568, 579, 609, 614, 675, 927, 1041, 1048); see issue #24 |
 
-So **184 PDFs (165 + 19) are converted already** and could go in without running marker again, **if** the licence allows it. Paywalled papers are a policy question for FORRT: index them for search but show only title + link (issue R5, #6), or leave them out.
+**Since 12 Nov 2026 these papers are in the index too** (decision of the project lead): `scripts/justos_markdown_metadata.py` writes the metadata of every JUST-OS Markdown file and `scripts/add_to_index.py` adds the 193 that were missing (163 not open access, 19 without a DOI, 11 open access but never embedded). A paper whose DOI is not in the open-access list gets `conditions_of_use` = "Not open access (Unpaywall)", so the bot answers from it but shows only title + link. The 28 `Content/` PDFs without Markdown are still out, and so are two Markdown files that hold a whole book under a chapter title.
 
 How a PDF got in: open access (Unpaywall `is_oa`) **and** a DOI → `data/pdfs/by-doi/<md5(doi)>.pdf` → marker → Markdown → `scripts/embed.py`. The Markdown of the original build is in `data/NWO JUST-OS/BOT/markdown/markdown/` (546 files, `NNNN.md`).
 
-Licence of the 513 documents (field `conditions_of_use`, free text from the form): CC BY (all spellings) ≈ 280, "I don't see any of these" 184, CC BY-NC-ND 14, public domain 8, other. The tooltip shows a passage only for CC BY (incl. SA), CC0 and public domain (`passage_allowed`, issue #6); other sources show title + link.
+Licence (field `conditions_of_use`, free text from the form; "Not open access (Unpaywall)" and "FORRT cluster PDF (open access)" are set by the scripts): of the first 513 documents CC BY (all spellings) ≈ 280, "I don't see any of these" 184, CC BY-NC-ND 14, public domain 8, other. The tooltip shows a passage only for CC BY (incl. SA), CC0, public domain and the FORRT cluster PDFs (`passage_allowed`, issue #6): 951 of the 1,354 documents; other sources show title + link.
 
 **Known metadata defect:** 10 documents have every metadata value stored as a one-item dict (`{"<doi_hash>": "title"}`) because `just-os_db_latest.csv` has duplicate `doi_hash` rows and `embed.py` calls `metadata.loc[hash].to_dict()`. Their references showed wrong titles and years. `scripts/embed.py` now keeps one row per `doi_hash` (#24); the current index keeps the defect until it is built again. The references shown to users, `eval/run.py` (`retrieved_dois` and `hit`) and `eval/make_retrieval_set.py` (titles) unwrap these values with `plain_metadata` (`just_os/references.py`), and `eval/coverage.py` and `scripts/get_pub_years.py` unwrap them inline. `scripts/reembed.py` copies the chunks with their metadata, so an index it builds keeps the defect.
 
@@ -50,12 +50,16 @@ Licence of the 513 documents (field `conditions_of_use`, free text from the form
 
 | Path | What | Size | Status |
 |---|---|---|---|
-| `data/processed/vs_latest_bge-m3/` | **Default index** (FAISS, 1024 dims), 646 documents | 679 MB | Used by the app (`VECTOR_STORE`) |
+| `data/processed/vs_latest_bge-m3/` | **Default index** (FAISS, 1024 dims), 1,354 documents | 1.3 GB | Used by the app (`VECTOR_STORE`) |
 | `data/processed/vs_latest_bge-m3.zip` | Zipped index for `scripts/get_index.py` | 173 MB | **Out of date**: still the 513-document index |
-| `data/processed/vs_latest_bge-small-en-v1.5/` | Old production index (FAISS, 384 dims), 646 documents | 486 MB | English-only option for the app |
+| `data/processed/vs_latest_bge-small-en-v1.5/` | Old production model (FAISS, 384 dims), 1,354 documents | 897 MB | English-only option for the app |
+| `data/processed/vs_261111_bge-m3_646_documents/`, `vs_261111_bge-small-en-v1.5_646_documents/` | The indexes of 11 Nov (513 JUST-OS documents + 133 cluster papers) | 679 / 486 MB | The eval runs of 11 Nov used this state |
 | `data/processed/vs_261111_bge-m3_before_clusters/` | bge-m3 index before the cluster papers (513 documents, 59,473 chunks) | 531 MB | E3 in `compare_embeddings.py`; before/after comparisons |
 | `data/processed/vs_261111_bge-small-en-v1.5_before_clusters/` | bge-small index before the cluster papers | 387 MB | E1 + chunk texts for `compare_embeddings.py` and `make_retrieval_set.py` (the `emb_cache` rows are these chunks) |
-| `data/processed/cluster_markdown/` | Markdown of the 153 checked cluster papers, `metadata.csv`, `rejected.csv` | | Input of `add_to_index.py` (#17) |
+| `data/processed/cluster_markdown/` | Markdown of the 753 cluster papers (GROBID; 20 by pymupdf4llm), `metadata.csv` (with `oa_status`, `licence`, `source_file`), `rejected.csv` | 49 MB | Input of `add_to_index.py` (#17) |
+| `data/processed/cluster_markdown_pymupdf4llm/` | The pymupdf4llm Markdown of the first 153 cluster papers (11 Nov) | | Kept for comparison |
+| `data/interim/grobid_tei/`, `data/interim/openalex_works.json` | Cache of `convert_cluster_pdfs.py`: GROBID XML per PDF, OpenAlex record per DOI | | A second run needs no server calls |
+| `data/interim/justos_markdown_metadata.csv` | Metadata of the JUST-OS Markdown files (`justos_markdown_metadata.py`) | | Input of `add_to_index.py` |
 | `data/processed/emb_cache/*.npy` | Chunk vectors for E2, E4, E5, E6 (float16, 59,473 rows each) | 959 MB | Eval only (see [evaluation.md](evaluation.md)) |
 | `data/NWO JUST-OS/BOT/vs_latest_bge-small-en-v1.5/` | Byte-identical copy of the old index | 406 MB | Not needed (original from Drive) |
 | `data/processed/storage_m3/` | Index of Oct 2024 (different chunks, `multi_embed_store.pkl`) | 757 MB | The current code cannot load it. Not used |
@@ -92,19 +96,20 @@ VECTOR_STORE=data/processed/vs_latest_bge-small-en-v1.5
 | Everything else (`AERN/`, `Application NWO/`, `Grants/`, `Logo_s and designs/`, `Meeting Agendas-Notes/`, `Memorandum of understanding (MOU)_/`, `SURF/`, `Website/`, `Writing/`, `*.pptx`, `Email and Social Media information, Login.docx`) | Project admin, **private** | Not for the bot |
 
 ### `data/FORRT Clusters pdfs/`
-1,061 PDFs + 930 `.docx` in `Cluster 1–11/` (name `C01_SC01_<topic>_<author>_<year>.pdf`) and two working lists (`01.FORRT_Clusters_Working_Document_v1.xlsx`, `FORRT Cluster_s.xlsx`). **133 papers are in the index** (11 Nov 2026, issue #17):
+1,061 PDFs + 930 `.docx` in `Cluster 1–11/` (name `C01_SC01_<topic>_<author>_<year>.pdf`) and two working lists (`01.FORRT_Clusters_Working_Document_v1.xlsx`, `FORRT Cluster_s.xlsx`). **648 papers are in the index** (12 Nov 2026, issue #17):
 
 | Step | Count |
 |---|---|
 | PDF files (814 unique by content; the same paper is often in several sub-clusters) | 1,061 |
 | `.docx` files (not used) | 930 |
-| Name matched to a reference in the newest sheets (first author + year, `match_cluster_pdfs.py`); all matches are references of sheet 2, 63 are also in sheet 1 | 368 files, 229 unique |
-| Matched title found in the first 3 pages (`convert_cluster_pdfs.py`, pymupdf4llm) → Markdown | 153 papers |
-| Rejected: title not in the PDF (a different paper by the same author and year, or a reference without title) | 71 (`rejected.csv`) |
-| Already in the index (same DOI or title) | 20 |
-| **Added** (`add_to_index.py`, both indexes) | **133** |
+| Unique PDFs converted to Markdown (`convert_cluster_pdfs.py`: GROBID; pymupdf4llm for 17 books and 3 PDFs without a GROBID body) | 753 |
+| … with a DOI that was checked against the first pages (title, authors, licence from OpenAlex) | 561 |
+| Rejected: scans without text | 3 |
+| Second file of a paper already converted | 58 |
+| Already in the index (same DOI or title as a JUST-OS document) | 105 |
+| **Added** (`add_to_index.py`, both indexes) | **648** |
 
-Their licence is unknown (`conditions_of_use` empty), so the bot answers from them but shows only title + link. 693 files have no match yet: they need the working lists or a person.
+Their `conditions_of_use` is "FORRT cluster PDF (open access)", so the bot shows their passages (decision of the project lead, 12 Nov 2026). OpenAlex marks 117 of them as closed and 192 have no DOI; see [data-inventory.md](data-inventory.md) section 4.
 
 ### Other
 - `data/archive/`: old prototypes (Oct–Dec 2024: first agent, `storage_m3` build, chunk classification, marker script). The code does not use them; kept for reference.
@@ -135,7 +140,7 @@ Older facts (June 2025 snapshot):
 
 ## 5. Build an index (ingestion)
 
-**PDF → Markdown tool:** [marker](https://github.com/datalab-to/marker) (`marker-pdf`, `ingest` dependency group), run by `scripts/marker.sh` (no image extraction). On the Meta Science Arena benchmarks (Nov 2026, synthetic + real papers) marker is mid-table: body-text fidelity 0.882 (rank 4 of 12, tied with Docling and pdftotext; GROBID 0.979 is the best tool) and section structure 0.599 (rank 4 of 9). For RAG chunks the text fidelity matters most, so GROBID is worth a test before the next full conversion.
+**PDF → Markdown tool:** [marker](https://github.com/datalab-to/marker) (`marker-pdf`, `ingest` dependency group), run by `scripts/marker.sh` (no image extraction). On the Meta Science Arena benchmarks (Nov 2026, synthetic + real papers) marker is mid-table: body-text fidelity 0.882 (rank 4 of 12, tied with Docling and pdftotext; GROBID 0.979 is the best tool) and section structure 0.599 (rank 4 of 9). For RAG chunks the text fidelity matters most, so the FORRT cluster papers (12 Nov 2026) were converted with GROBID (`scripts/convert_cluster_pdfs.py`); our own comparison of marker, pymupdf4llm, GROBID and Docpluck is in [data-inventory.md](data-inventory.md) section 5. The JUST-OS documents still use the marker Markdown.
 
 
 | Step | Command | Input | Output |
@@ -144,6 +149,19 @@ Older facts (June 2025 snapshot):
 | 2 | `./scripts/marker.sh` | `data/pdfs/by-doi/` | Markdown in `data/processed/markdown/` (GPU recommended) |
 | 3 | `uv run python -m scripts.embed` | Markdown + metadata CSV | `data/processed/vs_latest_<model>/` |
 | (alt) | `uv run python -m scripts.reembed <index-dir> <model>` | An existing index | Same chunks, new embedding model |
+
+**How the index of 12 Nov 2026 was made** (from the frozen 513-document index; run each `add_to_index` once per embedding model, on a GPU if you have one):
+
+| Step | Command | Input | Output |
+|---|---|---|---|
+| 1 | `python -m scripts.justos_markdown_metadata` | `forrt_db_250627.csv`, `just-os_db_latest.csv`, `BOT/markdown/markdown/` | `data/interim/justos_markdown_metadata.csv` |
+| 2 | `python -m scripts.match_cluster_pdfs` | Cluster PDF names + the newest sheets | `data/interim/cluster_pdf_metadata.csv` |
+| 3 | `docker run -d --name grobid -p 8070:8070 -m 6g grobid/grobid:0.8.2-crf`, then `python -m scripts.convert_cluster_pdfs` (host: `pip install pymupdf4llm requests`) | The cluster PDFs | `data/processed/cluster_markdown/` (about 30 minutes; a second run uses the cache) |
+| 4 | `python -m scripts.add_to_index "data/NWO JUST-OS/BOT/markdown/markdown" data/interim/justos_markdown_metadata.csv --index data/processed/vs_261111_bge-m3_before_clusters --output data/processed/vs_latest_bge-m3` | Steps 1 | 193 documents added |
+| 5 | `python -m scripts.add_to_index data/processed/cluster_markdown data/processed/cluster_markdown/metadata.csv` | Step 3 | 648 documents added (16 minutes for bge-m3 on an 8 GB GPU) |
+| 6 | `python -m scripts.get_pub_years` | The new index | `data/raw/pub_years.csv` |
+
+Do not stop `add_to_index` while it saves: the index folder is written in place and a half-written `docstore.json` cannot be loaded.
 
 Limits: step 1 does not download PDFs and reads the June 2025 snapshot; step 3 reads metadata from Google Drive (`URL_JUST_OS_DB`); steps 1 and 3 upload to Drive at the end and fail there without `credentials.json` (after the files are written).
 

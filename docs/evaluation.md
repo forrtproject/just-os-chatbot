@@ -109,3 +109,16 @@ Speed (5 Nov, warm server): classify 0.4 s, retrieval + re-rank 31 s (re-ranker 
 | `perplexity/sonar` | 1.00 / 1.00 | no | no | no | Searches the web itself: not a fair comparison |
 
 Free (`:free`) and router models can change or log prompts: do not use them in production.
+
+### 3.4 Index with all cluster papers (12 November 2026, 54 questions, `meta-llama/llama-3.1-8b-instruct`)
+
+| Index (bge-m3, `HYBRID_SEARCH=true`) | Correct | Answered | Refused | Errors | hit@7 | Citations valid | Completion tokens / q |
+|---|---|---|---|---|---|---|---|
+| 646 documents (11 Nov, `run_261111-1520`) | 0.87 | 26/32 | 21/22 | 0 | 0.17 | 0.90 | 4,373 |
+| 1,354 documents (12 Nov, `run_261112-0302`) | 0.91 | 28/32 | 21/22 | 0 | 0.17 | 0.96 | 379 |
+
+Findings:
+1. Doubling the index did not lower any score: two more questions are answered, refusals are the same.
+2. hit@7 is unchanged, but it still uses only the few questions with expected DOIs (issue E1).
+3. The difference is 2 of 54 questions and the answer model is not deterministic, so "not worse" is the safe reading, not "better".
+4. **The times of the 12 Nov run cannot be compared** (mean 146 s against 22.5 s). Every question took about 140 s more, also refused ones that never search (0.2 s on 11 Nov). The run was started with `docker run` without the Redis container and logged "Error -2 connecting to redis:6379", so the likely cause is the wait for Redis, not the index. Without that constant an answered question took about 12 s. Run the eval with `docker compose run` to get real times for the larger index.

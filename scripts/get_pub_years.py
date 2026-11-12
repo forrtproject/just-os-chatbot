@@ -36,20 +36,23 @@ def index_dois(index_dir):
     return sorted(dois)
 
 
-def fetch_years(dois):
-    years = {}
+def fetch_works(dois, select):
+    """The OpenAlex records (fields in `select`, which must include doi) of the DOIs it knows."""
     for start in range(0, len(dois), BATCH):
-        batch = dois[start : start + BATCH]
-        query = urllib.parse.urlencode(
-            {"filter": "doi:" + "|".join(batch), "per-page": BATCH, "select": "doi,publication_year"}
-        )
+        # "|" and "," separate values in an OpenAlex filter, so such DOIs cannot be asked for
+        batch = [d for d in dois[start : start + BATCH] if "|" not in d and "," not in d]
+        query = urllib.parse.urlencode({"filter": "doi:" + "|".join(batch), "per-page": BATCH, "select": select})
         with urllib.request.urlopen(f"{OPENALEX}?{query}", timeout=60) as response:
-            for work in json.load(response)["results"]:
-                doi = normalize_doi(work.get("doi"))
-                if doi and work.get("publication_year"):
-                    years[doi] = work["publication_year"]
+            yield from (work for work in json.load(response)["results"] if normalize_doi(work.get("doi")))
         time.sleep(0.2)  # stay well under the OpenAlex rate limit
-    return years
+
+
+def fetch_years(dois):
+    return {
+        normalize_doi(work["doi"]): work["publication_year"]
+        for work in fetch_works(dois, "doi,publication_year")
+        if work.get("publication_year")
+    }
 
 
 if __name__ == "__main__":

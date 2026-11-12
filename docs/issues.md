@@ -106,10 +106,11 @@ Rules for every issue: [project-plan.md](project-plan.md) section 8 (small PR, a
 - **Data:** `data/raw/forrt_sheet1_261028.csv` (1,504 rows), `data/raw/forrt_sheet2_261028.csv` (285 rows), production metadata `data/NWO JUST-OS/BOT/just-os_db_latest.csv`.
 - **Done when:** a reason for each row that is not in the index (no DOI, paywall, web page, video, …) and a bar chart of the reasons.
 
-### C2. Metadata for the FORRT cluster PDFs
+### C2. Metadata for the FORRT cluster PDFs — closed 12 Nov (#17)
+- **Result (12 Nov 2026):** all 814 unique PDFs go through GROBID; the DOI is read from the PDF and checked, metadata comes from OpenAlex (561 papers). 753 papers converted, 648 new in both indexes (105 were there already), 3 scans left out. Numbers and reasons in [data-inventory.md](data-inventory.md) section 4. The docx files are copies of the PDFs and are not used.
 - **Data:** `data/FORRT Clusters pdfs/` (1,061 PDFs, names `C01_SC01_<topic>_<author>_<year>.pdf`), working lists `01.FORRT_Clusters_Working_Document_v1.xlsx` and `FORRT Cluster_s.xlsx`, sheet 2.
 - **Done when:** a CSV with title, authors, year, DOI and licence for each cluster PDF (match rate reported); these PDFs can then go through `scripts/marker.sh` and `scripts/embed.py`.
-- **Status (11 Nov 2026):** 133 checked papers are in both indexes (`convert_cluster_pdfs.py` + `add_to_index.py`; counts in [data.md](data.md)). Open: the 693 unmatched files, the 71 rejected matches, and authors/licence for the added papers.
+- **Status (12 Nov 2026):** done, see the result above. Open: 192 papers without a DOI (no link, 30 of them with the file name as title).
 
 ### C3. HTML route for web resources
 - **Approach:** fetch + `trafilatura` for OSF/Carpentries/GitHub pages; a sample of 50 rows.
@@ -166,10 +167,12 @@ Rules for every issue: [project-plan.md](project-plan.md) section 8 (small PR, a
 - **Why:** #31 "Other tracks" (optional extra). marker is slow without a GPU, and chunks are a fixed 350 tokens. See [data.md](data.md).
 - **Approach:** convert a sample of PDFs with GROBID and with marker; compare time and body-text fidelity. Separately, try another chunk size or splitting rule on a re-embedded copy of the index.
 - **Done when:** a table of time per PDF and text quality for both converters; any chunking change has an eval row against the current index.
+- **Status (12 Nov 2026):** marker, pymupdf4llm, GROBID and Docpluck compared on 12 PDFs ([data-inventory.md](data-inventory.md) section 5); the cluster papers now use GROBID. Open: converting the JUST-OS documents again with GROBID, and chunk size.
 
 ## track:ops — setup and hygiene (new)
 
-### O1. Publish the index for the team
+### O1. Publish the index for the team — closed 12 Nov (#26)
+- **Result:** `python scripts/make_share_bundle.py` makes the team bundle; the project lead hands it over one-to-one. No public link, because the zip holds `.env` with the keys.
 - `scripts/get_index.py` exists, but there is no download link. Upload `data/processed/vs_latest_bge-m3.zip` (173 MB) to SURFdrive or a Hugging Face dataset and put the link in the README.
 
 ### O2. CI: tests and lint on each PR

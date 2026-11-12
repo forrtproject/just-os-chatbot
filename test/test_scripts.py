@@ -20,7 +20,7 @@ import judge  # noqa: E402
 import make_retrieval_set  # noqa: E402
 import run  # noqa: E402
 from just_os import qualle  # noqa: E402
-from scripts import add_to_index, convert_cluster_pdfs, fetch_web_resources, make_share_bundle, match_cluster_pdfs  # noqa: E402
+from scripts import add_to_index, convert_cluster_pdfs, fetch_web_resources, justos_markdown_metadata, make_share_bundle, match_cluster_pdfs  # noqa: E402
 from test_qualle import CONFIG, FakeChatManager, FakeClient, completion  # noqa: E402
 
 
@@ -69,6 +69,48 @@ def test_cluster_pdf_title_check():
     assert not convert_cluster_pdfs.title_in_text("Open", page)  # too short to tell
     with_doi = {"doi": "10.1/x", "title": "A"}
     assert convert_cluster_pdfs.doi_hash(with_doi) == convert_cluster_pdfs.doi_hash({**with_doi, "title": "B"})
+
+
+TEI_XML = """<TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc>
+<titleStmt><title>Seven Easy Steps to Open Science</title></titleStmt>
+<sourceDesc><biblStruct><analytic>
+<author><persName><forename>Sophia</forename><surname>Crüwell</surname></persName></author>
+<idno type="DOI">10.1027/2151-2604/A000387</idno></analytic></biblStruct></sourceDesc></fileDesc>
+<profileDesc><abstract><p>An annotated reading list.</p></abstract></profileDesc></teiHeader>
+<text><body><div><head n="1">Open  access</head><p>Papers should be <ref>(Suber, 2012)</ref> free.</p>
+<figure><head>Figure 1</head><figDesc>The steps.</figDesc><table><row><cell>42</cell></row></table></figure></div></body>
+<back><div type="references"><listBibl><biblStruct><note>Suber reference</note></biblStruct></listBibl></div>
+<div type="annex"><div><head>Appendix</head><p>Extra material.</p></div></div></back></text></TEI>"""
+
+
+def test_cluster_pdf_grobid_markdown():
+    meta, markdown = convert_cluster_pdfs.tei_to_markdown(TEI_XML)
+    assert meta == {"title": "Seven Easy Steps to Open Science", "creators": "Sophia Crüwell", "doi": "10.1027/2151-2604/a000387"}
+    assert "## 1 Open access\n\nPapers should be (Suber, 2012) free." in markdown
+    assert "## Abstract\n\nAn annotated reading list." in markdown and "Figure 1 The steps." in markdown
+    assert "Suber reference" not in markdown and "42" not in markdown  # no reference list, no table cells
+    assert "Extra material." in markdown  # the appendix is kept
+
+
+def test_cluster_pdf_doi_is_checked_against_the_first_pages():
+    page = "Seven Easy Steps to Open Science\nhttps://doi.org/10.1027/2151-2604/a000387. See also doi:10.1234/other"
+    assert convert_cluster_pdfs.find_dois(page) == ["10.1027/2151-2604/a000387", "10.1234/other"]
+    works = {"10.1234/other": {"title": "A paper that this one cites"}, "10.1027/2151-2604/a000387": {"title": "Seven easy steps to open science"}, "10.9999/gone": None}
+    chosen = convert_cluster_pdfs.choose_work(["10.9999/gone", "10.1234/other", "10.1027/2151-2604/a000387"], works, page)
+    assert chosen["title"] == "Seven easy steps to open science"
+    assert convert_cluster_pdfs.choose_work(["10.1234/other"], works, page) is None
+
+
+def test_justos_metadata_marks_papers_outside_the_open_access_list():
+    row = {"title": "A", "url/doi (please check)": "https://doi.org/10.1234/closed", "conditions of use": "CC BY",
+           "just-os internal identifier": "7", "provider/creators": "Ann"}
+    open_access = {"B": "10.1234/open"}
+    closed = justos_markdown_metadata.metadata_row(row, open_access)
+    assert (closed["doi_hash"], closed["creators"], closed["conditions_of_use"]) == ("0007", "Ann", justos_markdown_metadata.NOT_OA)
+    by_title = justos_markdown_metadata.metadata_row({**row, "title": "B", "url/doi (please check)": "https://example.org"}, open_access)
+    assert (by_title["doi"], by_title["conditions_of_use"]) == ("10.1234/open", "CC BY")  # DOI known only by title
+    no_doi = justos_markdown_metadata.metadata_row({**row, "url/doi (please check)": "https://example.org"}, open_access)
+    assert (no_doi["doi"], no_doi["conditions_of_use"]) == ("", "CC BY")  # never checked by Unpaywall
 
 
 # --- #18 HTML route

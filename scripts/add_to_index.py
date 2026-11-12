@@ -70,9 +70,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     Settings.chunk_size = justos_settings.CHUNK_SIZE
-    embed_model = HuggingFaceEmbedding(model_name=justos_settings.EMBEDDING_MODEL)
+    import torch
+
+    # Half precision on a GPU is about 3x faster and uses half the memory (as in scripts/reembed.py)
+    model_kwargs = {"torch_dtype": torch.float16} if torch.cuda.is_available() else {}
+    embed_model = HuggingFaceEmbedding(
+        model_name=justos_settings.EMBEDDING_MODEL, embed_batch_size=32, model_kwargs=model_kwargs
+    )
     index = load_index(args.index, embed_model)
-    metadata = unique_metadata(pd.read_csv(args.metadata_csv).set_index("doi_hash"))
+    # doi_hash as text: file names such as 0011 are not numbers
+    metadata = unique_metadata(pd.read_csv(args.metadata_csv, dtype={"doi_hash": str}).set_index("doi_hash"))
     added = add_documents(index, new_documents(args.markdown_dir, metadata, indexed_keys(index)))
     output = args.output or args.index
     index.storage_context.persist(output)

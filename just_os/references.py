@@ -14,9 +14,10 @@ DOI_PATTERN = re.compile(r"10\.\d{4,9}/[^\s\"'<>]+", re.IGNORECASE)
 TRAILING = ".,;:'\"!?"
 PAIRS = {")": "(", "]": "["}
 
-# CC BY, CC0 and public domain allow showing a passage; NC/ND variants do not (F4)
+# CC BY, CC0 and public domain allow showing a passage; NC/ND variants do not (F4).
+# "FORRT cluster PDF": FORRT confirmed these are open access (scripts/convert_cluster_pdfs.py)
 OPEN_LICENCE = re.compile(
-    r"\bcc[\s-]?0\b|\bcc[\s-]?zero\b|public domain|\bcc[\s-]?by\b|creative commons attribution",
+    r"\bcc[\s-]?0\b|\bcc[\s-]?zero\b|public domain|\bcc[\s-]?by\b|creative commons attribution|forrt cluster pdf",
     re.I,
 )
 RESTRICTED = re.compile(r"\bnc\b|\bnd\b|non-?commercial|no-?deriv", re.I)

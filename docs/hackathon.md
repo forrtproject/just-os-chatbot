@@ -34,11 +34,11 @@ Issues with files, approach and "done when": [issues.md](issues.md) (also on Git
 | **Evaluation** | 40–60 reviewed questions with expected sources (first: the other tracks need them); LLM judge; classifier comparison; one command per configuration | E1–E4 (#7, #8, #9, #32) |
 | **Models** | Eval of 4–6 models; arena ratings and protocol; faster answers; memory methods; FORRT lookup mode, with and without a router | M1, M3–M8 (#10, #12–#15, #34, #35) |
 | **Retrieval & quality** | Multilingual re-ranker; embedding model for production; adaptive top-k; hallucination check | N3–N5, Q1 (#21, #22, #33, #23) |
-| **Coverage** | Metadata for the cluster PDFs; HTML route for web resources; ingestion for curators; optional: faster conversion and chunking | C2–C5 (#17, #18, #25, #36) |
+| **Coverage** | HTML route for web resources; ingestion for curators; optional: faster conversion and chunking | C3–C5 (#18, #25, #36) |
 
 What we must decide by Friday, and which issues feed each decision: [#31](https://github.com/forrtproject/just-os-chatbot/issues/31).
 
-Done before the hackathon (closed): references R1–R5, M2 prompt comparison, C1 coverage audit, N1 hybrid search, N2 source variety, Q2 metadata fix, O2 CI, O4 answer cache. Most open issues already have code; the issue comments on GitHub say what is left.
+Done before the hackathon (closed): references R1–R5, M2 prompt comparison, C1 coverage audit, N1 hybrid search, N2 source variety, Q2 metadata fix, O2 CI, O4 answer cache. Closed during the hackathon: C2 cluster PDF metadata (#17: 133 cluster papers added to the index, numbers in [data-inventory.md](data-inventory.md)), O1 team bundle (#26: handed over one-to-one, no public link because it holds the keys). Most open issues already have code; the issue comments on GitHub say what is left.
 
 ## 4. Tools you will use
 
