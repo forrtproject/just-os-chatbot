@@ -215,3 +215,19 @@ def test_pages_are_read_live_cached_and_skipped_when_unreachable(tmp_path):
 
 def test_qualle_class_defaults_keep_the_old_paths():
     assert qualle.Qualle.forrt_pages is None and qualle.Qualle.decisions is None
+
+
+def test_short_questions_do_not_force_a_guessed_language():
+    # lingua read "what is forrt" as Hungarian (confidence 0.07) and the whole answer came out in Hungarian
+    assert forrt_checks.question_language("what is forrt") is None
+    assert "language of the question" in forrt_checks.language_name(None)
+    assert forrt_checks.question_language("Wie kann ich bei FORRT mitmachen?") == "de"
+    assert forrt_checks.question_language("我想看之前那个关于元科学AI的在线会议回放") == "zh"
+
+
+def test_what_is_forrt_is_not_answered_in_hungarian(tmp_path):
+    # the FORRT route told the model "write the whole answer in Hungarian" for "what is forrt"
+    pages, client = make_pages(tmp_path, ["FORRT is a framework for open and reproducible research training [1]."], [0.95, 0.1])
+    pages.answer("what is forrt")
+    prompt = client.calls[0]["messages"][0]["content"] + client.calls[0]["messages"][1]["content"]
+    assert "Hungarian" not in prompt and "language of the question" in prompt

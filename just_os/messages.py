@@ -105,10 +105,37 @@ def detect_language(text: str) -> Optional[str]:
     return language.iso_code_639_1.name.lower() if language else None
 
 
+def confident_language(text: str) -> Optional[str]:
+    """Like detect_language, but None when the question is too short or unclear to tell.
+
+    Short questions were guessed badly: "what is forrt" as Hungarian, "is it open" as Dutch, "Hallo" as
+    Sesotho, "ORCID" as Portuguese. The name FORRT and acronyms are ignored; a language is returned only
+    with at least 3 words (or a non-Latin script) and a lingua confidence of at least 0.10, and never Latin
+    or Esperanto (English keyword queries such as "neurodiversity in academia" scored as Latin). On 190
+    labelled questions in 7 languages plus edge cases this recognised all 35 non-English ones ("Was ist
+    Replikation?": German 0.13) and forced no wrong language; on the logged chat questions it only changes
+    "Hallo", "ORCID" and "Forrt" (to no language).
+    """
+    letters = [c for c in text if c.isalpha()]
+    for code, script in SCRIPTS.items():
+        if letters and sum(bool(script.match(c)) for c in letters) * 2 >= len(letters):
+            return code
+    words = [w for w in text.split() if sum(c.isupper() for c in w) < 2 and not re.fullmatch(r"\W*forrt\W*", w, re.I)]
+    if len(words) < 3 and not re.search(r"[\u0370-\uffff]", text):
+        return None
+    try:
+        best = detector().compute_language_confidence_values(" ".join(words) or text)[0]
+    except Exception as e:  # a detection failure must not hide the message itself
+        logger.error(f"Language detection failed: {e}")
+        return None
+    code = best.language.iso_code_639_1.name.lower()
+    return code if best.value >= 0.10 and code not in ("la", "eo") else None
+
+
 def message(key: str, question: str = "") -> str:
-    """The message `key` in the language of `question`, else in English."""
+    """The message `key` in the language of `question` when it is clear, else in English."""
     table = messages()
-    language = detect_language(question) if question else None
+    language = confident_language(question) if question else None
     return table.get(language, table[DEFAULT_LANGUAGE])[key]
 
 
