@@ -90,6 +90,9 @@ def main():
     parser.add_argument("--questions", default="eval/questions.jsonl")
     parser.add_argument("--limit", type=int, help="only the first N questions")
     parser.add_argument("--no-retrieval", action="store_true", help="answer without sources")
+    parser.add_argument("--full-answers", action="store_true",
+                        help="keep the whole answer (default: the first 2000 characters)")
+    parser.add_argument("--out", help="output CSV (default eval/results/run_<time>_<model>.csv)")
     parser.add_argument("--skip-classifier", action="store_true", help="treat every question as open science")
     args = parser.parse_args()
 
@@ -132,7 +135,7 @@ def main():
     questions = [json.loads(line) for line in open(args.questions, encoding="utf-8")]
     questions = questions[: args.limit] if args.limit else questions
 
-    out = Path("eval/results") / (
+    out = Path(args.out) if args.out else Path("eval/results") / (
         f"run_{datetime.now():%y%m%d-%H%M}_{config['CITATION_MODEL'].replace('/', '__')}"
         f"{'_noretrieval' if args.no_retrieval else ''}.csv"
     )
@@ -179,7 +182,7 @@ def main():
                 "cost_usd": round(seen["cost"], 6),
                 "retrieved_dois": " ".join(ranked_dois),
                 "question": q["question"],
-                "answer": (seen["raw"] or "")[:2000],
+                "answer": (seen["raw"] or "") if args.full_answers else (seen["raw"] or "")[:2000],
                 # what the answer model saw, for eval/judge.py
                 "passages": json.dumps([" ".join(n.text.split())[:800] for n in seen["ranked"]]),
             })
