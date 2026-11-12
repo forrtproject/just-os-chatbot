@@ -418,11 +418,13 @@ class ResponseGenerator:
             {"role": "user", "content": prompt},
         ]
 
-        # Generate response
+        # Generate response. Streamed for every model, so timing is measured the same way
+        # for OpenScholar and OpenRouter (the self-hosted proxy also cuts silent requests at ~100 s)
         response = self.client_manager.create_chat_completion(
             model=model or self.citation_model,
             messages=history_openai_format,
             temperature=self.config.get("TEMPERATURE", 0.3),
+            stream=True,
         )
 
         if not response or not response.choices:
@@ -535,6 +537,7 @@ class OpenAIClientManager:
         temperature: float = 0.3,
         tools: Optional[List[Dict[str, Any]]] = None,
         tool_choice: Optional[Dict[str, Any]] = None,
+        stream: bool = False,
     ) -> Optional[ChatCompletion]:
         """
         Create a chat completion with error handling.
@@ -545,6 +548,7 @@ class OpenAIClientManager:
             temperature: Sampling temperature
             tools: Optional list of tools
             tool_choice: Optional tool choice
+            stream: Receive the answer as a stream and join it (text answers only, no tools)
 
         Returns:
             ChatCompletion or None if the request fails
@@ -563,10 +567,55 @@ class OpenAIClientManager:
             if tool_choice:
                 kwargs["tool_choice"] = tool_choice
 
+            if stream:
+                return self._joined_stream(client, kwargs)
             return client.chat.completions.create(**kwargs)
         except Exception as e:
             logger.error(f"OpenAI API error: {str(e)}")
             return None
+
+    @staticmethod
+    def _joined_stream(client: OpenAI, kwargs: Dict[str, Any]) -> ChatCompletion:
+        """Stream a completion and return it as one ChatCompletion, usage included.
+
+        The client timeout bounds the whole answer, as it does without streaming
+        (the HTTP timeout alone only limits the gap between two chunks).
+        """
+        timeout = client.timeout if isinstance(client.timeout, (int, float)) else None
+        deadline = time.time() + timeout if timeout else None
+        parts, finish_reason, usage, last = [], None, None, None
+        chunks = client.chat.completions.create(
+            **kwargs, stream=True, stream_options={"include_usage": True}
+        )
+        try:
+            for chunk in chunks:
+                last = chunk
+                if chunk.usage:
+                    usage = chunk.usage
+                for choice in chunk.choices:
+                    parts.append(choice.delta.content or "")
+                    finish_reason = choice.finish_reason or finish_reason
+                if deadline and time.time() > deadline:
+                    raise TimeoutError(f"no complete answer after {timeout:.0f} s")
+        finally:
+            close = getattr(chunks, "close", None)
+            if close:
+                close()
+        if last is None:
+            raise ValueError("empty stream")
+        return ChatCompletion(
+            id=last.id,
+            created=last.created,
+            model=last.model,
+            object="chat.completion",
+            choices=[{
+                "index": 0,
+                # "length": the server's token cap cut the answer
+                "finish_reason": finish_reason if finish_reason in ("stop", "length", "content_filter") else "stop",
+                "message": {"role": "assistant", "content": "".join(parts)},
+            }],
+            usage=usage,
+        )
 
 
 class ReferenceProcessor:

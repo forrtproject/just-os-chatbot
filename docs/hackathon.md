@@ -49,7 +49,7 @@ Done before the hackathon (closed): references R1–R5, M2 prompt comparison, C1
 | Embedding comparison | `python eval/compare_embeddings.py` (needs a GPU or the API; see the script) | `eval/results/embeddings_<date>.csv` |
 | Arena | http://localhost:8000/arena | ratings at `/arena/leaderboard`, raw data at `/arena/ratings` and in `data/arena/ratings.jsonl` (the server commits it at each stand-up) |
 | Change a model | `CITATION_MODEL=...` in `.env`, then `docker compose up -d web` | — |
-| OpenScholar (self-hosted) | `OPENSCHOLAR_BASE_URL` + `OPENSCHOLAR_API_KEY` in `.env`, then `--model openscholar-8b` | — |
+| OpenScholar (self-hosted, GPU) | `OPENSCHOLAR_BASE_URL` + `OPENSCHOLAR_API_KEY` in `.env` (from the project lead, one-to-one), then `--model openscholar-8b`. Start or stop the server in GitHub: Actions → "OpenScholar server" → Run workflow (start takes 2–5 min; it stops every night at 22:00 UTC). A stopped server answers 503 | — |
 
 Costs: one eval run of 44 questions costs less than 0.10 USD for most models. Look at the OpenRouter balance each morning.
 

@@ -188,3 +188,57 @@ def test_openscholar_has_its_own_time_limit():
     })
     assert (manager.openscholar_client.timeout, manager.openscholar_client.max_retries) == (600, 0)
     assert (manager.client.timeout, manager.client.max_retries) == (60, 1)
+
+
+# --- Answers are streamed (same for OpenScholar and OpenRouter) and joined into one completion
+def stream_chunks(*texts, usage=None):
+    from openai.types.chat import ChatCompletionChunk
+
+    chunks = [
+        ChatCompletionChunk(
+            id="c1", created=1, model="m", object="chat.completion.chunk",
+            choices=[{"index": 0, "delta": {"content": t}, "finish_reason": None}],
+        )
+        for t in texts
+    ]
+    chunks[-1].choices[0].finish_reason = "length"
+    chunks.append(ChatCompletionChunk(
+        id="c1", created=1, model="m", object="chat.completion.chunk", choices=[], usage=usage,
+    ))
+    return chunks
+
+
+def streaming_manager(chunks, timeout=60):
+    manager = qualle.OpenAIClientManager(
+        {"LLM_API_KEY": "k", "BASE_URL": "https://openrouter.ai/api/v1", "OPENSCHOLAR_BASE_URL": "", "LLM_TIMEOUT": timeout}
+    )
+    calls = []
+
+    def create(**kwargs):
+        calls.append(kwargs)
+        return iter(chunks)
+
+    manager.client.chat.completions.create = create
+    return manager, calls
+
+
+def test_streamed_answer_is_joined_with_usage():
+    usage = {"prompt_tokens": 10, "completion_tokens": 3, "total_tokens": 13, "cost": 0.002}
+    manager, calls = streaming_manager(stream_chunks("Hello", " world", usage=usage))
+    response = manager.create_chat_completion(model="m", messages=[], stream=True)
+    assert calls[0]["stream"] is True and calls[0]["stream_options"] == {"include_usage": True}
+    assert response.choices[0].message.content == "Hello world"
+    assert response.choices[0].finish_reason == "length"
+    assert response.usage.completion_tokens == 3
+    assert response.usage.cost == 0.002  # OpenRouter's extra field, read by eval/run.py
+
+
+def test_stream_that_runs_past_the_time_limit_fails():
+    manager, _ = streaming_manager(stream_chunks("a", "b"), timeout=-1)
+    assert manager.create_chat_completion(model="m", messages=[], stream=True) is None
+
+
+def test_answers_are_streamed():
+    client = FakeClient(completion(content="x"))
+    qualle.ResponseGenerator(client, CONFIG, None).generate_response("question", "[0] Title: T Text: t")
+    assert client.calls[0]["stream"] is True
