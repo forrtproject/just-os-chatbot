@@ -1,0 +1,47 @@
+id,lang,term,question,pipeline_run_outcome,refused_of_5,run1,run2,run3,run4,run5
+gl01en,en,Analytic Flexibility,What is analytic flexibility and why can it be problematic in research?,refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl01de,de,Analytic Flexibility,Was versteht man unter Analytischer Flexibilität und warum kann sie in der Forschung problematisch sein?,refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl02en,en,Badges (Open Science),What are badges in open science and how do they encourage researchers to share their data and materials?,answered,0,open_science,open_science,open_science,open_science,open_science
+gl02de,de,Badges (Open Science),"Was sind Open Science Abzeichen und wie motivieren sie Forschende dazu, ihre Daten und Materialien zu teilen?",answered,0,open_science,open_science,open_science,open_science,open_science
+gl03en,en,CARKing,What does Critiquing After the Results are Known (CARKing) mean in research?,refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl03de,de,CARKing,Was versteht man unter Critiquing After the Results are Known (CARKing) in der Forschung?,refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl04en,en,Computational reproducibility,"What is computational reproducibility in research, and why is it important?",answered,0,open_science,open_science,open_science,open_science,open_science
+gl04de,de,Computational reproducibility,Was versteht man unter rechnerischer Reproduzierbarkeit in der Forschung und warum ist sie wichtig?,no_sources,0,open_science,open_science,open_science,open_science,open_science
+gl05en,en,Conceptual replication,What is a conceptual replication and why is it important in research?,answered,0,open_science,open_science,open_science,open_science,open_science
+gl05de,de,Conceptual replication,Was versteht man unter einer Konzeptionellen Replikation und warum ist sie in der Forschung wichtig?,no_sources,2,open_science,off_topic,off_topic,open_science,open_science
+gl06en,en,Confirmation bias,What is confirmation bias and how does it affect the way people process information?,refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl06de,de,Confirmation bias,"Was ist Bestätigungsverzerrung und wie beeinflusst sie die Art und Weise, wie Menschen Informationen verarbeiten?",refused,0,open_science,open_science,open_science,open_science,open_science
+gl07en,en,Constraints on Generality (COG),What are Constraints on Generality (COG) and why are they important in research reporting?,refused,1,open_science,open_science,off_topic,open_science,open_science
+gl07de,de,Constraints on Generality (COG),"Was sind COG, Beschränkungen der Generalisierbarkeit (Constraints on Generality, COG) und warum sind sie wichtig für die Berichterstattung in der Forschung?",answered,0,open_science,open_science,open_science,open_science,open_science
+gl08en,en,Equivalence Testing,What are equivalence tests and how do they assess whether an effect is meaningful?,refused,1,open_science,open_science,open_science,off_topic,open_science
+gl08de,de,Equivalence Testing,"Was sind Äquivalenztesten und wie beurteilen sie, ob ein Effekt bedeutsam ist?",refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl09en,en,HARKing,What is HARKing and why is it considered a questionable research practice?,refused,0,open_science,open_science,open_science,open_science,open_science
+gl09de,de,HARKing,Was ist HARKing und warum wird es als fragwürdige Forschungsmethode angesehen?,refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl10en,en,Incentive structure,What is the incentive structure in scientific research and why is it important?,answered,0,open_science,open_science,open_science,open_science,open_science
+gl10de,de,Incentive structure,Was ist das Anreizsystem in der wissenschaftlichen Forschung und warum ist es wichtig?,refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl11en,en,Multiverse analysis,What is multiverse analysis and how does it enhance transparency in testing a hypothesis?,answered,0,open_science,open_science,open_science,open_science,open_science
+gl11de,de,Multiverse analysis,Was ist eine Multiversumsanalyse und wie verbessert sie die Transparenz bei der Überprüfung einer Hypothese?,refused,1,off_topic,open_science,open_science,open_science,open_science
+gl12en,en,Null Hypothesis Significance Testing (NHST),What is Null Hypothesis Significance Testing (NHST) and how is it used in research?,refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl12de,de,Null Hypothesis Significance Testing (NHST),"Was ist NHST, Nullhypothesen-Signifikanztestung (Null Hypothesis Significance Testing, NHST) und wie wird sie in der Forschung angewendet?",refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl13en,en,Open Material,"What does it mean to share open materials in a research study, and why is it important?",answered,0,open_science,open_science,open_science,open_science,open_science
+gl13de,de,Open Material,"Was bedeutet es, offene Materialien in einer Forschungsstudie zu teilen, und warum ist das wichtig?",answered,0,open_science,open_science,open_science,open_science,open_science
+gl14en,en,p-value,What is a p-value and what does it represent in hypothesis testing?,refused,1,off_topic,open_science,open_science,open_science,open_science
+gl14de,de,p-value,Was ist ein p-Wert und was stellt er im Rahmen von Hypothesentests dar?,refused,4,off_topic,off_topic,off_topic,off_topic,open_science
+gl15en,en,PARKing,"What is PARKing in research, and why is it considered problematic?",refused,2,open_science,off_topic,off_topic,open_science,open_science
+gl15de,de,PARKing,Was versteht man unter PARKing in der Forschung und warum wird es als problematisch angesehen?,refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl16en,en,Preregistration,"What is preregistration in research, and why is it important?",answered,0,open_science,open_science,open_science,open_science,open_science
+gl16de,de,Preregistration,Was versteht man unter Präregistrierung in der Forschung und warum ist sie wichtig?,answered,0,open_science,open_science,open_science,open_science,open_science
+gl17en,en,PRO (peer review openness) initiative,What is the PRO (peer review openness) initiative and what conditions does it require for peer reviewing manuscripts?,answered,0,open_science,open_science,open_science,open_science,open_science
+gl17de,de,PRO (peer review openness) initiative,Was ist die PRO (peer review openness) Initiative und welche Bedingungen stellt sie an das Peer-Review von Manuskripten?,answered,0,open_science,open_science,open_science,open_science,open_science
+gl18en,en,Research Protocol,What is a research protocol and why is it important in conducting a study?,answered,0,open_science,open_science,open_science,open_science,open_science
+gl18de,de,Research Protocol,Was ist ein Forschungsprotokoll und warum ist es wichtig für die Durchführung einer Studie?,refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl19en,en,Researcher degrees of freedom,What are researcher degrees of freedom and why do they matter in scientific research?,refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl19de,de,Researcher degrees of freedom,Was sind Freiheitsgrade von Forschenden und warum sind sie in der wissenschaftlichen Forschung wichtig?,refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl20en,en,Scooping,"What does it mean to be scooped in scientific research, and why is it a concern for data sharing?",answered,0,open_science,open_science,open_science,open_science,open_science
+gl20de,de,Scooping,"Was bedeutet es, in der wissenschaftlichen Forschung untergraben [Scooping] zu werden, und warum ist dies eine Sorge beim Teilen von Daten?",no_sources,0,open_science,open_science,open_science,open_science,open_science
+gl21en,en,Statistical power,What is statistical power and how is it used in research?,refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl21de,de,Statistical power,Was ist die Statistische Teststärke und wie wird sie in der Forschung verwendet?,refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl22en,en,Statistical significance,What does statistical significance mean in the context of Null Hypothesis Significance Testing (NHST)?,refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl22de,de,Statistical significance,Was versteht man unter statistischer Signifikanz im Kontext des Nullhypothesentests (NHST)?,refused,5,off_topic,off_topic,off_topic,off_topic,off_topic
+gl23en,en,Transparency Checklist,What is the transparency checklist and how does it support research transparency?,answered,0,open_science,open_science,open_science,open_science,open_science
+gl23de,de,Transparency Checklist,Was ist die Transparenz-Checkliste und wie unterstützt sie die Transparenz in der Forschung?,no_sources,0,open_science,open_science,open_science,open_science,open_science

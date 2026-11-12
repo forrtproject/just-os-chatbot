@@ -28,8 +28,16 @@ def test_answer_run_summary(tmp_path):
     assert [r["model"] for r in runs] == ["meta-llama/llama-3.1-8b-instruct", "openai/gpt-oss-20b"]  # newest first
     r = runs[0]
     assert (r["n"], r["correct"], r["answered"], r["refused"], r["errors"], r["hit"]) == (4, 0.5, "1/2", "1/2", 1, 0.5)
-    assert (r["mean_s"], r["p95_s"], r["tokens"], r["usd_per_1k"], r["judge"]) == (10.8, 10.0, 150, 0.1, None)
+    assert (r["mean_s"], r["p95_s"], r["tokens"], r["usd_per_1k"], r["judge"], r["rubric"]) == (10.8, 10.0, 150, 0.1, None, None)
 
+
+
+def test_rubric_coverage_averages_the_questions_with_a_rubric(tmp_path):
+    rows = [{**run_row("gl01", "answer", "answered", 5), "rubric_coverage": "0.5"},
+            {**run_row("gl02", "answer", "answered", 5), "rubric_coverage": "1.0"},
+            {**run_row("pr02", "answer", "answered", 5), "rubric_coverage": ""}]  # no rubric
+    write(tmp_path / "run_261112-1600_meta-llama__llama-3.1-8b-instruct.csv", rows)
+    assert eval_report.answer_runs(str(tmp_path))[0]["rubric"] == 0.75
 
 def test_classifier_summary_counts_both_refusal_labels(tmp_path):
     rows = [

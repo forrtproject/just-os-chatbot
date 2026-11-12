@@ -11,13 +11,15 @@ CLASSES = [r["Question type"] for r in csv.DictReader(open(ROOT / "data/raw/ques
 TYPES = set(CLASSES[: CLASSES.index("FORRT cluster")])
 CLUSTERS = set(CLASSES[CLASSES.index("FORRT cluster") + 1:]) | {"FORRT Lookup", ""}
 KEYS = ["id", "cluster", "type", "lang", "format", "question", "expect", "route", "expected_dois", "expected_urls", "source"]
+# A question with a rubric (the FORRT glossary items, eval/rubric_judge.py) carries all three
+RUBRIC_KEYS = {"term", "reference_answer", "rubric"}
 
 
 def test_every_question_has_the_agreed_fields_and_labels():
     assert len({q["id"] for q in QUESTIONS}) == len(QUESTIONS)
     for q in QUESTIONS:
         assert list(q)[: len(KEYS)] == KEYS, q["id"]
-        assert set(q) <= set(KEYS) | {"history", "note"}, q["id"]
+        assert set(q) <= set(KEYS) | {"history", "note"} | RUBRIC_KEYS, q["id"]
         assert q["type"] in TYPES and q["cluster"] in CLUSTERS, q["id"]
         assert q["expect"] in ("answer", "refuse") and q["route"] in ("open_science", "forrt", "both", "neither"), q["id"]
         assert (q["route"] == "neither") == (q["expect"] == "refuse"), q["id"]
@@ -40,3 +42,11 @@ def test_generated_refusals_follow_the_same_structure():
         assert (q["expect"], q["route"]) == ("refuse", "neither"), q["id"]
         assert q["kind"] in ("general", "academic", "decline_task", "near_miss"), q["id"]
         assert q["lang"] == "en" or q["source"].startswith("translation of rf"), q["id"]
+
+def test_rubric_questions_carry_a_reference_answer_and_numbered_rubric_items():
+    rubric = [q for q in QUESTIONS if RUBRIC_KEYS & set(q)]
+    assert len(rubric) == 25
+    for q in rubric:
+        assert RUBRIC_KEYS <= set(q) and q["expect"] == "answer" and q["reference_answer"].strip(), q["id"]
+        assert [r["id"] for r in q["rubric"]] == [f"r{i}" for i in range(1, len(q["rubric"]) + 1)], q["id"]
+        assert 3 <= len(q["rubric"]) <= 5 and all(r["type"] in ("core", "detail") and r["criterion"] for r in q["rubric"]), q["id"]

@@ -5,6 +5,11 @@ Runs in the web container (it needs the index, the models and Redis):
     docker compose exec web python eval/run.py --model openai/gpt-oss-20b
     docker compose exec web python eval/run.py --model openai/gpt-oss-20b --limit 5
 
+--no-retrieval asks the answer model the question directly, with no sources and no
+classifier, to measure what the model knows without the library. --skip-classifier
+treats every question as open science, so items about research methods are answered
+while the classifier is being changed; use it only for questions that all expect an answer.
+
 --model changes the answer model (CITATION_MODEL). The classify/rephrase model
 (GENERAL_MODEL) stays as configured unless --general-model is given, so a run
 compares answer models only. Output: eval/results/run_<YYMMDD-HHMM>_<model>.csv
@@ -72,12 +77,41 @@ def doi_of(node) -> str:
     return normalize_doi(plain_metadata(node.metadata).get("doi")) or ""
 
 
+DIRECT_PROMPT = (
+    "You answer questions about open science and research methods. Answer in about "
+    "150-250 words, in the language of the question."
+)
+
+
+def answer_directly(qualle, config, question, seen):
+    """The answer model alone, with no sources: the baseline for what the library adds."""
+    response = qualle.client_manager.create_chat_completion(
+        model=config["CITATION_MODEL"],
+        messages=[{"role": "system", "content": DIRECT_PROMPT}, {"role": "user", "content": question}],
+        temperature=config["TEMPERATURE"],
+    )
+    if response is None:
+        return {"status": "error", "message": ""}
+    seen["raw"] = response.choices[0].message.content or ""
+    return {"message": seen["raw"]}
+
+
+def skip_classifier(qualle):
+    """Route every question to the library, with no call to the decision model or the classifier."""
+    qualle.route = lambda query, router=None: "open_science"
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", help="answer model (CITATION_MODEL)")
     parser.add_argument("--general-model", help="classify/rephrase model (GENERAL_MODEL)")
     parser.add_argument("--questions", default="eval/questions.jsonl")
     parser.add_argument("--limit", type=int, help="only the first N questions")
+    parser.add_argument("--no-retrieval", action="store_true", help="answer without sources")
+    parser.add_argument("--full-answers", action="store_true",
+                        help="keep the whole answer (default: the first 2000 characters)")
+    parser.add_argument("--out", help="output CSV (default eval/results/run_<time>_<model>.csv)")
+    parser.add_argument("--skip-classifier", action="store_true", help="treat every question as open science")
     args = parser.parse_args()
 
     config = get_config()
@@ -86,6 +120,8 @@ def main():
     if args.general_model:
         config["GENERAL_MODEL"] = args.general_model
     qualle = create_rag_service(config, ChatManager())
+    if args.skip_classifier:
+        skip_classifier(qualle)
 
     # Record what each step did, without changing the pipeline
     seen = {}
@@ -129,8 +165,9 @@ def main():
     questions = [json.loads(line) for line in open(args.questions, encoding="utf-8")]
     questions = questions[: args.limit] if args.limit else questions
 
-    out = Path("eval/results") / (
-        f"run_{datetime.now():%y%m%d-%H%M}_{config['CITATION_MODEL'].replace('/', '__')}.csv"
+    out = Path(args.out) if args.out else Path("eval/results") / (
+        f"run_{datetime.now():%y%m%d-%H%M}_{config['CITATION_MODEL'].replace('/', '__')}"
+        f"{'_noretrieval' if args.no_retrieval else ''}.csv"
     )
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w", newline="", encoding="utf-8") as f:
@@ -144,7 +181,10 @@ def main():
             seen.clear()
             seen.update(ranked=[], raw=None, forrt=None, prompt_tokens=0, completion_tokens=0, cost=0.0)
             start = time.time()
-            final = list(qualle.get_response(q["question"], chat_id))[-1]
+            if args.no_retrieval:
+                final = answer_directly(qualle, config, q["question"], seen)
+            else:
+                final = list(qualle.get_response(q["question"], chat_id))[-1]
             seconds = time.time() - start
 
             outcome = outcome_of(final)
@@ -174,7 +214,7 @@ def main():
                 "retrieval": retrieval_label(config),
                 "retrieved_dois": " ".join(ranked_dois),
                 "question": q["question"],
-                "answer": (seen["raw"] or "")[:2000],
+                "answer": (seen["raw"] or "") if args.full_answers else (seen["raw"] or "")[:2000],
                 # what the answer model saw, for eval/judge.py
                 "passages": json.dumps([" ".join(n.text.split())[:800] for n in seen["ranked"]]),
             })
