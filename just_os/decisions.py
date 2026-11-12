@@ -27,6 +27,7 @@ ROUTERS = {
     "jev": "Jev (decision model)",
     "llm": "LLM classifier (GENERAL_MODEL)",
     "cosine": "Cosine similarity (no model call)",
+    "banded": "Similarity bands, Jev in between",
     "none": "No check (papers and FORRT pages)",
 }
 

@@ -318,3 +318,27 @@ def test_cosine_router_thresholds():
     assert cosine_qualle(0.55, 0.60).route("q", "cosine") == "forrt"
     assert cosine_qualle(0.70, 0.75).route("q", "cosine") == "forrt"  # both above: the closer one
     assert cosine_qualle(0.55, 0.45).route("q", "cosine") == "off_topic"
+
+
+def test_banded_router_refuses_and_answers_without_a_model_call_and_asks_in_between():
+    bands = {"BAND_PAPER_LOW": 0.5, "BAND_PAPER_HIGH": 0.8, "BAND_PAGE_LOW": 0.4, "BAND_PAGE_HIGH": 0.7, "BAND_MIDDLE_ROUTER": "jev"}
+
+    def banded(paper, page, middle="forrt"):
+        q = routed(decision=middle)
+        q.config = {**q.config, **bands}
+        q.similarities = lambda query: (paper, page)
+        return q
+
+    q = banded(0.45, 0.35)
+    assert q.route("pizza?", "banded") == "off_topic" and q.decisions.models == []  # low band: no call
+    q = banded(0.85, 0.30)
+    assert q.route("What is open data?", "banded") == "open_science" and q.decisions.models == []  # high band
+    # close to a FORRT page: never routed by similarity alone, the middle router decides
+    q = banded(0.60, 0.75, middle="forrt")
+    assert q.route("q", "banded") == "forrt" and q.decisions.models == ["typesafe/jev-1.14"]
+    q = banded(0.85, 0.72, middle="open_science")  # paper high, but close to FORRT too
+    assert q.route("q", "banded") == "open_science" and q.decisions.models == ["typesafe/jev-1.14"]
+    q = banded(0.60, 0.50, middle="neither")
+    assert q.route("Write my preregistration", "banded") == "off_topic"  # middle band: Jev decides
+    assert q.decisions.models == ["typesafe/jev-1.14"]
+    assert banded(0.45, 0.50).route("q", "banded") == "forrt"  # one source above its low: not refused
