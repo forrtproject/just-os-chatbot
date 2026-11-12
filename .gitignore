@@ -249,3 +249,6 @@ share/
 
 # Office lock files (created while a file is open; contain the user name)
 ~$*
+
+# eval/run_batches.py working file
+eval/tmp_batch.jsonl

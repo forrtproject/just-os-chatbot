@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eval"))
 
 import classify  # noqa: E402
 import export_questions  # noqa: E402
+import run_batches  # noqa: E402
 import judge  # noqa: E402
 import make_retrieval_set  # noqa: E402
 import run  # noqa: E402
@@ -208,3 +209,18 @@ def test_reviewer_sheet_maps_citations_to_dois():
     row = {"retrieved_dois": "10.1/a  10.1/c 10.1/a", "answer": "x [0]. y [2] [2]. z [1] [3]."}
     assert export_questions.bot_dois(row) == (["10.1/a", "10.1/c"], ["10.1/a", "10.1/c"])
     assert export_questions.bot_dois({"retrieved_dois": float("nan"), "answer": "no refs"}) == ([], [])
+
+
+def test_run_batches_resumes_and_merges(tmp_path, monkeypatch):
+    monkeypatch.setattr(run_batches, "RESULTS", tmp_path)
+    m = "org__model"
+    pd.DataFrame({"id": ["q2"], "outcome": ["answered"]}).to_csv(tmp_path / f"run_261112-1300_{m}.csv", index=False)
+    pd.DataFrame({"id": ["q1", "q2"], "outcome": ["refused", "error"]}).to_csv(tmp_path / f"run_261112-1400_{m}.csv", index=False)
+    pd.DataFrame({"id": ["q3"]}).to_csv(tmp_path / f"run_261111-0900_{m}.csv", index=False)  # before --since
+    (tmp_path / f"run_261112-1500_{m}.csv").write_text("")  # a batch stopped before its first row
+    files = run_batches.run_files("org/model", "261112-1246")
+    assert [f.name[4:15] for f in files] == ["261112-1300", "261112-1400"]
+    assert run_batches.done_ids(files) == {"q1", "q2"}
+    merged = run_batches.merge(files, ["q1", "q2", "q3"])
+    assert pd.read_csv(merged).to_dict("list") == {"id": ["q1", "q2"], "outcome": ["refused", "error"]}
+    assert not (tmp_path / f"run_261112-1400_{m}.csv").exists()

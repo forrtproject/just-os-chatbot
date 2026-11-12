@@ -8,6 +8,7 @@ Rule: a change to prompts, models, retrieval or chunking needs an eval table bef
 | Tool | Command | Output |
 |---|---|---|
 | Full pipeline eval | `docker compose exec -e OMP_NUM_THREADS=8 web python eval/run.py --model <id> [--general-model <id>] [--limit 5]` | `eval/results/run_<YYMMDD-HHMM>_<model>.csv` |
+| Several models, resumable | `python eval/run_batches.py --since <YYMMDD-HHMM> <model> [<model> ...]` (host) | per model one `run_*.csv`: batches of 30 questions in fresh processes (one long process runs out of the Docker VM's 7.6 GB after ~47 questions); after a stop, the next start skips the questions already in the model's run files since `--since` and merges them when complete |
 | Table of runs | `docker compose exec web python eval/compare.py [csv ...]` | Markdown table (with "Judge support" once judged) |
 | LLM judge (#8) | `docker compose exec web python eval/judge.py eval/results/run_X.csv [--model ...]` | adds `judge_support` (0-1) to the run CSV; needs runs made after 10 Nov (they save the passages) |
 | Classifier comparison (#9) | `docker compose exec web python eval/classify.py --models a,b [--intent]` | Markdown table: accuracy, false refusals, false answers, errors, time, cost; also `eval/results/classify_<YYMMDD-HHMM>.csv` |
