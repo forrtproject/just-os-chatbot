@@ -53,6 +53,8 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 | `ARENA_MODELS` | models offered on `/arena`, comma separated (default: the 9 OpenRouter candidates + `openscholar-8b`) |
 | `OPENSCHOLAR_TIMEOUT` | seconds for one OpenScholar answer (default 600, no retry): the self-hosted CPU server needs minutes for the chatbot's long prompt |
 | `LLM_TIMEOUT` | seconds before an LLM call gives up (default 120); a slow model then shows an error instead of holding up the answer |
+| `ROUTER` | default topic check for every question: empty (= `DECISION_ROUTER` with `DECISION_ROUTER_MODEL`), or `clef-flash`, `clef`, `jev`, `llm`, `cosine`, `none`; the chat and arena pages can choose another per question |
+| `COSINE_PAPER_MIN`, `COSINE_PAGE_MIN` | thresholds of the `cosine` router (0.62, 0.51; docs/evaluation.md 3.7) |
 | `MAX_ANSWER_TOKENS` | longest answer in tokens (default 2000; `0` = no cap): stops answers that loop, seen in Kannada and Marathi |
 | `ARENA_MAX_MODELS` | most models per arena question (default 10) |
 | `CHAT_LOG_FILE`, `CHAT_FEEDBACK_FILE` | every chat turn and every Good/Bad feedback are appended here (default `data/chats/chats.jsonl`, `data/chats/feedback.jsonl`; not in Git); empty = not saved |

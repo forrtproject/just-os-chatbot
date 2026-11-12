@@ -64,7 +64,8 @@ def test_second_similar_question_makes_no_llm_call():
 
     second = list(q.get_response("what is preregistration", "chat-2"))[-1]
 
-    assert second == first
+    # same answer; the timings are those of each request (the cached one makes no model call)
+    assert {k: v for k, v in second.items() if k != "timings"} == {k: v for k, v in first.items() if k != "timings"}
     assert len(q.response_generator.client_manager.calls) == calls
 
 

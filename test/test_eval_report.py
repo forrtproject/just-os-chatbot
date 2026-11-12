@@ -61,4 +61,12 @@ def test_eval_page_renders_the_tables(tmp_path):
     flask_app.config.update(EVAL_RESULTS_DIR=str(tmp_path), ARENA_ENABLED=True)
     html = flask_app.app.test_client().get("/eval").get_data(as_text=True)
     assert "meta-llama/llama-3.1-8b-instruct" in html and "BAAI/bge-m3" in html
-    assert "No classifier runs yet" in html and "No arena ratings yet" in html
+    assert "eval/classify.py --routers" in html and "No arena ratings yet" in html  # empty states
+    assert html.index("Answer models") < html.index("Run history") < html.index("How the numbers are calculated")
+
+
+def test_by_model_keeps_the_newest_run_and_counts_runs():
+    runs = [{"model": "llama", "correct": 0.93, "run": "261112-1034"}, {"model": "gpt", "correct": 0.86, "run": "261105-2123"},
+            {"model": "llama", "correct": 0.86, "run": "261105-2059"}]  # newest first, as answer_runs gives them
+    rows = eval_report.by_model(runs, "correct")
+    assert [(r["model"], r["run"], r["runs"]) for r in rows] == [("llama", "261112-1034", 2), ("gpt", "261105-2123", 1)]

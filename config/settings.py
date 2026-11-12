@@ -47,6 +47,13 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # forrt / both / neither. Below DECISION_ROUTER_MIN_CONFIDENCE, or when the call fails,
     # the LLM classifier above decides. Models: typesafe/jev-1.14, cloudflare/clef, cloudflare/clef-flash
     "DECISION_ROUTER": True,
+    # Default topic check for every question (empty = DECISION_ROUTER as below); one of the keys
+    # of ROUTERS in just_os/decisions.py. The chat and arena pages can choose another per question.
+    "ROUTER": "",
+    # Cosine router: nearest paper chunk / nearest FORRT page description (bge-m3 cosine);
+    # calibrated on eval/questions.jsonl + eval/forrt_questions.jsonl, docs/evaluation.md 3.7
+    "COSINE_PAPER_MIN": 0.62,
+    "COSINE_PAGE_MIN": 0.51,
     "DECISION_ROUTER_MODEL": "cloudflare/clef-flash",  # best of Jev/Clef/Clef-flash in docs/evaluation.md 3.6
     "DECISION_ROUTER_MIN_CONFIDENCE": 0.5,
     "DECISION_URL": "https://openrouter.ai/api/alpha/decisions",

@@ -56,6 +56,8 @@ def answer_runs(folder: str) -> List[Dict]:
             "judge": _mean(r.get("judge_support") for r in rows),
             "mean_s": round(mean(seconds), 1),
             "p95_s": _p95(seconds),
+            # mean seconds per step (runs from 12 Nov on; older runs: None)
+            **{k: _mean((r.get(k) for r in rows), 1) for k in ("classify_s", "search_s", "rerank_s", "answer_s")},
             "tokens": round(mean(int(r["prompt_tokens"] or 0) + int(r["completion_tokens"] or 0) for r in rows)),
             "usd_per_1k": round(mean(float(r["cost_usd"] or 0) for r in rows) * 1000, 3),
         })
@@ -85,6 +87,19 @@ def classifier_runs(folder: str) -> List[Dict]:
             })
         out += sorted(rows, key=lambda r: -r["accuracy"])
     return out
+
+
+def by_model(runs: List[Dict], score: str) -> List[Dict]:
+    """One row per model: its newest run (runs come newest first) plus how many runs it has,
+    best `score` first. A newer pipeline can change a model's numbers, so the newest run is
+    the fair one to compare; the run history keeps the rest."""
+    latest: Dict[str, Dict] = {}
+    for run in runs:
+        if run["model"] in latest:
+            latest[run["model"]]["runs"] += 1
+        else:
+            latest[run["model"]] = {**run, "runs": 1}
+    return sorted(latest.values(), key=lambda r: -(r[score] or 0))
 
 
 def embedding_runs(folder: str) -> List[Dict]:

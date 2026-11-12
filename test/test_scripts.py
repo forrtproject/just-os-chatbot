@@ -49,6 +49,15 @@ def test_classifier_summary():
     assert classify.gold({"expect": "refuse", "intent": "forrt_lookup"}, intent=False) == "off_topic"
 
 
+def test_router_gold_and_counting():
+    assert classify.route_gold({"route": "both", "expect": "answer"}) == "both"
+    assert classify.route_gold({"expect": "refuse"}) == "neither"
+    assert classify.route_gold({"question": "Which FORRT teams can I join?"}) == "forrt"  # eval/forrt_questions.jsonl
+    # refusing a forrt question is a false refusal; answering a neither question a false answer
+    results = [("forrt", "neither", 1.0, 0.0), ("neither", "both", 1.0, 0.0), ("both", "both", 1.0, 0.0)]
+    assert classify.summarize("router: jev", results) == "| router: jev | 3 | 0.33 | 1 | 1 | 0 | 1.0 | 0.00 |"
+
+
 # --- #17 cluster PDF names
 
 

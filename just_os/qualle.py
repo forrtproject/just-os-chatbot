@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Any, Optional, Generator, Iterator, Tuple
 
 import markdown
+import numpy as np
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -16,7 +17,7 @@ from sentence_transformers import CrossEncoder
 
 from just_os.answer_cache import AnswerCache
 from just_os.chat_manager import ChatManager
-from just_os.decisions import DecisionClient
+from just_os.decisions import DECISION_ROUTERS, DecisionClient
 from just_os.forrt_lookup import ForrtLookup
 from just_os.forrt_pages import ForrtPages
 from just_os import messages as msg
@@ -380,20 +381,25 @@ class DocumentRetriever:
             logger.error(f"Error formatting context: {str(e)}")
             return ""
 
-    def retrieve_and_rerank(self, query: str) -> Tuple[List[Any], List[Any]]:
+    def retrieve_and_rerank(
+        self, query: str, timings: Optional[Dict[str, float]] = None
+    ) -> Tuple[List[Any], List[Any]]:
         """
         Retrieve and rerank documents for a query.
 
         Args:
             query: User query
+            timings: filled with search_s (vector/BM25 search) and rerank_s (re-ranker)
 
         Returns:
             Tuple of (ranked nodes, all retrieved nodes)
         """
+        timings = {} if timings is None else timings
         # Retrieve relevant nodes
         start = time.time()
         nodes = self._retriever.retrieve(query)
         retrieved = time.time()
+        timings["search_s"] = retrieved - start
 
         if not nodes:
             return [], []
@@ -402,8 +408,9 @@ class DocumentRetriever:
             scores = self.reranker.predict(
                 [(query, self.node_to_text(node)) for node in nodes]
             )
+            timings["rerank_s"] = time.time() - retrieved
             logger.info(
-                f"Timing: retrieval {retrieved - start:.1f}s, re-rank {time.time() - retrieved:.1f}s "
+                f"Timing: retrieval {retrieved - start:.1f}s, re-rank {timings['rerank_s']:.1f}s "
                 f"({len(nodes)} chunks)"
             )
         except Exception as e:
@@ -940,13 +947,46 @@ class Qualle:
 
         logger.debug("Qualle service initialized")
 
-    def route(self, query: str) -> Optional[str]:
+    def cosine_route(self, query: str) -> str:
+        """Cosine router (no model call): the question's bge-m3 vector against the nearest paper
+        chunk (FAISS) and the nearest FORRT page description. Above COSINE_PAPER_MIN → papers,
+        above COSINE_PAGE_MIN → FORRT pages, both above → the closer one, neither → off topic.
+        Thresholds from eval/questions.jsonl + eval/forrt_questions.jsonl (docs/evaluation.md 3.7)."""
+        q = np.asarray([self._embed_model.get_query_embedding(query)], dtype=np.float32)
+        q /= np.linalg.norm(q)
+        vector_retriever = getattr(self._retriever, "vector_retriever", self._retriever)  # HybridRetriever wraps it
+        distance, _ = vector_retriever._index.vector_store._faiss_index.search(q, 1)
+        paper = 1 - float(distance[0][0]) / 2  # squared L2 of unit vectors → cosine
+        page = float((self.forrt_pages.vectors @ q[0]).max()) if self.forrt_pages is not None else -1.0
+        is_paper = paper >= self.config.get("COSINE_PAPER_MIN", 0.62)
+        is_page = page >= self.config.get("COSINE_PAGE_MIN", 0.51)
+        logger.info(f"Cosine router: paper {paper:.3f}, page {page:.3f}")
+        if is_paper and is_page:
+            return "open_science" if paper > page else "forrt"
+        return "open_science" if is_paper else ("forrt" if is_page else "off_topic")
+
+    def route(self, query: str, router: Optional[str] = None) -> Optional[str]:
         """open_science / forrt / both / off_topic (or forrt_lookup from the LLM classifier); None = model error.
 
-        DECISION_ROUTER: a decision model decides when it is confident enough; otherwise, and when it fails,
-        the LLM classifier decides (three classes when a FORRT route is set up, else open science or not).
+        router (one of ROUTERS; the chat and arena dropdowns, eval/classify.py) picks one strategy:
+        a decision model (clef-flash, clef, jev) with the LLM classifier only when the call fails,
+        "llm" (the LLM classifier alone), "cosine" (cosine_route) or "none" (no check: every question
+        gets the papers and the FORRT pages; MIN_RELEVANCE still stops unrelated ones as "no sources").
+        Without router (default): DECISION_ROUTER with DECISION_ROUTER_MODEL when it is confident
+        enough, else the LLM classifier.
         """
-        if self.config.get("DECISION_ROUTER") and self.decisions is not None:
+        router = router or self.config.get("ROUTER") or ""
+        if router == "none":
+            return "both"
+        if router == "cosine":
+            return self.cosine_route(query)
+        if router in DECISION_ROUTERS:
+            self.decisions = self.decisions or DecisionClient(self.config)
+            route, p, info = self.decisions.route(DECISION_ROUTERS[router], query)
+            logger.info(f"Timing: decision router {router} {info.get('ms')} ms -> {route} (p={p:.2f})")
+            if route:
+                return "off_topic" if route == "neither" else route
+        elif router != "llm" and self.config.get("DECISION_ROUTER") and self.decisions is not None:
             route, p, info = self.decisions.route(self.config.get("DECISION_ROUTER_MODEL", "cloudflare/clef"), query)
             logger.info(f"Timing: decision router {info.get('ms')} ms -> {route} (p={p:.2f})")
             if route and p >= self.config.get("DECISION_ROUTER_MIN_CONFIDENCE", 0.5):
@@ -976,7 +1016,23 @@ class Qualle:
         yield {"status": "complete", "message": markdown.markdown(text), "outcome": "no_sources"}
 
     def get_response(
-        self, query: str, chat_id: str, model: Optional[str] = None, stream: bool = False
+        self, query: str, chat_id: str, model: Optional[str] = None, stream: bool = False,
+        router: Optional[str] = None,
+    ) -> Generator[Dict[str, Any], None, None]:
+        """The response messages (see _respond). Every final message also gets "timings":
+        seconds for classify_s (topic check), search_s, rerank_s, answer_s (LLM, with the
+        retry) and total_s; a step that did not run is missing (refusals stop early)."""
+        timings: Dict[str, float] = {}
+        start = time.time()
+        for message in self._respond(query, chat_id, model, stream, router, timings):
+            if message.get("status") in ("complete", "error"):
+                done = {k: round(v, 2) for k, v in timings.items()}
+                message = {**message, "timings": {**done, "total_s": round(time.time() - start, 2)}}
+            yield message
+
+    def _respond(
+        self, query: str, chat_id: str, model: Optional[str], stream: bool,
+        router: Optional[str], timings: Dict[str, float],
     ) -> Generator[Dict[str, Any], None, None]:
         """
         Generate a response to a user query.
@@ -1021,7 +1077,9 @@ class Qualle:
                     logger.debug(f"Rephrased query: {query}")
 
             yield {"status": "in-progress", "message": "Classifying question"}
-            intent = self.route(query)
+            step = time.time()
+            intent = self.route(query, router)
+            timings["classify_s"] = time.time() - step
             logger.debug(f"Query intent: {intent}")
 
             if intent is None:
@@ -1034,7 +1092,9 @@ class Qualle:
 
             if intent in ("forrt", "forrt_lookup") and self.forrt_pages is not None:
                 yield {"status": "in-progress", "message": "Reading FORRT pages"}
+                step = time.time()
                 result = self.forrt_pages.answer(query, model=model, language_text=user_query)
+                timings["forrt_pages_s"] = time.time() - step  # page search, live fetch and answer
                 if result["text"] is None:
                     error = msg.message("generation_error", user_query)
                     remember(error)
@@ -1061,7 +1121,7 @@ class Qualle:
                 return
 
             yield {"status": "in-progress", "message": "Finding relevant sources"}
-            ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(query)
+            ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(query, timings)
             if not ranked_nodes:
                 yield from self.no_relevant_nodes_handler(user_query, chat_id)
                 return
@@ -1087,6 +1147,7 @@ class Qualle:
                     query, context, model, history=history_for_answer
                 )
             logger.info(f"Timing: answer {time.time() - start:.1f}s ({model or self.config.get('CITATION_MODEL')})")
+            timings["answer_s"] = time.time() - start
             # Llama 3.1 8B answered 3 of 7 German questions without any [n]: then the source
             # list shows every retrieved paper and no snippet. Ask once more, but only after a
             # quick first answer: a 150 s Kannada answer asked twice stalled the eval run.
@@ -1099,6 +1160,7 @@ class Qualle:
                 response_text = self.response_generator.generate_response(
                     query, context, model, history=history_for_answer
                 ) or response_text
+                timings["answer_s"] = time.time() - start  # with the retry
             if not response_text:
                 logger.error("Failed to generate response")
                 error = msg.message("generation_error", user_query)
@@ -1149,7 +1211,7 @@ class Qualle:
             }
 
     def get_arena_response(
-        self, query: str, models: List[str]
+        self, query: str, models: List[str], router: Optional[str] = None
     ) -> Generator[Dict[str, Any], None, None]:
         """
         Answer one question with several models from the same sources (arena mode).
@@ -1168,7 +1230,14 @@ class Qualle:
         """
         try:
             yield {"status": "in-progress", "message": "Classifying question"}
-            concerns_open_science = self.query_processor.classify_query(query)
+            timings: Dict[str, float] = {}
+            step = time.time()
+            if router:  # the arena's dropdown: the router only decides answer or refuse
+                intent = self.route(query, router)
+                concerns_open_science = None if intent is None else intent != "off_topic"
+            else:
+                concerns_open_science = self.query_processor.classify_query(query)
+            timings["classify_s"] = time.time() - step
             if concerns_open_science is None:
                 yield {
                     "status": "error",
@@ -1183,7 +1252,7 @@ class Qualle:
                 return
 
             yield {"status": "in-progress", "message": "Finding relevant sources"}
-            ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(query)
+            ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(query, timings)
             if not ranked_nodes:
                 yield {
                     "status": "complete",
@@ -1223,7 +1292,8 @@ class Qualle:
 
             with ThreadPoolExecutor(len(models)) as pool:
                 responses = list(pool.map(answer, models))
-            yield {"status": "complete", "responses": responses}
+            # shared steps of the round; each response has its own answer "seconds"
+            yield {"status": "complete", "responses": responses, "timings": {k: round(v, 2) for k, v in timings.items()}}
         except Exception as e:
             logger.error(f"Error in get_arena_response: {str(e)}")
             yield {

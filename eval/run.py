@@ -30,7 +30,8 @@ from just_os.references import normalize_doi, plain_metadata  # noqa: E402
 
 FIELDS = [
     "id", "lang", "cluster", "type", "route", "expect", "outcome", "correct", "hit", "n_citations",
-    "citations_valid", "seconds", "prompt_tokens", "completion_tokens", "cost_usd",
+    "citations_valid", "seconds", "classify_s", "search_s", "rerank_s", "answer_s",
+    "prompt_tokens", "completion_tokens", "cost_usd",
     "retrieved_dois", "question", "answer", "passages",
 ]
 
@@ -74,8 +75,8 @@ def main():
     generate = qualle.response_generator.generate_response
     complete = qualle.client_manager.create_chat_completion
 
-    def record_retrieve(query):
-        seen["ranked"], all_nodes = retrieve(query)
+    def record_retrieve(query, *args, **kwargs):
+        seen["ranked"], all_nodes = retrieve(query, *args, **kwargs)
         return seen["ranked"], all_nodes
 
     def record_generate(*a, **kw):
@@ -134,6 +135,8 @@ def main():
                 # The model sees sources numbered 0..len-1
                 "citations_valid": int(all(0 <= r < len(seen["ranked"]) for r in refs)) if refs else "",
                 "seconds": round(seconds, 1),
+                # the bot's own step times (Qualle.get_response "timings"); empty when a step did not run
+                **{k: final.get("timings", {}).get(k, "") for k in ("classify_s", "search_s", "rerank_s", "answer_s")},
                 "prompt_tokens": seen["prompt_tokens"],
                 "completion_tokens": seen["completion_tokens"],
                 "cost_usd": round(seen["cost"], 6),

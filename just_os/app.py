@@ -17,6 +17,7 @@ from werkzeug.exceptions import TooManyRequests
 from config.settings import get_config
 from just_os.chat_manager import ChatManager
 from just_os import eval_report
+from just_os.decisions import ROUTERS
 from just_os.extensions import flask_static_digest
 from just_os import messages as msg
 
@@ -233,6 +234,7 @@ class FlaskApp:
                 bg_color=bg_color,
                 models=self.chat_models(),
                 default_model=self.config["CITATION_MODEL"],
+                routers=ROUTERS,
             )
 
         @self.app.route("/chat", methods=["POST"])
@@ -252,6 +254,8 @@ class FlaskApp:
                 model = request.json.get("model") or None
                 # Optional: the built-in page asks for "partial" messages (#41); the widget does not
                 stream = request.json.get("stream") is True
+                # Optional topic check for this question (the page's dropdown; see ROUTERS)
+                router = request.json.get("router") or None
             except (KeyError, TypeError) as e:
                 logger.error(f"Invalid request data: {str(e)}")
                 return jsonify(
@@ -274,9 +278,11 @@ class FlaskApp:
 
             if model is not None and model not in self.chat_models():
                 return jsonify({"status": "error", "message": "Unknown model."}), 400
+            if router is not None and router not in ROUTERS:
+                return jsonify({"status": "error", "message": "Unknown topic check."}), 400
 
             return Response(
-                self._generate_chat_response(user_message, chat_id, model, stream),
+                self._generate_chat_response(user_message, chat_id, model, stream, router),
                 mimetype="text/event-stream",
             )
 
@@ -316,10 +322,14 @@ class FlaskApp:
                     arena = leaderboard(self._arena_ratings())
                 except Exception as error:  # no Redis: the tables from files still show
                     logger.warning("Arena ratings unavailable for /eval: %s", error)
+            runs = eval_report.answer_runs(folder)
+            classifiers = eval_report.classifier_runs(folder)
             return render_template(
                 "eval.html",
-                runs=eval_report.answer_runs(folder),
-                classifiers=eval_report.classifier_runs(folder),
+                answer_models=eval_report.by_model(runs, "correct"),
+                classifier_models=eval_report.by_model(classifiers, "accuracy"),
+                runs=runs,
+                classifiers=classifiers,
                 embeddings=eval_report.embedding_runs(folder),
                 arena=arena,
                 criteria=ARENA_CRITERIA,
@@ -339,6 +349,7 @@ class FlaskApp:
                 "arena.html",
                 models=self.arena_models(),
                 max_models=self.config["ARENA_MAX_MODELS"],
+                routers=ROUTERS,
                 criteria=ARENA_CRITERIA,
                 blind=self.config["ARENA_BLIND"],
             )
@@ -370,9 +381,12 @@ class FlaskApp:
                 limit = self.config["ARENA_MAX_MODELS"]
                 return jsonify({"status": "error", "message": f"Choose 1 to {limit} models from the list."}), 400
             # Random order: the card position must not give away the model
+            router = data.get("router") or None
+            if router is not None and router not in ROUTERS:
+                return jsonify({"status": "error", "message": "Unknown topic check."}), 400
             models = random.sample(models, len(models))
             return Response(
-                self._generate_arena_response(user_message, models),
+                self._generate_arena_response(user_message, models, router),
                 mimetype="text/event-stream",
             )
 
@@ -401,6 +415,7 @@ class FlaskApp:
                     "question": battle["question"],
                     "model": battle["answers"][label]["model"],
                     "seconds": battle["answers"][label]["seconds"],
+                    "timings": battle.get("timings", {}),
                     **scores,
                     "answer": battle["answers"][label].get("answer", ""),
                     "sources": battle["answers"][label].get("sources", ""),
@@ -444,7 +459,8 @@ class FlaskApp:
             logger.warning("Could not append to %s: %s", path, error)
 
     def _log_turn(
-        self, question: str, chat_id: str, model: Optional[str], response: Dict[str, Any]
+        self, question: str, chat_id: str, model: Optional[str], response: Dict[str, Any],
+        router: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Append a final chat message to CHAT_LOG_FILE and keep it one day in Redis, so
         feedback can refer to it by turn_id. Returns the message with its turn_id."""
@@ -455,10 +471,13 @@ class FlaskApp:
             "turn_id": turn_id,
             "chat_id": chat_id,
             "model": model or self.config["CITATION_MODEL"],
+            "router": router or self.config.get("ROUTER") or "default",
             "question": question,
             "outcome": response.get("outcome", default),  # cached answers have none
             "answer": response.get("message", ""),  # HTML, as shown
             "references": (response.get("metadata") or {}).get("references", []),
+            # seconds per step: classify_s, search_s, rerank_s, answer_s, total_s
+            "timings": response.get("timings", {}),
         })
         self._append_jsonl(self.config.get("CHAT_LOG_FILE"), [row])
         try:
@@ -483,7 +502,7 @@ class FlaskApp:
         return models
 
     def _generate_arena_response(
-        self, user_message: str, models: list[str]
+        self, user_message: str, models: list[str], router: Optional[str] = None
     ) -> Generator[str, None, None]:
         """
         Stream an arena round. Answers get labels A, B, C, ...; with ARENA_BLIND the model
@@ -493,7 +512,8 @@ class FlaskApp:
         if not rag_service:
             yield json.dumps({"status": "error", "message": "RAG service is not available in this environment."}) + "\n"
             return
-        for chunk in rag_service.get_arena_response(user_message, models):
+        options = {"router": router} if router else {}  # without it the call is as before
+        for chunk in rag_service.get_arena_response(user_message, models, **options):
             if "responses" in chunk:
                 battle_id = str(uuid.uuid4())
                 answers = {}
@@ -509,7 +529,7 @@ class FlaskApp:
                         del response["model"]  # names appear after the ratings
                 self.chat_manager.redis.set(
                     f"arena:battle:{battle_id}",
-                    json.dumps({"question": user_message, "answers": answers}),
+                    json.dumps({"question": user_message, "answers": answers, "timings": chunk.get("timings", {})}),
                     ex=86400,
                 )
                 # Every round, rated or not (ratings.jsonl rows carry the same battle_id)
@@ -518,12 +538,14 @@ class FlaskApp:
                     "battle_id": battle_id,
                     "question": user_message,
                     "answers": answers,
+                    "timings": chunk.get("timings", {}),  # classify_s, search_s, rerank_s (shared)
                 })])
                 chunk["battle_id"] = battle_id
             yield json.dumps(chunk) + "\n"
 
     def _generate_chat_response(
-        self, user_message: str, chat_id: str, model: Optional[str] = None, stream: bool = False
+        self, user_message: str, chat_id: str, model: Optional[str] = None, stream: bool = False,
+        router: Optional[str] = None,
     ) -> Generator[str, None, None]:
         """
         Generate chat responses as a stream.
@@ -540,10 +562,10 @@ class FlaskApp:
             rag_service = self.get_rag_service()
             if rag_service:
                 # without the flag the call is exactly as before #41 (widget, older services)
-                options = {"stream": True} if stream else {}
+                options = {**({"stream": True} if stream else {}), **({"router": router} if router else {})}
                 for response in rag_service.get_response(user_message, chat_id, model, **options):
                     if response.get("status") in ("complete", "error"):
-                        response = self._log_turn(user_message, chat_id, model, response)
+                        response = self._log_turn(user_message, chat_id, model, response, router)
                     yield json.dumps(response) + "\n"
             else:
                 yield (
@@ -559,7 +581,7 @@ class FlaskApp:
         except Exception as e:
             logger.error(f"Error processing chat request: {str(e)}")
             error = {"status": "error", "message": msg.message("unexpected_error", user_message), "outcome": "error"}
-            yield json.dumps(self._log_turn(user_message, chat_id, model, error)) + "\n"
+            yield json.dumps(self._log_turn(user_message, chat_id, model, error, router)) + "\n"
 
     def get_rag_service(self):
         """

@@ -208,3 +208,24 @@ Findings:
 3. **Llama 3.1 8B is now the weak step**: of the remaining failures most are answer-model errors (invented references, "not found" although the page has the answer, irrelevant newsletter items, past events still called upcoming in 14 % of time questions). The drop for natural questions is part judge noise and part these errors. A stronger answer model (`FORRT_ANSWER_MODEL`; deepseek-v4-flash and qwen3.6-27b handled dates correctly in spot checks) is the next test.
 4. Of the 55 questions now out of scope (glossary, curated resources, clusters), the FORRT route still answered 48 from FORRT pages; with `DECISION_ROUTER` they go to the papers path instead.
 5. Questions and judge come from one model family and the judge was checked on 8 answers: re-run with a reviewed question set before relying on differences under ~5 points.
+
+### 3.7 Topic check strategies (12 November 2026, 133 questions, `eval/results/classify_261112-1315.csv`)
+
+`python eval/classify.py --routers clef-flash,clef,jev,llm,cosine,none --questions eval/questions.jsonl,eval/forrt_questions.jsonl`: each strategy of `Qualle.route` alone, scored on the four `route` labels (101 questions of `eval/questions.jsonl` with drafted labels + 32 FORRT questions, which count as `forrt`). Same strategies as the "Topic check" dropdown.
+
+| Topic check | Accuracy | False refusals | False answers | Errors | Mean s | USD / 1k q |
+|---|---|---|---|---|---|---|
+| **Jev** (`typesafe/jev-1.14`) | **0.85** | 0 | 8 | 0 | 0.4 | 0.02 |
+| Cosine (bge-m3, no model call) | 0.82* | 6 | 9 | 0 | **0.1** | **0** |
+| LLM classifier (Llama 3.1 8B) | 0.76 | 6 | 12 | 0 | 0.4 | 0.09 |
+| Clef-flash (default of `DECISION_ROUTER`) | 0.73 | 1 | 17 | 0 | 0.6 | 0.01 |
+| Clef | 0.71 | 0 | 16 | 0 | 0.7 | 0.06 |
+| No check (always papers + FORRT pages) | 0.05 | 0 | 28 | 0 | 0 | 0 |
+
+\* The cosine thresholds (`COSINE_PAPER_MIN` 0.62, `COSINE_PAGE_MIN` 0.51) were tuned on these same questions, so 0.82 is optimistic: on the 194 simulated questions of `eval/forrt_sim_questions.jsonl` (not used for tuning) the same thresholds reach 0.53. It never predicts `both`.
+
+Findings:
+1. **Jev is the most accurate here** and refuses no in-scope question; the decision models mostly err by letting off-topic questions through (false answers), the LLM classifier and cosine by refusing in-scope ones.
+2. Clef-flash, the current default, is the weakest decision model on this set (17 off-topic questions answered). PR #43 found the opposite on its simulated questions (0.65, with the LLM fallback); the labels here are hand-drafted and the sets differ, so test Jev as default with a real eval run before switching.
+3. "No check" is not a classifier: it sends everything to the papers and FORRT pages, so it only "fails" on off-topic questions, which then depend on `MIN_RELEVANCE` ("no sources") instead of a refusal.
+4. Each answer now also records its step times (topic check, search, re-rank, LLM answer): `timings` in the chat log and arena logs, and columns in `eval/run.py` results, shown per model on `/eval`.

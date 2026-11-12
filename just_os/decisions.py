@@ -17,6 +17,19 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+# Topic check per request (chat and arena dropdowns, eval/classify.py --routers): see Qualle.route.
+# Here, not in qualle.py, so the Flask app can check a request without importing torch.
+DECISION_ROUTERS = {"clef-flash": "cloudflare/clef-flash", "clef": "cloudflare/clef", "jev": "typesafe/jev-1.14"}
+ROUTERS = {
+    "": "Default (DECISION_ROUTER setting)",
+    "clef-flash": "Clef-flash (decision model)",
+    "clef": "Clef (decision model)",
+    "jev": "Jev (decision model)",
+    "llm": "LLM classifier (GENERAL_MODEL)",
+    "cosine": "Cosine similarity (no model call)",
+    "none": "No check (papers and FORRT pages)",
+}
+
 ROUTES = {
     "open_science": "a question about open science, research practice, methods or scholarly communication "
                     "that needs an explained answer from the literature",

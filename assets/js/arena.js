@@ -143,7 +143,7 @@ async function ask(question) {
     const response = await fetch("/arena/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: question, models }),
+      body: JSON.stringify({ message: question, models, router: document.getElementById("router-select")?.value || undefined }),
     });
     if (!response.ok && response.headers.get("Content-Type")?.includes("json")) {
       status.textContent = (await response.json()).message;

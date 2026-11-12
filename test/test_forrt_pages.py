@@ -151,7 +151,7 @@ def test_forrt_route_in_get_response_does_not_call_the_paper_path(tmp_path):
     q.config = {**CONFIG, "DECISION_ROUTER": True}
     q.decisions = SimpleNamespace(route=lambda model, query: ("forrt", 0.9, {}))
     q.forrt_pages = pages
-    q.document_retriever.retrieve_and_rerank = lambda query: (_ for _ in ()).throw(AssertionError("no paper search"))
+    q.document_retriever.retrieve_and_rerank = lambda query, *timings: (_ for _ in ()).throw(AssertionError("no paper search"))
     final = list(q.get_response("Which teams can I join?", "chat"))[-1]
     assert final["status"] == "complete" and final["outcome"] == "forrt"
     assert 'href="https://forrt.org/about/teams/"' in final["message"]

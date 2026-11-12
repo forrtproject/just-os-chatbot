@@ -34,6 +34,15 @@
             </fieldset>
         </details>
 
+        <div id="model-choice">
+            <label for="router-select">Topic check</label>
+            <select id="router-select">
+                {% for key, label in routers.items() %}
+                <option value="{{ key }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
         <div id="arena-question" class="message user-message" hidden></div>
         <div id="status-message" role="status"></div>
 

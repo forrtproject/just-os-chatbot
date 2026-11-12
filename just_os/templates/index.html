@@ -37,6 +37,12 @@
             <option value="{{ model }}" {% if model == default_model %}selected{% endif %}>{{ model }}{% if model == default_model %} (default){% endif %}</option>
             {% endfor %}
         </select>
+        <label for="router-select">Topic check</label>
+        <select id="router-select">
+            {% for key, label in routers.items() %}
+            <option value="{{ key }}">{{ label }}</option>
+            {% endfor %}
+        </select>
     </div>
     <div id="user-input-box">
         <div id="user-input-container">

@@ -594,6 +594,41 @@ button#send-button:disabled {
     margin-top: 24px;
 }
 
+#eval-page h3 {
+    font-size: 1.1rem;
+    color: #313131;
+    margin: 16px 0 4px;
+}
+
+#eval-page details {
+    margin: 8px 0;
+}
+
+#eval-page summary {
+    cursor: pointer;
+    font-size: small;
+    color: #004055;
+    padding: 4px 0;
+}
+
+.eval-defs {
+    display: grid;
+    grid-template-columns: minmax(120px, 180px) 1fr;
+    gap: 4px 16px;
+    font-size: small;
+    max-width: 90ch;
+    margin: 0;
+}
+
+.eval-defs dt {
+    font-weight: bold;
+}
+
+.eval-defs dd {
+    margin: 0;
+    color: #444;
+}
+
 .eval-note,
 .eval-empty {
     font-size: small;
@@ -644,6 +679,7 @@ button#send-button:disabled {
 /* Chat page: answer model choice */
 #model-choice {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: flex-end;
     gap: 8px;
@@ -653,7 +689,8 @@ button#send-button:disabled {
     color: #555;
 }
 
-#model-select {
+#model-select,
+#router-select {
     font-family: "Roboto Mono", monospace;
     font-size: small;
     padding: 4px 6px;

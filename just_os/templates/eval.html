@@ -15,71 +15,77 @@
     {% include "_nav.html" %}
     <main id="eval-page">
         <h1>Evaluation</h1>
-        <p class="eval-note">Results of the eval scripts in <code>eval/</code> (files in <code>eval/results/</code>),
-            newest first. What each number means: <a href="https://github.com/forrtproject/just-os-chatbot/blob/dev/docs/evaluation.md">docs/evaluation.md</a>.</p>
+        <p class="eval-note">One row per model: its newest run. Every run is in the run history further down,
+            and <a href="#how">how the numbers are calculated</a> is at the end. Files: <code>eval/results/</code>;
+            background: <a href="https://github.com/forrtproject/just-os-chatbot/blob/dev/docs/evaluation.md">docs/evaluation.md</a>.</p>
 
         <section>
             <h2>Answer models</h2>
-            <p class="eval-note">The full pipeline on <code>eval/questions.jsonl</code> (<code>eval/run.py</code>).
-                Correct = answered when it should answer, refused when it should refuse. Runs on different
-                machines or settings differ in time; compare runs of one setup.</p>
-            {% if runs %}
+            <p class="eval-note">The whole bot (topic check, search, answer, citations) on the eval questions
+                (<code>eval/run.py</code>), best correct rate first. Compare models with the same <b>n</b>: a newer
+                run can use more questions. Times compare only between runs on the same machine.</p>
+            {% if answer_models %}
             <div class="eval-table">
                 <table>
                     <thead>
-                        <tr><th>Run</th><th>Answer model</th><th>n</th><th>Correct</th><th>Answered</th><th>Refused</th>
-                            <th>Errors</th><th>hit@7</th><th>Citations valid</th><th>Judge</th>
-                            <th>Mean s</th><th>p95 s</th><th>Tokens / q</th><th>USD / 1k q</th></tr>
+                        <tr><th>Answer model</th><th>Runs</th><th>Newest run</th><th>n</th><th>Correct</th><th>Answered</th>
+                            <th>Refused</th><th>Errors</th><th>hit@7</th><th>Citations valid</th><th>Judge</th>
+                            <th>Mean s</th><th>p95 s</th><th>Topic check s</th><th>Search s</th><th>Re-rank s</th><th>LLM answer s</th>
+                            <th>Tokens / q</th><th>USD / 1k q</th></tr>
                     </thead>
                     <tbody>
-                        {% for r in runs %}
-                        <tr><td>{{ r.run }}</td><td>{{ r.model }}</td><td>{{ r.n }}</td><td>{{ r.correct }}</td>
+                        {% for r in answer_models %}
+                        <tr><td>{{ r.model }}</td><td>{{ r.runs }}</td><td>{{ r.run }}</td><td>{{ r.n }}</td><td><b>{{ r.correct }}</b></td>
                             <td>{{ r.answered }}</td><td>{{ r.refused }}</td><td>{{ r.errors }}</td>
                             <td>{{ r.hit if r.hit is not none else "–" }}</td>
                             <td>{{ r.citations_valid if r.citations_valid is not none else "–" }}</td>
                             <td>{{ r.judge if r.judge is not none else "–" }}</td>
-                            <td>{{ r.mean_s }}</td><td>{{ r.p95_s }}</td><td>{{ r.tokens }}</td><td>{{ r.usd_per_1k }}</td></tr>
+                            <td>{{ r.mean_s }}</td><td>{{ r.p95_s }}</td>
+                            {% for k in ("classify_s", "search_s", "rerank_s", "answer_s") %}<td>{{ r[k] if r[k] is not none else "–" }}</td>{% endfor %}
+                            <td>{{ r.tokens }}</td><td>{{ r.usd_per_1k }}</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            {% else %}<p class="eval-empty">No runs yet: <code>python eval/run.py</code>.</p>{% endif %}
+            {% else %}<p class="eval-empty">No runs yet: <code>python eval/run.py --model ...</code>.</p>{% endif %}
         </section>
 
         <section>
-            <h2>Classification models</h2>
-            <p class="eval-note">The topic check or router alone on <code>eval/questions.jsonl</code> (<code>eval/classify.py</code>).
-                A false refusal turns away an in-scope question; a false answer lets an off-topic one through.</p>
-            {% if classifiers %}
+            <h2>Topic check (classification)</h2>
+            <p class="eval-note">The topic check alone (<code>eval/classify.py</code>): the LLM classifier
+                (<code>--models</code>) or a whole router strategy (<code>--routers</code>: Clef-flash, Clef, Jev, LLM,
+                cosine similarity, no check), best accuracy first. Routers are scored on four labels
+                (open science, FORRT, both, neither).</p>
+            {% if classifier_models %}
             <div class="eval-table">
                 <table>
                     <thead>
-                        <tr><th>Run</th><th>Classifier</th><th>n</th><th>Accuracy</th><th>False refusals</th>
+                        <tr><th>Classifier</th><th>Runs</th><th>Newest run</th><th>n</th><th>Accuracy</th><th>False refusals</th>
                             <th>False answers</th><th>Errors</th><th>Mean s</th><th>USD / 1k q</th></tr>
                     </thead>
                     <tbody>
-                        {% for r in classifiers %}
-                        <tr><td>{{ r.run }}</td><td>{{ r.model }}</td><td>{{ r.n }}</td><td>{{ r.accuracy }}</td>
+                        {% for r in classifier_models %}
+                        <tr><td>{{ r.model }}</td><td>{{ r.runs }}</td><td>{{ r.run }}</td><td>{{ r.n }}</td><td><b>{{ r.accuracy }}</b></td>
                             <td>{{ r.false_refusals }}</td><td>{{ r.false_answers }}</td><td>{{ r.errors }}</td>
                             <td>{{ r.mean_s }}</td><td>{{ r.usd_per_1k }}</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            {% else %}<p class="eval-empty">No classifier runs yet: <code>python eval/classify.py --models ...</code>.</p>{% endif %}
+            {% else %}<p class="eval-empty">No runs yet: <code>python eval/classify.py --routers clef-flash,clef,jev,llm,cosine,none</code>.</p>{% endif %}
         </section>
 
         <section>
             <h2>Embedding models (search only)</h2>
-            <p class="eval-note">How often the right document is in the top 5 or 20 results, all languages
-                (<code>eval/compare_embeddings.py</code>, 474 questions of <code>eval/retrieval_questions.jsonl</code>).</p>
+            <p class="eval-note">Only the search step (<code>eval/compare_embeddings.py</code>, 474 questions of
+                <code>eval/retrieval_questions.jsonl</code>, all languages); the bot uses bge-m3.</p>
             {% if embeddings %}
             <div class="eval-table">
                 <table>
                     <thead><tr><th>Embedding model</th><th>Dims</th><th>hit@5</th><th>hit@20</th><th>MRR@20</th><th>ms / query</th></tr></thead>
                     <tbody>
                         {% for r in embeddings %}
-                        <tr><td>{{ r.model }}</td><td>{{ r.dim }}</td><td>{{ r.hit5 }}</td><td>{{ r.hit20 }}</td><td>{{ r.mrr20 }}</td><td>{{ r.ms }}</td></tr>
+                        <tr><td>{{ r.model }}</td><td>{{ r.dim }}</td><td><b>{{ r.hit5 }}</b></td><td>{{ r.hit20 }}</td><td>{{ r.mrr20 }}</td><td>{{ r.ms }}</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -89,7 +95,7 @@
 
         <section>
             <h2>Arena ratings</h2>
-            <p class="eval-note">Mean rating from 1 to 5 given by people on <a href="/arena">/arena</a>; few ratings give unstable numbers.</p>
+            <p class="eval-note">People's ratings on <a href="/arena">/arena</a>, best overall first; few ratings give unstable numbers.</p>
             {% if arena %}
             <div class="eval-table">
                 <table>
@@ -102,12 +108,99 @@
                         {% for r in arena %}
                         <tr><td>{{ r.model }}</td><td>{{ r.ratings }}</td>
                             {% for key in criteria %}<td>{{ r[key] }}</td>{% endfor %}
-                            <td>{{ r.overall }}</td><td>{{ r.seconds }}</td></tr>
+                            <td><b>{{ r.overall }}</b></td><td>{{ r.seconds }}</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
             {% else %}<p class="eval-empty">No arena ratings yet.</p>{% endif %}
+        </section>
+
+        <section>
+            <h2>Run history</h2>
+            <details>
+                <summary>Every answer-model run ({{ runs|length }}), newest first</summary>
+                {% if runs %}
+                <div class="eval-table">
+                    <table>
+                        <thead>
+                            <tr><th>Run</th><th>Answer model</th><th>n</th><th>Correct</th><th>Answered</th><th>Refused</th>
+                                <th>Errors</th><th>hit@7</th><th>Citations valid</th><th>Judge</th>
+                                <th>Mean s</th><th>p95 s</th><th>Tokens / q</th><th>USD / 1k q</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for r in runs %}
+                            <tr><td>{{ r.run }}</td><td>{{ r.model }}</td><td>{{ r.n }}</td><td>{{ r.correct }}</td>
+                                <td>{{ r.answered }}</td><td>{{ r.refused }}</td><td>{{ r.errors }}</td>
+                                <td>{{ r.hit if r.hit is not none else "–" }}</td>
+                                <td>{{ r.citations_valid if r.citations_valid is not none else "–" }}</td>
+                                <td>{{ r.judge if r.judge is not none else "–" }}</td>
+                                <td>{{ r.mean_s }}</td><td>{{ r.p95_s }}</td><td>{{ r.tokens }}</td><td>{{ r.usd_per_1k }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </details>
+            <details>
+                <summary>Every topic-check run ({{ classifiers|length }} rows), newest first</summary>
+                {% if classifiers %}
+                <div class="eval-table">
+                    <table>
+                        <thead>
+                            <tr><th>Run</th><th>Classifier</th><th>n</th><th>Accuracy</th><th>False refusals</th>
+                                <th>False answers</th><th>Errors</th><th>Mean s</th><th>USD / 1k q</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for r in classifiers %}
+                            <tr><td>{{ r.run }}</td><td>{{ r.model }}</td><td>{{ r.n }}</td><td>{{ r.accuracy }}</td>
+                                <td>{{ r.false_refusals }}</td><td>{{ r.false_answers }}</td><td>{{ r.errors }}</td>
+                                <td>{{ r.mean_s }}</td><td>{{ r.usd_per_1k }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </details>
+        </section>
+
+        <section id="how">
+            <h2>How the numbers are calculated</h2>
+            <h3>Answer models (one row per question in <code>eval/results/run_*.csv</code>)</h3>
+            <dl class="eval-defs">
+                <dt>Runs, Newest run</dt><dd>How many times the model was evaluated, and the date and time (YYMMDD-HHMM) of the run shown.</dd>
+                <dt>n</dt><dd>Number of questions in that run.</dd>
+                <dt>Correct</dt><dd>Share of questions where the bot did the right thing: it answered a question marked "answer", or refused one marked "refuse". Errors count as wrong.</dd>
+                <dt>Answered</dt><dd>Questions marked "answer" that got an answer / all questions marked "answer". The rest were refused or got "no sources".</dd>
+                <dt>Refused</dt><dd>Questions marked "refuse" that the bot refused / all questions marked "refuse".</dd>
+                <dt>Errors</dt><dd>Questions where a model call failed (time-out, provider error).</dd>
+                <dt>hit@7</dt><dd>For questions with known source papers (<code>expected_dois</code>): share where at least one of them was among the 7 sources the answer model saw. Only a few questions have them.</dd>
+                <dt>Citations valid</dt><dd>Share of answers whose every <code>[n]</code> points to a source that exists (no invented numbers).</dd>
+                <dt>Judge</dt><dd>Mean score of <code>eval/judge.py</code>: does the cited passage support the sentence? "–" when the run was not judged.</dd>
+                <dt>Mean s, p95 s</dt><dd>Seconds from the question to the complete answer: the mean, and the time 95% of questions stay under.</dd>
+                <dt>Topic check s, Search s, Re-rank s, LLM answer s</dt><dd>Mean seconds of each step, measured inside the bot: the topic check (router or classifier), the vector and keyword search, the re-ranker that picks the best passages, and the answer model writing the answer (with its one retry). Refused questions stop after the topic check, so the later steps average over the questions that reached them. Questions answered from forrt.org instead of the papers record <code>forrt_pages_s</code> (page search, live fetch and answer) in the logs. "–" for runs from before 12 Nov. The chat log (<code>data/chats/chats.jsonl</code>) and the arena logs record the same steps for every real question.</dd>
+                <dt>Tokens / q</dt><dd>Mean prompt + completion tokens per question, all model calls together (topic check, answer, retry).</dd>
+                <dt>USD / 1k q</dt><dd>Mean cost per question as reported by OpenRouter, times 1,000.</dd>
+            </dl>
+            <h3>Topic check (<code>eval/results/classify_*.csv</code>)</h3>
+            <dl class="eval-defs">
+                <dt>Accuracy</dt><dd>Share of questions where the predicted label equals the gold label (<code>route</code> in <code>eval/questions.jsonl</code>; FORRT-only question files count as "forrt").</dd>
+                <dt>False refusals</dt><dd>In-scope questions (open science, FORRT or both) that the check turned away (predicted off topic / neither).</dd>
+                <dt>False answers</dt><dd>Off-topic questions that the check let through.</dd>
+                <dt>Errors</dt><dd>No label at all (the call failed and nothing could fall back).</dd>
+                <dt>Mean s, USD / 1k q</dt><dd>Time and cost of the topic check alone per question.</dd>
+            </dl>
+            <h3>Embedding models</h3>
+            <dl class="eval-defs">
+                <dt>hit@5, hit@20</dt><dd>Share of questions whose source document is in the first 5 / 20 search results.</dd>
+                <dt>MRR@20</dt><dd>Mean of 1 / rank of the source document within the first 20 (0 when it is not there): rewards finding it near the top.</dd>
+                <dt>ms / query, Dims</dt><dd>Time to embed one question; length of one vector.</dd>
+            </dl>
+            <h3>Arena</h3>
+            <dl class="eval-defs">
+                <dt>Correct, References, Clarity</dt><dd>Mean rating from 1 (bad) to 5 (very good) that people gave each answer.</dd>
+                <dt>Overall</dt><dd>Mean of the three criteria. Mean s: time to the answer.</dd>
+            </dl>
         </section>
     </main>
 </body>

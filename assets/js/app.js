@@ -168,6 +168,7 @@ async function sendMessage(message) {
         message: message,
         chat_id: window.chatId,
         model: document.getElementById("model-select")?.value,
+        router: document.getElementById("router-select")?.value || undefined,
         stream: true,
       }),
     });

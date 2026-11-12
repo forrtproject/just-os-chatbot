@@ -58,7 +58,7 @@ def test_history_method_passes_earlier_turns_and_skips_rephrase():
     q.query_processor.rephrase_query = lambda *a: (_ for _ in ()).throw(AssertionError("no rephrase"))
     seen = {}
     retrieve = q.document_retriever.retrieve_and_rerank
-    q.document_retriever.retrieve_and_rerank = lambda query: (seen.setdefault("query", query), retrieve(query))[1]
+    q.document_retriever.retrieve_and_rerank = lambda query, *timings: (seen.setdefault("query", query), retrieve(query))[1]
 
     list(q.get_response("Any disadvantages?", "chat"))
 

@@ -97,7 +97,7 @@ def make_qualle(classification, ranked, all_nodes, answer):
         classify_query=lambda query: classification, rephrase_query=lambda query, chat_id: query
     )
     retriever = object.__new__(qualle.DocumentRetriever)
-    retriever.retrieve_and_rerank = lambda query: (ranked, all_nodes)
+    retriever.retrieve_and_rerank = lambda query, *timings: (ranked, all_nodes)
     q.document_retriever = retriever
     q.reference_processor = qualle.ReferenceProcessor()
     q.response_generator = qualle.ResponseGenerator(
@@ -182,7 +182,9 @@ def test_streamed_answer_shows_pieces_and_ends_like_the_unstreamed_one():
     partial = [m["delta"] for m in messages if m["status"] == "partial"]
     assert "".join(partial) == "Open data is good [0]. More text."
     assert not any("Thinking" in p or "Response" in p for p in partial)
-    assert messages[-1] == unstreamed
+    without_times = lambda m: {k: v for k, v in m.items() if k != "timings"}  # noqa: E731
+    assert without_times(messages[-1]) == without_times(unstreamed)
+    assert set(messages[-1]["timings"]) >= {"classify_s", "answer_s", "total_s"}  # the fake retriever times nothing
 
 
 def test_answer_length_is_capped():
@@ -261,3 +263,58 @@ def test_openscholar_has_its_own_time_limit():
     })
     assert (manager.openscholar_client.timeout, manager.openscholar_client.max_retries) == (600, 0)
     assert (manager.client.timeout, manager.client.max_retries) == (60, 1)
+
+
+# --- topic check per request (Qualle.route router=...)
+
+
+class FakeDecisions:
+    def __init__(self, route):
+        self.result, self.models = route, []
+
+    def route(self, model, question):
+        self.models.append(model)
+        return self.result, 0.3, {"ms": 1}
+
+
+def routed(classification=True, decision=None):
+    q = make_qualle(classification, [], [], "unused")
+    q.config = {**CONFIG, "DECISION_ROUTER": True}
+    q.decisions = FakeDecisions(decision)
+    return q
+
+
+def test_router_choices():
+    assert routed().route("anything", "none") == "both"  # no check
+    q = routed(decision="forrt")
+    assert q.route("How do I join FORRT?", "jev") == "forrt"  # the chosen model decides, even at p=0.3
+    assert q.decisions.models == ["typesafe/jev-1.14"]
+    q = routed(classification=False, decision=None)
+    assert q.route("pizza?", "clef") == "off_topic"  # decision call failed: the LLM classifier decides
+    q = routed(classification=True, decision="neither")
+    assert q.route("What is open data?", "llm") == "open_science" and q.decisions.models == []  # LLM only
+    assert routed(decision="forrt").route("q") == "open_science"  # default: p=0.3 is below the minimum
+
+
+def test_cosine_router_thresholds():
+    import numpy as np
+
+    class Faiss:
+        def __init__(self, cosine):
+            self.cosine = cosine
+
+        def search(self, q, k):
+            return np.array([[2 - 2 * self.cosine]]), np.array([[0]])  # squared L2 of unit vectors
+
+    def cosine_qualle(paper, page):
+        q = make_qualle(True, [], [], "unused")
+        q.config = CONFIG
+        q._embed_model = SimpleNamespace(get_query_embedding=lambda text: [1.0, 0.0])
+        q._retriever = SimpleNamespace(_index=SimpleNamespace(vector_store=SimpleNamespace(_faiss_index=Faiss(paper))))
+        q.forrt_pages = SimpleNamespace(vectors=np.array([[page, (1 - page ** 2) ** 0.5]], dtype=np.float32))
+        return q
+
+    assert cosine_qualle(0.70, 0.40).route("q", "cosine") == "open_science"
+    assert cosine_qualle(0.55, 0.60).route("q", "cosine") == "forrt"
+    assert cosine_qualle(0.70, 0.75).route("q", "cosine") == "forrt"  # both above: the closer one
+    assert cosine_qualle(0.55, 0.45).route("q", "cosine") == "off_topic"

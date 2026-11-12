@@ -262,3 +262,23 @@ def test_every_page_links_to_the_others_and_marks_itself(app):
         assert f'href="{path}" aria-current="page"' in html, path
     app.config["ARENA_ENABLED"] = False  # production: no link to a page that is off
     assert 'href="/arena"' not in client.get("/").get_data(as_text=True)
+
+
+def test_topic_check_choice_is_checked_and_passed_on(app):
+    class RouterRag:
+        def __init__(self):
+            self.options = []
+
+        def get_response(self, query, chat_id, model, **options):
+            self.options.append(options)
+            yield {"status": "complete", "message": "<p>ok</p>", "outcome": "answered"}
+
+    rag = app._rag_service = RouterRag()
+    client = app.app.test_client()
+    client.post("/chat", json={"message": "What is open data?", "chat_id": "c", "router": "cosine"}).data
+    client.post("/chat", json={"message": "What is open data?", "chat_id": "c"}).data  # the widget: as before
+    assert rag.options == [{"router": "cosine"}, {}]
+    assert client.post("/chat", json={"message": "What is open data?", "chat_id": "c", "router": "bogus"}).status_code == 400
+    assert [r["router"] for r in read_jsonl(app.config["CHAT_LOG_FILE"])] == ["cosine", "default"]
+    html = client.get("/").get_data(as_text=True)
+    assert 'id="router-select"' in html and 'value="jev"' in html and 'value="none"' in html
