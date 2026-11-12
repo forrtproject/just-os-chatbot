@@ -52,3 +52,25 @@ def test_judge_clamps_scores_and_survives_bad_output():
     good = rubric_judge.judge(FakeManager(json.dumps({"scores": {"r1": 7, "r2": -1}})), "m", "q", "a", RUBRIC, cost)
     assert good == {"r1": 4, "r2": 0} and cost[0] == 0.001
     assert rubric_judge.judge(FakeManager("not json"), "m", "q", "a", RUBRIC, cost) is None
+
+
+def test_select_terms_follows_the_listed_titles():
+    english = [
+        {"en_title": "A", "references": ["https://doi.org/10.1000/a"]},
+        {"en_title": "B", "references": ["https://doi.org/10.1000/b", "https://doi.org/10.1000/x"]},
+    ]
+    terms = glossary_items.select_terms(english, {"10.1000/b"}, ["B", "A"])
+    assert [(t["en_title"], dois) for t, dois in terms] == [("B", ["10.1000/b"]), ("A", [])]
+
+
+def test_select_terms_stops_on_an_unknown_title():
+    import pytest
+
+    with pytest.raises(SystemExit):
+        glossary_items.select_terms([{"en_title": "A"}], set(), ["Z"])
+
+
+def test_parse_json_accepts_a_code_fence():
+    assert glossary_items.parse_json('```json\n{"question": "q"}\n```') == {"question": "q"}
+    assert glossary_items.parse_json('{"question": "q"}') == {"question": "q"}
+
