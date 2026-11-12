@@ -7,9 +7,14 @@ Rule: a change to prompts, models, retrieval or chunking needs an eval table bef
 
 | Tool | Command | Output |
 |---|---|---|
-| Full pipeline eval | `docker compose exec -e OMP_NUM_THREADS=8 web python eval/run.py --model <id> [--general-model <id>] [--limit 5]` | `eval/results/run_<YYMMDD-HHMM>_<model>.csv` |
+| Full pipeline eval | `docker compose exec -e OMP_NUM_THREADS=8 web python eval/run.py --model <id> [--general-model <id>] [--limit 5]`; `--no-retrieval` answers without the library (a baseline), `--skip-classifier` treats every question as open science, `--full-answers` keeps the whole answer, `--out` names the file | `eval/results/run_<YYMMDD-HHMM>_<model>.csv` |
 | Table of runs | `docker compose exec web python eval/compare.py [csv ...]` | Markdown table (with "Judge support" once judged) |
 | LLM judge (#8) | `docker compose exec web python eval/judge.py eval/results/run_X.csv [--model ...]` | adds `judge_support` (0-1) to the run CSV; needs runs made after 10 Nov (they save the passages) |
+| Rubric judge (E1, #7) | `docker compose exec web python eval/rubric_judge.py eval/results/run_X.csv [--items FILE] [--model ...] [--controls]` | adds `rubric_coverage`, `rubric_core`, `rubric_scores` and `doi_recall` to the run CSV for the questions with a rubric; default judge `google/gemini-3.8-flash`; `--controls` also scores reference answers |
+| Glossary items | `docker compose exec web python eval/glossary_items.py GLOSSARY_JSON --terms eval/glossary_terms.txt --model <id> [--no-reasoning]` | `eval/glossary_items_<model>.jsonl`: per term a question, a reference answer and 3-5 rubric items from the FORRT glossary definition |
+| Glossary items answered and judged | `docker compose exec web sh eval/answer_items.sh <generator>` | `eval/results/glossary_<generator>_{library,noretrieval}.csv` |
+| Expert grading page | `python eval/build_grading_page.py GLOSSARY_JSON --items eval/glossary_items_*.jsonl --out DIR` | `DIR/grading.html` (blind, works offline) and `DIR/grading_key.csv`, which the grader must not see |
+| Expert against generators and judge | `python eval/grading_report.py --key KEY --part1 P1 --part2 P2` | per generator: questions accepted, rubric items needed; per rubric item: expert score against judge score |
 | Classifier comparison (#9) | `docker compose exec web python eval/classify.py --models a,b [--intent]` | Markdown table: accuracy, false refusals, false answers, errors, time, cost; also `eval/results/classify_<YYMMDD-HHMM>.csv` |
 | Retrieval question set | `python eval/make_retrieval_set.py` | `eval/retrieval_questions.jsonl` |
 | Embedding comparison | `python eval/compare_embeddings.py [E2 E4 ...]` (GPU or API) | `eval/results/embeddings_<YYMMDD>.csv` |
@@ -18,7 +23,7 @@ Rule: a change to prompts, models, retrieval or chunking needs an eval table bef
 | Arena (human ratings) | http://localhost:8000/arena with `ARENA_ENABLED=true`: pick models, rate each answer 1-5 on correct / references / clarity | `/arena/leaderboard`, `/arena/ratings` |
 
 Question sets:
-- `eval/questions.jsonl`: 117 questions for the full pipeline (89 should answer, 28 should refuse; 14 not English, 13 of them checked by native speakers; 85 with `expected_dois`, 8 with `expected_urls`). The first 54 are the earlier set (unchanged); 47 come from the question bank of Meltem and Mohit (`data/raw/questions_bank_261112.csv`, 12 Nov; its 37 other rows were already in the set) and 16 (`new51`-`new66`) from its revised version (`data/raw/questions_bank_261112b.csv`; the earlier rows are unchanged). Fields, in this order:
+- `eval/questions.jsonl`: 140 questions for the full pipeline (112 should answer, 28 should refuse; 14 not English, 13 of them checked by native speakers; 108 with `expected_dois`, 8 with `expected_urls`; 25 with a rubric). The first 54 are the earlier set (unchanged); 47 come from the question bank of Meltem and Mohit (`data/raw/questions_bank_261112.csv`, 12 Nov; its 37 other rows were already in the set) and 16 (`new51`-`new66`) from its revised version (`data/raw/questions_bank_261112b.csv`; the earlier rows are unchanged); 23 (`gl01`-`gl25`) are FORRT glossary items by gpt-4.1-mini (section 3.8), whose rubric the other two of its items (HARKing, Preregistration) add to `new60` and `pr01`, which ask the same. Fields, in this order:
 
   | Field | Values |
   |---|---|
@@ -31,6 +36,7 @@ Question sets:
   | `route` | gold label for the router (#43): `open_science`, `forrt`, `both` or `neither` (`neither` exactly when `expect` is `refuse`) |
   | `expected_dois`, `expected_urls` | the reference answer: papers and pages a good answer cites |
   | `source`, `note` | where the question comes from; free text |
+  | `term`, `reference_answer`, `rubric` | only on the 25 questions with a rubric: the glossary term, an answer written from its definition, and 3-5 items `{id, type: core or detail, criterion}` that `eval/rubric_judge.py` scores |
 
   **`expected_dois` and `expected_urls` are drafts too** (12 Nov): the 12 DOIs from `BOT/Questions.docx` were kept; the rest were picked by hand from the bge-m3 search results and a title/full-text search of the production index (`VECTOR_STORE`), so every DOI is an indexed paper; URLs are pages of the FORRT page index (`vector_data/forrt_pages`), only for `forrt`/`both` questions. Translations (`source: translation of …`) share the picks of their English question. The labels of `new51`-`new66` are drafted the same way (`new51` is borderline: `off05`, also on impact factors, is a refusal). Without DOIs: refusals, `qa03` (about the bot itself), `new10` (no indexed paper on assigning a DOI to an article), `new33` (false premise: no such FORRT tool) and `new58` (no indexed paper on no-code data cleaning tools). Meltem and Mohit review them in `eval/questions.xlsx`; the `hit` column of `eval/run.py` uses them.
 
@@ -70,6 +76,7 @@ Why the scores look low: many documents are on the same subject (for example, ma
 | **Answered / Refused** | Counts against the gold label (22/27 = 22 of the 27 "answer" questions got an answer) |
 | **hit@7** | For questions with `expected_dois`: one of them is in the 7 sources that the LLM saw |
 | **Citations valid** | Share of answers where every `[n]` in the text points to a source in the list |
+| **Rubric coverage** | For questions with a rubric, after `eval/rubric_judge.py`: mean score of the rubric items, 0 (not covered) to 4 (fully), divided by 4 |
 | **Mean s / p95 s** | Mean and 95th-percentile answer time in seconds (target p95 ≤ 15 s) |
 | **USD / 1k q** | OpenRouter cost for 1,000 questions (from the token counts) |
 
@@ -232,3 +239,23 @@ Findings:
 2. Clef-flash, the current default, is the weakest decision model on this set (17 off-topic questions answered). PR #43 found the opposite on its simulated questions (0.65, with the LLM fallback); the labels here are hand-drafted and the sets differ, so test Jev as default with a real eval run before switching.
 3. "No check" is not a classifier: it sends everything to the papers and FORRT pages, so it only "fails" on off-topic questions, which then depend on `MIN_RELEVANCE` ("no sources") instead of a refusal.
 4. Each answer now also records its step times (topic check, search, re-rank, LLM answer): `timings` in the chat log and arena logs, and columns in `eval/run.py` results, shown per model on `/eval`.
+
+### 3.8 Glossary items with rubrics (12 November 2026, 25 terms, `meta-llama/llama-3.1-8b-instruct`)
+
+A question set that measures whether answers are complete, built the way ResearchQA mines survey sections: from each of 25 FORRT glossary terms (`eval/glossary_terms.txt`), a model writes a question, a reference answer and 3-5 rubric items from the definition only; the indexed DOIs the term cites become `expected_dois`. Three generators wrote items for the same terms; each set was answered with the library and without it (`--no-retrieval`), with the classifier skipped, and judged by `google/gemini-3.8-flash`, a family that generated none of the items, on the answer as the app shows it.
+
+| Generator | Cost | Rubric items | Coverage with library | Coverage without | doi_recall | Judge on own reference answer |
+|---|---|---|---|---|---|---|
+| **`openai/gpt-4.1-mini`** (in `questions.jsonl`) | $0.017 | 110 | 0.677 | 0.433 | 0.29 | 1.000 |
+| `anthropic/claude-sonnet-5.5` | $0.15 | 116 | 0.667 | 0.476 | 0.26 | 0.998 |
+| `qwen/qwen3.7-plus`, reasoning off | $0.015 | 110 | 0.686 | 0.426 | 0.35 | 0.996 |
+
+Files: `eval/glossary_items_<generator>.jsonl`, `eval/results/glossary_<generator>_{library,noretrieval}.csv`. On another item's reference answer the judge gives 0.000 for all three sets.
+
+Expert check (`eval/results/grading_*_261112.csv`, one expert, `expert1`): 8 of 75 items and 5 of 50 answers graded so far. The judge gives the expert's score on 20 of 21 rubric items, and answer coverage correlates at 0.71. The expert accepted the questions of gpt-4.1-mini 3/3, Claude Sonnet 5.5 1/2 and Qwen 3.7 Plus 1/3, and marked 29% of Qwen's rubric items as not needed against none for the other two.
+
+Findings:
+1. **The library raises rubric coverage by 0.19 to 0.26** (0.43-0.48 → 0.67-0.69), with the items of each of the three generators.
+2. gpt-4.1-mini's items went into `questions.jsonl`: all of its graded questions were accepted, it cost least and its coverage matches the other two. Two or three graded items per generator cannot rank the generators.
+3. **The classifier refuses many glossary questions.** In the pilot (46 items, 11 Nov), Llama 3.1 8B as classifier refused 18 to 26 of them as not open science across nine runs (`eval/results/glossary_pilot_classify_repeats_261111.csv`), among them researcher degrees of freedom, NHST and statistical power; a full eval run now counts these refusals against Correct.
+4. The rubrics and their labels are drafts until more of them are graded; the expert's comments (for example overlapping rubric items) are not applied yet.
