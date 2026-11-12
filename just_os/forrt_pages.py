@@ -265,7 +265,7 @@ class ForrtPages:
         """{"text": Markdown answer with a source list, "sources": [...], "trace": {...}}; text is None on error.
         language_text: what the user typed (a rephrased follow-up may be in another language)."""
         start = time.perf_counter()
-        language_code = msg.detect_language(language_text or question)
+        language_code = checks.question_language(language_text or question)
         language = checks.language_name(language_code)
         candidates = self.retrieve(question)
         chosen = self.select(question, candidates)

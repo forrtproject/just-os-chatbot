@@ -185,3 +185,30 @@ def test_eval_outcome_recognises_translated_refusals():
         assert run.outcome_of(refusal) == "refused"
         assert run.outcome_of(no_sources) == "no_sources"
     assert run.outcome_of({"status": "complete", "message": "<p>An answer [0].</p>"}) == "answered"
+
+
+def test_short_unclear_questions_get_english():
+    # lingua read "is it open" as Dutch and "what is forrt" as Hungarian: too short to tell
+    assert messages.detect_language("is it open") == "nl"
+    assert messages.confident_language("is it open") is None
+    assert messages.message("off_topic", "is it open") == table()["en"]["off_topic"]
+    assert messages.confident_language("what is forrt") is None
+    assert messages.confident_language("Hallo") is None
+    assert messages.confident_language("neurodiversity in academia") is None  # scored as Latin
+
+
+@pytest.mark.parametrize(
+    "question, language",
+    [
+        (TR_OFF_TOPIC, "tr"),
+        (KN_OFF_TOPIC, "kn"),
+        ("Was ist DNA Replikation und HARKing", "de"),
+        ("Hoe kan ik kwalitatief onderzoek preregistreren?", "nl"),
+        ("Cos'è la preregistrazione?", "it"),
+        ("Was ist Replikation?", "de"),  # a logged user question; 3 words, German 0.13
+        ("Wat is preregistratie?", "nl"),
+        ("पूर्व-पंजीकरण क्या है और यह क्यों महत्वपूर्ण है?", "hi"),
+    ],
+)
+def test_clear_questions_keep_their_language(question, language):
+    assert messages.confident_language(question) == language

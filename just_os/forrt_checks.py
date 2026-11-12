@@ -26,10 +26,15 @@ MONTHS = {m: i for i, m in enumerate(["january", "february", "march", "april", "
                                        "september", "october", "november", "december"], 1)}
 
 
+def question_language(text: str) -> Optional[str]:
+    """ISO code of the question's language, or None when the detector is not sure (messages.confident_language)."""
+    return msg.confident_language(text)
+
+
 def language_name(code: Optional[str]) -> str:
     """'nl' -> 'Dutch'; unknown -> 'the language of the question'."""
     if not code:
-        return "English"
+        return "the language of the question (English if unsure)"
     try:
         from lingua import IsoCode639_1, Language
         return Language.from_iso_code_639_1(getattr(IsoCode639_1, code.upper())).name.title()
@@ -43,9 +48,10 @@ def wrong_language(answer: str, question_code: Optional[str]) -> Optional[str]:
     text = URL_IN_TEXT.sub(" ", re.sub(r"\[[^\]]*\]\([^)]*\)", " ", answer))
     if len(text.split()) < 12:
         return None
+    if not question_code:  # the question's language is not known: nothing to compare
+        return None
     got = msg.detect_language(text)
-    asked = question_code or "en"
-    if got and got != asked and "en" in (got, asked):
+    if got and got != question_code and "en" in (got, question_code):
         return language_name(got)
     return None
 
