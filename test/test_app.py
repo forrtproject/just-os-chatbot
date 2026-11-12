@@ -211,6 +211,7 @@ def test_every_chat_turn_is_logged_with_its_outcome(app):
     assert rows[0]["question"] == "What is open data?" and rows[0]["references"] == refs
     assert rows[1]["answer"].startswith("<p>Sorry") and rows[1]["chat_id"] == "c1"
     assert [r["turn_id"] for r in rows] == [f["turn_id"] for f in finals]
+    assert "lang" in rows[0] and rows[1]["answer_lang"] == "en"  # languages of question and answer
 
 
 def test_feedback_is_stored_once_with_the_question_and_answer(app):

@@ -68,3 +68,19 @@ def test_gunicorn_reload_flag(monkeypatch):
     assert gunicorn_config.reload is True
     monkeypatch.setenv("WEB_RELOAD", "false")
     assert importlib.reload(gunicorn_config).reload is False
+
+
+def test_curate_reports_every_row_and_writes_markdown_for_new_ones(tmp_path, monkeypatch):
+    from scripts import curate
+
+    rows = tmp_path / "rows.csv"
+    rows.write_text("title,link_to_resource\nKnown paper,https://doi.org/10.1234/KNOWN\n"
+                    "New paper,https://doi.org/10.1234/new\nA web guide,https://example.org/guide\n", encoding="utf-8")
+    monkeypatch.setattr(curate, "pdf_markdown", lambda row, work: ("converted", "# New paper\n\nText."))
+    monkeypatch.setattr(curate, "web_markdown", lambda row: ("web_page_too_short", ""))
+    parsed = curate.read_rows(str(rows))
+    assert [r["doi"] for r in parsed] == ["10.1234/known", "10.1234/new", ""]  # DOI taken from the link
+    report, metadata = curate.curate(parsed, {"10.1234/known"}, tmp_path)
+    assert [r["outcome"] for r in report] == ["already_indexed", "converted", "web_page_too_short"]
+    assert [m["doi"] for m in metadata] == ["10.1234/new"]
+    assert (tmp_path / "markdown" / f"{metadata[0]['doi_hash']}.md").read_text(encoding="utf-8").startswith("# New paper")

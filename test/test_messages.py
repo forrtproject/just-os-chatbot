@@ -48,8 +48,8 @@ def write_csv(path, rows):
 
 def test_bad_row_is_skipped(tmp_path, caplog):
     path = tmp_path / "refusals.csv"
-    full = ["a", "b", "c", "d", "e"]
-    write_csv(path, [["en", *full], ["xx", *full], ["tr", "a", "", "c", "d", "e"], ["it", *full]])
+    full = ["a", "b", "c", "d", "e", "f"]
+    write_csv(path, [["en", *full], ["xx", *full], ["tr", "a", "", "c", "d", "e", "f"], ["it", *full]])
     with caplog.at_level(logging.ERROR):
         loaded = messages.load_messages(path)
     assert set(loaded) == {"en", "it"}
@@ -59,7 +59,7 @@ def test_bad_row_is_skipped(tmp_path, caplog):
 def test_row_with_an_unquoted_comma_is_skipped(tmp_path, caplog):
     # An unquoted comma splits a text in two, so every later text moves one column
     path = tmp_path / "refusals.csv"
-    write_csv(path, [["en", "a", "b", "c", "d", "e"], ["it", "Mi dispiace", " posso", "b", "c", "d", "e"]])
+    write_csv(path, [["en", "a", "b", "c", "d", "e", "f"], ["it", "Mi dispiace", " posso", "b", "c", "d", "e", "f"]])
     with caplog.at_level(logging.ERROR):
         loaded = messages.load_messages(path)
     assert set(loaded) == {"en"}
@@ -68,7 +68,7 @@ def test_row_with_an_unquoted_comma_is_skipped(tmp_path, caplog):
 
 def test_second_row_for_a_language_is_skipped(tmp_path, caplog):
     path = tmp_path / "refusals.csv"
-    write_csv(path, [["en", "a", "b", "c", "d", "e"], ["EN", "x", "b", "c", "d", "e"]])
+    write_csv(path, [["en", "a", "b", "c", "d", "e", "f"], ["EN", "x", "b", "c", "d", "e", "f"]])
     with caplog.at_level(logging.ERROR):
         loaded = messages.load_messages(path)
     assert loaded["en"]["off_topic"] == "a"
@@ -77,7 +77,7 @@ def test_second_row_for_a_language_is_skipped(tmp_path, caplog):
 
 def test_english_row_is_required(tmp_path):
     path = tmp_path / "refusals.csv"
-    write_csv(path, [["it", "a", "b", "c", "d", "e"]])
+    write_csv(path, [["it", "a", "b", "c", "d", "e", "f"]])
     with pytest.raises(ValueError):
         messages.load_messages(path)
 
@@ -212,3 +212,11 @@ def test_short_unclear_questions_get_english():
 )
 def test_clear_questions_keep_their_language(question, language):
     assert messages.confident_language(question) == language
+
+
+def test_names_do_not_pull_an_english_question_into_their_language():
+    # "Maastricht" made lingua read this as Dutch, so the refusal came in Dutch
+    assert messages.confident_language("What is the best pizza in Maastricht?") == "en"
+    assert messages.confident_language("Who is Lukas Wallrich at FORRT?") == "en"
+    assert messages.confident_language("Was ist die beste Pizza in Berlin?") == "de"
+    assert messages.confident_language("Was ist Replikation?") == "de"

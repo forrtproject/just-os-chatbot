@@ -3,6 +3,7 @@ import logging
 import os
 import random
 import secrets
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Dict, Any, Generator, Optional
@@ -466,6 +467,8 @@ class FlaskApp:
         feedback can refer to it by turn_id. Returns the message with its turn_id."""
         turn_id = str(uuid.uuid4())
         default = "answered" if response.get("status") == "complete" else "error"
+        lang = msg.confident_language(question)
+        answer_lang = msg.confident_language(re.sub(r"<[^>]+>", " ", response.get("message", "")))
         row = json.dumps({
             "time": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "turn_id": turn_id,
@@ -473,6 +476,10 @@ class FlaskApp:
             "model": model or self.config["CITATION_MODEL"],
             "router": router or self.config.get("ROUTER") or "default",
             "question": question,
+            # language of the question and of the answer (None: too short to tell), to find answers
+            # in another language than the question
+            "lang": lang,
+            "answer_lang": answer_lang,
             "outcome": response.get("outcome", default),  # cached answers have none
             "answer": response.get("message", ""),  # HTML, as shown
             "references": (response.get("metadata") or {}).get("references", []),
@@ -480,6 +487,8 @@ class FlaskApp:
             "timings": response.get("timings", {}),
         })
         self._append_jsonl(self.config.get("CHAT_LOG_FILE"), [row])
+        if lang and answer_lang and lang != answer_lang:
+            logger.warning("Answer language %s differs from the question's (%s), turn %s", answer_lang, lang, turn_id)
         try:
             self.chat_manager.redis.set(f"chat:turn:{turn_id}", row, ex=86400)
         except Exception as error:  # no Redis: the answer still goes out, without feedback

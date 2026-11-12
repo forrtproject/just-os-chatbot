@@ -10,6 +10,9 @@
 | [project-plan.md](project-plan.md) | Purpose, decisions, requirements, bug status, designs, roadmap, risks |
 | [hackathon.md](hackathon.md) | Hackathon 11–13 Nov: setup check, rules, tracks, schedule, demo |
 | [issues.md](issues.md) | Source text of the GitHub issues |
+| [curators.md](curators.md) | How a curator adds new FORRT resources to the index with one command (`./run curate`) |
+| [web-resources.md](web-resources.md) | The sample of 50 web resources without DOI (#18): which pages came through, and what to do with the rest |
+| [judge-check.md](judge-check.md) | The LLM judge's scores for the 12 Nov run, answer by answer, to check by hand (#8) |
 
 Setup and the `/chat` API are in the [root README](../README.md).
 

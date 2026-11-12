@@ -18,6 +18,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eval"))
 import classify  # noqa: E402
 import export_questions  # noqa: E402
 import run_batches  # noqa: E402
+import scorecard  # noqa: E402
+import judge_sheet  # noqa: E402
 import judge  # noqa: E402
 import make_retrieval_set  # noqa: E402
 import run  # noqa: E402
@@ -224,3 +226,42 @@ def test_run_batches_resumes_and_merges(tmp_path, monkeypatch):
     merged = run_batches.merge(files, ["q1", "q2", "q3"])
     assert pd.read_csv(merged).to_dict("list") == {"id": ["q1", "q2"], "outcome": ["refused", "error"]}
     assert not (tmp_path / f"run_261112-1400_{m}.csv").exists()
+
+
+def test_scorecard_configurations_use_known_settings():
+    from config.settings import DEFAULT_CONFIG
+    configs = json.loads(scorecard.CONFIGS.read_text(encoding="utf-8"))
+    assert "baseline" in configs
+    for name, settings in configs.items():
+        assert set(settings) <= set(DEFAULT_CONFIG), name
+
+
+def test_scorecard_runs_a_configuration_with_its_settings(tmp_path, monkeypatch):
+    monkeypatch.setattr(run_batches, "RESULTS", tmp_path)
+    monkeypatch.setattr(run_batches, "TMP", tmp_path / "batch.jsonl")
+    monkeypatch.setattr(run_batches, "ROOT", tmp_path)
+    calls = []
+
+    def fake_run(cmd, **kwargs):  # one batch answers both questions
+        calls.append(cmd)
+        out = tmp_path / Path(cmd[cmd.index("--out") + 1]).name
+        pd.DataFrame({"id": ["q1", "q2"], "outcome": ["answered", "refused"]}).to_csv(out, index=False)
+
+    monkeypatch.setattr(run_batches.subprocess, "run", fake_run)
+    merged = run_batches.run_all("cfg-x", [], "000000-0000", ['{"id": "q1"}' + chr(10), '{"id": "q2"}' + chr(10)], ["q1", "q2"],
+                                 {"ROUTER": "jev", "RERANK": False})
+    assert len(calls) == 1 and ["-e", "ROUTER=jev"] == calls[0][7:9] and "RERANK=False" in calls[0]
+    assert merged.name.endswith("_cfg-x.csv") and scorecard.latest_runs(["x", "y"]) == [merged]
+
+
+def test_judge_sheet_lists_judged_answers_lowest_first_with_their_cited_passages(tmp_path):
+    run = tmp_path / "run.csv"
+    pd.DataFrame([
+        {"id": "a1", "question": "Q1?", "answer": "Fine [0].", "passages": json.dumps(["P zero", "P one"]), "judge_support": 1.0},
+        {"id": "a2", "question": "Q2?", "answer": "Weak [1]. Bad [5].", "passages": json.dumps(["P zero", "P one"]), "judge_support": 0.5},
+        {"id": "r1", "question": "Pizza?", "answer": "Sorry", "passages": "[]", "judge_support": None},
+    ]).to_csv(run, index=False)
+    text = judge_sheet.sheet(run)
+    assert text.index("## a2") < text.index("## a1") and "## r1" not in text  # lowest score first, unjudged left out
+    assert "Passage [1]" in text and "P one" in text and "Passage [0]</summary>" in text
+    assert "the citation is invalid" in text  # [5] has no passage

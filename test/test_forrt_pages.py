@@ -126,7 +126,8 @@ def test_forrt_answer_from_the_picked_page(tmp_path):
     result = pages.answer("Which teams can I join?")
     assert result["found"] and result["trace"]["selected"] == ["https://forrt.org/about/teams/"]
     assert "https://forrt.slack.com/x" in result["text"]
-    assert result["text"].rstrip().endswith("1. [Teams](https://forrt.org/about/teams/)")  # source list
+    assert result["sources"] == [{"n": 1, "title": "Teams", "url": "https://forrt.org/about/teams/"}]
+    assert "forrt.org/about/teams" not in result["text"]  # the page goes to the Sources box, not the text
     assert "Team Credit" in client.calls[0]["messages"][1]["content"]  # the page text reached the model
 
 
@@ -186,7 +187,8 @@ def test_forrt_route_in_get_response_does_not_call_the_paper_path(tmp_path):
     q.document_retriever.retrieve_and_rerank = lambda query, *timings: (_ for _ in ()).throw(AssertionError("no paper search"))
     final = list(q.get_response("Which teams can I join?", "chat"))[-1]
     assert final["status"] == "complete" and final["outcome"] == "forrt"
-    assert 'href="https://forrt.org/about/teams/"' in final["message"]
+    assert final["metadata"]["references"][0]["url"] == "https://forrt.org/about/teams/"  # in the Sources box
+    assert final["metadata"]["sources"] == "[1] Teams. https://forrt.org/about/teams/"
 
 
 def test_both_route_adds_forrt_links_to_the_paper_answer(tmp_path):
@@ -197,7 +199,36 @@ def test_both_route_adds_forrt_links_to_the_paper_answer(tmp_path):
     q.decisions = SimpleNamespace(route=lambda model, query: ("both", 0.8, {}))
     q.forrt_pages = pages
     final = list(q.get_response("How can I learn more about credit with FORRT?", "chat"))[-1]
-    assert final["outcome"] == "both" and "On forrt.org" in final["message"] and "Paper" in final["metadata"]["sources"]
+    refs = final["metadata"]["references"]
+    assert final["outcome"] == "both" and "Paper" in final["metadata"]["sources"]
+    assert refs[-1]["url"] == "https://forrt.org/about/teams/" and refs[-1]["number"] == len(refs)  # after the papers
+    assert "https://forrt.org/about/teams/" in final["metadata"]["sources"]
+
+
+def test_a_moved_page_is_read_at_its_new_address(tmp_path):
+    pages, _ = make_pages(tmp_path, [], [])
+    stub = "<html><head><meta http-equiv=refresh content=\"0; url=https://forrt.org/glossary/english/\"></head></html>"
+    pages.http = FakeWeb({"https://forrt.org/glossary/": stub,
+                          "https://forrt.org/glossary/english/": "<html><body><main><p>Phase 2 is open.</p></main></body></html>"})
+    assert pages.fetch("https://forrt.org/glossary/")["markdown"] == "Phase 2 is open."
+    pages.records = [{"url": "https://forrt.org/glossary/", "title": "Glossary"},
+                     {"url": "https://forrt.org/glossary/english/", "title": "Glossary"}]
+    pages.select = lambda question, candidates: pages.records
+    pages.retrieve = lambda question: []
+    pages.client_manager.create_chat_completion = lambda **kw: completion(content="Phase 2 is open [1].")
+    assert [s["url"] for s in pages.answer("How can I contribute to the glossary?")["sources"]] == ["https://forrt.org/glossary/"]
+
+
+def test_small_talk_gets_the_introduction_without_a_topic_check():
+    for text in ["Hello", "hi!", "Who are you?", "Hello, what can you do?", "thanks", "Wer bist du?"]:
+        assert qualle.small_talk(text), text
+    for text in ["What is open science?", "Hi, what is preregistration?", "Can you help me with my preregistration?",
+                 "Who are the FORRT team leads?", "", "?!"]:
+        assert not qualle.small_talk(text), text
+    q = make_qualle(True, [], [], "unused")
+    q.route = lambda *a, **k: (_ for _ in ()).throw(AssertionError("no topic check"))
+    final = list(q.get_response("Hello", "chat"))[-1]
+    assert final["outcome"] == "small_talk" and "JUST-OS" in final["message"]
 
 
 def test_pages_are_read_live_cached_and_skipped_when_unreachable(tmp_path):

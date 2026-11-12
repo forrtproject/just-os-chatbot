@@ -96,6 +96,12 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # RANKING SETTINGS
     "MIN_RELEVANCE": 0.1,
     "MAX_CHUNKS": 7,
+    # Adaptive top-k (N5, #33): keep the re-ranked chunks that score at least ADAPTIVE_TOP_K_RATIO
+    # of the best chunk's score, but at least ADAPTIVE_TOP_K_MIN; MAX_CHUNKS stays the maximum
+    # and MIN_RELEVANCE / MAX_CHUNKS_PER_DOC still apply. Off: always up to MAX_CHUNKS
+    "ADAPTIVE_TOP_K": False,
+    "ADAPTIVE_TOP_K_RATIO": 0.5,
+    "ADAPTIVE_TOP_K_MIN": 3,
     # At most this many chunks of one paper in the context (0 = no limit), for variety
     "MAX_CHUNKS_PER_DOC": 0,
     # Search: "vector" (FAISS), "bm25" (keywords) or "hybrid" (both, merged by reciprocal

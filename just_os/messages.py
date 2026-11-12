@@ -24,6 +24,7 @@ MESSAGE_KEYS = (
     "model_unavailable",  # the classifier model could not be reached
     "generation_error",  # the answer model returned nothing
     "unexpected_error",  # any other exception
+    "about",  # a greeting or a question about the bot: a short self-introduction
 )
 DEFAULT_LANGUAGE = "en"
 # Languages lingua does not detect, recognised by a script only they use: a question
@@ -123,13 +124,25 @@ def confident_language(text: str) -> Optional[str]:
     words = [w for w in text.split() if sum(c.isupper() for c in w) < 2 and not re.fullmatch(r"\W*forrt\W*", w, re.I)]
     if len(words) < 3 and not re.search(r"[\u0370-\uffff]", text):
         return None
+    code = _confident(words or text.split())
+    # Names pull an English question to their language: "What is the best pizza in Maastricht?" was Dutch,
+    # "Who is Lukas Wallrich at FORRT?" German. When the words without capitalised names (not the first
+    # word) read as English, the question is English.
+    rest = [w for i, w in enumerate(words) if i == 0 or not w[:1].isupper()]
+    if code and code != "en" and 3 <= len(rest) < len(words) and _confident(rest, 0.0) == "en":
+        return "en"
+    return code
+
+
+def _confident(words: List[str], minimum: float = 0.10) -> Optional[str]:
+    """Lingua's best language for the words if its confidence is at least minimum (never Latin or Esperanto)."""
     try:
-        best = detector().compute_language_confidence_values(" ".join(words) or text)[0]
+        best = detector().compute_language_confidence_values(" ".join(words))[0]
     except Exception as e:  # a detection failure must not hide the message itself
         logger.error(f"Language detection failed: {e}")
         return None
     code = best.language.iso_code_639_1.name.lower()
-    return code if best.value >= 0.10 and code not in ("la", "eo") else None
+    return code if best.value >= minimum and code not in ("la", "eo") else None
 
 
 def message(key: str, question: str = "") -> str:

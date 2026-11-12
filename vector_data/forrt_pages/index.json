@@ -191,21 +191,20 @@
  },
  {
   "url": "https://forrt.org/",
+  "lastmod": "2026-11-12T00:00:00+00:00",
   "title": "FORRT - Framework for Open and Reproducible Research Training",
   "section": "home",
-  "lastmod": "2026-11-09T19:59:16+00:00",
-  "date": null,
-  "chars": 14564,
-  "summary": "The FORRT home page introduces the Framework for Open and Reproducible Research Training, highlights recent news such as award announcements and conference participation, and provides quick links to key resources like the Educational Nexus, Pedagogies, and social justice initiatives. It also invites visitors to get involved, subscribe to a newsletter, and watch introductory videos.",
-  "use_when": "When a user wants an overview of what FORRT is, seeks recent updates or awards, or wants to know how to access its educational resources and get involved.",
+  "chars": 14400,
+  "summary": "The FORRT homepage introduces the Framework for Open and Reproducible Research Training, outlining its mission to promote open science, teaching, and social justice. It highlights recent news such as awards and conference participation, and offers quick links to get involved, learn more about the organization, and access resources and privacy policy.",
+  "use_when": "It answers questions about what FORRT is, how to get involved, recent awards or conference updates, and where to find its educational resources and policies.",
   "example_questions": [
-   "What is FORRT and what does it offer?",
-   "Has FORRT received any recent awards or recognitions?",
+   "What is the Framework for Open and Reproducible Research Training?",
    "How can I get involved with FORRT?",
-   "Where can I find the Educational Nexus or Pedagogies?",
-   "Is there a newsletter I can subscribe to for updates?"
+   "Has FORRT received any recent awards?",
+   "Where can I find the latest news about FORRT?",
+   "What privacy policy does FORRT follow?"
   ],
-  "page_kind": "team_or_project",
+  "page_kind": "org_info",
   "freshness": "changes_often",
   "key_links": [
    {
@@ -213,27 +212,16 @@
     "label": "Get involved"
    },
    {
-    "url": "https://forrt.org/nexus/",
-    "label": "Educational Nexus"
-   },
-   {
-    "url": "https://forrt.org/pedagogies/",
-    "label": "Pedagogies"
-   },
-   {
-    "url": "https://forrt.org/dei/",
-    "label": "Social Justice initiatives"
-   },
-   {
     "url": "https://forrt.org/post/",
-    "label": "Announcements"
+    "label": "See all announcements"
    },
    {
     "url": "https://forrt.org/privacy/",
     "label": "Privacy policy"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/post/2026-10-nwo-award/",
@@ -713,37 +701,30 @@
  },
  {
   "url": "https://forrt.org/replication-hub/flora/",
+  "lastmod": "2026-11-11T19:51:11+00:00",
   "title": "FORRT Library of Reproduction and Replication Attempts",
   "section": "replication-hub",
-  "lastmod": "2026-11-03T12:03:45+00:00",
-  "date": null,
-  "chars": 5933,
-  "summary": "The page introduces the FORRT Library of Reproduction and Replication Attempts (FLoRA), a curated list of studies that explicitly attempt to replicate or reproduce published research across all disciplines. It explains the criteria for inclusion, distinguishes between replication and reproduction, and describes how outcomes are coded (Successful, Failed, Mixed, Computationally Successful, etc.). The page also links to the FLoRA Annotator tool and provides a citation for the dataset.",
-  "use_when": "When a user wants to find or contribute replication/reproduction attempts, understand FLoRA’s inclusion criteria, or use the FLoRA Annotator to search for replication records.",
+  "chars": 6420,
+  "summary": "The page describes the FORRT Library of Reproduction and Replication Attempts (FLoRA), a resource that tracks studies that intentionally repeat or computationally reproduce published research across sciences and humanities. It explains the criteria for inclusion, distinguishes replication from reproduction, and notes that FLoRA does not contain statistical data. The page also mentions the FLoRA Annotator tool, invites contributions, and provides citation and licensing information.",
+  "use_when": "It answers questions about what FLoRA is, how it differs from other databases, what qualifies a study for inclusion, how to use the FLoRA Annotator, and how to contribute or cite the resource.",
   "example_questions": [
-   "What is FLoRA and how does it differ from FReD?",
-   "How can I add a new replication attempt to FLoRA?",
-   "What criteria must a study meet to be included in FLoRA?",
-   "How are replication outcomes classified in FLoRA?",
-   "Where can I find the dataset for FLoRA?"
+   "What is the purpose of FLoRA?",
+   "How does FLoRA differ from the FORRT Replication Database?",
+   "What criteria must a study meet to be listed in FLoRA?",
+   "How can I use the FLoRA Annotator?",
+   "How can I contribute to FLoRA?",
+   ""
   ],
-  "page_kind": "curated_resource",
-  "freshness": "static",
+  "page_kind": "listing",
+  "freshness": "changes_often",
   "key_links": [
    {
     "url": "https://forrt.org/annotator/",
     "label": "FLoRA Annotator"
-   },
-   {
-    "url": "https://doi.org/10.17605/OSF.IO/9R62X",
-    "label": "FLoRA Dataset DOI"
-   },
-   {
-    "url": "https://creativecommons.org/licenses/by/4.0/",
-    "label": "CC BY 4.0 License"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/post/2026-02-newsletter/",
@@ -1368,41 +1349,29 @@
  },
  {
   "url": "https://forrt.org/replication-hub/large-scale-replication-projects/",
+  "lastmod": "2026-11-11T22:41:59+00:00",
   "title": "List of Large-Scale Replication Projects",
   "section": "replication-hub",
-  "lastmod": "2026-07-15T22:29:18+01:00",
-  "date": "2023-09-09",
-  "chars": 3495,
-  "summary": "This page lists large‑scale replication projects across the sciences and humanities, providing project names, topics, links, and status information such as inclusion in FReD and whether they are ongoing as of June 2024. It serves as a quick reference for researchers looking for established replication initiatives and their current activity status.",
-  "use_when": "Users seeking to identify major replication projects, check if a project is part of FReD, or find ongoing replication efforts in a specific discipline will find this page useful.",
+  "chars": 4672,
+  "summary": "This page lists completed and ongoing large‑scale replication projects across a wide range of disciplines, including psychology, economics, medicine, and the humanities. Each entry shows the project name, its research topic, and a link to the project’s website or publication.",
+  "use_when": "When a user wants to know which large‑scale replication projects exist, where to find them, or what topics they cover.",
   "example_questions": [
-   "Which large‑scale replication projects are currently ongoing?",
-   "Is the Reproducibility Project: Psychology included in FReD?",
-   "Where can I find the Many Labs 3 replication data?",
-   "What projects are focused on experimental economics?",
-   "Which projects are still active in 2024?"
+   "What are some major large‑scale replication projects in psychology?",
+   "Where can I find the data for the Many Labs 3 replication study?",
+   "Which replication projects focus on medical research?",
+   "Is there a replication project that covers social sciences published in Nature or Science?",
+   "How can I access the Reproducibility Project: Cancer?"
   ],
   "page_kind": "listing",
   "freshness": "changes_often",
   "key_links": [
    {
-    "url": "https://forrt.org/replication-hub/submit/",
-    "label": "Submit a Replication"
-   },
-   {
     "url": "https://osf.io/ezcuj/",
     "label": "Reproducibility Project: Psychology"
-   },
-   {
-    "url": "https://osf.io/5z4a8/",
-    "label": "CORE"
-   },
-   {
-    "url": "https://manybabies.org",
-    "label": "Many Babies 1"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2023-09-09"
  },
  {
   "url": "https://forrt.org/educators-corner/015-academic-jobs-us-vs-uk/",
@@ -2878,18 +2847,24 @@
  },
  {
   "url": "https://forrt.org/newsletters/",
+  "lastmod": "2026-11-11T20:21:45+00:00",
   "title": "Newsletter Archives",
   "section": "newsletters",
-  "lastmod": "2026-10-06T12:37:17+02:00",
-  "date": null,
-  "chars": 4249,
-  "summary": "",
-  "use_when": "",
-  "example_questions": [],
-  "page_kind": "other",
-  "freshness": "static",
+  "chars": 2330,
+  "summary": "The page lists archived FORRT newsletters by month and year, providing links to each issue from 2022 through 2026. It also invites visitors to subscribe to receive future newsletters directly in their inbox.",
+  "use_when": "It answers questions about where to find past newsletters, how to subscribe, and which issues were published in a given year or month.",
+  "example_questions": [
+   "Where can I find the 2025 March FORRT newsletter?",
+   "How do I subscribe to the FORRT newsletter?",
+   "Which newsletters were released in 2024?",
+   "Where is the August 2022 FORRT newsletter?",
+   "How often does FORRT publish newsletters?"
+  ],
+  "page_kind": "listing",
+  "freshness": "changes_often",
   "key_links": [],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/nexus/",
@@ -3471,135 +3446,98 @@
  },
  {
   "url": "https://forrt.org/re-searchterms/",
+  "lastmod": "",
   "title": "Re-SearchTerms",
   "section": "re-searchterms",
-  "lastmod": "",
-  "date": null,
-  "chars": 11272,
-  "summary": "The Re-SearchTerms page presents a multilingual, community‑driven database that compares how research and open scholarship terms are defined across the FORRT Glossary, Wiktionary, and academic publications in English, German, and Chinese. It offers interactive analyses—word‑level, definition‑level, and term‑level—alongside a live community dashboard for tracking contributions and annotations, and provides video tutorials and a contribution workflow.",
-  "use_when": "When a user wants to explore how a specific research term is defined in different sources, compare definitions, analyze lexical patterns, or contribute new definitions and annotations to the multilingual dataset.",
+  "chars": 11884,
+  "summary": "The Re-SearchTerms page hosts a multilingual database of research and open scholarship terms, letting users compare definitions from the FORRT Glossary, Wiktionary, and academic publications in English, German, and Chinese. It offers word‑level, definition‑level, and term‑level analysis tools, a community dashboard for contributions, and video tutorials to guide users through the features.",
+  "use_when": "This page answers questions about how a research term is defined across different sources, how to compare semantic similarity of definitions, how to contribute new definitions, and how to use the analysis tools.",
   "example_questions": [
-   "How can I compare the definition of \"open science\" across FORRT and Wiktionary?",
-   "What tools does Re‑SearchTerms offer for analyzing word co‑occurrence in term definitions?",
-   "How do I submit a new definition in German for a term that lacks one?",
-   "Can I see the semantic similarity network of definitions for \"reproducibility\"?",
-   "Where can I find tutorials on using the Re‑SearchTerms analysis features?"
+   "How do definitions of \"open science\" differ between the FORRT Glossary and Wiktionary?",
+   "What tools can I use to compare the semantic similarity of definitions for \"reproducibility\"?",
+   "How can I contribute a new definition in German?",
+   "Where can I find the word‑frequency analysis for the term \"meta‑analysis\"?",
+   "What is the community contribution score and how is it calculated?"
   ],
-  "page_kind": "curated_resource",
-  "freshness": "changes_often",
+  "page_kind": "tool",
+  "freshness": "static",
   "key_links": [
    {
     "url": "https://osf.io/preprints/osf/qsp7x_v2",
-    "label": "Re‑SearchTerms Shiny app preprint"
-   },
-   {
-    "url": "https://annayileung.com/",
-    "label": "Anna Yi Leung"
-   },
-   {
-    "url": "https://uol.de/psychologie/statistik/daniel-kristanto",
-    "label": "Dr. Daniel Kristanto"
-   },
-   {
-    "url": "https://www.lmu.de/psy/de/forschung/meta-rep/",
-    "label": "META‑REP Priority Programme"
+    "label": "Re-SearchTerms Shiny app"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/flora-zotero/",
+  "lastmod": "",
   "title": "Replication Checker for Zotero",
   "section": "flora-zotero",
-  "lastmod": "",
-  "date": null,
-  "chars": 6339,
-  "summary": "The page describes the Replication Checker for Zotero plugin, a free tool that searches a Zotero library for replication and reproduction records in FLoRA and tags, notes, and adds related items. It explains how to install, run checks, what data is sent, and how results are interpreted, and provides download, documentation, and support links.",
-  "use_when": "Users wanting to know how to check their Zotero library for replication status, how the plugin works, how to install or troubleshoot, or how to interpret replication outcomes.",
+  "chars": 6187,
+  "summary": "The page describes the Replication Checker for Zotero, a free plugin that queries the FLoRA database for replication and reproduction attempts of papers in a Zotero library, then tags, notes, and adds related items to the library. It includes download links, installation instructions, release notes, privacy details, and links to the FLoRA Replication Atlas and reporting forms.",
+  "use_when": "Answers questions about installing, using, and understanding the privacy and functionality of the Replication Checker plugin for Zotero.",
   "example_questions": [
    "How do I install the Replication Checker for Zotero?",
-   "What does the plugin do when I run a check?",
-   "What information is sent to the FLoRA server?",
-   "Where can I find the plugin’s release notes?",
-   "How are replication outcomes displayed in my library?"
+   "What information does the plugin add to my Zotero items?",
+   "Does the plugin send my DOIs to a server?",
+   "Where can I find the release notes for the plugin?",
+   "How can I report a missing or incorrect replication record?"
   ],
-  "page_kind": "curated_resource",
-  "freshness": "static",
+  "page_kind": "tool",
+  "freshness": "changes_often",
   "key_links": [
    {
     "url": "https://github.com/forrtproject/flora-zotero/releases/latest",
     "label": "Download the plugin"
-   },
-   {
-    "url": "https://forrt.org/flora-zotero/documentation/installation/",
-    "label": "How to install"
-   },
-   {
-    "url": "https://github.com/forrtproject/flora-zotero/releases",
-    "label": "Release notes"
-   },
-   {
-    "url": "https://forrt.org/flora-replication-atlas/",
-    "label": "FLoRA Replication Atlas"
-   },
-   {
-    "url": "https://forrt.org/flora-zotero/documentation/what-gets-added/",
-    "label": "What lands in your library"
-   },
-   {
-    "url": "https://forrt.org/flora-zotero/documentation/citation/",
-    "label": "cite it"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/fred/",
+  "lastmod": "",
   "title": "Interfaces to the FORRT Replication Database • FReD",
   "section": "fred",
-  "lastmod": "",
-  "date": null,
-  "chars": 1184,
-  "summary": "The page describes the FReD package, which provides interfaces to the FORRT Replication Database. It includes a Shiny app called the FReD Explorer for exploring studies and assessing replicability, a FReD Annotator for tagging articles with replication findings, and R functions such as run_explorer() and load_fred_data() for direct access.",
-  "use_when": "When a user wants to explore replication data, assess effect sizes, annotate articles with replication status, or install the FReD R package.",
+  "chars": 1688,
+  "summary": "This page describes the FReD R package, which provides interfaces to the FORRT Replication Database. It offers a Shiny app called the FReD Explorer for interactive exploration of replication data, an FReD Annotator for tagging articles with replication findings, and R functions such as run_explorer() and load_fred_data() for programmatic access.",
+  "use_when": "When a user wants to explore replication studies interactively, annotate articles with replication evidence, or load the dataset into R for analysis.",
   "example_questions": [
-   "How can I explore the FORRT Replication Database?",
-   "What is the FReD Annotator and how do I use it?",
-   "Which R functions are available to access FReD data?",
-   "Where can I find the Shiny app for FReD?",
-   "How do I install the FReD package?"
+   "How can I launch the FReD Explorer app?",
+   "What R functions does the FReD package provide?",
+   "Where can I find the FReD Annotator?",
+   "How do I install the development version of FReD?",
+   "How do I load the FORRT replication data into R?"
   ],
-  "page_kind": "curated_resource",
+  "page_kind": "tool",
   "freshness": "static",
   "key_links": [
    {
     "url": "https://forrt-replications.shinyapps.io/fred_explorer/",
-    "label": "FReD Explorer"
-   },
-   {
-    "url": "https://forrt-replications.shinyapps.io/fred_annotator/",
-    "label": "FReD Annotator"
+    "label": "FReD Explorer online"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/flora-explorer/",
+  "lastmod": "",
   "title": "FLoRA Explorer: FORRT Library of Reproduction and Replication Attempts",
   "section": "flora-explorer",
-  "lastmod": "",
-  "date": null,
-  "chars": 20767,
-  "summary": "The FLoRA Explorer page presents the Framework for Open and Reproducible Research Training’s Library of Reproduction and Replication Attempts (FLoRA), a searchable database of reference pairs linking original studies to their replication or reproduction reports. Users can browse and filter these pairs, view outcome breakdowns, access related resources such as the Replication Atlas, FReD, and the FLoRA Zotero plugin, and submit missing entries or contact the community.",
-  "use_when": "It answers questions about where to find replication evidence, how to browse or filter reference pairs, how to cite FLoRA, and how to contribute or report missing data.",
+  "chars": 24888,
+  "summary": "The FLoRA Explorer page is a web interface for the FORRT Library of Reproduction and Replication Attempts (FLoRA). It lets users browse and filter reference pairs—each pair linking an original study to a replication or reproduction attempt—via a Browse tab or a Replication Atlas. The page also explains the difference between replications and reproductions, offers citation guidance, and links to related tools and data repositories.",
+  "use_when": "When a user wants to locate replication or reproduction attempts for a specific study, compare outcomes across disciplines, or understand how FLoRA records and codes these attempts.",
   "example_questions": [
-   "Where can I find a list of studies that have been replicated?",
-   "How do I browse FLoRA’s reference pairs by study type?",
+   "How can I find all replication attempts for a particular paper?",
    "What is the difference between a replication and a reproduction in FLoRA?",
-   "How do I cite the FLoRA Explorer dataset?",
-   "How can I submit a missing replication entry to FLoRA?"
+   "Where can I see the outcome breakdown of computational reproducibility?",
+   "Can I browse reference pairs by discipline or journal?",
+   "How do I cite the FLoRA Explorer data in my research?"
   ],
-  "page_kind": "listing",
+  "page_kind": "tool",
   "freshness": "changes_often",
   "key_links": [
    {
@@ -3611,114 +3549,98 @@
     "label": "Replication Atlas"
    },
    {
-    "url": "https://forrt.org/replication-hub/submit/",
-    "label": "Submit missing entries"
-   },
-   {
-    "url": "https://forrt.org/replication-hub/",
-    "label": "Contact community"
+    "url": "https://forrt.org/flora_zotero",
+    "label": "FLoRA Zotero Plugin"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/flora-pubpeer/",
+  "lastmod": "",
   "title": "RepNote",
   "section": "flora-pubpeer",
-  "lastmod": "",
-  "date": null,
-  "chars": 16,
-  "summary": "This page is a placeholder for the RepNote feature, currently showing a loading message.",
-  "use_when": "When a user wants to know about or access the RepNote tool for reporting or note-taking within the FORRT platform.",
+  "chars": 8,
+  "summary": "The page displays a loading message and contains no additional content.",
+  "use_when": "When a user wants to know what the RepNote page is about or what can be accessed there.",
   "example_questions": [
    "What is RepNote?",
-   "How do I use RepNote?",
+   "What can I do on the RepNote page?",
+   "Is RepNote available?",
    "Where can I find RepNote?",
-   "Is RepNote available on forrt.org?",
-   "Can I access RepNote from the main site?"
+   "What does the RepNote page show?"
   ],
   "page_kind": "other",
   "freshness": "static",
   "key_links": [],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/flora-validation/",
+  "lastmod": "",
   "title": "Flora Validator",
   "section": "flora-validation",
-  "lastmod": "",
-  "date": null,
-  "chars": 7430,
-  "summary": "The Flora Validator page provides a web interface for users to validate replication studies, earn points, and manage records in the FLoRA dataset. It includes onboarding tutorials, assignment lists, record tables, pipeline status, and tools for importing, exporting, and reviewing records.",
-  "use_when": "Users looking to sign up for validation work, check their assignment status, review or edit records, or understand how the FLoRA pipeline processes data will find this page useful.",
+  "chars": 130,
+  "summary": "Release notes for the Flora Validator tool, summarizing recent changes and updates since the last visit.",
+  "use_when": "When a user wants to know what new features, bug fixes, or updates have been made to Flora Validator.",
   "example_questions": [
-   "How do I sign up to validate studies on Flora Validator?",
-   "What assignments are currently available for me?",
-   "How can I view or edit a specific record in the FLoRA dataset?",
-   "Where can I find the latest pipeline run history?",
-   "How do I import new data from the extractor?"
+   "What new features were added to Flora Validator?",
+   "Has Flora Validator been updated recently?",
+   "What changes have been made to Flora Validator?",
+   "When was the last release of Flora Validator?",
+   "What does the latest release of Flora Validator include?"
   ],
-  "page_kind": "get_involved",
+  "page_kind": "tool",
   "freshness": "changes_often",
   "key_links": [],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/flora-replication-atlas/",
+  "lastmod": "",
   "title": "Has this study been replicated? — FLoRA Replication Atlas",
   "section": "flora-replication-atlas",
-  "lastmod": "",
-  "date": null,
-  "chars": 2231,
-  "summary": "This page explains how to use the FLoRA Replication Atlas to find all replication and reproduction attempts for a given study, showing outcomes, quoted passages, and links to original and replication papers. It lists browsing options by outcome, decade, and journal, and highlights the Atlas’s coverage of 2,847 original–replication pairings.",
-  "use_when": "When a user wants to know if a specific study has been replicated, what the outcomes were, or where to find the replication records and related discussions.",
+  "chars": 2276,
+  "summary": "This page introduces the FLoRA Replication Atlas, a searchable tool that lists every recorded replication or reproduction attempt for a given study, including the outcome, quoted passage, and source details. It explains how to browse the atlas by outcome, decade, or journal, and describes the data source and how records are displayed. The page also links to related resources such as the FLoRA Explorer and the FORRT Replication Hub.",
+  "use_when": "When a user wants to find out whether a specific study has been replicated, what the outcomes were, or where to locate the replication records.",
   "example_questions": [
    "Has the 1987 name letter effect study been replicated?",
-   "Where can I find all failed replications in the FLoRA Atlas?",
+   "Where can I see all failed replications in the FLoRA Atlas?",
    "What is the outcome of the Ziano et al. 2020 replication of Nuttin’s study?",
-   "How many original findings are paired with replications in the Atlas?",
-   "Where can I access the PubPeer thread for a specific replication?"
+   "How can I browse replications by decade?",
+   "Where does the FLoRA Replication Atlas get its data from?"
   ],
-  "page_kind": "listing",
+  "page_kind": "tool",
   "freshness": "changes_often",
   "key_links": [
    {
     "url": "https://forrt.org/flora-replication-atlas/browse/",
     "label": "All browse pages"
-   },
-   {
-    "url": "https://forrt.org/flora-replication-atlas/browse/outcome/failed/",
-    "label": "Failed replications"
-   },
-   {
-    "url": "https://forrt.org/flora-replication-atlas/browse/outcome/successful/",
-    "label": "Successful replications"
-   },
-   {
-    "url": "https://forrt.org/flora-explorer/",
-    "label": "FLoRA Explorer"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/chromium-extension/",
+  "lastmod": "",
   "title": "FORRT ORE — Open Research Extension",
   "section": "chromium-extension",
-  "lastmod": "",
-  "date": null,
-  "chars": 8074,
-  "summary": "The page describes the FORRT ORE (Open Research Extension) Chromium extension, detailing its features such as pill indicators for DOI status, open‑access, PubPeer discussion, and replication counts, a Meta Report panel, and how it works on search results, Google Sheets, and publisher sites. It explains installation steps for Chrome/Edge, manual install from GitHub, privacy policy, and data sources used.",
-  "use_when": "When a researcher wants to know how to install or use the ORE extension, what information it displays on paper pages, or how it retrieves replication and retraction data.",
+  "chars": 7919,
+  "summary": "The page explains the FORRT ORE (Open Research Extension), a Chrome/Edge browser extension that adds pill icons to research papers showing DOI status, open‑access availability, PubPeer discussion, and replication counts. It details how ORE works on search results, Google Sheets, and publisher sites, and provides installation, settings, and privacy information.",
+  "use_when": "It answers questions about installing, configuring, and understanding the features and privacy of the FORRT ORE extension.",
   "example_questions": [
-   "How do I install the FORRT ORE extension in Chrome?",
-   "What information does the pill next to a DOI show?",
-   "Can I use ORE on Google Sheets?",
-   "Where does ORE get its replication data from?",
-   "Is my contact email sent to Crossref when I use ORE?"
+   "How do I install the FORRT ORE extension?",
+   "What does the pill icon on a paper page indicate?",
+   "Can I disable ORE on a specific website?",
+   "Where does ORE obtain its replication data?",
+   "Does the extension send my browsing data to any server?"
   ],
-  "page_kind": "curated_resource",
-  "freshness": "static",
+  "page_kind": "tool",
+  "freshness": "changes_often",
   "key_links": [
    {
     "url": "https://chromewebstore.google.com/detail/forrt-ore-%E2%80%94-open-research/ffncppfcjjciahcjbpefhokklfcagodc?utm_source=item-share-cb",
@@ -3729,73 +3651,61 @@
     "label": "Download flora-extension.zip"
    },
    {
-    "url": "https://github.com/forrtproject/chromium-extension",
-    "label": "README"
-   },
-   {
     "url": "https://forrt.org/chromium-extension/privacy.html",
     "label": "Read the full privacy policy"
-   },
-   {
-    "url": "https://forrt.org/replication-database/",
-    "label": "FORRT Replication Database"
-   },
-   {
-    "url": "https://forrt.org/flora-replication-atlas/",
-    "label": "FLoRA Replication Atlas"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/best-practices-psychology/",
+  "lastmod": "",
   "title": "Best-Practice Guidelines for Psychology",
   "section": "best-practices-psychology",
-  "lastmod": "",
-  "date": null,
-  "chars": 14256,
-  "summary": "This page outlines a community project led by Dr. Lisa Spitzer to develop consensus‑based best‑practice guidelines for psychology that align with the TOP Guidelines, including a plan to create preregistration guidelines and a hackathon at SIPS Online.",
-  "use_when": "It answers questions about how psychology can adopt TOP Guidelines, where to find or contribute to the best‑practice guidelines, and what resources or events support this effort.",
+  "chars": 16987,
+  "summary": "This page outlines the development of consensus‑based best‑practice guidelines for psychology to support the TOP Guidelines’ most stringent level. It explains the need for discipline‑specific standards, describes the project’s goals, deliverables, target audiences, and provides an action plan with phases and a call for community involvement.",
+  "use_when": "It answers questions about what the best‑practice guidelines for psychology are, how they relate to the TOP Guidelines, who can contribute, and what the project’s phases and objectives are.",
   "example_questions": [
-   "How can psychology journals implement the TOP Guidelines’ certification level?",
-   "What is the plan for creating preregistration best‑practice guidelines?",
-   "Where can I join the hackathon to help develop these guidelines?",
-   "Who is leading the best‑practice guidelines project?",
-   "What resources are available for researchers to learn about TOP 2025?"
+   "What are the best‑practice guidelines for psychology and why are they needed?",
+   "How does the updated TOP Guidelines differ from the 2015 version?",
+   "Who can help develop these guidelines and how can I get involved?",
+   "Which groups are the guidelines intended for?",
+   "When will the next phase of the project begin?"
   ],
   "page_kind": "team_or_project",
   "freshness": "static",
   "key_links": [
    {
+    "url": "https://www.youtube.com/watch?v=E_i4mUMGLdc",
+    "label": "TOP 2025 webinar"
+   },
+   {
     "url": "https://www.cos.io/initiatives/top-guidelines",
-    "label": "TOP Guidelines details"
+    "label": "COS TOP Guidelines"
    },
    {
-    "url": "https://www.improvingpsych.org/SIPS2026/",
-    "label": "Register for SIPS Online"
-   },
-   {
-    "url": "https://forms.gle/yrmK8Wnd4oqwZLWKA",
-    "label": "Form to join project"
+    "url": "https://doi.org/10.1037/amp0000879",
+    "label": "Bosnjak et al. 2022"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/diamond-reviewer/",
+  "lastmod": "",
   "title": "Diamond Reviewer Pledge",
   "section": "diamond-reviewer",
-  "lastmod": "",
-  "date": null,
-  "chars": 16420,
-  "summary": "The page presents the Diamond Reviewer Pledge, encouraging scholars to commit to reviewing at least one article per year for diamond open‑access journals. It explains what diamond journals are, why reviewing for them matters, how to identify such journals, and provides guidelines for reviewers and editors.",
-  "use_when": "When a researcher wants to learn how to support diamond open‑access publishing, find out how to identify diamond journals, or understand the pledge’s requirements and benefits.",
+  "chars": 17685,
+  "summary": "The page presents the Diamond Reviewer Pledge, inviting scholars to commit to reviewing at least one article per year for a diamond open‑access journal. It explains what diamond journals are, why reviewing for them matters, how to identify such journals (via Diamond Discovery Hub, DOAJ, Open Journals, OpenAlex, Free Journal Network, DOAB), offers guidelines for reviewers, and provides a badge that signatories can display. The page also includes a link to sign the pledge and resources such as the badge PNG and flyer.",
+  "use_when": "When a researcher wants to learn how to become a diamond reviewer, how to find diamond journals, or how to display the pledge badge.",
   "example_questions": [
-   "What is the Diamond Reviewer Pledge and how do I sign it?",
-   "How can I tell if a journal is diamond open access?",
-   "What guidelines should I follow when reviewing for a diamond journal?",
-   "Why is reviewing for diamond journals important?",
-   "How can editors make their journals more discoverable as diamond open access?"
+   "How do I sign the Diamond Reviewer Pledge?",
+   "What makes a journal a diamond open‑access journal?",
+   "Where can I find a list of diamond journals?",
+   "What are the guidelines for reviewing for a diamond journal?",
+   "How can I display the Diamond Reviewer badge on my website?"
   ],
   "page_kind": "get_involved",
   "freshness": "static",
@@ -3803,129 +3713,113 @@
    {
     "url": "https://ddh.edch.eu/en",
     "label": "Diamond Discovery Hub"
-   },
-   {
-    "url": "https://doaj.org/search/journals",
-    "label": "DOAJ"
-   },
-   {
-    "url": "https://lukasroeseler.github.io/openjournals/",
-    "label": "Open Journals"
-   },
-   {
-    "url": "https://openalex.org/sources",
-    "label": "OpenAlex"
-   },
-   {
-    "url": "https://freejournals.org",
-    "label": "Free Journal Network"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/journalranking/",
+  "lastmod": "",
   "title": "The Journal Replicability Tracker",
   "section": "journalranking",
-  "lastmod": "",
-  "date": null,
-  "chars": 4803,
-  "summary": "The page presents a living report called the Journal Replicability Tracker, showing which journals publish replication attempts and which journals originally published the studies being replicated. It includes charts, a sortable table, and links to the underlying dataset and licensing information.",
-  "use_when": "When a user wants to know which journals are actively publishing replication studies, which journals are frequently targeted for replication, or how to access the detailed replication data for specific journals.",
+  "chars": 5871,
+  "summary": "The Journal Replicability Tracker is a dynamic report that tracks where replication studies are published, which journals publish replication attempts, and which journals originally published the studies being replicated. It visualises the ‘pottery barn rule’—whether journals publish all subsequent replications of their articles—and provides a sortable table of all targeted studies. The page also links to the underlying FORRT Library of Reproduction and Replication Attempts (FLoRA) and cites the dataset under a CC‑BY 4.0 license.",
+  "use_when": "Use this page when you want to know which journals are actively publishing replication attempts, which journals have their studies replicated, or how well journals adhere to the pottery barn rule. It also helps locate the full dataset for further analysis.",
   "example_questions": [
-   "Which journals publish the most replication attempts?",
-   "Which journals have the highest number of studies that have been replicated?",
-   "How can I view the detailed replication outcomes for a specific journal?",
+   "Which journals publish the most replication studies?",
+   "Does a particular journal follow the pottery barn rule?",
    "Where can I find the dataset used for this tracker?",
-   "What is the licensing for the data and the report?"
+   "Which journals originally published the studies that are being replicated?",
+   "How often does this report update its data?"
   ],
-  "page_kind": "curated_resource",
+  "page_kind": "tool",
   "freshness": "changes_often",
   "key_links": [
    {
-    "url": "https://github.com/forrtproject/FReD-data/blob/main/output/citation.txt",
-    "label": "Dataset citation"
+    "url": "https://forrt.org/replication-hub/flora/",
+    "label": "FLoRA Library"
+   },
+   {
+    "url": "https://thehardestscience.com/2012/09/27/a-pottery-barn-rule-for-scientific-journals",
+    "label": "Pottery Barn Rule article"
    },
    {
     "url": "https://creativecommons.org/licenses/by/4.0/",
-    "label": "CC-BY 4.0 license"
+    "label": "CC‑BY 4.0 license"
+   },
+   {
+    "url": "https://github.com/forrtproject/FReD-data/blob/main/output/citation.txt",
+    "label": "Citation guide"
+   },
+   {
+    "url": "https://doi.org/10.17605/OSF.IO/9R62X",
+    "label": "FLoRA dataset DOI"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/love-replications-week/",
+  "lastmod": "",
   "title": "Love Replications Week",
   "section": "love-replications-week",
-  "lastmod": "",
-  "date": null,
-  "chars": 11287,
-  "summary": "The page details the 2026 Love Replications Week, a week‑long event focused on reproducibility and replication research, including a schedule of talks, tutorials, and workshops by 17 speakers. It lists speakers, topics, dates, times, and provides links to slides, videos, and speaker profiles, and invites users to join the FORRT Slack for updates.",
-  "use_when": "When a user wants to know what the Love Replications Week was, who spoke, what topics were covered, or how to get involved or find resources from the event.",
+  "chars": 12655,
+  "summary": "The page details the 2026 Love Replications Week, a week‑long event focused on reproducibility and replication research. It lists the full program from March 2–6, including speakers, talk titles, times, and links to slides and videos. It also invites readers to contribute to future events and join the FORRT Slack community.",
+  "use_when": "It answers questions about the schedule, speakers, and resources (slides, videos) of Love Replications Week 2026, and how to get involved in future iterations.",
   "example_questions": [
-   "What was the schedule for the 2026 Love Replications Week?",
-   "Who presented on reproducibility in language sciences?",
+   "What was the schedule for Love Replications Week 2026?",
+   "Who presented on reproducibility in the language sciences?",
    "Where can I find the slides for the ReproCheck project talk?",
-   "How can I join the community for future Love Replications Week events?",
-   "What resources are available for learning about replication journals?"
+   "How can I contribute to a future Love Replications Week?",
+   "Is there a video recording of the multiverse analysis workshop?"
   ],
   "page_kind": "event_or_news",
-  "freshness": "changes_often",
+  "freshness": "static",
   "key_links": [
    {
     "url": "https://join.slack.com/t/forrt/shared_invite/enQtODMwODI0OTk4ODgzLTM0ZTQ3NDk5MzA1ZjBmNWJjYTVlN2Y2YTk0ZTJhYTY5NDliMDYzMjg2MWE0ZDRhOTY0ZDY3OTRlNDA4ODQ3NjQ",
     "label": "FORRT Slack"
-   },
-   {
-    "url": "https://doi.org/10.5281/zenodo.18903438",
-    "label": "Slides – Reproducibility in language sciences"
-   },
-   {
-    "url": "https://doi.org/10.5281/zenodo.18823102",
-    "label": "Slides – Reproducibility Study Speedrun"
-   },
-   {
-    "url": "https://doi.org/10.5281/zenodo.18838199",
-    "label": "Slides – Multiverse Analysis"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/map-community/",
+  "lastmod": "",
   "title": "FORRT Lens",
   "section": "map-community",
-  "lastmod": "",
-  "date": null,
   "chars": 102,
-  "summary": "The page introduces the FORRT Lens, a section of the FORRT website that maps the community, its visitors, and the outputs produced by FORRT.",
-  "use_when": "It answers questions about who is part of the FORRT community, who visits the site, and what content or resources FORRT generates.",
+  "summary": "The page introduces the FORRT Lens, a section that highlights where the FORRT community is located, who visits forrt.org, and what the organization produces.",
+  "use_when": "It answers questions about the geographic distribution of the FORRT community, visitor demographics, and the types of outputs or resources produced by FORRT.",
   "example_questions": [
-   "Who are the main members of the FORRT community?",
-   "What types of visitors frequent forrt.org?",
-   "What outputs does FORRT produce?",
-   "How can I learn more about the FORRT community?",
-   "What is the purpose of the FORRT Lens?"
+   "Where is the FORRT community located?",
+   "Who visits forrt.org?",
+   "What does FORRT produce?",
+   "How many visitors does the site have?",
+   "What kind of content does FORRT produce?"
   ],
-  "page_kind": "other",
+  "page_kind": "listing",
   "freshness": "static",
   "key_links": [],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/marco/",
+  "lastmod": "",
   "title": "Making Replications Count",
   "section": "marco",
-  "lastmod": "",
-  "date": null,
-  "chars": 4148,
-  "summary": "The page presents the UKRI‑funded \"Making Replications Count\" project, detailing tools that surface replication information (a Replication Atlas, a browser extension, a Zotero plug‑in, and an Explorer) and ongoing studies on replication impact. It lists the project team, advisory board, hackathon events, and partner institutions.",
-  "use_when": "When a user wants to find out how to discover or track replication attempts, or learn about the project’s research and events.",
+  "chars": 4149,
+  "summary": "The Making Replications Count page describes a UKRI‑funded project that builds tools to make replication attempts visible in research workflows. It lists several tools—Replication Atlas, a browser extension (FORRT ORE), a Zotero plug‑in, and FLoRA Explorer—along with ongoing studies and upcoming hackathons. The page also names the project team, advisory board, and partners.",
+  "use_when": "It answers questions about how to find replication information, what tools are available to highlight replications, how to use those tools, who is leading the project, and when the next hackathon will take place.",
   "example_questions": [
-   "How can I see if a paper has been replicated?",
-   "What tools does the project offer for researchers?",
-   "Who are the people leading the Making Replications Count project?",
-   "When and where are the next hackathons?",
+   "What tools can I use to see if a paper has been replicated?",
+   "How does the browser extension FORRT ORE work?",
+   "Who are the researchers behind Making Replications Count?",
+   "When is the next Münster hackathon?",
    "What studies are being conducted on replication impact?"
   ],
   "page_kind": "team_or_project",
@@ -3937,117 +3831,94 @@
    },
    {
     "url": "https://chromewebstore.google.com/detail/kdbmghoddafabpjdnjhocollhjefcnco",
-    "label": "FORRT ORE extension"
+    "label": "Add to Chrome"
    },
    {
     "url": "https://github.com/forrtproject/flora-zotero/releases/latest",
     "label": "Zotero plug‑in"
-   },
-   {
-    "url": "https://forrt.org/flora-explorer/",
-    "label": "FLoRA Explorer"
-   },
-   {
-    "url": "https://indico.uni-muenster.de/event/4370/",
-    "label": "Fall Hackathon event"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/open-social-psychology/",
+  "lastmod": "",
   "title": "Open Social Psychology",
   "section": "open-social-psychology",
-  "lastmod": "",
-  "date": null,
-  "chars": 1568,
-  "summary": "The page presents an open educational resource book titled \"Open Social Psychology,\" detailing its publication by Open Press Tilburg University, its CC-BY 4.0 license, and its focus on modernizing social psychology education.",
-  "use_when": "When a user wants to learn about or access an open textbook on contemporary social psychology, or seeks information on the book’s publisher, license, or content focus.",
+  "chars": 1542,
+  "summary": "This page provides details about the open educational resource book *Open Social Psychology*, including its publisher (Open Press Tilburg University), license (CC‑BY 4.0), and a brief preface describing its purpose to update social‑psychology teaching materials. It notes that the ISBN is forthcoming and the cover image is generated by the editor.",
+  "use_when": "It answers questions about the Open Social Psychology book, such as its publisher, licensing, availability, and purpose as an open educational resource.",
   "example_questions": [
-   "What is the Open Social Psychology book about?",
-   "Who publishes the Open Social Psychology resource?",
-   "Is the Open Social Psychology book open access?",
+   "What is the Open Social Psychology book?",
+   "Who publishes the Open Social Psychology book?",
    "What license does the Open Social Psychology book use?",
-   "Where can I find the Open Social Psychology book?"
+   "Is the ISBN for the Open Social Psychology book available?",
+   "What is the purpose of the Open Social Psychology book?"
   ],
   "page_kind": "teaching_material",
   "freshness": "static",
   "key_links": [],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/replicate-this/",
+  "lastmod": "",
   "title": "Replicate This — Replication Registry",
   "section": "replicate-this",
-  "lastmod": "",
-  "date": null,
   "chars": 135,
-  "summary": "Replicate This is a community‑driven registry that allows users to nominate research papers that deserve independent replication. The page explains the purpose of the registry and invites participation.",
-  "use_when": "When a user wants to find or submit a paper for replication, or learn how to nominate a study for independent replication.",
+  "summary": "Replicate This is a community‑driven registry where users can nominate research papers that deserve independent replication. The page explains the purpose of the registry and invites participation in the nomination process.",
+  "use_when": "When a user wants to find out how to nominate a paper for replication or learn about the registry’s role in promoting reproducible research.",
   "example_questions": [
-   "How can I nominate a paper for replication?",
-   "What is the Replicate This registry?",
-   "Which papers are currently listed for replication?",
-   "How does the nomination process work?",
-   "Can I see examples of papers that have been nominated?"
+   "How can I nominate a paper for replication on Replicate This?",
+   "What is the purpose of the Replicate This registry?",
+   "Who can submit nominations to Replicate This?",
+   "Is Replicate This open to all researchers?",
+   "What criteria are used to select papers for replication?"
   ],
   "page_kind": "listing",
   "freshness": "changes_often",
   "key_links": [],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/replicatethis/",
+  "lastmod": "",
   "title": "Replicate This",
   "section": "replicatethis",
-  "lastmod": "",
-  "date": null,
-  "chars": 664,
-  "summary": "The Replicate This page hosts a community registry for nominating research papers that should be independently replicated. Users can submit nominations via a GitHub issue, view approved nominations on the site, and claim studies to replicate with others.",
-  "use_when": "When a user wants to find or nominate a study for replication, or to see which studies have been approved for replication.",
-  "example_questions": [
-   "How do I nominate a paper for replication?",
-   "Where can I see the list of studies that have been approved for replication?",
-   "What is the process for claiming a study to replicate?",
-   "Can I collaborate with others on a replication?",
-   "Where can I find the leaderboard of replicated studies?"
-  ],
-  "page_kind": "listing",
-  "freshness": "changes_often",
-  "key_links": [
-   {
-    "url": "https://github.com/forrtproject/replicatethis/issues/new?template=nomination.yml",
-    "label": "Nominate a Study"
-   },
-   {
-    "url": "https://forrt.org/replicatethis/browse/",
-    "label": "Browse Registry"
-   }
-  ],
-  "described_by": "openai/gpt-oss-20b"
+  "chars": 821,
+  "summary": "Informing the scientific process through collaborative reproduction and replication. An ongoing community registry for nominating published research papers that merit independent verification across all disciplines. ### How it works - **Nominate:** Submit a structured GitHub Issue detailing a paper's DOI and why it should be replicated. - **Moderate:** Maintainers review submissions for scientific",
+  "use_when": "",
+  "example_questions": [],
+  "page_kind": "other",
+  "freshness": "static",
+  "key_links": [],
+  "described_by": "page start",
+  "date": null
  },
  {
   "url": "https://forrt.org/replication-handbook/",
+  "lastmod": "",
   "title": "Handbook for Reproduction and Replication Studies",
   "section": "replication-handbook",
-  "lastmod": "",
-  "date": null,
-  "chars": 1917,
-  "summary": "The page presents a preliminary Handbook for Reproduction and Replication Studies, outlining guidelines for conducting high‑quality reproductions and replications in social sciences. It includes a summary of recent developments, a comprehensive guide covering the entire research process, and an example of field‑specific tailoring. Contact information and a GitHub issue tracker are provided for feedback.",
-  "use_when": "When a researcher wants to learn how to design, execute, analyze, and report a reproduction or replication study, or needs guidance on best practices and recent developments in the field.",
+  "chars": 1884,
+  "summary": "This page presents a preliminary handbook (Version 0.1) on conducting high‑quality reproductions and replications in social science research. It outlines the entire research process—from selecting a target study to publishing results—and includes guidelines, examples, and citation information. The handbook is available for download and can be cited via a DOI link.",
+  "use_when": "Users looking for a structured guide on how to design, execute, and report reproduction or replication studies in social sciences will find this handbook useful. It also serves those who want to understand the current best practices and guidelines in open science and meta‑research.",
   "example_questions": [
-   "What are the steps for planning a replication study in social science?",
-   "How can I cite the Handbook for Reproduction and Replication Studies?",
-   "Where can I submit feedback or report issues with the handbook?",
-   "What guidelines does the handbook recommend for analyzing replication results?",
-   "Is there an example of field‑specific guidance in the handbook?"
+   "What is the difference between a reproduction and a replication study?",
+   "How can I plan a replication study for a social science experiment?",
+   "Where can I find guidelines for reporting replication results?",
+   "How do I cite the Handbook for Reproduction and Replication Studies?",
+   "What are the latest developments in reproducibility guidelines for social sciences?"
   ],
   "page_kind": "teaching_material",
-  "freshness": "static",
+  "freshness": "changes_often",
   "key_links": [
    {
     "url": "mailto:lukas.roeseler@uni-muenster.de",
-    "label": "Contact Author"
+    "label": "Email"
    },
    {
     "url": "https://github.com/forrtproject/replication-handbook/issues",
@@ -4058,1023 +3929,1016 @@
     "label": "DOI"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/reprocrowd/",
+  "lastmod": "",
   "title": "ReproCrowd: crowdsourced numerical reproductions",
   "section": "reprocrowd",
-  "lastmod": "",
-  "date": null,
-  "chars": 2181,
-  "summary": "The page introduces ReproCrowd, a crowdsourced platform for checking numerical reproducibility of research papers. It explains a step‑by‑step workflow: selecting a paper, running a reproducibility check via the ReproCrowd app, submitting a signed report to a GitHub repository, and sharing the results in the FLoRA Replication Atlas. The page also notes that the web app is under construction and currently uses a GitHub workflow, and it displays a placeholder table of fictitious reproduction results.",
-  "use_when": "When a researcher wants to quickly test and publish a reproducibility check for a paper, or when someone wants to learn how ReproCrowd collects and signs reproducibility reports.",
+  "chars": 4608,
+  "summary": "This page introduces ReproCrowd, a crowdsourced platform for AI‑assisted numerical reproductions. It explains the workflow for checking reproducibility, provides a downloadable desktop app, and links to a database of submitted reproductions and the FLoRA Replication Atlas.",
+  "use_when": "It answers questions about how to run a reproducibility check, how to download and install the ReproCrowd app, and where to find or submit reproducibility reports.",
   "example_questions": [
-   "How do I submit a reproducibility check to ReproCrowd?",
-   "What is the workflow for running a reproducibility check?",
-   "Where are ReproCrowd reports stored?",
-   "Can I see example reproduction results?",
-   "What does the ReproCrowd app currently support?"
+   "How do I run a reproducibility check with ReproCrowd?",
+   "Where can I download the ReproCrowd desktop app?",
+   "What is the workflow for submitting a reproducibility report?",
+   "Which organizations built ReproCrowd?",
+   "Where can I view the database of reproducibility results?"
   ],
-  "page_kind": "curated_resource",
+  "page_kind": "tool",
   "freshness": "static",
   "key_links": [
    {
-    "url": "https://github.com/LukasRoeseler/reprocrowd",
-    "label": "GitHub workflow"
-   },
-   {
-    "url": "https://forrt.org/flora-replication-atlas",
-    "label": "FLoRA Replication Atlas"
+    "url": "https://github.com/forrtproject/reprocrowd-app/releases",
+    "label": "Download latest release"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/rjf/",
+  "lastmod": "",
   "title": "Replication Journal Federation",
   "section": "rjf",
-  "lastmod": "",
-  "date": null,
-  "chars": 4201,
-  "summary": "The Replication Journal Federation page introduces the RJF, a network of diamond open‑access, non‑commercial journals focused on replication research, launched in April 2026. It lists member journals, their disciplines, and key differences, provides links to each journal’s site, and highlights activities such as the ReplicateThis registry and workshops.",
-  "use_when": "When a user wants to learn about the RJF, find a suitable replication journal to submit to, or discover resources and events for replication research.",
+  "chars": 4946,
+  "summary": "The Replication Journal Federation (RJF) page introduces a network of diamond open‑access, not‑for‑profit journals focused on replication research, lists each member journal with brief descriptions, provides a guidance table for authors, and highlights community activities such as the ReplicateThis registry and workshops.",
+  "use_when": "It answers questions about which replication journals exist, how to choose a journal for a submission, where to find replication resources, and how to get involved in the RJF community.",
   "example_questions": [
-   "What is the Replication Journal Federation and when did it launch?",
-   "Which journals are part of the RJF and what disciplines do they cover?",
-   "How can I submit a replication study to an RJF member journal?",
-   "Where can I find the ReplicateThis registry for replication candidates?",
-   "What workshops does the RJF offer for replication training?"
+   "What journals are part of the Replication Journal Federation?",
+   "How do I decide which RJF journal to submit my replication study to?",
+   "Where can I find a registry of studies that need replication?",
+   "What workshops does the RJF offer for replication training?",
+   "How can I subscribe to updates on new RJF publications?"
   ],
   "page_kind": "listing",
-  "freshness": "changes_often",
+  "freshness": "static",
   "key_links": [
    {
     "url": "https://forrt.org/rjf/feed.xml",
-    "label": "RSS feed"
-   },
-   {
-    "url": "https://docs.google.com/forms/d/e/1FAIpQLScktynmACLlyYc7Ezp1dmcEWoyvr02Xy2D59F8o3JZyhCCaGw/viewform",
-    "label": "Pre‑submission inquiry"
+    "label": "Subscribe via RSS"
    },
    {
     "url": "https://forrt.org/replicatethis/",
-    "label": "ReplicateThis"
+    "label": "ReplicateThis registry"
    },
    {
     "url": "https://forrt.org/LoveReplicationsWeek/",
-    "label": "Love Replications Week"
+    "label": "Workshops"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/handbook/",
+  "lastmod": "",
   "title": "1 Project Management Handbook",
   "section": "handbook",
-  "lastmod": "",
-  "date": null,
-  "chars": 1316,
-  "summary": "The page provides a Project Management Handbook for FORRT, including a history of changes, a list of abbreviations used in the handbook, and a placeholder section for linked FORRT resources such as the website, Slack, mailing list, internal docs, and templates.",
-  "use_when": "When a user wants to understand the structure of the FORRT Project Management Handbook, find definitions of abbreviations, or learn about the handbook’s revision history.",
+  "chars": 1289,
+  "summary": "This page presents the 1 Project Management Handbook for the FORRT initiative, detailing its adaptation history, a comprehensive list of abbreviations used throughout the handbook, and a placeholder for linked FORRT resources such as templates and internal documents.",
+  "use_when": "It answers questions about the structure and terminology of the FORRT Project Management Handbook, its adaptation timeline, and where to find related resources.",
   "example_questions": [
    "What is the history of changes to the FORRT Project Management Handbook?",
-   "What does the abbreviation DMP stand for in the handbook?",
-   "Where can I find the templates mentioned in the handbook?",
-   "What resources are linked in the handbook?",
-   "What does the abbreviation WP mean in the context of FORRT?"
+   "Which abbreviations are used in the FORRT handbook?",
+   "Where can I find the chapter 1 introduction of the handbook?",
+   "What resources are linked in the FORRT handbook?",
+   "How has the iRise handbook been adapted for FORRT?"
   ],
   "page_kind": "teaching_material",
   "freshness": "static",
   "key_links": [
    {
     "url": "https://forrt.org/handbook/index.html",
-    "label": "Handbook Index"
+    "label": "handbook index"
    },
    {
     "url": "https://forrt.org/handbook/chapter-1-introduction.html",
-    "label": "Chapter 1 Introduction"
+    "label": "chapter 1 introduction"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/transform-to-open-science-book/",
+  "lastmod": "",
   "title": "TOPS Open Science 101",
   "section": "transform-to-open-science-book",
-  "lastmod": "",
-  "date": null,
-  "chars": 2418,
-  "summary": "The page introduces the TOPS Open Science 101 guide, explaining what open science is according to the U.S. government, its benefits for inclusivity and reproducibility, and outlines the journey toward open science for labs, funding bodies, and researchers.",
-  "use_when": "When a user wants to understand the definition of open science, its principles, or how to start adopting open science practices in their research or organization.",
+  "chars": 2391,
+  "summary": "This page is an introductory guide to the Transform to Open Science (TOPS) initiative, explaining the U.S. government definition of open science, its benefits, and the journey toward inclusive, transparent research practices. It encourages labs, funding bodies, and individual researchers to adopt open science principles and offers guidance on how to get involved.",
+  "use_when": "When a user wants to understand what open science means, how TOPS promotes it, or how they can participate in the open science movement.",
   "example_questions": [
-   "What does the U.S. government define as open science?",
-   "How can open science improve inclusivity in research?",
-   "What are the benefits of sharing data and code in open science?",
-   "What is the open science journey described in the TOPS guide?",
-   "Why is transparency important in the scientific process?"
+   "What is open science and why is it important?",
+   "How does TOPS help researchers adopt open science practices?",
+   "What are the benefits of sharing data, code, and results openly?",
+   "What steps can a research lab take to become more open and inclusive?",
+   "Where can I find resources or guidelines for implementing open science in my projects?"
   ],
   "page_kind": "teaching_material",
   "freshness": "static",
   "key_links": [
    {
     "url": "https://open.science.gov/",
-    "label": "Open Science definition"
+    "label": "defines"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/annotator/",
+  "lastmod": "",
   "title": "FLoRA Annotator",
   "section": "annotator",
-  "lastmod": "",
-  "date": null,
   "chars": 162,
-  "summary": "The FLoRA Annotator page describes a tool that lets users search for replication and reproduction attempts for any reference, using the FORRT Library of Reproduction and Replication Attempts (FLoRA). It explains that the annotator can be used to locate and reference these attempts within research work.",
-  "use_when": "This page is useful when a researcher wants to find documented replication or reproduction attempts for a specific study or reference, or when someone needs guidance on how to annotate a paper with FLoRA data.",
+  "summary": "The FLoRA Annotator page provides a tool for searching the FORRT Library of Reproduction and Replication Attempts (FLoRA) to find replication and reproduction attempts for any reference. It allows users to look up whether a particular study has been replicated or reproduced and to view the associated attempts.",
+  "use_when": "This page answers questions about locating replication or reproduction attempts for a specific research reference, checking the status of a study’s reproducibility, and accessing the FLoRA database for detailed attempt records.",
   "example_questions": [
-   "How can I find replication attempts for a particular paper?",
-   "What is the FLoRA Annotator and how does it work?",
-   "Can I use the FLoRA Annotator to add replication info to my manuscript?",
-   "Where does the FLoRA Annotator get its data from?",
-   "Is the FLoRA Annotator available for open-source projects?"
+   "How can I find out if a paper has been replicated?",
+   "Where can I look up reproduction attempts for a specific study?",
+   "Does the FLoRA library contain replication data for this reference?",
+   "How do I search for replication attempts in the FORRT database?",
+   "What information does the FLoRA Annotator provide about a study’s reproducibility?"
   ],
-  "page_kind": "curated_resource",
+  "page_kind": "tool",
   "freshness": "static",
   "key_links": [],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/awop_app/",
+  "lastmod": "",
   "title": "Academic Wheel of Privilege (AWoP)",
   "section": "awop_app",
-  "lastmod": "",
-  "date": null,
   "chars": 187,
-  "summary": "The page introduces the Academic Wheel of Privilege (AWoP), an equity-based tool designed to help research teams assess and balance privilege across socio-cultural identities when determining authorship order, aiming for fairer and more transparent authorship decisions.",
-  "use_when": "It answers questions about how to evaluate privilege in research teams, how to use the AWoP tool, and how to apply it to authorship ordering.",
-  "example_questions": [
-   "What is the Academic Wheel of Privilege and how does it work?",
-   "How can I use AWoP to make authorship order fairer?",
-   "Does AWoP help with equity in research teams?",
-   "What socio-cultural identities does AWoP consider?",
-   "Can AWoP be applied to interdisciplinary research projects?"
-  ],
-  "page_kind": "curated_resource",
-  "freshness": "static",
-  "key_links": [],
-  "described_by": "openai/gpt-oss-20b"
- },
- {
-  "url": "https://forrt.org/explorer/",
-  "title": "FReD Explorer",
-  "section": "explorer",
-  "lastmod": "",
-  "date": null,
-  "chars": 123,
-  "summary": "The FReD Explorer page provides a tool to browse and filter the FORRT Replication Database (FReD), allowing users to search for replication studies and view their outcomes.",
-  "use_when": "When a user wants to find specific replication studies, compare results, or explore the database of replication experiments.",
-  "example_questions": [
-   "How can I find replication studies on a particular topic?",
-   "What are the outcomes of the replication studies listed in FReD?",
-   "Can I filter replication studies by publication year?",
-   "Is there a way to compare original and replication results?",
-   "Where can I access the full dataset of replication studies?"
-  ],
-  "page_kind": "listing",
-  "freshness": "static",
-  "key_links": [],
-  "described_by": "openai/gpt-oss-20b"
- },
- {
-  "url": "https://forrt.org/flora/",
-  "title": "https://forrt.org/replication-hub/flora/",
-  "section": "flora",
-  "lastmod": "",
-  "date": null,
-  "chars": 94,
-  "summary": "This page indicates that the original content has moved and provides a link to the new location at https://forrt.org/replication-hub/flora/.",
-  "use_when": "When a user wants to access the Flora replication hub or find out where the original page has relocated.",
-  "example_questions": [
-   "Where can I find the Flora replication hub?",
-   "Has the Flora page moved?",
-   "What is the new URL for the Flora replication hub?",
-   "How do I access the Flora resource?",
-   "Is the Flora page still available?"
-  ],
-  "page_kind": "other",
-  "freshness": "static",
-  "key_links": [
-   {
-    "url": "https://forrt.org/replication-hub/flora/",
-    "label": "Continue to the new location"
-   }
-  ],
-  "described_by": "openai/gpt-oss-20b"
- },
- {
-  "url": "https://forrt.org/glossary/",
-  "title": "https://forrt.org/glossary/english/",
-  "section": "glossary",
-  "lastmod": "",
-  "date": null,
-  "chars": 89,
-  "summary": "This page has moved. [Continue to the new location](https://forrt.org/glossary/english/).",
+  "summary": "# Academic Wheel of Privilege (AWoP) An equity-based tool that helps research teams weigh privilege across socio-cultural identities to make authorship order fairer and more transparent.",
   "use_when": "",
   "example_questions": [],
   "page_kind": "other",
   "freshness": "static",
   "key_links": [],
-  "described_by": "heuristic (LLM reply not JSON: openai/gpt-oss-20b)"
+  "described_by": "page start",
+  "date": null
+ },
+ {
+  "url": "https://forrt.org/explorer/",
+  "lastmod": "",
+  "title": "FReD Explorer",
+  "section": "explorer",
+  "chars": 123,
+  "summary": "The FReD Explorer page provides an interface to browse and filter the FORRT Replication Database (FReD), allowing users to search for replication studies and view their outcomes.",
+  "use_when": "It answers questions about how to find specific replication studies, what results they produced, and how to navigate the database.",
+  "example_questions": [
+   "How can I find replication studies on a particular topic?",
+   "What are the outcomes of the replication studies listed in FReD?",
+   "Can I filter the database by publication year?",
+   "Is there a way to compare original and replication results?",
+   "Where can I access the full data for a specific replication study?"
+  ],
+  "page_kind": "tool",
+  "freshness": "static",
+  "key_links": [],
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
+ },
+ {
+  "url": "https://forrt.org/flora/",
+  "lastmod": "",
+  "title": "FORRT Library of Reproduction and Replication Attempts",
+  "section": "flora",
+  "chars": 6420,
+  "summary": "The FORRT Library of Reproduction and Replication Attempts (FLoRA) tracks studies that intentionally repeat or computationally reproduce published findings across the sciences and humanities. It sets clear criteria for what counts as a replication or reproduction, tags outcomes as Successful, Failed, or Mixed, and links each attempt to the original reference. The page also provides a link to the FLoRA Annotator tool, citation details for the dataset, and the CC BY 4.0 license.",
+  "use_when": "This page helps users who want to locate or contribute replication and reproduction attempts, understand the criteria and outcome tags used by FLoRA, or find the associated annotation tool and citation information.",
+  "example_questions": [
+   "What qualifies as a replication in FLoRA?",
+   "How does FLoRA distinguish between a replication and a reproduction?",
+   "Where can I find the FLoRA Annotator tool?",
+   "How are replication outcomes labeled in FLoRA?",
+   "How do I cite the FLoRA dataset?"
+  ],
+  "page_kind": "listing",
+  "freshness": "changes_often",
+  "key_links": [
+   {
+    "url": "https://forrt.org/annotator/",
+    "label": "FLoRA Annotator"
+   },
+   {
+    "url": "https://doi.org/10.17605/OSF.IO/9R62X",
+    "label": "FLoRA dataset DOI"
+   },
+   {
+    "url": "https://creativecommons.org/licenses/by/4.0/",
+    "label": "CC BY 4.0 license"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
+ },
+ {
+  "url": "https://forrt.org/glossary/",
+  "lastmod": "",
+  "title": "Glossary",
+  "section": "glossary",
+  "chars": 16722,
+  "summary": "The FORRT Glossary page introduces the community‑sourced glossary of open scholarship terms, outlines its development phases, and provides resources for users and contributors. It links to the glossary in multiple languages, the Phase 2 contribution documents, the published paper, version‑controlled archives, and contact channels such as Slack.",
+  "use_when": "Answers questions about what the FORRT glossary is, how to use or contribute to it, where to find the published paper, and how to stay updated.",
+  "example_questions": [
+   "What is the FORRT glossary and how can I use it?",
+   "How can I contribute to Phase 2 of the glossary?",
+   "Where can I find the published paper for citation?",
+   "Where is the glossary versioned and archived?",
+   "How do I join the FORRT Slack channel for updates?"
+  ],
+  "page_kind": "team_or_project",
+  "freshness": "changes_often",
+  "key_links": [
+   {
+    "url": "https://docs.google.com/document/d/1BKzztg7srUeC_2Yn0b7cMbxp_vYMDlOnEYpxg_S2hWs/",
+    "label": "Phase 2 Contribution Document"
+   },
+   {
+    "url": "https://github.com/forrtproject/forrtproject.github.io/tree/main/content/glossary",
+    "label": "GitHub Repository"
+   },
+   {
+    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
+    "label": "FORRT Slack Channel"
+   },
+   {
+    "url": "https://doi.org/10.1038/s41562-021-01269-4",
+    "label": "Published Paper DOI"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/nowherelab/phd-survival-guide/",
+  "lastmod": "",
   "title": "Nowhere Lab PhD Survival Guide",
   "section": "nowherelab",
-  "lastmod": "",
-  "date": null,
-  "chars": 20144,
-  "summary": "The page presents the Nowhere Lab PhD Survival Guide, a resource written by the Nowhere Lab community to help prospective and current PhD students navigate their doctoral journey. It includes an introduction to the guide, how to use it, and sections on what to know about doing a PhD and the benefits of pursuing one, with a PDF download link and a link to the Nowhere Lab community.",
-  "use_when": "When a user wants practical advice or a toolkit for starting or managing a PhD, or seeks information about the Nowhere Lab community and its resources.",
+  "chars": 21416,
+  "summary": "The page presents the Nowhere Lab PhD Survival Guide, a written resource offering practical advice for prospective and current PhD students. It includes sections on what to know about doing a PhD, the positives and negatives of the experience, academic myths, top tips, choosing programmes, handling wrong choices, toxic environments, stress management, and further reading, with a PDF download available.",
+  "use_when": "When a user wants guidance on navigating a PhD, choosing a programme, dealing with stress or toxic environments, or understanding the realities of doctoral study.",
   "example_questions": [
-   "What advice does the Nowhere Lab PhD Survival Guide give to new PhD students?",
-   "How can I download the PhD Survival Guide PDF?",
-   "What is the Nowhere Lab and how can I join?",
-   "What are the benefits of doing a PhD according to the guide?",
-   "Where can I find community support for PhD students?"
+   "What are the main challenges of doing a PhD?",
+   "How can I choose between two PhD programmes?",
+   "What should I do if I think I chose the wrong PhD?",
+   "What are common academic myths about PhDs?",
+   "How can I avoid a toxic work environment during my PhD?"
   ],
-  "page_kind": "curated_resource",
+  "page_kind": "teaching_material",
   "freshness": "static",
   "key_links": [
    {
     "url": "https://forrt.org/files/NowhereLab_PhD_Survival_Guide.pdf",
     "label": "PDF download"
-   },
-   {
-    "url": "https://forrt.org/nowherelab/",
-    "label": "Nowhere Lab"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/open-research-games-portal/",
+  "lastmod": "",
   "title": "Open Research Games Portal",
   "section": "open-research-games-portal",
-  "lastmod": "",
-  "date": null,
   "chars": 168,
-  "summary": "The Open Research Games Portal is a crowdsourced, pedagogically informed database of games and interactive activities designed to teach open and reproducible research practices.",
-  "use_when": "When a user wants to find or contribute educational games that illustrate open science principles, or seeks examples of interactive teaching tools for reproducible research.",
+  "summary": "The Open Research Games Portal is a crowdsourced, pedagogically informed database of games and interactive activities designed to teach open and reproducible research practices. It offers a collection of resources that educators can use to incorporate game-based learning into their curriculum.",
+  "use_when": "This page answers questions about where to find or contribute games and interactive activities for teaching open and reproducible research practices.",
   "example_questions": [
    "What games can I use to teach open research practices?",
-   "Is there a database of interactive activities for reproducible research?",
-   "How can I contribute a new game to the Open Research Games Portal?",
-   "What types of games are included in the portal?",
-   "Where can I find pedagogically informed resources for open science?"
+   "Where can I find interactive activities for reproducible research?",
+   "How can I contribute a game to the Open Research Games Portal?",
+   "Is there a database of pedagogical games for open science?",
+   "What resources are available for teaching reproducible research through games?"
   ],
-  "page_kind": "curated_resource",
+  "page_kind": "listing",
   "freshness": "changes_often",
   "key_links": [],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  },
  {
   "url": "https://forrt.org/newsletters/2022-04/",
+  "lastmod": "",
   "title": "FORRT Newsletter, April 2022",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2022-04-01",
-  "chars": 9479,
-  "summary": "This page is the April 2022 issue of the FORRT newsletter, announcing the publication of the Glossary paper in *Nature Human Behavior*, detailing community growth, recent presentations, upcoming events (including a virtual Open Day), project updates (Glossary phase 2, Impact of Open Scholarship, Reversals & Replications), and ongoing conversations within various team channels.",
-  "use_when": "It answers questions about recent FORRT news, upcoming events, project milestones, and how to get involved or contact the team.",
+  "chars": 12918,
+  "summary": "This page is the first FORRT newsletter (April 2022) announcing the publication of the Glossary paper in *Nature Human Behavior*, community growth to 350+ members, upcoming events such as the Open Day on 4 May, and project updates on the Glossary, Impact of Open Scholarship on Students, and Reversals & Replications.",
+  "use_when": "It answers questions about FORRT’s recent achievements, where to find the Glossary paper, upcoming meetings and events, and the status of ongoing projects.",
   "example_questions": [
-   "What happened in the April 2022 FORRT newsletter?",
-   "When and where is the upcoming FORRT Open Day?",
-   "Which projects are currently in phase 2?",
-   "How many people are in the FORRT community?",
-   "Where can I find the Glossary paper and its postprint?"
+   "When is the FORRT Open Day scheduled?",
+   "Where can I read the Nature Human Behavior paper on the Glossary?",
+   "How many collaborators contributed to the Glossary project?",
+   "What events did FORRT present at in early 2022?",
+   "What is the current status of the Reversals & Replications project?"
   ],
   "page_kind": "event_or_news",
-  "freshness": "changes_often",
+  "freshness": "static",
   "key_links": [
    {
-    "url": "https://forrt.org/newsletters/",
-    "label": "Newsletter archive"
+    "url": "https://www.nature.com/articles/s41562-021-01269-4",
+    "label": "Nature Human Behavior paper"
    },
    {
-    "url": "mailto:info@forrt.org",
-    "label": "Contact info"
+    "url": "https://osf.io/preprints/metaarxiv/kdqcw",
+    "label": "postprint"
+   },
+   {
+    "url": "https://rdcu.be/cHsqM",
+    "label": "open-access version"
    },
    {
     "url": "https://forrt.org/glossary/",
-    "label": "Glossary page"
+    "label": "full glossary"
    },
    {
     "url": "https://tinyurl.com/FORRTOpenDay",
     "label": "Open Day registration"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2022-04-01"
  },
  {
   "url": "https://forrt.org/newsletters/2022-08/",
+  "lastmod": "",
   "title": "FORRT Newsletter, August 2022",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2022-08-01",
-  "chars": 8727,
-  "summary": "This August 2022 FORRT newsletter highlights the release of a Neurodiversity position statement preprint, details the first FORRT Open Day event and community growth, lists upcoming meetings and events, and provides updates on projects such as the Glossary, Reversals & Replications, and training partnerships with CERES. It also shares links to recordings, hackathon details, award applications, and resources for contributing to the Reversals & Replications database.",
-  "use_when": "Users looking for recent FORRT activities, event recordings, project updates, or ways to join teams and contribute to open science initiatives will find this page useful.",
+  "chars": 14369,
+  "summary": "This August 2022 FORRT newsletter reports on the release of the Neurodiversity position statement preprint, the first FORRT Open Day event, community growth to over 470 members, calls for new members in the outreach and pedagogies teams, a new initiative to highlight members, hackathons at SIPS 2022, an application for Einstein’s Award, and presentations at several open‑science conferences. It also lists upcoming team meetings and provides links to recordings, preprints, and Slack channels.",
+  "use_when": "It answers questions about what FORRT did in August 2022, where to find the Neurodiversity preprint, how many members the community has, which events were held, and how to join or follow specific teams.",
   "example_questions": [
-   "What was announced in the August 2022 FORRT newsletter?",
-   "Where can I watch the recording of the FORRT Open Day?",
-   "How can I join the #team-outreach or #team-pedagogies?",
-   "What is the current status of the Reversals & Replications project?",
-   "Where can I find the Neurodiversity position statement preprint?"
+   "What did FORRT publish in August 2022?",
+   "Where can I read the Neurodiversity position statement?",
+   "How many people are in the FORRT community?",
+   "Which conferences did FORRT present at?",
+   "How can I join the outreach or pedagogies teams?"
   ],
   "page_kind": "event_or_news",
-  "freshness": "changes_often",
+  "freshness": "static",
   "key_links": [
    {
+    "url": "https://osf.io/preprints/metaarxiv/k7a9p/",
+    "label": "Neurodiversity preprint"
+   },
+   {
     "url": "https://forrt.org/talk/openday22/",
-    "label": "Open Day recording"
-   },
-   {
-    "url": "https://forrt.org/reversals",
-    "label": "Reversals & Replications"
-   },
-   {
-    "url": "https://forrt.org/glossary/",
-    "label": "Glossary"
-   },
-   {
-    "url": "mailto:info@forrt.org",
-    "label": "Contact email"
+    "label": "Open Day recording & slides"
    },
    {
     "url": "https://forrt.slack.com/archives/C0184989HHC",
-    "label": "#team-outreach Slack"
+    "label": "team‑outreach Slack channel"
+   },
+   {
+    "url": "https://forrt.slack.com/archives/C018B76FP1R",
+    "label": "team‑pedagogies Slack channel"
+   },
+   {
+    "url": "https://www.einsteinfoundation.de/en/award/",
+    "label": "Einstein’s Award"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2022-08-01"
  },
  {
   "url": "https://forrt.org/newsletters/2023-01/",
+  "lastmod": "",
   "title": "FORRT Newsletter, January 2023",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2023-01-01",
-  "chars": 10337,
-  "summary": "This page is the January 2023 FORRT newsletter, announcing the launch of Phase 2 of the Glossary project, updates on team activities, upcoming hackathon and regular meetings, and calls for new members. It includes links to the newsletter archive, contact email, Slack channels, event registration, and project pages.",
-  "use_when": "When a user wants to know what’s new in FORRT, how to join teams, or details about upcoming events and project updates.",
+  "chars": 13771,
+  "summary": "This January 2023 FORRT newsletter informs the community about recent activities, including the launch of Phase 2 of the glossary project, growth of the Slack community, and upcoming meetings and a hackathon. It highlights team outreach and pedagogies, invites new members, and provides links to register for events and join the community.",
+  "use_when": "It answers questions about what FORRT is currently working on, how to join teams or events, and where to find more information about the project updates.",
   "example_questions": [
-   "What new projects are happening in FORRT this month?",
-   "How can I join the Glossary Phase 2 team?",
-   "When is the next Reversals & Replications hackathon?",
-   "Where can I find the latest updates on the Glossary project?",
-   "How do I get involved with the Neurodiversity team?"
+   "What new projects has FORRT launched this month?",
+   "How can I join the upcoming Replications & Reversals hackathon?",
+   "Which teams are looking for new members?",
+   "Where can I find the landing page for Phase 2 of the glossary project?",
+   "What are the regular meeting times for the neurodiversity team?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
    {
     "url": "https://forrt.org/newsletters/",
-    "label": "Newsletter archive"
+    "label": "FORRT newsletter archive"
    },
    {
-    "url": "mailto:info@forrt.org",
-    "label": "Contact email"
+    "url": "https://mailchi.mp/22c697034c71/forrt-newsletter-002-august-20th",
+    "label": "Previous newsletter (August 2022)"
    },
    {
-    "url": "https://forrt.slack.com/archives/C0184989HHC",
-    "label": "team‑outreach Slack"
-   },
-   {
-    "url": "https://forrt.slack.com/archives/C018B76FP1R",
-    "label": "team‑pedagogies Slack"
+    "url": "https://docs.google.com/document/d/1BKzztg7srUeC_2Yn0b7cMbxp_vYMDlOnEYpxg_S2hWs/edit",
+    "label": "Phase 2 glossary landing page"
    },
    {
     "url": "https://forms.gle/niU1vsUL4T9GVCUt7",
-    "label": "Hackathon registration"
-   },
-   {
-    "url": "https://forrt.org/glossary/",
-    "label": "Glossary project page"
+    "label": "Register for hackathon"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2023-01-01"
  },
  {
   "url": "https://forrt.org/newsletters/2023-09/",
+  "lastmod": "",
   "title": "FORRT Newsletter, September 2023",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2023-09-01",
-  "chars": 8766,
-  "summary": "The September 2023 FORRT newsletter reports on recent achievements, including award wins (SIPS Mission Award, Dorothy Bishop Award), new partnerships (with the Center for Open Science and OLS), grant receipt for Replications & Reversals, project updates, publications, and event highlights. It also invites readers to get involved via the website, Slack, and upcoming events.",
-  "use_when": "When a user wants to know what FORRT has accomplished recently, how to join the community, or details about upcoming events and publications.",
+  "chars": 12588,
+  "summary": "This September 2023 FORRT newsletter reports on recent awards, partnerships, grant funding, publications, and upcoming events. It highlights the SIPS Mission Award, Dorothy Bishop Award, collaboration with the Center for Open Science and OLS, a new NWO grant for Replications & Reversals, SIPS commendations, and recent journal articles. The newsletter also invites feedback and provides links to further information.",
+  "use_when": "Users looking for updates on FORRT's recent achievements, award recipients, new collaborations, grant details, or recent publications will find this page useful.",
   "example_questions": [
-   "What awards has FORRT won this year?",
-   "How can I join FORRT’s Slack community?",
-   "What new projects or grants has FORRT received?",
-   "Where can I find the recordings of recent FORRT webinars?",
-   "What events are coming up for FORRT teams?"
+   "Did FORRT win any awards in 2023?",
+   "What new partnership did FORRT announce with the Center for Open Science?",
+   "Which grant did Replications & Reversals receive?",
+   "Where can I read FORRT's recent publications?",
+   "How can I provide feedback on the newsletter?"
   ],
   "page_kind": "event_or_news",
-  "freshness": "changes_often",
+  "freshness": "static",
   "key_links": [
    {
-    "url": "https://forrt.org/about/get-involved/",
-    "label": "Get Involved"
+    "url": "https://forrt.org/newsletters/",
+    "label": "FORRT newsletter archive"
    },
    {
-    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
-    "label": "Slack Community"
+    "url": "https://improvingpsych.org/2023/08/22/sips-2023-awards-announced/",
+    "label": "SIPS Mission Award 2023"
    },
    {
-    "url": "https://mailchi.mp/6d516f004abe/forrt-newsletter-002-august-20th-9076268",
-    "label": "Previous Newsletter"
+    "url": "https://www.ukrn.org/2023/03/21/db-prize-winners-mar2023/",
+    "label": "Dorothy Bishop Award 2023"
    },
    {
-    "url": "https://youtu.be/pJ2m4OZKLVY",
-    "label": "Webinar Recording"
+    "url": "https://openlifesci.org/posts/2023/08/23/critical-infrastructure-for-open-scholarship/",
+    "label": "OLS partnership"
+   },
+   {
+    "url": "https://www.nwo.nl/en/researchprogrammes/open-science-fund-2023-awarded-grants",
+    "label": "NWO Open Science Fund grant"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2023-09-01"
  },
  {
   "url": "https://forrt.org/newsletters/2023-10/",
+  "lastmod": "",
   "title": "FORRT Newsletter, October 2023",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2023-10-01",
-  "chars": 7750,
-  "summary": "The October 2023 FORRT newsletter reports recent activities: CERES training videos, a new Pedagogies interview with CREP, a Reversals website update, outreach recruitment, and event highlights from the Big‑Team Science Conference and other talks. It invites readers to join Slack, contribute to projects, and donate to fund a Community Manager.",
-  "use_when": "When users want to know what FORRT did in October, how to get involved, or where to find recent resources and events.",
+  "chars": 12673,
+  "summary": "This October 2023 FORRT newsletter reports on recent activities: CERES training videos produced by FORRT members at UC, a new Pedagogies resource featuring the Collaborative Replication and Education Project (CREP), updates to the Reversals website, and a call for new Outreach team members. It also invites feedback and provides contact details.",
+  "use_when": "Users looking for updates on FORRT’s recent projects, training videos, Pedagogies releases, website updates, or volunteer opportunities will find this page useful.",
   "example_questions": [
-   "What did FORRT do in October 2023?",
-   "How can I join the Reversals project or contribute to the website?",
-   "Where can I find the new Pedagogies interview with CREP?",
-   "What outreach opportunities are available?",
-   "How can I donate to support FORRT’s Community Manager?"
+   "What training videos did FORRT produce for CERES this month?",
+   "Is there a new Pedagogies resource about CREP?",
+   "How can I contribute to the Reversals website?",
+   "Where can I join the Outreach team?",
+   "Where can I find the previous FORRT newsletter?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
    {
-    "url": "https://forrt.org/about/get-involved/",
-    "label": "Get Involved"
+    "url": "https://forrt.org/newsletters/",
+    "label": "FORRT newsletter archive"
    },
    {
-    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
-    "label": "Join Slack"
+    "url": "https://us14.campaign-archive.com/?u=64c29a25a0ca81454399d522e&id=835fc62cf9",
+    "label": "Previous newsletter"
    },
    {
-    "url": "https://forrt.org/pedagogies/003-crep/",
-    "label": "CREP Pedagogies"
+    "url": "https://ceres.uci.edu/",
+    "label": "CERES website"
+   },
+   {
+    "url": "https://www.crep-psych.org/",
+    "label": "CREP website"
    },
    {
     "url": "https://forrt.org/reversals",
     "label": "Reversals website"
-   },
-   {
-    "url": "https://www.gofundme.com/f/community-management-funds-for-forrt",
-    "label": "Donate"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2023-10-01"
  },
  {
   "url": "https://forrt.org/newsletters/2023-11/",
+  "lastmod": "",
   "title": "FORRT Newsletter, November 2023",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2023-11-01",
-  "chars": 7686,
-  "summary": "The November 2023 FORRT newsletter reports on the Replications and Reversals project’s finalist status for the Early Career Einstein Foundation Award, highlights a YouTube presentation, and provides updates on the Team Curation milestone of 1,000 resources. It invites readers to contribute to the Replications and Reversals project, join the Slack community, and offers links to event recordings, the NLRN launch, and a fundraising campaign for a Community Manager.",
-  "use_when": "When users want to know about recent FORRT achievements, how to get involved, or where to find event recordings and project resources.",
+  "chars": 12056,
+  "summary": "This page is FORRT’s November 2023 newsletter, summarising recent achievements and updates. It reports that the Replications and Reversals project was a finalist for the Early Career Einstein Foundation Award, includes a link to the project presentation video, describes the project’s goals and invites contributions, highlights that Team Curation has reached 1,000 curated resources and offers ways to submit or join the curation effort, and notes a presentation at the Netherlands Reproducibility Network launch on October 27.",
+  "use_when": "It answers questions about FORRT’s latest news, award nominations, how to learn about or contribute to the Replications and Reversals project, how to access or add to the curated resources database, and details of recent events such as the NLRN presentation.",
   "example_questions": [
-   "What award was the Replications and Reversals project a finalist for?",
-   "How can I contribute to the Replications and Reversals project?",
-   "Where can I watch the Einstein Foundation event presentation?",
-   "What is the current status of the Team Curation resource list?",
-   "How can I join FORRT’s Slack community?"
+   "Did FORRT win the Einstein Foundation Award?",
+   "What is the Replications and Reversals project and how can I help?",
+   "How can I submit a resource to FORRT’s curated list?",
+   "Where can I find the latest curated Open Science resources?",
+   "When and where did FORRT present at the NLRN launch?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
+   {
+    "url": "https://www.youtube.com/watch?v=nwaphcYP24A&ab_channel=EinsteinFoundationBerlin",
+    "label": "Project presentation video"
+   },
    {
     "url": "https://forrt.org/reversals/",
     "label": "Replications and Reversals webpage"
    },
    {
     "url": "https://forrt.org/resources/",
-    "label": "Team Curation resources"
+    "label": "Curated resources"
    },
    {
     "url": "https://docs.google.com/forms/d/e/1FAIpQLSfPceN5opEeauCBSvapoB-ADpH0IoT24XOLfQGaVEF0EJGFOA/viewform",
-    "label": "Submit resources"
+    "label": "Submit a resource"
    },
    {
     "url": "https://forrt.slack.com/archives/C0190S42M1N",
     "label": "Curation Slack channel"
-   },
-   {
-    "url": "https://www.youtube.com/watch?v=nwaphcYP24A&ab_channel=EinsteinFoundationBerlin",
-    "label": "Einstein Foundation event video"
-   },
-   {
-    "url": "https://www.gofundme.com/f/community-management-funds-for-forrt",
-    "label": "Fundraising page"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2023-11-01"
  },
  {
   "url": "https://forrt.org/newsletters/2024-01/",
+  "lastmod": "",
   "title": "FORRT Newsletter, January 2024",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2024-01-01",
-  "chars": 9799,
-  "summary": "The January 2024 FORRT newsletter reports new funding awards from the Dutch Research Council and Open Infrastructure Fund, introduces a new syllabus on the Credibility Revolution/Replication Crisis, announces leadership changes for Team Summaries, calls for collaborators in Team Outreach, highlights a recent event at the ReproducibiliTea journal club, and invites participation in interviews with the Center for Open Science. It also encourages new members to join Slack, provides links to the calendar, and promotes fundraising for a Community Manager.",
-  "use_when": "When a user wants to know about recent FORRT funding, new teaching resources, team leadership updates, collaboration opportunities, upcoming events, or how to get involved and support the project.",
+  "chars": 15295,
+  "summary": "This January 2024 FORRT newsletter reports new funding awards from the Dutch Research Council (NWO) and the Open Infrastructure Fund, introduces a new syllabus on the Credibility Revolution/Replication Crisis, announces new co‑leaders for Team Summaries, calls for collaborators in Team Outreach, and lists upcoming events and meetings.",
+  "use_when": "It answers questions about recent FORRT funding, new teaching resources, leadership changes, collaboration opportunities, and upcoming events.",
   "example_questions": [
-   "What new projects has FORRT been awarded funding for?",
-   "Is there a new syllabus on the replication crisis available?",
-   "Who are the new co‑leaders of the Team Summaries?",
-   "How can I help create videos for Team Outreach?",
-   "Where can I find the latest events and meetings for FORRT teams?"
+   "What new projects did FORRT receive NWO funding for in January 2024?",
+   "Is there a new syllabus on the replication crisis available from FORRT?",
+   "Who are the new co‑leaders of the Team Summaries project?",
+   "How can I collaborate with Team Outreach on video creation?",
+   "What events are scheduled for FORRT in January 2024?"
   ],
-  "page_kind": "other",
+  "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
    {
-    "url": "https://forrt.org/about/get-involved/",
-    "label": "Get Involved"
-   },
-   {
-    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
-    "label": "Slack Community"
+    "url": "https://www.nwo.nl/en/researchprogrammes/open-science/open-science-fund/open-science-fund-2023-awarded-grants",
+    "label": "NWO funding details"
    },
    {
     "url": "https://docs.google.com/document/d/1npob9Bmm_MvcNcSYzLr78JJ7DtQo5EbT-BdqtkaOwoU/edit",
-    "label": "New Syllabus"
+    "label": "New syllabus on Credibility Revolution"
    },
    {
     "url": "https://forrt.org/feedback/",
-    "label": "Feedback"
+    "label": "Send feedback"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2024-01-01"
  },
  {
   "url": "https://forrt.org/newsletters/2024-02/",
+  "lastmod": "",
   "title": "FORRT Newsletter, February 2024",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2024-02-01",
-  "chars": 7341,
-  "summary": "The February 2024 FORRT newsletter reports on recent activities, including the launch of an Open Collective page, a 1,000-member Slack community, the merger of Replications & Reversals with the Replication Database, calls for glossary translators and Instagram outreach help, a recent NRIN Happy Hour webinar, and highlights of recent publications.",
-  "use_when": "It answers questions about current FORRT projects, how to join or support the community, where to find the latest replication database, and what recent research outputs have been published.",
+  "chars": 11777,
+  "summary": "This February 2024 FORRT newsletter reports on recent community milestones: the launch of an Open Collective page and a 1,000‑member Slack community, updates on the Replication Database and Glossary translation call, a new science‑communication role, and a recording of the NRIN Happy Hour webinar.",
+  "use_when": "It answers questions about how to support or join FORRT, where to find the latest replication database, and how to get involved in translation or outreach projects.",
   "example_questions": [
-   "How can I donate to FORRT?",
-   "What new projects are running in February 2024?",
-   "Where can I find the updated replication database?",
-   "Who is leading the Glossary translation effort?",
-   "What events did FORRT host in February?"
+   "What new funding options does FORRT have?",
+   "How many members are on the FORRT Slack?",
+   "Where can I find the most comprehensive replication database?",
+   "How can I help translate the Glossary of Open Scholarship Terms?",
+   "Where can I watch the recent NRIN Happy Hour webinar?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
    {
+    "url": "https://forrt.org/newsletters/",
+    "label": "FORRT newsletter archive"
+   },
+   {
     "url": "https://opencollective.com/forrt",
-    "label": "Open Collective"
+    "label": "FORRT Open Collective page"
    },
    {
     "url": "https://forrt.slack.com/ssb/redirect",
-    "label": "Slack join"
-   },
-   {
-    "url": "https://forrt.org/about/get-involved/",
-    "label": "Get Involved"
+    "label": "Join FORRT Slack"
    },
    {
     "url": "https://forrt.org/replication-hub/",
-    "label": "Replication Hub"
+    "label": "Replication Database"
    },
    {
-    "url": "https://docs.google.com/document/d/1mp-quJcAwNFbJm2QsHOOINF1CfP1B776O7WSTyUa5ok/edit",
-    "label": "Glossary call"
-   },
-   {
-    "url": "https://forrt.slack.com/archives/C0184989HHC",
-    "label": "Team Outreach"
+    "url": "https://researchintegritynetwork.nl/library/nrin-happy-hour-webinars",
+    "label": "NRIN Happy Hour recording"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2024-02-01"
  },
  {
   "url": "https://forrt.org/newsletters/2024-03/",
+  "lastmod": "",
   "title": "FORRT Newsletter, March 2024",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2024-03-01",
-  "chars": 7818,
-  "summary": "The March 2024 FORRT newsletter reports recent project updates, including a new preprint on open science in educational technology, a contributors page, and a legal status effort in Germany. It highlights funding from Invest in Open Infrastructure, partner collaborations with Metadocencia and Access 2 Perspectives, recent events and workshops, and invites readers to join Slack, get involved, and donate.",
-  "use_when": "When a user wants to know what FORRT has been doing recently, how to get involved, or where to find new resources and events.",
+  "chars": 12267,
+  "summary": "The March 2024 FORRT newsletter reports on a new preprint about open science in educational technology, introduces a contributors page, announces a legal status effort in Germany, details a grant from Invest in Open Infrastructure for improving the website and accessibility, highlights collaborations with Metadocencia and Access 2 Perspectives, lists recent events and meetings, and invites readers to get involved via Slack channels and other outreach.",
+  "use_when": "It answers questions about recent FORRT activities, how to access the new preprint, where to find contributor credits, how to help with the German legal status, what the IOI grant will fund, which partner organizations are involved, and how to join upcoming events or volunteer.",
   "example_questions": [
-   "What new research did FORRT publish in March 2024?",
-   "How can I join FORRT’s Slack community?",
-   "What funding has FORRT received this month?",
-   "Which partner organizations is FORRT collaborating with?",
-   "Where can I find the new contributors page?"
+   "What new research preprint was released by FORRT in March 2024?",
+   "Where can I find the page that lists all FORRT contributors?",
+   "How can I help with FORRT’s legal status in Germany?",
+   "What is the Invest in Open Infrastructure grant for?",
+   "Which events did FORRT participate in during March 2024?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
    {
-    "url": "https://forrt.org/about/get-involved/",
-    "label": "Get Involved"
-   },
-   {
-    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
-    "label": "Slack Community"
-   },
-   {
-    "url": "https://opencollective.com/forrt",
-    "label": "Donate"
+    "url": "https://osf.io/preprints/edarxiv/s73xb",
+    "label": "Read the new preprint"
    },
    {
     "url": "https://forrt.org/contributors",
-    "label": "Contributors Page"
+    "label": "FORRT contributors page"
    },
    {
-    "url": "https://osf.io/preprints/edarxiv/s73xb",
-    "label": "New Preprint"
+    "url": "https://openreview.net/forum?id=ebvqeludSq",
+    "label": "IOI grant project"
+   },
+   {
+    "url": "https://www.metadocencia.org/en/",
+    "label": "Metadocencia"
+   },
+   {
+    "url": "https://access2perspectives.org/",
+    "label": "Access 2 Perspectives"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2024-03-01"
  },
  {
   "url": "https://forrt.org/newsletters/2024-04/",
+  "lastmod": "",
   "title": "FORRT Newsletter, April 2024",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2024-04-01",
-  "chars": 8089,
-  "summary": "The April 2024 FORRT newsletter reports on recent project updates, new calls for data analysts, a preprint on the Replication Database, and a re‑application for the Einstein Award. It highlights a new youth‑focused project, partner videos, past event recordings, and invites readers to join Slack, fill out feedback forms, and explore the Get Involved page.",
-  "use_when": "When users want to know about current FORRT projects, open calls, recent publications, or how to get involved and stay updated.",
+  "chars": 13085,
+  "summary": "The April 2024 FORRT newsletter reports on recent project updates, a call for data analysts for the Landscape team, a new preprint on the Replication Database, a re‑application for the Einstein Award, a new youth project to teach open science to kids, a partner video in Spanish, and invites readers to give feedback via a short evaluation form.",
+  "use_when": "This page answers questions about recent FORRT activities, opportunities to join teams, new publications, and partner resources.",
   "example_questions": [
-   "What new FORRT projects are announced in April 2024?",
-   "How can I apply to help with the Landscape team’s data analysis?",
-   "Where can I find the preprint on the Replication Database?",
-   "What events were recorded and where can I watch them?",
-   "How can I join the FORRT community on Slack?"
+   "What new projects are launching in April 2024?",
+   "How can I join the Landscape team as a data analyst?",
+   "Where can I read the latest preprint on the Replication Database?",
+   "Is the FReD project applying for the Einstein Award again?",
+   "Where can I find the Spanish video about FORRT?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
+   {
+    "url": "https://forrt.org/newsletters/",
+    "label": "FORRT newsletter archive"
+   },
    {
     "url": "https://docs.google.com/forms/d/e/1FAIpQLSc13c0cB4J0dXEvC-okaSTJJ1AHgqqxbh5MGa0THSKZ2JuXSg/viewform",
     "label": "Newsletter feedback form"
    },
    {
-    "url": "https://docs.google.com/document/d/1_hCwgdp7wCmkkgF6Pi9Vyx2bWJanoZHKNR56IEObK3U/edit?usp=sharing",
-    "label": "Landscape data analyst call"
+    "url": "https://docs.google.com/document/d/1-k_XCC5g48x7HYMmnsuqQHxXqGaXubIjsPbN8fEJvgk/edit",
+    "label": "Youth project landing page"
    },
    {
-    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
-    "label": "FORRT Slack community"
+    "url": "https://osf.io/preprints/metaarxiv/me2ub",
+    "label": "Replication Database preprint"
    },
    {
-    "url": "https://forrt.org/about/get-involved/",
-    "label": "Get Involved page"
+    "url": "https://award.einsteinfoundation.de/",
+    "label": "Einstein Award for Promoting Quality in Research"
+   },
+   {
+    "url": "https://www.metadocencia.org/",
+    "label": "MetaDocencia partner site"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2024-04-01"
  },
  {
   "url": "https://forrt.org/newsletters/2024-05/",
+  "lastmod": "",
   "title": "FORRT Newsletter, May 2024",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2024-05-01",
-  "chars": 9237,
-  "summary": "The May 2024 FORRT newsletter highlights a vacancy for a Scientific Coordinator & Community Engagement Manager at LMU’s Open Science Center, details upcoming POSTEdu launch events and a Science Magazine feature on the Replication Database, shares news about Reviewer Zero, reports on recent and upcoming events such as the NORRN conference and a SIPS 2024 hackathon, and invites readers to get involved with various FORRT projects via Slack and the website.",
-  "use_when": "When a user wants to know about current job openings, upcoming FORRT events, recent news coverage, or how to join or contribute to FORRT projects.",
+  "chars": 14259,
+  "summary": "This page is the May 2024 FORRT newsletter, summarizing recent activities and upcoming events. It announces a vacancy for a Scientific Coordinator & Community Engagement Manager at the LMU Open Science Center, invites participation in two POSTEdu launch events, highlights the Replication Database’s feature in Science Magazine, and promotes the Reviewer Zero peer‑review initiative. The newsletter also links to partner updates and past events.",
+  "use_when": "It answers questions about current FORRT news, upcoming events, job openings, and resources such as the Replication Database and Reviewer Zero.",
   "example_questions": [
-   "Is there a job opening for a Scientific Coordinator at LMU?",
-   "When and where are the POSTEdu launch events?",
-   "Where can I find the Science Magazine article about the Replication Database?",
-   "How can I join the Reviewer Zero initiative?",
-   "What events are coming up for the FORRT community?"
+   "What job is available at the LMU Open Science Center?",
+   "When and how can I register for the POSTEdu launch events?",
+   "Has the Replication Database been featured in any major publications?",
+   "What is Reviewer Zero and how can I learn more?",
+   "Where can I find the latest FORRT newsletter?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
    {
-    "url": "https://forrt.org/about/get-involved/",
-    "label": "Get Involved"
+    "url": "https://www.osc.uni-muenchen.de/index.html",
+    "label": "LMU Open Science Center"
    },
    {
     "url": "https://docs.google.com/forms/d/1OlqyCq2CmhOvdqmU8o3I9PN_jCRv5I0yOUbv608yCt4/viewform?ts=665eec77&edit_requested=true",
     "label": "POSTEdu launch event registration"
    },
    {
-    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
-    "label": "FORRT Slack community"
+    "url": "https://www.science.org/content/article/news-glance-planning-mentoring-tracking-replications-and-deracializing-lung-tests",
+    "label": "Science article on Replication Database"
    },
    {
-    "url": "https://mailchi.mp/forrt/forrt-newsletter-10291255",
-    "label": "Previous newsletter"
-   },
-   {
-    "url": "https://forrt.org/clusters/",
-    "label": "FORRT Clusters"
+    "url": "https://forrt.org/educators-corner/016-reviewer-zero/",
+    "label": "Reviewer Zero post"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2024-05-01"
  },
  {
   "url": "https://forrt.org/newsletters/2024-06/",
+  "lastmod": "",
   "title": "FORRT Newsletter, June 2024",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2024-06-01",
-  "chars": 8592,
-  "summary": "The June 2024 FORRT newsletter reports on recent activities such as the launch of the Database of Neurodivergent Researchers, updates on the POST‑Edu project funded by NWO, and partner news including a new Open Science 101 course and a Busara e‑book. It invites readers to join various FORRT teams, participate in Slack channels, and contribute to projects or the database.",
-  "use_when": "When a user wants to know what FORRT has done recently, how to get involved, or where to find new resources and projects.",
+  "chars": 13231,
+  "summary": "The June 2024 FORRT newsletter reports on the launch of the Database of Neurodivergent Researchers, updates on the POST‑Edu project (online workshops and module development), and partner news including a new Open Science 101 course for undergraduates and a Busara e‑book on developmental meta‑research. It invites readers to contribute to the database, join Team Neurodiversity, contact POST‑Edu leads, and access the new teaching resources.",
+  "use_when": "Users looking for the latest FORRT project updates, resources for teaching Open Science, or ways to contribute to the neurodivergent researcher database will find this page useful.",
   "example_questions": [
-   "What new resources were announced in the June 2024 FORRT newsletter?",
-   "How can I join the Team Neurodiversity or contribute to the database of neurodivergent researchers?",
-   "What is the POST‑Edu project and who can contact its leads?",
-   "Where can I find the Open Science 101 course mentioned in the newsletter?",
-   "How can I donate to or support FORRT’s sustainability efforts?"
+   "What is the new Database of Neurodivergent Researchers and how can I add my name?",
+   "How can I get involved with the POST‑Edu project or contact its leads?",
+   "Where can I find the Open Science 101 course for undergraduates?",
+   "Is there a new Busara e‑book available for download?",
+   "What recent activities has FORRT announced in June 2024?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
-   {
-    "url": "https://forrt.org/about/get-involved/",
-    "label": "Get Involved"
-   },
-   {
-    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
-    "label": "Slack Community"
-   },
    {
     "url": "https://docs.google.com/spreadsheets/d/1OnfQB1OqC00OflwTuRPBhG5NfX-_oLxxoTM_F_J5t5c/edit?gid=699666261",
     "label": "Database of Neurodivergent Researchers"
    },
    {
-    "url": "https://forrt.org/educators-corner/017-teaching-os-to-undergraduates/",
-    "label": "Open Science 101 Course"
+    "url": "https://forrt.org/about/get-involved/",
+    "label": "Get involved with Team Neurodiversity"
    },
    {
-    "url": "https://opencollective.com/forrt",
-    "label": "Donate"
+    "url": "https://x.com/FORRTproject/status/1800131288533553519",
+    "label": "POST‑Edu project leads contact"
+   },
+   {
+    "url": "https://forrt.org/educators-corner/017-teaching-os-to-undergraduates/",
+    "label": "Open Science 101 course"
+   },
+   {
+    "url": "https://www.busara.global/our-works/a-better-how-notes-on-developmental-meta-research/",
+    "label": "Busara e‑book"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2024-06-01"
  },
  {
   "url": "https://forrt.org/newsletters/2024-09/",
+  "lastmod": "",
   "title": "FORRT Newsletter, September 2024",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2024-09-01",
-  "chars": 9714,
-  "summary": "The September 2024 FORRT newsletter highlights inclusive feedback initiatives, the new German association registration, calls for project managers for the website and summaries teams, a new replication database paper, upcoming events such as a launch event for educators and hackathons for the Glossary project, and invites readers to get involved via Slack and the Get Involved page.",
-  "use_when": "When users want to know about current FORRT projects, open positions, upcoming events, or how to join the community.",
+  "chars": 14174,
+  "summary": "The September 2024 FORRT newsletter reports on several key developments: a Leverhulme‑funded inclusive feedback project, the official registration of FORRT as a German association, calls for Project Managers for the website and Team Summaries, a new Replications Database paper, and upcoming events such as a launch for educators and a presentation at DGPs 2024.",
+  "use_when": "It answers questions about recent FORRT activities, upcoming events, how to join the German association, how to apply for project manager roles, and where to find new research resources.",
   "example_questions": [
-   "What open positions are available in FORRT this month?",
-   "When and where is the next FORRT hackathon?",
-   "How can I contribute to the Replications Database?",
-   "Is there a new German branch of FORRT?",
-   "Where can I sign up for the educator launch event?"
+   "What new projects is FORRT working on this month?",
+   "How can I become a member of the German FORRT association?",
+   "Where can I apply to be a Project Manager for the FORRT website?",
+   "What is the Replications Database and where can I read the related paper?",
+   "When and where is the next FORRT launch event for educators?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
    {
+    "url": "https://forrt.org/newsletters/",
+    "label": "FORRT newsletter archive"
+   },
+   {
+    "url": "https://mailchi.mp/forrt/forrt-newsletter-10327045",
+    "label": "Previous newsletter"
+   },
+   {
+    "url": "https://forrt.org/educators-corner/018-accessible-feedback-in-research/",
+    "label": "Inclusive feedback project"
+   },
+   {
     "url": "https://forms.fillout.com/t/3vEYbvP9rHus",
-    "label": "Project Manager sign‑up"
+    "label": "Register for PM roles"
    },
    {
-    "url": "https://docs.google.com/document/d/1rbLl6dFOEII_NLKlqLDaWqqIucPZt0xk2W6_XQGNlcs/edit",
-    "label": "PM role description"
-   },
-   {
-    "url": "https://docs.google.com/forms/d/1aH9yRhjehwwgZNDMJz9DEeF5cKAl2MmKsuQOcBawcSw/viewform?ts=66f5bd78&edit_requested=true",
-    "label": "Educator launch event registration"
-   },
-   {
-    "url": "https://forms.gle/B3oVKN4XxxQyEyGh8",
-    "label": "Glossary hackathon sign‑up"
-   },
-   {
-    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
-    "label": "FORRT Slack community"
+    "url": "https://forrt-replications.shinyapps.io/fred_explorer",
+    "label": "Replication Database"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2024-09-01"
  },
  {
   "url": "https://forrt.org/newsletters/2024-10/",
+  "lastmod": "",
   "title": "FORRT Newsletter, October 2024",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2024-10-01",
-  "chars": 9305,
-  "summary": "The October 2024 FORRT newsletter highlights the Replication Hub project, offers paid and volunteer opportunities to contribute to the FReD database, StaRT template, and a diamond open‑access replication journal, and updates on Pedagogies, Outreach, Educators’ Corner, and a new systematic review. It invites new members to join via the Get Involved page and Slack community.",
-  "use_when": "When users want to know how to contribute to FORRT projects, find current open calls, or learn about recent project updates and resources.",
+  "chars": 13366,
+  "summary": "This October 2024 FORRT newsletter highlights the Replication Hub project, offering paid and volunteer roles to record and code replication entries, test a standardized template, and help shape a new open‑access replication journal. It also updates on Pedagogies, Outreach, and the Educators' Corner, inviting feedback and participation.",
+  "use_when": "When a user wants to know what new opportunities exist for contributing to FORRT’s replication research, how to get involved with the Replication Hub, or what recent projects and updates the organization has announced.",
   "example_questions": [
-   "What volunteer tasks are available for the FReD database this month?",
-   "How can I join the FORRT Slack community?",
-   "Where can I find the latest systematic review on open research initiatives?",
-   "What is the Replication Hub and how can I get involved?",
-   "Is there a paid opportunity to record replication studies?"
+   "What paid positions are available for recording replications in the Replication Hub?",
+   "How can I help test the StaRT template for replication studies?",
+   "What is the new open‑access publication platform for interdisciplinary replication research?",
+   "How can I provide feedback on the Pedagogies team’s evidence‑based practice module?",
+   "Where can I find the survey to suggest ideas for the Outreach team?"
   ],
   "page_kind": "get_involved",
   "freshness": "changes_often",
   "key_links": [
    {
-    "url": "https://forrt.org/about/get-involved/",
-    "label": "Get Involved"
-   },
-   {
-    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
-    "label": "FORRT Slack"
-   },
-   {
     "url": "https://forrt.org/replication-hub/",
-    "label": "Replication Hub"
+    "label": "Replication Hub website"
    },
    {
     "url": "https://docs.google.com/document/d/1tsSSbqMYfSQYGQWMzON0impxTyUAzlBn4q8p1Z9Ru_g/edit?tab=t.0",
     "label": "FReD role requirements"
    },
    {
+    "url": "https://osf.io/3jgxd",
+    "label": "StaRT template download"
+   },
+   {
     "url": "https://forms.gle/e5apBoQyibb2kQSF9",
     "label": "Outreach survey"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2024-10-01"
  },
  {
   "url": "https://forrt.org/newsletters/2024-11/",
+  "lastmod": "",
   "title": "FORRT Newsletter, November 2024",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2024-11-01",
-  "chars": 10444,
-  "summary": "The November 2024 FORRT newsletter reports on recent project updates, including a transdisciplinary survey on accessible feedback and a partnership with the Center for Open Science to enhance the FORRT Replication Database (FReD). It invites contributors to review survey translations, offers a paid Data Curator role for FReD, and announces a meeting on 12 Dec 2024 to discuss the e‑book project. The newsletter also promotes social media channels and directs readers to the Get Involved page for further participation.",
-  "use_when": "This page answers questions about current FORRT projects, how to contribute to the feedback survey, details of the paid Data Curator position, and information on upcoming meetings and social media channels.",
+  "chars": 15108,
+  "summary": "This page is the November 2024 FORRT newsletter, summarizing recent and upcoming activities: a transdisciplinary project on accessible feedback, a partnership with the Center for Open Science to enhance the FORRT Replication Database, a paid Data Curator job opening, and an upcoming launch meeting for the project.",
+  "use_when": "It answers questions about what FORRT is currently working on, how to get involved in the feedback project, details of the COS collaboration, the Data Curator position, and the date and time of the launch meeting.",
   "example_questions": [
+   "What new projects is FORRT working on this month?",
    "How can I help review the survey translations for the accessible feedback project?",
-   "What are the responsibilities and application steps for the Data Curator role in the FReD project?",
-   "When and where is the meeting to discuss the e‑book on accessible feedback?",
-   "Where can I find the latest updates on the FORRT Replication Database partnership with COS?",
-   "Which social media platforms does FORRT use to share news?"
+   "Is there a paid job opening related to the FORRT Replication Database?",
+   "When and where is the launch meeting for the transdisciplinary feedback project?",
+   "Where can I find the full job description for the Data Curator role?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
    {
-    "url": "https://forrt.org/about/get-involved/",
-    "label": "Get Involved"
-   },
-   {
-    "url": "https://docs.google.com/document/d/e/2PACX-1vTr2yExP-DUUHi_rma6FZNHyouNWdPD8kx4_4HR1RoAP5NGq2XXhfnfh2M_bS1Dy7Ul0M3c3mi3NToX/pub",
-    "label": "Full job description"
-   },
-   {
-    "url": "https://docs.google.com/forms/d/e/1FAIpQLSdIL2TLo7yxnn_qJLxNPg1KHKQ51h7it4y_BWlwRHs32oKJgw/viewform",
-    "label": "Application form"
-   },
-   {
-    "url": "https://teams.microsoft.com/l/meetup-join/19%3ameeting_YTg3Yjk3MDUtMGE1ZS00YzE0LTlmNjItZGFkMjc3MzM1NTY5%40thread.v2/0?context=%7b%22Tid%22%3a%223516f40a-5ae9-4956-bbab-395162e589ce%22%2c%22Oid%22%3a%22b9dd3dcf-4b44-42bd-8fd8-ad33706b9854%22%7d",
-    "label": "Meeting link"
+    "url": "https://mailchi.mp/forrt/forrt-newsletter-10330783",
+    "label": "Previous newsletter"
    },
    {
     "url": "https://forrt.org/educators-corner/018-accessible-feedback-in-research/",
     "label": "Project details"
+   },
+   {
+    "url": "https://docs.google.com/document/d/e/2PACX-1vTr2yExP-DUUHi_rma6FZNHyouNWdPD8kx4_4HR1RoAP5NGq2XXhfnfh2M_bS1Dy7Ul0M3c3mi3NToX/pub",
+    "label": "Data Curator job description"
+   },
+   {
+    "url": "https://teams.microsoft.com/l/meetup-join/19%3ameeting_YTg3Yjk3MDUtMGE1ZS00YzE0LTlmNjItZGFkMjc3MzM1NTY5%40thread.v2/0?context=%7b%22Tid%22%3a%223516f40a-5ae9-4956-bbab-395162e589ce%22%2c%22Oid%22%3a%22b9dd3dcf-4b44-42bd-8fd8-ad33706b9854%22%7d",
+    "label": "Launch meeting link"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2024-11-01"
  },
  {
   "url": "https://forrt.org/newsletters/2025-01/",
+  "lastmod": "",
   "title": "FORRT Newsletter, January 2025",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2025-01-01",
-  "chars": 9472,
-  "summary": "The January 2025 FORRT newsletter reports on recent and upcoming activities, including the launch of a researcher‑led diamond open‑access journal, a new open‑access textbook on social psychology, a transdisciplinary feedback study, and the Replication Research Symposium 2025. It provides links to join discussions, register for the symposium, contribute to the textbook, complete a survey, and get involved via Slack or the Get In volved page.",
-  "use_when": "When a user wants to know about current FORRT projects, how to contribute, upcoming events, or how to join the community.",
+  "chars": 13465,
+  "summary": "This January 2025 FORRT newsletter reports on several new initiatives: the launch of a researcher‑led diamond open‑access journal, a call for contributors to an open‑access textbook on social psychology, a survey on feedback strategies, and new funding for a replication research symposium. It provides links to join discussions, register for a Zoom hackathon, access the survey, and view the proposals for the Topical Program and state initiative.",
+  "use_when": "It answers questions about upcoming FORRT events, how to contribute to the open‑access textbook, where to find the new journal, and how to participate in the feedback survey or symposium.",
   "example_questions": [
-   "What new projects is FORRT launching in 2025?",
-   "How can I contribute to the open‑access social psychology textbook?",
-   "Where and when is the Replication Research Symposium?",
-   "How do I join the discussion about the new open‑access journal?",
-   "What is the feedback study and how can I participate?"
+   "What events are scheduled for February 2025?",
+   "How can I contribute to the open‑access textbook on social psychology?",
+   "Where can I find the proposal for the Topical Program?",
+   "What is the new diamond open‑access journal being launched?",
+   "How can I participate in the feedback survey?"
   ],
   "page_kind": "event_or_news",
-  "freshness": "changes_often",
+  "freshness": "static",
   "key_links": [
    {
-    "url": "https://forrt.org/about/get-involved/",
-    "label": "Get Involved"
+    "url": "https://forrt.org/newsletters/",
+    "label": "FORRT newsletter archive"
    },
    {
-    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
-    "label": "Slack community"
+    "url": "https://lukasroeseler.github.io/replicationresearch_mockup/",
+    "label": "researcher‑led diamond open‑access journal"
    },
    {
     "url": "https://listserv.uni-muenster.de/mailman/listinfo/replication-research",
-    "label": "Register for journal discussions"
-   },
-   {
-    "url": "https://greenwichuniversity.eu.qualtrics.com/jfe/form/SV_9SwlPSLrgHg9dyu",
-    "label": "Feedback study survey"
+    "label": "Join discussions"
    },
    {
     "url": "https://eu02web.zoom-x.de/my/rmrahal",
-    "label": "Hackathon Zoom link"
+    "label": "Zoom hackathon"
    },
    {
-    "url": "https://forrt.org/files/FORRT.vcf",
-    "label": "Add to address book"
+    "url": "https://greenwichuniversity.eu.qualtrics.com/jfe/form/SV_9SwlPSLrgHg9dyu",
+    "label": "Feedback survey"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2025-01-01"
  },
  {
   "url": "https://forrt.org/newsletters/2025-02/",
+  "lastmod": "",
   "title": "FORRT Newsletter, February 2025",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2025-02-01",
-  "chars": 11647,
-  "summary": "The February 2025 FORRT newsletter reports on recent grant success, recruitment for a post‑doc and research assistant positions, the launch of an open‑access social psychology textbook, a new preprint on open science in developing countries, introductions to community managers, and upcoming meetings for the new journal *Replication Research*. It also provides links to job postings, project details, and contact information.",
-  "use_when": "When users want to know about current FORRT projects, open‑access textbook chapters, recruitment opportunities, community manager contacts, or upcoming journal meetings.",
+  "chars": 13460,
+  "summary": "This February 2025 FORRT newsletter reports a UKRI Metascience research grant awarded to the Replication Hub team, announces recruitment of a postdoctoral researcher and research assistants, highlights the launch of an open‑access social psychology textbook and a new preprint on open science in developing countries, and introduces the current community managers with links to their webpages and social profiles.",
+  "use_when": "It answers questions about recent FORRT funding, job openings, textbook chapter contributions, the new preprint, and who to contact for community engagement.",
   "example_questions": [
-   "What positions are currently open for the UKRI Metascience grant project?",
-   "How can I contribute to the open‑access social psychology textbook?",
-   "Who are the current FORRT community managers and how can I contact them?",
-   "What is the new preprint about open science in developing countries?",
-   "When and where are the next meetings for the *Replication Research* journal?"
+   "What positions are currently open in the FORRT Replication Hub?",
+   "How can I contribute a chapter to the open‑access social psychology textbook?",
+   "Where can I find the new preprint on open science in developing countries?",
+   "Who are the current community managers for FORRT and how can I contact them?",
+   "What grant has FORRT recently received and what does it support?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
    {
+    "url": "https://www.ukri.org/opportunity/ukri-metascience-research-grants/",
+    "label": "UKRI Metascience grant"
+   },
+   {
     "url": "https://cis7.bbk.ac.uk/vacancy/postdoctoral-research-assistant-580990.html",
-    "label": "UK job description"
+    "label": "Postdoc job description"
+   },
+   {
+    "url": "https://osf.io/preprints/psyarxiv/7ubk2_v1",
+    "label": "Preprint on open science in developing countries"
    },
    {
     "url": "https://docs.google.com/document/d/19mikXC5mvxU7Oy7Euz_hXXnqHqbDfk40-WGpeiQdSno/edit?tab=t.0",
     "label": "Textbook project details"
    },
    {
-    "url": "mailto:info@forrt.org",
-    "label": "FORRT contact"
-   },
-   {
-    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
-    "label": "Slack community"
-   },
-   {
-    "url": "https://lukasroeseler.github.io/replicationresearch_mockup/",
-    "label": "Replication Research journal"
+    "url": "https://forrt.org/about/get-involved/",
+    "label": "Get involved"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2025-02-01"
  },
  {
   "url": "https://forrt.org/newsletters/2025-03/",
+  "lastmod": "",
   "title": "FORRT Newsletter, March 2025",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2025-03-01",
-  "chars": 8894,
-  "summary": "The March 2025 FORRT newsletter highlights recent project updates, including a new Royal Society Open Science paper on open research initiatives, a leadership call for the newsletter, a guest blog on the Replication Network, and an interview with ZBW. It promotes upcoming events such as the FORRT Summaries hackathon, FReD Annotator and Explorer focus groups, and the Replication Research Symposium, and invites readers to join the community via Slack and the Get Involved page.",
-  "use_when": "When a user wants to know about recent FORRT activities, upcoming events, open calls for participation, or how to get involved with the project.",
+  "chars": 13028,
+  "summary": "The March 2025 FORRT newsletter reports a new Royal Society Open Science paper on open research initiatives, a volunteer leadership role for the newsletter, a guest blog on the Replication Network, an interview with ZBW about FORRT, a call to help build an FAQ page, and details on upcoming events: a Summaries hackathon on April 8, and two FReD focus‑group sessions on April 10 and 11.",
+  "use_when": "When a user wants to know about recent FORRT publications, upcoming events, volunteer opportunities, or how to contribute to the FAQ page.",
   "example_questions": [
-   "What new research paper did FORRT publish in March 2025?",
-   "How can I sign up for the FORRT Summaries hackathon?",
-   "What are the dates and times of the FReD focus group sessions?",
-   "Where can I find the Replication Network guest blog?",
-   "How do I join the FORRT Slack community?"
+   "What new FORRT paper was published in Royal Society Open Science?",
+   "When and where is the FORRT Summaries hackathon?",
+   "How can I volunteer to lead the FORRT newsletter?",
+   "Where can I read the interview with ZBW about FORRT?",
+   "What focus‑group sessions are available for the FReD tools?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
    {
-    "url": "https://mailchi.mp/forrt/forrt-newsletter-10334140",
-    "label": "Previous newsletter"
+    "url": "https://royalsocietypublishing.org/doi/10.1098/rsos.241726",
+    "label": "Full paper"
    },
    {
     "url": "https://forms.gle/CpNXKa2tA62DANFJA",
@@ -5089,207 +4953,27 @@
     "label": "FReD Explorer focus group"
    },
    {
-    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
-    "label": "FORRT Slack"
-   },
-   {
-    "url": "https://forrt.org/about/get-involved/",
-    "label": "Get Involved page"
+    "url": "https://open-science-future.zbw.eu/en/forrt-open-science-initiative/",
+    "label": "ZBW interview"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2025-03-01"
  },
  {
   "url": "https://forrt.org/newsletters/2025-04/",
+  "lastmod": "",
   "title": "FORRT Newsletter, April 2025",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2025-04-01",
-  "chars": 8667,
-  "summary": "The April 2025 FORRT newsletter announces a funded initiative to co‑create open‑access teaching materials, introduces the ELD CAMA platform, calls for research assistants and interns, and promotes upcoming hackathon and replication workshop events. It includes contact emails, links to contributor pages, and invites readers to join Slack or apply for positions.",
-  "use_when": "When a user wants to know about current FORRT funding opportunities, open‑access material projects, upcoming events, or how to get involved as a contributor, intern, or research assistant.",
+  "chars": 13238,
+  "summary": "The April 2025 FORRT newsletter reports on several initiatives: a funded program offering €400 for co‑creating open‑access teaching materials, the launch of the ELD CAMA platform for community‑augmented meta‑analysis, a call for paid research assistants starting June 2025, a hackathon on inclusive feedback in academia, and an invitation to a free replication workshop.",
+  "use_when": "It answers questions about current FORRT projects, upcoming events, job openings, and how to contribute to open‑science education resources.",
   "example_questions": [
-   "What open‑access teaching materials can I contribute to and earn money?",
-   "How can I apply for a research assistant position with FORRT?",
-   "What is the ELD CAMA platform and how do I use it?",
+   "What open‑access teaching materials can I help create and earn money for?",
    "When and where is the next FORRT hackathon?",
-   "Where can I find the FORRT internship testimonials?"
-  ],
-  "page_kind": "get_involved",
-  "freshness": "changes_often",
-  "key_links": [
-   {
-    "url": "https://forrt.org/contributors/",
-    "label": "FORRT Contributors page"
-   },
-   {
-    "url": "https://forrt.org/about/get-involved/",
-    "label": "Get Involved page"
-   },
-   {
-    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
-    "label": "FORRT Slack community"
-   },
-   {
-    "url": "https://mailchi.mp/forrt/forrt-newsletter-10335133",
-    "label": "Previous newsletter"
-   },
-   {
-    "url": "https://forrt.org/educators-corner/020-community-augmented-meta-analyses-in-education/",
-    "label": "ELD CAMA resource"
-   }
-  ],
-  "described_by": "openai/gpt-oss-20b"
- },
- {
-  "url": "https://forrt.org/newsletters/2025-05/",
-  "title": "FORRT Newsletter, May 2025",
-  "section": "newsletters",
-  "lastmod": "",
-  "date": "2025-05-01",
-  "chars": 8323,
-  "summary": "The May 2025 FORRT newsletter reports on recent and upcoming activities, including a paid open‑access teaching materials initiative, the launch of the Replication Research Journal, a hackathon for the FReD tools, a SIPS 2025 session to improve open‑science summaries, and general ways to get involved via Slack and the Get Involved page. It also links to key resources such as the FReD Explorer/Annotator, the Replication Database, and the FORRT contributors page.",
-  "use_when": "When users want to know about current FORRT projects, open‑access initiatives, upcoming hackathons or how to contribute to teaching materials and replication tools.",
-  "example_questions": [
-   "What open‑access teaching materials can I contribute to and earn money?",
-   "When does the Replication Research Journal accept submissions?",
-   "How can I join the FReD Explorer hackathon?",
-   "What sessions are available at SIPS 2025 for improving open‑science summaries?",
-   "Where can I find the FORRT contributors list?"
-  ],
-  "page_kind": "event_or_news",
-  "freshness": "changes_often",
-  "key_links": [
-   {
-    "url": "https://forrt.org/apps/fred_explorer.html",
-    "label": "FReD Explorer"
-   },
-   {
-    "url": "https://forrt.org/apps/fred_annotator.html",
-    "label": "FReD Annotator"
-   },
-   {
-    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
-    "label": "FORRT Slack"
-   },
-   {
-    "url": "https://forrt.org/about/get-involved/",
-    "label": "Get Involved"
-   },
-   {
-    "url": "mailto:team-curriculum@forrt.org",
-    "label": "Email team-curriculum"
-   },
-   {
-    "url": "https://replicationresearch.org",
-    "label": "Replication Research Journal"
-   }
-  ],
-  "described_by": "openai/gpt-oss-20b"
- },
- {
-  "url": "https://forrt.org/newsletters/2025-06/",
-  "title": "FORRT Newsletter, June 2025",
-  "section": "newsletters",
-  "lastmod": "",
-  "date": "2025-06-01",
-  "chars": 8740,
-  "summary": "The June 2025 FORRT newsletter highlights recent events at SIPS 2025, updates on the Open Social Psychology Textbook, calls for contributors to create open‑access teaching materials, and upcoming opportunities such as advertising roles and POSTEdu modules. It includes links to event recordings, project updates, and contact emails for feedback and involvement.",
-  "use_when": "When a user wants to know what FORRT has been doing recently, how to contribute to open‑science education, or how to join upcoming projects and events.",
-  "example_questions": [
-   "What did FORRT do at SIPS 2025?",
-   "How can I help update the Open Social Psychology Textbook?",
-   "What are the current open‑access teaching material opportunities?",
-   "Where can I find the upcoming POSTEdu self‑paced modules?",
-   "How do I get involved with FORRT projects?"
-  ],
-  "page_kind": "event_or_news",
-  "freshness": "changes_often",
-  "key_links": [
-   {
-    "url": "https://forrt.org/about/get-involved/",
-    "label": "Get Involved page"
-   },
-   {
-    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
-    "label": "Slack community"
-   },
-   {
-    "url": "mailto:info@forrt.org",
-    "label": "Contact email"
-   },
-   {
-    "url": "https://forms.gle/A6pjqQ4GsQU5XWHv5",
-    "label": "Sign up for POSTEdu modules"
-   },
-   {
-    "url": "https://docs.google.com/document/d/19mikXC5mvxU7Oy7Euz_hXXnqHqbDfk40-WGpeiQdSno/edit?tab=t.0",
-    "label": "Help with textbook chapters"
-   },
-   {
-    "url": "https://forrt.org/contributors/",
-    "label": "Contributors page"
-   }
-  ],
-  "described_by": "openai/gpt-oss-20b"
- },
- {
-  "url": "https://forrt.org/newsletters/2025-09/",
-  "title": "FORRT Newsletter, September 2025",
-  "section": "newsletters",
-  "lastmod": "",
-  "date": "2025-09-01",
-  "chars": 10586,
-  "summary": "The September 2025 FORRT newsletter highlights new initiatives such as a Steering Committee nomination call, recent publications on feminist practices and citation politics, a handbook for replication studies, and a paper on open science in developing countries. It also reports on onboarding meetings and invites feedback and contributions.",
-  "use_when": "When users want to know about current FORRT projects, how to join leadership, access new resources, or find recent research outputs.",
-  "example_questions": [
-   "How can I nominate someone for the new FORRT Steering Committee?",
-   "What new paper has FORRT released about feminist practices in psychology?",
-   "Where can I find the handbook for replication studies?",
-   "Is there a recent publication on open science for researchers in developing countries?",
-   "What onboarding meetings are available for new members?"
-  ],
-  "page_kind": "event_or_news",
-  "freshness": "changes_often",
-  "key_links": [
-   {
-    "url": "https://forms.gle/vNwrUWvkZAMj1RXe7",
-    "label": "Nominate for Steering Committee"
-   },
-   {
-    "url": "https://forrt.org/replication_handbook",
-    "label": "Replication Handbook"
-   },
-   {
-    "url": "https://forrt.org/citation-politics/",
-    "label": "Citation Politics Webpage"
-   },
-   {
-    "url": "https://mailchi.mp/forrt/forrt-newsletter-10337893?e=2554c959a0",
-    "label": "Previous Newsletter"
-   },
-   {
-    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
-    "label": "FORRT Slack"
-   }
-  ],
-  "described_by": "openai/gpt-oss-20b"
- },
- {
-  "url": "https://forrt.org/newsletters/2025-10/",
-  "title": "FORRT Newsletter, October 2025",
-  "section": "newsletters",
-  "lastmod": "",
-  "date": "2025-10-01",
-  "chars": 12315,
-  "summary": "The October 2025 FORRT newsletter highlights new initiatives such as a paid co‑creation program for open‑science teaching materials, the launch of the Replication Research (R²) journal, a published position statement on neuro‑diversity, and a recent replication hackathon. It includes links to sign‑up forms, contact emails, and resources for subclusters and clusters.",
-  "use_when": "When users want to know about current FORRT projects, open‑access teaching material opportunities, the new R² journal, or recent events and publications.",
-  "example_questions": [
-   "What is the new Replication Research journal and how can I submit to it?",
-   "How can I contribute to FORRT’s open‑science teaching materials and get paid?",
-   "Where can I find the latest position statement on neuro‑diversity?",
-   "What happened at the recent replication hackathon?",
-   "How do I join the FORRT community or get involved?"
+   "How do I apply for the research assistant position starting June 2025?",
+   "What is the ELD CAMA platform and how can I use it?",
+   "Where can I find the full April 2025 newsletter?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
@@ -5299,47 +4983,203 @@
     "label": "FORRT newsletter archive"
    },
    {
-    "url": "mailto:team-curriculum@forrt.org",
-    "label": "team‑curriculum email"
+    "url": "https://teams.microsoft.com/l/meetup-join/19%3ameeting_YzBmMzUzZGEtZWE1NC00YWU2LWEzOTMtMjkxMzc2MzUyYzdk%40thread.v2/0?context=%7b%22Tid%22%3a%223516f40a-5ae9-4956-bbab-395162e589ce%22%2c%22Oid%22%3a%22b9dd3dcf-4b44-42bd-8fd8-ad33706b9854%22%7d",
+    "label": "Join hackathon session"
    },
    {
-    "url": "https://doi.org/10.17879/replicationresearch-2025-9022",
-    "label": "inaugural editorial"
+    "url": "http://indico.uni-muenster.de/e/replicate",
+    "label": "Apply for replication workshop"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2025-04-01"
+ },
+ {
+  "url": "https://forrt.org/newsletters/2025-05/",
+  "lastmod": "",
+  "title": "FORRT Newsletter, May 2025",
+  "section": "newsletters",
+  "chars": 12244,
+  "summary": "May 2025 FORRT newsletter summarizing recent activities: a paid initiative to co‑create open‑access teaching materials, the launch of a diamond open‑access journal with submissions opening in October 2025, upcoming hackathons for the FReD tools and SIPS 2025, and thanks to participants of the April hackathon.",
+  "use_when": "It answers questions about current FORRT projects, how to contribute to open‑access materials, details of the new journal, and dates and logistics of upcoming hackathons and events.",
+  "example_questions": [
+   "What is the paid co‑creation program for open‑access teaching materials?",
+   "When do submissions open for the new Replication Research journal?",
+   "How can I join the FReD Explorer hackathon?",
+   "What happened at the April Team Summaries hackathon?",
+   "Where can I find the Book of Abstracts from the Replication Research Symposium?"
+  ],
+  "page_kind": "event_or_news",
+  "freshness": "static",
+  "key_links": [
+   {
+    "url": "https://forrt.org/newsletters/",
+    "label": "FORRT newsletter archive"
+   },
+   {
+    "url": "mailto:info@forrt.org",
+    "label": "info email"
+   },
+   {
+    "url": "https://forrt.org/apps/fred_explorer.html",
+    "label": "FReD Explorer"
    },
    {
     "url": "https://replicationresearch.org",
-    "label": "R² journal website"
+    "label": "Replication Research journal"
    },
    {
-    "url": "https://zenodo.org/communities/r2/records",
-    "label": "R² Zenodo community"
-   },
-   {
-    "url": "mailto:contact@replicationresearch.org",
-    "label": "contact R²"
+    "url": "https://zenodo.org/records/15487804",
+    "label": "Book of Abstracts"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2025-05-01"
  },
  {
-  "url": "https://forrt.org/newsletters/2025-11/",
-  "title": "FORRT Newsletter, November 2025",
-  "section": "newsletters",
+  "url": "https://forrt.org/newsletters/2025-06/",
   "lastmod": "",
-  "date": "2025-11-01",
-  "chars": 11473,
-  "summary": "The November 2025 FORRT newsletter announces new initiatives such as the Community Digest, invites volunteers for the AI for Meta-Science workshop programme committee, launches the Open Research Games Portal, highlights the new Replication Research journal, promotes a new interactive booklet, and advertises the Open Science Retreat in April 2026. It also provides contact details and links to related resources.",
-  "use_when": "When a user wants to know about current FORRT activities, upcoming events, volunteer opportunities, or how to access new resources like the games portal or the retreat.",
+  "title": "FORRT Newsletter, June 2025",
+  "section": "newsletters",
+  "chars": 12797,
+  "summary": "The June 2025 FORRT newsletter reports on recent events such as the SIPS 2025 conference in Budapest, highlights of Metascience presentations, and updates on the Open Social Psychology Textbook project. It invites readers to contribute to the textbook, offers a paid co‑creation opportunity for open‑access teaching materials, and announces an upcoming volunteer/paid role board.",
+  "use_when": "Users looking for the latest FORRT events, how to join the textbook project, how to earn money by creating open‑access materials, or how to find volunteer roles will find this page useful.",
   "example_questions": [
-   "What new projects are being launched by FORRT this month?",
-   "How can I volunteer for the AI for Meta-Science workshop?",
-   "Where can I find the Open Research Games Portal?",
-   "When and where is the Open Science Retreat happening?",
-   "What is the new Replication Research journal about?"
+   "What did FORRT do at SIPS 2025?",
+   "How can I help write a chapter for the Open Social Psychology Textbook?",
+   "Is there a paid opportunity to create open‑access teaching slides?",
+   "Where can I find the upcoming volunteer role board?",
+   "Who can I contact for more information about contributing to FORRT projects?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
+   {
+    "url": "https://forrt.org/newsletters/",
+    "label": "FORRT newsletter archive"
+   },
+   {
+    "url": "mailto:info@forrt.org",
+    "label": "info@forrt.org"
+   },
+   {
+    "url": "https://docs.google.com/document/d/19mikXC5mvxU7Oy7Euz_hXXnqHqbDfk40-WGpeiQdSno/edit?tab=t.0",
+    "label": "Join the textbook project"
+   },
+   {
+    "url": "https://docs.google.com/document/d/1_TRh7z3Bv_tdxGqjdWMm4kfQerTYvYw3e4wvQLNpTDQ/edit?tab=t.0",
+    "label": "FORRT's Clusters"
+   },
+   {
+    "url": "https://docs.google.com/document/d/1MW2fkPOnMVjWVVse7eqFrvwQWcLuHdI8hnozQzPtV-M/edit?tab=t.0",
+    "label": "Additional contributor info"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2025-06-01"
+ },
+ {
+  "url": "https://forrt.org/newsletters/2025-09/",
+  "lastmod": "",
+  "title": "FORRT Newsletter, September 2025",
+  "section": "newsletters",
+  "chars": 7031,
+  "summary": "The September 2025 FORRT newsletter reports on recent community activities, including the launch of a new Steering Committee, nominations for committee members, and upcoming elections for community group representatives. It highlights new publications— a feminist practices perspective piece, a citation‑politics preprint, a handbook for replication studies, and an open‑science guide for developing‑country researchers— and announces onboarding meetings and ways to get involved via Slack, calendar, and code of conduct.",
+  "use_when": "This page answers questions about current FORRT initiatives, how to join or contribute, where to find recent publications, and details of upcoming events.",
+  "example_questions": [
+   "What new initiatives has FORRT launched this month?",
+   "How can I nominate someone for the new Steering Committee?",
+   "Where can I find the handbook for replication studies?",
+   "What are the upcoming onboarding meetings?",
+   "Which recent papers were published by FORRT?"
+  ],
+  "page_kind": "event_or_news",
+  "freshness": "changes_often",
+  "key_links": [
+   {
+    "url": "https://forrt.org/newsletters/",
+    "label": "FORRT newsletter archive"
+   },
+   {
+    "url": "https://forms.gle/vNwrUWvkZAMj1RXe7",
+    "label": "Nominate for Steering Committee"
+   },
+   {
+    "url": "https://forrt.org/replication_handbook",
+    "label": "Replication Handbook"
+   },
+   {
+    "url": "https://forrt.org/about/get-involved/",
+    "label": "Get Involved"
+   },
+   {
+    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
+    "label": "Join our Slack"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2025-09-01"
+ },
+ {
+  "url": "https://forrt.org/newsletters/2025-10/",
+  "lastmod": "",
+  "title": "FORRT Newsletter, October 2025",
+  "section": "newsletters",
+  "chars": 8990,
+  "summary": "The October 2025 FORRT newsletter reports on recent and upcoming activities, including a paid co‑creation program for open‑access teaching materials, the launch of the Replication Research (R²) journal, a new position statement on neuro‑diversity, a replication hackathon, the Open Science Retreat, and a call for new Outreach team members.",
+  "use_when": "It answers questions about current FORRT projects, how to contribute to open‑science resources, upcoming events, and recruitment opportunities.",
+  "example_questions": [
+   "What new initiatives is FORRT running this month?",
+   "How can I help create open‑access teaching materials for FORRT?",
+   "When and where is the next Open Science Retreat?",
+   "What is the Replication Research journal and how can I submit to it?",
+   "Who can join the FORRT Outreach team?"
+  ],
+  "page_kind": "event_or_news",
+  "freshness": "changes_often",
+  "key_links": [
+   {
+    "url": "https://doi.org/10.31234/osf.io/znbep",
+    "label": "Pownall et al. (2024)"
+   },
+   {
+    "url": "https://docs.google.com/spreadsheets/d/1HpWg7PYyG6Q6zOCzwsMevafFDU5Fnk-_jBYjxD-T8zE/edit?usp=sharing",
+    "label": "FORRT subclusters spreadsheet"
+   },
+   {
+    "url": "https://doi.org/10.17879/replicationresearch-2025-9022",
+    "label": "R² inaugural editorial"
+   },
+   {
+    "url": "https://replicationresearch.org",
+    "label": "R² journal website"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2025-10-01"
+ },
+ {
+  "url": "https://forrt.org/newsletters/2025-11/",
+  "lastmod": "",
+  "title": "FORRT Newsletter, November 2025",
+  "section": "newsletters",
+  "chars": 8044,
+  "summary": "This page is the November 2025 FORRT newsletter, announcing new initiatives such as the Community Digest, a call for volunteers for the AI for Meta‑Science workshop, the launch of the Open Research Games Portal, the new Replication Research journal, and a new interactive booklet. It also promotes the upcoming Open Science Retreat (April 7–11, 2026) and invites readers to join the outreach team or Slack community.",
+  "use_when": "It answers questions about upcoming FORRT events, how to get involved in new projects, where to find the latest resources, and how to contribute to the community.",
+  "example_questions": [
+   "What events is FORRT hosting this year?",
+   "How can I volunteer for the AI for Meta‑Science workshop?",
+   "Where can I find the new Open Research Games Portal?",
+   "What is the Replication Research journal about?",
+   "How do I sign up for the Open Science Retreat?"
+  ],
+  "page_kind": "event_or_news",
+  "freshness": "changes_often",
+  "key_links": [
+   {
+    "url": "https://forrt.org/newsletters/",
+    "label": "Newsletter archive"
+   },
    {
     "url": "https://forrt.org/games/",
     "label": "Open Research Games Portal"
@@ -5349,43 +5189,39 @@
     "label": "Open Science Retreat"
    },
    {
-    "url": "https://forrt.org/booklet",
-    "label": "Interactive Booklet"
-   },
-   {
     "url": "https://forrt.org/about/get-involved/",
     "label": "Get Involved"
    },
    {
-    "url": "mailto:info@forrt.org",
-    "label": "Contact FORRT"
-   },
-   {
-    "url": "https://forrt.slack.com/archives/CM63UEYF7",
-    "label": "General Interest Slack Channel"
+    "url": "https://forrt.org/coc/",
+    "label": "Code of Conduct"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2025-11-01"
  },
  {
   "url": "https://forrt.org/newsletters/2026-01/",
+  "lastmod": "",
   "title": "FORRT Newsletter, January 2026",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2026-01-01",
-  "chars": 13508,
-  "summary": "The January 2026 FORRT newsletter announces new initiatives such as the FORWARD programme, an AI for Meta‑Science workshop, the Open Research Games Portal, and the launch of the Replication Research journal. It invites community members to join the Programme Committee, contribute games, and submit content for the Community Digest.",
-  "use_when": "When users want to know about current FORRT projects, how to get involved, or where to find new resources and events.",
+  "chars": 9542,
+  "summary": "This January 2026 FORRT newsletter reports on recent activities, introduces a new Community Digest section, highlights the launch of the FORWARD programme, invites volunteers for an AI for Meta‑Science workshop, announces the Open Research Games Portal and the new Replication Research journal, and details upcoming events such as Love Replications Week and a replication hackathon.",
+  "use_when": "It answers questions about FORRT’s latest initiatives, how to join upcoming programmes or events, where to find new resources like the Games Portal or Replication Research journal, and how to contribute to the Community Digest.",
   "example_questions": [
-   "What is the FORWARD programme and how can I join?",
-   "How can I contribute a game to the Open Research Games Portal?",
-   "Is there a new journal for replication studies?",
-   "What is the AI for Meta‑Science workshop and who can volunteer?",
-   "Where can I find the Community Digest section of the newsletter?"
+   "What new programmes has FORRT launched in 2026?",
+   "How can I volunteer for the AI for Meta‑Science workshop?",
+   "Where can I find the Open Research Games Portal?",
+   "What events are scheduled for March and May 2026?",
+   "How can I submit a local event for Love Replications Week?"
   ],
   "page_kind": "event_or_news",
-  "freshness": "changes_often",
+  "freshness": "static",
   "key_links": [
+   {
+    "url": "https://forrt.org/newsletters/",
+    "label": "FORRT newsletter archive"
+   },
    {
     "url": "https://forrt.org/educators-corner/023-forward-a-unesco-decade-of-science-programme/",
     "label": "FORWARD programme"
@@ -5396,34 +5232,30 @@
    },
    {
     "url": "https://forrt.org/LoveReplicationsWeek/",
-    "label": "Love Replications Week"
+    "label": "Love Replications Week program"
    },
    {
-    "url": "https://forrt.org/about/get-involved/",
-    "label": "Get Involved"
-   },
-   {
-    "url": "https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ",
-    "label": "Join Slack"
+    "url": "https://www.uni-muenster.de/Ejournals/index.php/replicationresearch/article/view/ie",
+    "label": "Replication Research editorial"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2026-01-01"
  },
  {
   "url": "https://forrt.org/newsletters/2026-02/",
+  "lastmod": "",
   "title": "FORRT Newsletter, February 2026",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2026-02-01",
-  "chars": 14701,
-  "summary": "The February 2026 FORRT newsletter highlights new tools and events: the ARIADNE resource navigator, a Team Credit hackathon on March 9, updates to the FReD replication database and upcoming Zotero plugin translations, and a call to register for Love Replications Week March 2–6. It includes links to explore ARIADNE, join the hackathon, use the Explorer App and FLoRA Annotator, and register for the week’s program.",
-  "use_when": "When a user wants to know about recent FORRT initiatives, how to participate in upcoming events, or how to access new research tools and resources.",
+  "chars": 10645,
+  "summary": "This February 2026 FORRT newsletter highlights the ARIADNE resource navigator, updates to the FReD replication database, and upcoming hackathons and events such as Love Replications Week. It also announces a call for replicators for the NanoBubbles replication project and provides links to tools, registration pages, and community contribution forms.",
+  "use_when": "It answers questions about upcoming FORRT events, how to contribute to ARIADNE, where to find the FReD Explorer App, details on Love Replications Week, and how to apply to the NanoBubbles replication initiative.",
   "example_questions": [
-   "What new tools are available from FORRT this month?",
-   "How can I join the Team Credit hackathon?",
-   "Where can I find the latest updates to the FReD database?",
-   "When is Love Replications Week and how do I register?",
-   "What is ARIADNE and how do I use it?"
+   "What events are happening in March 2026?",
+   "How can I contribute a resource to ARIADNE?",
+   "Where can I find the FReD Explorer App?",
+   "What is Love Replications Week?",
+   "How can I apply to the NanoBubbles replication project?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
@@ -5433,96 +5265,84 @@
     "label": "ARIADNE Intro"
    },
    {
-    "url": "https://meet.google.com/qmn-gdjf-trx",
-    "label": "Team Credit Hackathon"
-   },
-   {
     "url": "https://forrt.org/explorer/",
-    "label": "Explorer App"
-   },
-   {
-    "url": "https://forrt.org/annotator/",
-    "label": "FLoRA Annotator"
+    "label": "FReD Explorer App"
    },
    {
     "url": "https://forrt.org/LoveReplicationsWeek/",
     "label": "Love Replications Week Program"
    },
    {
-    "url": "https://docs.google.com/forms/d/e/1FAIpQLScOwK7uBjzeQe2vVMpNxWXGhOGA7MnBOJQsz4YbwEuk-ooxUQ/viewform",
-    "label": "Register for Love Replications Week"
+    "url": "https://nanobubbles.hypotheses.org/",
+    "label": "NanoBubbles Initiative"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2026-02-01"
  },
  {
   "url": "https://forrt.org/newsletters/2026-03/",
+  "lastmod": "",
   "title": "FORRT Newsletter, March 2026",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2026-03-01",
-  "chars": 13506,
-  "summary": "The March 2026 FORRT newsletter highlights a call for submissions to the upcoming FORRT AI in Metascience Online Conference, introduces the new Zotero Replication Checker tool, updates on the multilingual Glossary, announces the Academic Wheel of Privilege manuscript, and shares new preprints on replication and AI-driven replicability. It also mentions the Replication Database’s role in the Predicting Replicability Challenge.",
-  "use_when": "When a user wants to know about upcoming FORRT events, submit conference proposals, learn about new tools or resources, or read recent FORRT research outputs.",
+  "chars": 9183,
+  "summary": "The March 2026 FORRT newsletter reports on recent and upcoming activities, including a call for submissions to the FORRT AI in Metascience Online Conference, the launch of the Zotero Replication Checker tool, updates on the multilingual Open Science Glossary, new manuscripts such as the Academic Wheel of Privilege, and highlights from the Replication Hub and Predicting Replicability Challenge. It also promotes events like Love Replications Week, a Q&A with senior editors of Replication Research, and invites community members to contribute via Slack or join the outreach team.",
+  "use_when": "Users looking for information on upcoming FORRT events, conference submission deadlines, new research tools, or ways to get involved with the organization will find this page useful.",
   "example_questions": [
    "What is the deadline for submitting to the FORRT AI in Metascience Conference?",
    "How can I use the Zotero Replication Checker?",
-   "Where can I find the new Glossary translations?",
-   "Is there a new manuscript on authorship equity from FORRT?",
-   "What preprint did FORRT publish about tracking replications?"
+   "Where can I read the new Academic Wheel of Privilege preprint?",
+   "What are the dates for Love Replications Week?",
+   "How can I join the FORRT outreach team?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
    {
-    "url": "https://forms.gle/XSoZH7X7naqZGVmS8",
-    "label": "Conference submission form"
-   },
-   {
     "url": "https://forrt.org/flora_zotero/",
-    "label": "Zotero Replication Checker download"
-   },
-   {
-    "url": "https://forrt.org/glossary/english/",
-    "label": "Glossary of Open Science terms"
+    "label": "Download Zotero Replication Checker"
    },
    {
     "url": "https://osf.io/preprints/metaarxiv/af4nk_v2",
-    "label": "Academic Wheel of Privilege preprint"
+    "label": "Read AWoP preprint"
    },
    {
-    "url": "https://osf.io/preprints/metaarxiv/ad2w6_v2",
-    "label": "Tracking and Mainstreaming Replications preprint"
+    "url": "https://forrt.org/LoveReplicationsWeek/",
+    "label": "Watch Love Replications Week"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2026-03-01"
  },
  {
   "url": "https://forrt.org/newsletters/2026-04/",
+  "lastmod": "",
   "title": "FORRT Newsletter, April 2026",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2026-04-01",
-  "chars": 12312,
-  "summary": "The April 2026 FORRT newsletter highlights new projects, calls for papers and contributors, and upcoming events. It introduces the Re‑Search Terms app, invites submissions to the Replication Research journal, seeks volunteers for the FLoRA database, and announces the FORRT AI in Metascience Online Conference. Contact details and links to submit work or join Slack are provided.",
-  "use_when": "When a user wants to know about current FORRT projects, open calls for papers or contributors, upcoming conferences, or how to get involved with the Re‑Search Terms app or FLoRA database.",
+  "chars": 8419,
+  "summary": "The April 2026 FORRT newsletter reports on recent activities, including the launch of the Re‑Search Terms interactive app and a newly accepted paper, calls for papers to the Replication Research journal, a call for contributors to the FLoRA database, and an upcoming AI in Metascience conference. It also invites participation in Big Team Science surveys and offers ways to join the outreach team or the FORRT Slack community.",
+  "use_when": "This page answers questions about current FORRT projects, submission opportunities, and ways to get involved in the community.",
   "example_questions": [
-   "What new projects are announced in the April 2026 FORRT newsletter?",
+   "What new projects are highlighted in the April 2026 FORRT newsletter?",
    "How can I submit a paper to the Replication Research journal?",
-   "Who can volunteer for the FLoRA database and how do I join?",
-   "When and where is the FORRT AI in Metascience Online Conference?",
-   "Where can I find the Re‑Search Terms interactive app?"
+   "Where can I find the Re‑Search Terms app?",
+   "What surveys are available on Big Team Science?",
+   "How can I join the FORRT outreach team?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
+   {
+    "url": "https://forrt.org/newsletters/",
+    "label": "FORRT newsletter archive"
+   },
    {
     "url": "https://msleungyi.shinyapps.io/Re-SearchTerms_v2/",
     "label": "Re‑Search Terms app"
    },
    {
     "url": "https://osf.io/preprints/osf/qsp7x_v3",
-    "label": "Re‑Search Terms paper"
+    "label": "Newly accepted paper"
    },
    {
     "url": "https://replicationresearch.org",
@@ -5530,79 +5350,71 @@
    },
    {
     "url": "https://forms.gle/XSoZH7X7naqZGVmS8",
-    "label": "Conference submission form"
+    "label": "AI in Metascience conference submission"
    },
    {
-    "url": "https://forrt.slack.com/archives/CM63UEYF7",
-    "label": "General Interest Slack channel"
-   },
-   {
-    "url": "mailto:info@forrt.org",
-    "label": "FORRT contact email"
+    "url": "https://concordia.yul1.qualtrics.com/jfe/form/SV_cvbYzm94hCslJCm",
+    "label": "Big Team Science Experience Survey"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2026-04-01"
  },
  {
   "url": "https://forrt.org/newsletters/2026-05/",
+  "lastmod": "",
   "title": "FORRT Newsletter, May 2026",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2026-05-01",
-  "chars": 13861,
-  "summary": "The May 2026 FORRT newsletter highlights several ongoing projects and calls for participation, including the FLoRA replication database validation, the Nowhere Lab community expansion, new Open Science leadership case studies, and a best‑practice initiative for psychology. It provides contact details for project leads, links to register or join Slack, and invites readers to contribute or attend upcoming events.",
-  "use_when": "When a user wants to know how to get involved with FORRT projects, find contact info for project leads, register for upcoming events, or learn about the latest initiatives and community spaces.",
+  "chars": 9879,
+  "summary": "This May 2026 FORRT newsletter highlights opportunities to validate entries in the FLoRA replication database, announces Nowhere Lab’s integration into FORRT, invites contributions to leadership case studies with LMU OSC, promotes a new best‑practice consensus project for psychology, and lists upcoming events such as the Replication Hub Showcase and a SIPS 2026 session.",
+  "use_when": "It answers questions about how to get involved with FLoRA, join Nowhere Lab, contribute to leadership case studies, register for the best‑practice hackathon, and attend upcoming events.",
   "example_questions": [
    "How can I help validate entries in the FLoRA database?",
-   "Who should I contact to contribute to the Open Science leadership case studies?",
-   "Where can I join the Nowhere Lab community?",
-   "What is the best‑practice project for psychology and how do I register?",
-   "Is there a Slack channel for FORRT members?"
+   "What is Nowhere Lab and how can I join it?",
+   "How do I contribute to the leadership case studies with LMU OSC?",
+   "When and where is the best‑practice hackathon for psychology?",
+   "What events are scheduled for July 2026?"
   ],
   "page_kind": "event_or_news",
-  "freshness": "changes_often",
+  "freshness": "static",
   "key_links": [
    {
-    "url": "https://forms.gle/yrmK8Wnd4oqwZLWKA",
-    "label": "Register for psychology best‑practice event"
-   },
-   {
     "url": "https://forrt.org/nowherelab/",
-    "label": "Nowhere Lab page"
+    "label": "Nowhere Lab"
    },
    {
-    "url": "mailto:s.middleton@lmu.de",
-    "label": "Contact Sara L. Middleton"
+    "url": "https://forms.gle/yrmK8Wnd4oqwZLWKA",
+    "label": "Register for best‑practice hackathon"
    },
    {
-    "url": "https://forrt.slack.com/archives/CM63UEYF7",
-    "label": "FORRT Slack channel"
+    "url": "mailto:info@forrt.org",
+    "label": "FORRT contact"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2026-05-01"
  },
  {
   "url": "https://forrt.org/newsletters/2026-06/",
+  "lastmod": "",
   "title": "FORRT Newsletter, June 2026",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2026-06-01",
-  "chars": 15701,
-  "summary": "The June 2026 FORRT Newsletter highlights recent and upcoming activities, including a call for submissions to the FORRT AI in Metascience Online Conference (28–30 September 2026), the launch of the Open Social Psychology OER, updates on the Replication Hub and FLoRA database, and calls for validators. It also links to related resources such as the Replication Atlas, Zotero plugin, and various media coverage.",
-  "use_when": "When a user wants to know about current FORRT events, submission deadlines, new resources, or how to get involved with replication projects.",
+  "chars": 11439,
+  "summary": "This newsletter announces several FORRT initiatives: a call for submissions to the upcoming FORRT AI in Metascience Online Conference (28–30 September 2026), the launch of the Open Social Psychology open‑educational book, updates on the Replication Hub and FLoRA database, and a call for validators for FLoRA. It also promotes the 5th Annual Big Team Science Conference 2026, with abstract submission deadlines and event details. Users can learn deadlines, submit proposals, explore new resources, and find ways to contribute to replication projects.",
+  "use_when": "It answers questions about upcoming FORRT events, submission deadlines, new publications, and opportunities to contribute to replication research.",
   "example_questions": [
-   "What are the submission deadlines for the FORRT AI in Metascience Online Conference?",
-   "Where can I find the new Open Social Psychology book?",
-   "How can I contribute to the FLoRA replication database?",
-   "What resources are available for learning about replication research?",
-   "Is there a Slack channel to discuss FORRT projects?"
+   "When is the FORRT AI in Metascience Online Conference?",
+   "How do I submit a proposal for the conference?",
+   "What is the Open Social Psychology book and where can I read it?",
+   "How can I help validate entries in the FLoRA database?",
+   "When can I submit an abstract for the Big Team Science Conference 2026?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
    {
     "url": "https://forrt.org/ai-metascience/",
-    "label": "FORRT AI in Metascience Conference"
+    "label": "FORRT AI in Metascience Online Conference"
    },
    {
     "url": "https://docs.google.com/forms/d/e/1FAIpQLSdmqvHLRlzpGNFYX2or5ohVWuuJnr9a1lT-H606ieC4UoYH1w/viewform",
@@ -5613,114 +5425,118 @@
     "label": "Open Social Psychology book"
    },
    {
-    "url": "https://forrt.org/replication-hub/",
-    "label": "Replication Hub"
-   },
-   {
     "url": "https://forrt.org/replication-hub/flora/",
     "label": "FLoRA database"
+   },
+   {
+    "url": "https://eur03.safelinks.protection.outlook.com/?url=https%3A%2F%2Fbigteamscienceconference.github.io%2F&data=05%7C02%7Cverheyen%40essb.eur.nl%7Ce6818ba3e9ad4d1b976008ded2d30847%7C715902d6f63e4b8d929b4bb170bad492%7C0%7C0%7C639180001118380483%7CUnknown%7CTWFpbGZsb3d8eyJFbXB0eU1hcGkiOnRydWUsIlYiOiIwLjAuMDAwMCIsIlAiOiJXaW4zMiIsIkFOIjoiTWFpbCIsIldUIjoyfQ%3D%3D%7C0%7C%7C%7C&sdata=4x8X2FXlrJYmpxm%2FDyNjVsgARXmpZOVQKB4pL3wQEw0%3D&reserved=0",
+    "label": "Big Team Science Conference 2026"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2026-06-01"
  },
  {
   "url": "https://forrt.org/newsletters/2026-07/",
+  "lastmod": "",
   "title": "FORRT Newsletter, July 2026",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2026-07-01",
-  "chars": 15263,
-  "summary": "The July 2026 FORRT newsletter highlights recent activities, including a correction about a podcast mix‑up, an interview with Lukas Röseler on replication initiatives, a call for submissions to the upcoming FORRT AI in Metascience Online Conference, updates on FORRT’s participation in SIPS 2026, new Replication Hub content, and registration for the 2nd Münster Reproduction Games.",
-  "use_when": "It answers questions about current FORRT events, conference calls for papers, recent recognitions, and how to join or participate in replication projects.",
+  "chars": 10521,
+  "summary": "This page is the July 2026 issue of the FORRT Newsletter, summarizing recent activities, upcoming events, and calls for submissions. It highlights the FORRT AI in Metascience Online Conference, the 2nd Münster Reproduction Games, the AIMOS 2026 conference, and updates from the Replication Hub and SIPS 2026.",
+  "use_when": "It answers questions about when and where upcoming FORRT events are, what submission deadlines apply, and how to participate in or learn about recent FORRT initiatives.",
   "example_questions": [
-   "What are the deadlines for the FORRT AI in Metascience Online Conference submissions?",
-   "How can I register for the 2nd Münster Reproduction Games?",
-   "What recognitions did FORRT receive at SIPS 2026?",
-   "Where can I find the interview with Lukas Röseler about replication?",
-   "What new content has the Replication Hub added?"
+   "When is the FORRT AI in Metascience Online Conference and what is the submission deadline?",
+   "Where and when will the 2nd Münster Reproduction Games take place?",
+   "What is the submission deadline for the AIMOS 2026 conference?",
+   "How can I submit a proposal for the FORRT AI conference?",
+   "What recent updates has the Replication Hub posted?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
    {
-    "url": "https://docs.google.com/forms/d/e/1FAIpQLSdmqvHLRlzpGNFYX2or5ohVWuuJnr9a1lT-H606ieC4UoYH1w/viewform",
-    "label": "Submit proposal"
-   },
-   {
     "url": "https://forrt.org/ai-metascience/",
-    "label": "AI in Metascience Conference"
+    "label": "FORRT AI in Metascience Online Conference"
    },
    {
-    "url": "https://forrt.org/rjf/",
-    "label": "Replication Journal Federation"
+    "url": "https://docs.google.com/forms/d/e/1FAIpQLSdmqvHLRlzpGNFYX2or5ohVWuuJnr9a1lT-H606ieC4UoYH1w/viewform",
+    "label": "Submit proposal for AI conference"
+   },
+   {
+    "url": "https://indico.uni-muenster.de/event/4135/",
+    "label": "2nd Münster Reproduction Games"
+   },
+   {
+    "url": "https://forrt.org/newsletters/",
+    "label": "FORRT newsletter archive"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2026-07-01"
  },
  {
   "url": "https://forrt.org/newsletters/2026-08/",
+  "lastmod": "",
   "title": "FORRT Newsletter, August 2026",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2026-08-01",
-  "chars": 13954,
-  "summary": "The August 2026 FORRT newsletter highlights upcoming events, support contacts, AI conference details, project updates, and research resources. It includes dates for the 2027 FORRT Conference, the 2026 AI in Metascience Online Conference, and links to the Confidential Advisor and Ombuds contacts, the FORRT Library of Reproduction and Replication Attempts, and recent publications.",
-  "use_when": "It answers questions about upcoming FORRT events, how to register for the AI conference, who to contact for support, and where to find recent research updates and resources.",
+  "chars": 9313,
+  "summary": "This August 2026 FORRT newsletter reports on recent activities, highlights the upcoming FORRT AI in Metascience Online Conference (28–30 September 2026) and the Münster conference (14–16 September 2027), provides contact details for the Confidential Advisor and Ombuds, announces the first peer‑reviewed publication of Replication Research (R2), and links to resources such as the FLoRA library and the Open Research Across Disciplines collection.",
+  "use_when": "It answers questions about when and where upcoming FORRT events are, how to register for the AI conference, who to contact for support, where to find the R2 publication, and how to get involved with FLoRA or the Open Research Across Disciplines initiative.",
   "example_questions": [
-   "When is the next FORRT Conference and where can I register?",
-   "How do I sign up for the AI in Metascience Online Conference?",
-   "Who can I contact for confidential support within FORRT?",
-   "Where can I find the latest FORRT Library of Reproduction and Replication Attempts?",
-   "What recent research publications are highlighted in the August 2026 newsletter?"
+   "When is the FORRT AI in Metascience Online Conference and how do I register?",
+   "Who can I contact if I have a concern about interpersonal conflict within FORRT?",
+   "Where can I read the first peer‑reviewed publication of Replication Research?",
+   "What resources does FLoRA offer and how many studies are included?",
+   "How can I become a discipline lead for Open Research Across Disciplines?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
    {
-    "url": "https://docs.google.com/forms/d/e/1FAIpQLSdFF-BdifNeBEkOrt-gjfDqAYON5xA3N5YzM40B3aBt-A2ejA/viewform",
-    "label": "Register for AI conference"
+    "url": "https://forrt.org/ai-metascience/",
+    "label": "FORRT AI in Metascience Online Conference"
+   },
+   {
+    "url": "https://forrt.org/flora-explorer/",
+    "label": "FLoRA Library"
+   },
+   {
+    "url": "https://forrt.org/disciplines",
+    "label": "Open Research Across Disciplines"
    },
    {
     "url": "https://forrt.org/about/confidential-advisor-ombuds/",
     "label": "Confidential Advisor & Ombuds"
    },
    {
-    "url": "https://forrt.org/flora-explorer/",
-    "label": "FORRT Library of Reproduction and Replication Attempts"
-   },
-   {
-    "url": "https://forrt.org/ai-metascience/",
-    "label": "AI in Metascience Conference page"
-   },
-   {
-    "url": "https://forrt.org/disciplines",
-    "label": "Open Research Across Disciplines"
+    "url": "https://forrt.org/newsletters/",
+    "label": "FORRT Newsletter Archive"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2026-08-01"
  },
  {
   "url": "https://forrt.org/newsletters/2026-09/",
+  "lastmod": "",
   "title": "FORRT Newsletter, September 2026",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2026-09-01",
-  "chars": 12760,
-  "summary": "The September 2026 FORRT newsletter highlights several initiatives: the Big Team Science Experience Survey, the Diamond Reviewer Pledge, growth of the FLoRA library, and upcoming events such as the Making Replications Count hackathon (11–13 Nov 2026) and the ReproHack conference (2–4 Dec 2026). It also promotes the FORRT Conference in Münster (14–16 Sep 2027) and invites participation via sign‑ups and Slack.",
-  "use_when": "It answers questions about current FORRT projects, upcoming events, how to contribute to peer review or surveys, and where to find the latest research replication resources.",
+  "chars": 8151,
+  "summary": "This September 2026 FORRT newsletter reports on recent activities, invites participation in the Big Team Science Experience Survey, promotes the Diamond Reviewer Pledge, and announces upcoming hackathons and conferences in Münster. It also highlights the growing FLoRA library of replication attempts and provides links to apply for events and join the community.",
+  "use_when": "It answers questions about current FORRT events, how to join the Big Team Science survey, sign the Diamond Reviewer pledge, apply to the Münster hackathon or ReproHack, and learn about the FLoRA library.",
   "example_questions": [
-   "What events is FORRT hosting in 2026?",
-   "How can I sign up for the Big Team Science Experience Survey?",
-   "What is the Diamond Reviewer Pledge and how do I join?",
-   "Where can I find the latest FLoRA replication attempts?",
-   "When and where is the ReproHack conference?"
+   "What events are happening in Münster this year?",
+   "How can I sign the Diamond Reviewer Pledge?",
+   "Where can I find the FLoRA library of replication attempts?",
+   "Is there a survey I can take about Big Team Science?",
+   "How do I apply to the ReproHack event?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
    {
-    "url": "https://concordia.yul1.qualtrics.com/jfe/form/SV_cvbYzm94hCslJCm",
-    "label": "Share Your Voice! Survey"
+    "url": "https://forrt.org/newsletters/",
+    "label": "FORRT newsletter archive"
    },
    {
     "url": "https://forrt.org/diamond-reviewer",
@@ -5728,84 +5544,125 @@
    },
    {
     "url": "https://forrt.org/flora-explorer/",
-    "label": "FLoRA Library"
-   },
-   {
-    "url": "https://indico.uni-muenster.de/e/marco3",
-    "label": "Hackathon Apply"
-   },
-   {
-    "url": "https://indico.uni-muenster.de/event/4410/registrations/4414/",
-    "label": "ReproHack Apply"
+    "label": "FLoRA library"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2026-09-01"
  },
  {
   "url": "https://forrt.org/newsletters/2026-10/",
+  "lastmod": "",
   "title": "FORRT Newsletter, October 2026",
   "section": "newsletters",
-  "lastmod": "",
-  "date": "2026-10-01",
-  "chars": 13443,
-  "summary": "The October 2026 FORRT newsletter highlights upcoming events such as the ReproHack workshop in Münster (2–4 Dec 2026) and the 2027 FORRT Conference (14–16 Sep 2027), introduces the new FORRT ORE browser extension, celebrates the first anniversary of the Replication Research journal, and reports on team activities at BTSCon 2026 and the Brazilian Reproducibility Network. It also invites readers to join Slack channels, provide feedback, and register for events.",
-  "use_when": "When a user wants to know about upcoming FORRT events, how to register for ReproHack, how to install or test the ORE extension, or how to get involved with the 2027 conference planning.",
+  "chars": 9058,
+  "summary": "This October 2026 FORRT newsletter reports on recent and upcoming activities: a ReproHack event in Münster (2–4 Dec 2026) with free registration, the new FORRT ORE browser extension, a one‑year celebration of the Replication Research journal, highlights from BTSCon 2026 and the Brazilian Reproducibility Network, a call for papers on neurodiversity and interculturality, the 2027 FORRT conference dates, and opportunities to volunteer for outreach or join the Opportunities Board.",
+  "use_when": "It answers questions about when and how to attend ReproHack, how to install and test the ORE extension, where to find the 2027 FORRT conference, how to submit a paper or volunteer for outreach, and how to access the Opportunities Board.",
   "example_questions": [
-   "When and where is the ReproHack workshop and how do I register?",
-   "What is the FORRT ORE extension and how can I try it?",
-   "How can I help plan the 2027 FORRT Conference in Münster?",
-   "Where can I find the first anniversary highlights of the Replication Research journal?",
-   "Which Slack channels should I join to stay updated on FORRT news?"
+   "When and where is the ReproHack event in Münster?",
+   "How do I register for ReproHack before the deadline?",
+   "What is the FORRT ORE extension and how can I install it?",
+   "Where can I find the dates for the 2027 FORRT conference?",
+   "How can I contribute to the FORRT Opportunities Board?"
   ],
   "page_kind": "event_or_news",
   "freshness": "changes_often",
   "key_links": [
-   {
-    "url": "https://indico.uni-muenster.de/event/4410/",
-    "label": "ReproHack Münster event page"
-   },
    {
     "url": "https://indico.uni-muenster.de/event/4410/registrations/4414/",
     "label": "Register for ReproHack"
    },
    {
     "url": "https://forrt.org/chromium-extension/",
-    "label": "FORRT ORE extension page"
+    "label": "FORRT ORE extension"
    },
    {
-    "url": "https://chromewebstore.google.com/detail/kdbmghoddafabpjdnjhocollhjefcnco",
-    "label": "Install ORE from Chrome Web Store"
+    "url": "https://forrt.org/",
+    "label": "FORRT main site"
    },
    {
-    "url": "https://forrt.slack.com/archives/C0AQ4LXA55W",
-    "label": "#forrt-conference-2027 Slack channel"
-   },
-   {
-    "url": "mailto:info@forrt.org",
-    "label": "Contact FORRT"
+    "url": "https://forrt.slack.com/docs/TLZN9UGRF/F09TVTKNZ7B",
+    "label": "Opportunities Board"
    }
   ],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": "2026-10-01"
  },
  {
   "url": "https://forrt.org/flora-wikipedia/",
+  "lastmod": "",
   "title": "Replication evidence on Wikipedia: review cards (prototype for review)",
   "section": "flora-wikipedia",
-  "lastmod": "",
-  "date": null,
-  "chars": 7812,
-  "summary": "This page presents a prototype of review cards that assess whether English Wikipedia articles should mention replication studies cited in the articles. The cards, generated with AI assistance, list each article, the studies it cites, and suggested edits regarding replication evidence, but have not been verified by humans. Users can read the cards, review the sources, and decide whether to edit Wikipedia accordingly.",
-  "use_when": "When a user wants to know how to incorporate replication evidence into Wikipedia articles, or wants to see examples of AI-generated review cards for such edits.",
+  "chars": 454,
+  "summary": "This page provides a searchable list of Wikipedia articles that have replication evidence review cards. Users can click an article to view the sentence citing the study, the replication findings, and potential changes. The list prioritizes articles marked \"Adds a replication\"—those that suggest edits citing a replication not yet cited in the article.",
+  "use_when": "When a user wants to find Wikipedia articles with replication evidence, review the findings, or see suggested edits that add replication citations.",
   "example_questions": [
-   "What are the review cards for adding replication evidence to Wikipedia?",
-   "How can I use the prototype cards to edit Wikipedia articles?",
-   "Are the suggested edits on the cards verified by humans?",
-   "What does the AI suggest for each Wikipedia article regarding replication studies?",
-   "Can I rely on the AI-generated suggestions to update Wikipedia?"
+   "Which Wikipedia articles have replication evidence review cards?",
+   "How can I see the replication findings for a specific article?",
+   "What does the review card say about the replication of a study?",
+   "Where can I find suggested edits that add replication citations?",
+   "Can I filter the list to show only articles that need replication citations?"
   ],
-  "page_kind": "curated_resource",
-  "freshness": "static",
+  "page_kind": "tool",
+  "freshness": "changes_often",
   "key_links": [],
-  "described_by": "openai/gpt-oss-20b"
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
+ },
+ {
+  "url": "https://forrt.org/open-research-course/",
+  "lastmod": "",
+  "title": "Open Research",
+  "section": "open-research-course",
+  "chars": 2683,
+  "summary": "This page presents the Open Research course, a self‑paced program organized into eight chapters that teaches researchers how to make their work more open, transparent, and accessible. It includes an outline of topics, a citation format, acknowledgments to the original Open University course by Priya Silverstein, and contact information for feedback. Users can also explore additional FORRT resources and community links.",
+  "use_when": "Users looking for a structured course on open research practices, how to cite the course, or how to provide feedback will find answers here.",
+  "example_questions": [
+   "What is the Open Research course about?",
+   "How many chapters are in the course?",
+   "Who authored the original course?",
+   "How do I cite this course?",
+   "Where can I give feedback or report errors?"
+  ],
+  "page_kind": "teaching_material",
+  "freshness": "static",
+  "key_links": [
+   {
+    "url": "https://www.open.edu/openlearncreate/course/view.php?id=11974",
+    "label": "Open Research Course"
+   },
+   {
+    "url": "https://forms.gle/agyL2pyQvWdXQ4bk8",
+    "label": "Feedback Form"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
+ },
+ {
+  "url": "https://forrt.org/glossary/english/",
+  "lastmod": "2026-11-09T19:59:16+00:00",
+  "title": "Glossary",
+  "section": "glossary",
+  "chars": 16722,
+  "summary": "This page presents the FORRT Glossary of Open Scholarship terms, including an introduction to open science terminology, project status updates, and details on Phase 1 and Phase 2 of the glossary project. It offers links to the glossary in multiple languages, the Re‑SearchTerms app, the published manuscript, and resources for contributors such as the Phase 2 working documents and the GitHub repository.",
+  "use_when": "Users looking for a comprehensive list of open science terms, updates on the FORRT glossary project, or ways to contribute to the glossary will find this page useful.",
+  "example_questions": [
+   "What is the FORRT Glossary and what does it cover?",
+   "How many terms are included in the current version of the glossary?",
+   "Where can I find the published paper about the glossary?",
+   "How can I contribute to Phase 2 of the glossary project?",
+   "Is there a tool to explore alternative definitions of open science terms?"
+  ],
+  "page_kind": "team_or_project",
+  "freshness": "changes_often",
+  "key_links": [
+   {
+    "url": "https://forrt.org/re-searchterms/",
+    "label": "Re‑SearchTerms app"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  }
 ]

@@ -104,11 +104,11 @@ export function renderSources(references, fallbackText = "") {
       el.textContent = text;
       return el;
     };
-    item.append(
-      span("source-authors", ref.authors_short || ref.authors || "Unknown author"),
-      ` (${ref.year}). `,
-      span("source-title", ref.title || "Untitled")
-    );
+    // forrt.org pages have no authors or year: title and link only
+    if (ref.authors || ref.year) {
+      item.append(span("source-authors", ref.authors_short || ref.authors || "Unknown author"), ` (${ref.year}). `);
+    }
+    item.append(span("source-title", ref.title || "Untitled"));
     if (/^https?:\/\//i.test(ref.url || "")) {
       const link = document.createElement("a");
       link.href = ref.url;

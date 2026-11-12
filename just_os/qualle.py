@@ -50,6 +50,32 @@ LICENCE_KEY = "conditions_of_use"
 HISTORY_TURNS = 4
 INTENTS = ("open_science", "forrt_lookup", "off_topic")
 
+# Greetings, thanks and questions about the bot itself get a short self-introduction (the "about"
+# message) instead of a refusal or a search: "Hello" was refused, "Who are you?" answered from FORRT pages
+_GREETING = (r"hi|hello|hey|hiya|howdy|greetings|good (?:morning|afternoon|evening|day)|hallo|hoi|moin|servus|"
+             r"bonjour|salut|hola|ciao|namaste|merhaba|thanks|thank you(?: so much| very much)?|many thanks|cheers|"
+             r"danke(?: schön)?|bedankt|merci|gracias|grazie|there|bot|chatbot|just-os")
+_ABOUT = (r"(?:who|what) are you|what can you do(?: for me)?|what do you do|how can you help(?: me)?|"
+          r"how (?:do|can) i use (?:this|you)|introduce yourself|what(?:'s| is) your name|who (?:made|built|created) you|"
+          r"help|wer bist du|was kannst du|wie ben je|wie ben jij|wat kun je|qui es-tu|qui êtes-vous|quién eres|chi sei")
+SMALL_TALK = re.compile(rf"(?:\W*\b(?:{_GREETING})\b)*\W*(?:(?:{_ABOUT})\b\W*)?", re.I)
+
+
+def small_talk(text: str) -> bool:
+    """True for a greeting, thanks or a question about the bot ("Hi!", "Who are you?", "Hello, what can you do?")."""
+    return bool(re.search(r"\w", text)) and SMALL_TALK.fullmatch(text.strip()) is not None
+
+
+def page_references(pages: List[Dict[str, Any]], start: int = 1) -> List[Dict[str, Any]]:
+    """forrt.org pages ({title, url}) as entries of metadata.references, for the Sources box."""
+    return [{"number": n, "authors": "", "authors_short": "", "year": "", "title": p["title"], "url": p["url"],
+             "unverified": False, "snippet": ""} for n, p in enumerate(pages, start=start)]
+
+
+def page_source_lines(refs: List[Dict[str, Any]]) -> str:
+    """The same entries as text lines (metadata.sources, read by the forrt.org widget)."""
+    return "\n".join(f"[{r['number']}] {r['title']}. {r['url']}" for r in refs)
+
 
 def visible_answer(raw: str, marked: bool) -> str:
     """The part of a streamed answer that can be shown yet (#41): with the OpenScholar
@@ -316,6 +342,9 @@ class DocumentRetriever:
         self.n_context_items = config["MAX_CHUNKS"]
         self.min_relevance = config["MIN_RELEVANCE"]
         self.max_per_doc = config.get("MAX_CHUNKS_PER_DOC", 0)
+        self.adaptive_top_k = config.get("ADAPTIVE_TOP_K", False)
+        self.adaptive_ratio = config.get("ADAPTIVE_TOP_K_RATIO", 0.5)
+        self.adaptive_min = config.get("ADAPTIVE_TOP_K_MIN", 3)
 
     def unsupported_citations(self, text: str, nodes: List[Any]) -> set:
         """
@@ -440,10 +469,12 @@ class DocumentRetriever:
 
         ranked = sorted(zip(scores, nodes), key=lambda pair: pair[0], reverse=True)
 
-        # Filter and limit ranked nodes
-        ranked_nodes = self.limit_per_document(
-            [node for score, node in ranked if score > self.min_relevance]
-        )
+        kept = [(score, node) for score, node in ranked if score > self.min_relevance]
+        if self.adaptive_top_k and kept:
+            # a targeted question keeps only its few strong chunks, a broad one up to MAX_CHUNKS
+            cutoff = float(kept[0][0]) * self.adaptive_ratio
+            kept = [pair for i, pair in enumerate(kept) if i < self.adaptive_min or pair[0] >= cutoff]
+        ranked_nodes = self.limit_per_document([node for _, node in kept])
 
         return ranked_nodes, nodes
 
@@ -986,7 +1017,7 @@ class Qualle:
         return "open_science" if is_paper else ("forrt" if is_page else "off_topic")
 
     def route(self, query: str, router: Optional[str] = None) -> Optional[str]:
-        """open_science / forrt / both / off_topic (or forrt_lookup from the LLM classifier); None = model error.
+        """open_science / forrt / both / off_topic / small_talk (or forrt_lookup from the LLM classifier); None = model error.
 
         router (one of ROUTERS; the chat and arena dropdowns, eval/classify.py) picks one strategy:
         a decision model (clef-flash, clef, jev) with the LLM classifier only when the call fails,
@@ -995,6 +1026,8 @@ class Qualle:
         Without router (default): DECISION_ROUTER with DECISION_ROUTER_MODEL when it is confident
         enough, else the LLM classifier.
         """
+        if small_talk(query):
+            return "small_talk"
         router = router or self.config.get("ROUTER") or ""
         if router == "none":
             return "both"
@@ -1073,6 +1106,12 @@ class Qualle:
             self.chat_manager.add_message(chat_id, {"role": "assistant", "content": answer})
 
         try:
+            if small_talk(user_query):  # before rephrasing: the history must not turn "thanks" into a question
+                about = msg.message("about", user_query)
+                remember(about)
+                yield {"status": "complete", "message": markdown.markdown(about), "outcome": "small_talk"}
+                return
+
             conversation_history = self.chat_manager.get_history(chat_id)
 
             # A first question very close to a recent one gets the stored answer
@@ -1121,8 +1160,10 @@ class Qualle:
                     yield {"status": "complete", "message": markdown.markdown(error), "outcome": "error"}
                     return
                 remember(result["text"])
+                refs = page_references(result["sources"])
                 yield {"status": "complete", "message": markdown.markdown(result["text"], extensions=MARKDOWN_EXTENSIONS),
-                       "outcome": "forrt" if result["found"] else "no_sources"}
+                       "outcome": "forrt" if result["found"] else "no_sources",
+                       "metadata": {"sources": page_source_lines(refs), "references": refs}}
                 return
 
             if intent in ("forrt", "forrt_lookup") and self.forrt_lookup is not None:
@@ -1133,6 +1174,12 @@ class Qualle:
 
             if intent in ("forrt", "forrt_lookup", "both"):
                 intent = "both" if intent == "both" else "open_science"  # no FORRT route set up: papers answer
+
+            if intent == "small_talk":  # the rephrased follow-up is small talk
+                about = msg.message("about", user_query)
+                remember(about)
+                yield {"status": "complete", "message": markdown.markdown(about), "outcome": "small_talk"}
+                return
 
             if intent == "off_topic":
                 refusal = msg.message("off_topic", user_query)
@@ -1213,11 +1260,15 @@ class Qualle:
                 },
             }
             if intent == "both" and self.forrt_pages is not None:
-                # the question also concerns FORRT itself: add the best forrt.org pages (no extra answer call)
+                # the question also concerns FORRT itself: add the best forrt.org pages to the
+                # Sources box, after the papers (no extra answer call)
                 links = self.forrt_pages.links(query)
                 if links:
-                    final["message"] += markdown.markdown(
-                        "**On forrt.org:**\n\n" + "\n".join(f"- [{link['title']}]({link['url']})" for link in links))
+                    refs = final["metadata"]["references"]
+                    extra = page_references(links, start=len(refs) + 1)
+                    refs.extend(extra)
+                    final["metadata"]["sources"] = "\n".join(
+                        x for x in (final["metadata"]["sources"], page_source_lines(extra)) if x)
                     final["outcome"] = "both"
             if use_cache:
                 self.answer_cache.store(query, final, processed_message, model)
@@ -1263,10 +1314,10 @@ class Qualle:
                     "message": markdown.markdown(msg.message("model_unavailable", query)),
                 }
                 return
-            if not concerns_open_science:
+            if not concerns_open_science or intent == "small_talk":
                 yield {
                     "status": "complete",
-                    "message": markdown.markdown(msg.message("off_topic", query)),
+                    "message": markdown.markdown(msg.message("about" if intent == "small_talk" else "off_topic", query)),
                 }
                 return
 

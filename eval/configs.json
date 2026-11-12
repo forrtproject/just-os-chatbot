@@ -1,0 +1,9 @@
+{
+  "baseline": {},
+  "router-jev": {"ROUTER": "jev"},
+  "no-rerank": {"RERANK": false},
+  "adaptive-top-k": {"ADAPTIVE_TOP_K": true},
+  "verify-citations": {"VERIFY_CITATIONS": true},
+  "gpt-oss-20b": {"CITATION_MODEL": "openai/gpt-oss-20b"},
+  "jev+gpt-oss-20b": {"ROUTER": "jev", "CITATION_MODEL": "openai/gpt-oss-20b"}
+}

@@ -34,6 +34,7 @@ https://forrt.org/awop_app/
 https://forrt.org/explorer/
 https://forrt.org/flora/
 https://forrt.org/glossary/
+https://forrt.org/glossary/english/
 https://forrt.org/nowherelab/phd-survival-guide/
 https://forrt.org/open-research-games-portal/
 https://forrt.org/newsletters/2022-04/

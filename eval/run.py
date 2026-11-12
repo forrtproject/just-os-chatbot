@@ -57,6 +57,8 @@ def outcome_of(final):
     text = final.get("message", "")
     if any(t in text for t in all_texts("off_topic")):
         return "refused"
+    if any(t in text for t in all_texts("about")):  # the self-introduction for small talk
+        return "small_talk"
     if any(t in text for t in all_texts("no_sources")):
         return "no_sources"
     return "answered"

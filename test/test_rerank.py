@@ -35,6 +35,19 @@ def test_rerank_sorts_filters_and_limits(monkeypatch, nodes):
     assert all_nodes == nodes
 
 
+def test_adaptive_top_k_keeps_chunks_near_the_best_score(monkeypatch):
+    many = [SimpleNamespace(text=f"text {i}", metadata={"title": f"t{i}"}) for i in range(6)]
+    scores = lambda pairs: [0.9, 0.8, 0.3, 0.2, 0.15, 0.05]  # noqa: E731
+    settings = {"MAX_CHUNKS": 5, "ADAPTIVE_TOP_K_RATIO": 0.5, "ADAPTIVE_TOP_K_MIN": 1}
+    targeted, _ = make_retriever(monkeypatch, many, scores, ADAPTIVE_TOP_K=True, **settings).retrieve_and_rerank("q")
+    assert targeted == many[:2]  # 0.3 < 0.9 * 0.5
+    at_least, _ = make_retriever(monkeypatch, many, scores, ADAPTIVE_TOP_K=True,
+                                 **{**settings, "ADAPTIVE_TOP_K_MIN": 3}).retrieve_and_rerank("q")
+    assert at_least == many[:3]
+    fixed, _ = make_retriever(monkeypatch, many, scores, **settings).retrieve_and_rerank("q")
+    assert fixed == many[:5]  # off (default): up to MAX_CHUNKS above MIN_RELEVANCE
+
+
 def test_rerank_failure_falls_back_to_vector_order(monkeypatch, nodes):
     def broken(pairs):
         raise RuntimeError("reranker down")

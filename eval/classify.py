@@ -56,7 +56,7 @@ def summarize(model: str, results: list) -> str:
 
 
 # Qualle.route answers off_topic (and forrt_lookup with FORRT_LOOKUP); the gold labels are the router's
-TO_ROUTE = {"off_topic": "neither", "forrt_lookup": "forrt"}
+TO_ROUTE = {"off_topic": "neither", "forrt_lookup": "forrt", "small_talk": "neither"}  # small talk is not answered
 _qualle = None
 
 

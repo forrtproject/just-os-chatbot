@@ -32,7 +32,7 @@ from bs4 import BeautifulSoup
 from openai import OpenAI
 
 from config.settings import get_config
-from just_os.forrt_pages import extract
+from just_os.forrt_pages import extract, refresh_target
 
 SITEMAP = "https://forrt.org/sitemap.xml"
 MENU_PAGE = "https://forrt.org/"
@@ -188,14 +188,18 @@ def main() -> None:
         try:
             resp = client.get(url)
             resp.raise_for_status()
+            target = refresh_target(resp.text, url)
+            if target:  # a "this page has moved" stub: describe the page it points to
+                resp = client.get(target)
+                resp.raise_for_status()
         except Exception as exc:
             print(f"  fetch failed {url}: {exc.__class__.__name__}")
             return None
-        page = extract(resp.text, url)  # read to describe the page; the text itself is not kept
+        page = extract(resp.text, str(resp.url))  # read to describe the page; the text itself is not kept
         parts = [p for p in urlparse(url).path.strip("/").split("/") if p]
         rec = {"url": url, "lastmod": wanted[url], "title": page["title"], "section": parts[0] if parts else "home",
                "chars": len(page["markdown"])}
-        return {**rec, **describe(llm, cfg["FORRT_DESCRIBE_MODEL"], rec, page["markdown"], page_links(resp.text, url))}
+        return {**rec, **describe(llm, cfg["FORRT_DESCRIBE_MODEL"], rec, page["markdown"], page_links(resp.text, str(resp.url)))}
 
     with ThreadPoolExecutor(6) as pool:
         for rec in pool.map(build, todo):

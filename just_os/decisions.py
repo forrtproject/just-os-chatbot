@@ -34,7 +34,9 @@ ROUTES = {
     "open_science": "a question about open science, research practice, methods or scholarly communication "
                     "that needs an explained answer from the literature",
     "forrt": "a question about FORRT itself: the organisation, its teams, projects, tools, events, news, "
-             "newsletters, how to get involved or contribute, contacts, or where something is on forrt.org",
+             "newsletters, how to get involved or contribute, contacts, or where something is on forrt.org; "
+             "also whether a specific study, paper or DOI has been replicated or reproduced, which FORRT's "
+             "replication database FLoRA and its tools (Replication Atlas, Zotero replication checker) look up",
     "both": "a question that needs both: an explanation from the literature and FORRT's own pages, "
             "for example how to learn more about an open-science topic with FORRT",
     "neither": "anything else: not about open science, research practice or FORRT",

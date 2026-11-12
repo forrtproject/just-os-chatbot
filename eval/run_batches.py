@@ -12,6 +12,7 @@ skipped. When a model has every question, its files are merged into the first on
 import argparse
 import json
 import subprocess
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -53,22 +54,32 @@ def main():
     order = [json.loads(line)["id"] for line in lines]
 
     for model in args.models:
-        while True:
-            files = run_files(model, args.since)
-            todo = [line for line, i in zip(lines, order) if i not in done_ids(files)]
-            if not todo:
-                break
-            print(f"{model}: {len(order) - len(todo)}/{len(order)} done, next {min(BATCH, len(todo))}", flush=True)
-            TMP.write_text("".join(todo[:BATCH]), encoding="utf-8")
-            subprocess.run(
-                ["docker", "compose", "run", "--rm", "-T", "-e", "OMP_NUM_THREADS=8", "web", "python", "eval/run.py",
-                 "--model", model, "--general-model", args.general_model, "--questions", TMP.relative_to(ROOT).as_posix()],
-                cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
-            )
-            if len(done_ids(run_files(model, args.since))) == len(order) - len(todo):
-                raise SystemExit(f"{model}: the batch finished no question; stopping")
-        print(f"{model}: complete -> {merge(run_files(model, args.since), order).name}", flush=True)
+        run_all(model, ["--model", model, "--general-model", args.general_model], args.since, lines, order)
     TMP.unlink(missing_ok=True)
+
+
+def run_all(label, run_args, since, lines, order, env=None):
+    """Run eval/run.py in batches until every question has a row in run_*_<label>.csv files made since
+    `since`, then merge them. env: settings for this run, passed to the container (eval/scorecard.py)."""
+    settings = [x for key, value in (env or {}).items() for x in ("-e", f"{key}={value}")]
+    while True:
+        files = run_files(label, since)
+        todo = [line for line, i in zip(lines, order) if i not in done_ids(files)]
+        if not todo:
+            break
+        print(f"{label}: {len(order) - len(todo)}/{len(order)} done, next {min(BATCH, len(todo))}", flush=True)
+        TMP.write_text("".join(todo[:BATCH]), encoding="utf-8")
+        out = f"eval/results/run_{datetime.now():%y%m%d-%H%M}_{label.replace('/', '__')}.csv"
+        subprocess.run(
+            ["docker", "compose", "run", "--rm", "-T", "-e", "OMP_NUM_THREADS=8", *settings, "web", "python",
+             "eval/run.py", *run_args, "--questions", TMP.relative_to(ROOT).as_posix(), "--out", out],
+            cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+        )
+        if len(done_ids(run_files(label, since))) == len(order) - len(todo):
+            raise SystemExit(f"{label}: the batch finished no question; stopping")
+    merged = merge(run_files(label, since), order)
+    print(f"{label}: complete -> {merged.name}", flush=True)
+    return merged
 
 
 if __name__ == "__main__":

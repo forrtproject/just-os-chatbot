@@ -178,6 +178,12 @@ yarn:build:css() {
   tailwindcss -i css/app.css -o ../public/css/app.css "${args[@]}"
 }
 
+curate() {
+  # Add new FORRT resources to (a copy of) the index; see docs/curators.md (#25)
+  mkdir -p data/curation data/interim data/processed
+  MSYS_NO_PATHCONV=1 DC="run" _dc --rm -T     -v ./data/curation:/app/data/curation:rw     -v ./data/processed:/app/data/processed:rw     -v ./data/interim:/app/data/interim:rw     -e GROBID_URL="${GROBID_URL:-http://host.docker.internal:8070}"     web python -m scripts.curate "${@}"
+}
+
 clean() {
   # Remove cache and other machine generates files
   rm -rf public/*.* public/js public/css public/images public/fonts \

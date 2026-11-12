@@ -114,6 +114,12 @@ def _md(node, url: str) -> str:
     return inner
 
 
+def refresh_target(html: str, url: str) -> Optional[str]:
+    """Where a meta-refresh stub sends the browser (forrt.org/glossary/ → /glossary/english/), else None."""
+    m = re.search(r"<meta[^>]+http-equiv=[\"']?refresh[\"']?[^>]*content=[\"'][^\"']*url=([^\"'>\s]+)", html[:3000], re.I)
+    return urljoin(url, m.group(1)) if m else None
+
+
 def extract(html: str, url: str) -> Dict[str, Any]:
     """Title and Markdown of a forrt.org page (menus, footers and scripts removed)."""
     soup = BeautifulSoup(html, "html.parser")
@@ -268,7 +274,11 @@ class ForrtPages:
         try:
             resp = self.http.get(url)
             resp.raise_for_status()
-            markdown = extract(resp.text, url)["markdown"]
+            target = refresh_target(resp.text, url)
+            if target and urlparse(target).netloc == host:  # a "this page has moved" stub: read the real page
+                resp = self.http.get(target)
+                resp.raise_for_status()
+            markdown = extract(resp.text, target or url)["markdown"]
             with self.lock:
                 self.cache[url] = (time.time(), markdown)
             return {"markdown": markdown, "status": "live"}
@@ -287,7 +297,7 @@ class ForrtPages:
         return (completion.choices[0].message.content or "").strip() if completion else ""
 
     def answer(self, question: str, model: Optional[str] = None, language_text: Optional[str] = None) -> Dict[str, Any]:
-        """{"text": Markdown answer with a source list, "sources": [...], "trace": {...}}; text is None on error.
+        """{"text": Markdown answer citing [n], "sources": [{n, title, url}], "trace": {...}}; text is None on error.
         language_text: what the user typed (a rephrased follow-up may be in another language)."""
         start = time.perf_counter()
         language_code = checks.question_language(language_text or question)
@@ -299,7 +309,8 @@ class ForrtPages:
         pages = []
         for f in fetched:
             excerpt = trim(f["markdown"], question, self.config.get("FORRT_MAX_CHARS_PER_PAGE", 12000))
-            if excerpt.strip():
+            # a moved page (forrt.org/glossary/) and its new address give the same text: read it once
+            if excerpt.strip() and all(excerpt != p["excerpt"] for p in pages):
                 pages.append({"n": len(pages) + 1, "url": f["rec"]["url"], "title": f["rec"]["title"],
                               "date": f["rec"].get("date"), "excerpt": excerpt, "status": f["status"]})
         trace = {"candidates": [c["rec"]["url"] for c in candidates], "selected": [r["url"] for r in chosen],
@@ -337,8 +348,8 @@ class ForrtPages:
             text = self._chat(model, system, REWRITE_USER.format(original=user, draft=text, problems="; ".join(problems))) or text
         text, removed = checks.strip_unsupported_links(text, pages)
         text = checks.clean_citations(text, len(pages))
+        # the pages go to the Sources box under the answer (Qualle), not into the text
         sources = [{"n": p["n"], "title": p["title"], "url": p["url"]} for p in pages]
-        text = text.rstrip() + "\n\n" + "\n".join(f"{s['n']}. [{s['title']}]({s['url']})" for s in sources)
         trace.update(rewrite=problems, removed_links=removed, seconds=round(time.perf_counter() - start, 1))
         logger.info(f"Timing: FORRT pages {trace['seconds']}s, {len(pages)} pages, removed links {removed}")
         return {"text": text, "sources": sources, "found": True, "trace": trace}

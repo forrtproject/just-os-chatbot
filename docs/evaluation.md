@@ -16,6 +16,8 @@ A wrong refusal or a missing source in the answering eval can come from either s
 |---|---|---|
 | Full pipeline eval | `docker compose exec -e OMP_NUM_THREADS=8 web python eval/run.py --model <id> [--general-model <id>] [--limit 5]`; `--no-retrieval` answers without the library (a baseline), `--skip-classifier` treats every question as open science, `--full-answers` keeps the whole answer, `--out` names the file | `eval/results/run_<YYMMDD-HHMM>_<model>.csv` |
 | Several models, resumable | `python eval/run_batches.py --since <YYMMDD-HHMM> <model> [<model> ...]` (host) | per model one `run_*.csv`: batches of 30 questions in fresh processes (one long process runs out of the Docker VM's 7.6 GB after ~47 questions); after a stop, the next start skips the questions already in the model's run files since `--since` and merges them when complete |
+| Named configuration, one command (E4, #32) | `python eval/scorecard.py <name> [<name> ...] [--limit N] [--since YYMMDD-HHMM] [--no-judge]` (host); `--table` only prints the table | A configuration is a name in `eval/configs.json` with the settings that differ from `.env` (for example `{"ROUTER": "jev", "CITATION_MODEL": "openai/gpt-oss-20b"}`: a topic check + answer model pair). Runs it like `run_batches.py` into `run_<YYMMDD-HHMM>_cfg-<name>.csv`, judges it with `judge.py`, and prints the table of the newest run of each configuration |
+| Judge sheet for a hand check (#8) | `python eval/judge_sheet.py eval/results/run_X.csv [--out docs/judge-check.md]` | Markdown: per judged answer the question, the answer, the passages it cites and the judge's score, with a box for the checker |
 | Table of runs | `docker compose exec web python eval/compare.py [csv ...]` | Markdown table (with "Judge support" once judged) |
 | LLM judge (#8) | `docker compose exec web python eval/judge.py eval/results/run_X.csv [--model ...]` | adds `judge_support` (0-1) to the run CSV; needs runs made after 10 Nov (they save the passages) |
 | Rubric judge (E1, #7) | `docker compose exec web python eval/rubric_judge.py eval/results/run_X.csv [--items FILE] [--model ...] [--controls]` | adds `rubric_coverage`, `rubric_core`, `rubric_scores` and `doi_recall` to the run CSV for the questions with a rubric; default judge `google/gemini-3.8-flash`; `--controls` also scores reference answers |
@@ -320,3 +322,18 @@ Findings:
 2. gpt-4.1-mini's items went into `questions.jsonl`: all of its graded questions were accepted, it cost least and its coverage matches the other two. Two or three graded items per generator cannot rank the generators.
 3. **The classifier refuses many glossary questions.** In the pilot (46 items, 11 Nov), Llama 3.1 8B as classifier refused 18 to 26 of them as not open science across nine runs (`eval/results/glossary_pilot_classify_repeats_261111.csv`), among them researcher degrees of freedom, NHST and statistical power; a full eval run now counts these refusals against Correct.
 4. The rubrics and their labels are drafts until more of them are graded; the expert's comments (for example overlapping rubric items) are not applied yet.
+
+### 3.10 Topic check: replication look-ups go to FORRT (12 November 2026, 232 questions, `eval/results/classify_261112-1703.csv`)
+
+"Can you tell me if 10.1177/0956797610383437 has been replicated?" went to the papers with both Jev and Clef-flash, which then said that "it has not been replicated", from papers about replication rates. FORRT's replication database FLoRA and its tools (Replication Atlas, Zotero replication checker) answer such questions, and their pages are in the FORRT page index. The description of the `forrt` route in `just_os/decisions.py` (`ROUTES`) now names "whether a specific study, paper or DOI has been replicated or reproduced". Concept questions ("What is a replication crisis?", "How do I conduct a replication study?") stay `open_science`.
+
+`python eval/classify.py --routers jev,clef-flash --questions eval/questions.jsonl,eval/forrt_questions.jsonl,eval/refusal_questions.jsonl` (now 140 + 32 + 60 questions):
+
+| Topic check | Accuracy (232) | False refusals | False answers | Same 209 questions as 3.8: before → after |
+|---|---|---|---|---|
+| **Jev** | **0.84** | 0 | 25 | 0.823 → 0.828 |
+| Clef-flash (default) | 0.71 | 1 | 47 | 0.670 → 0.675 |
+
+Changes on the 209 questions: Jev now routes `new18`, `new22` (FORRT tool questions) correctly and `new09` (open science) to FORRT; Clef-flash gains 7 and loses 5, mostly between `both` and `forrt`. Not changed: greetings and questions about the bot ("Hello", "Who are you?") no longer reach the topic check (`qualle.small_talk`), so they are not in these numbers.
+
+The decision models cannot be fine-tuned (they are served by OpenRouter's decisions API); what can be tuned is the route descriptions, as here. A classifier trained on our own labelled questions (bge-m3 vectors + logistic regression) would need more labelled questions than the 232 here to be measured fairly, since they are also the test set.
