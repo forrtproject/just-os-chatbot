@@ -36,6 +36,7 @@ Question sets:
   **`expected_dois` and `expected_urls` are drafts too** (12 Nov): the 12 DOIs from `BOT/Questions.docx` were kept; the rest were picked by hand from the bge-m3 search results and a title/full-text search of the production index (`VECTOR_STORE`), so every DOI is an indexed paper; URLs are pages of the FORRT page index (`vector_data/forrt_pages`), only for `forrt`/`both` questions. Translations (`source: translation of …`) share the picks of their English question. The labels of `new51`-`new66` are drafted the same way (`new51` is borderline: `off05`, also on impact factors, is a refusal). Without DOIs: refusals, `qa03` (about the bot itself), `new10` (no indexed paper on assigning a DOI to an article), `new33` (false premise: no such FORRT tool) and `new58` (no indexed paper on no-code data cleaning tools). Meltem and Mohit review them in `eval/questions.xlsx`; the `hit` column of `eval/run.py` uses them.
 
   **`cluster`, `type` and `route` are drafts** (12 Nov, from the definitions in the bank's Classes sheet): two people should review them, as for E1. Few questions test FORRT routing (3 `forrt`, 6 `both`); `eval/forrt_questions.jsonl` (#43) covers that. No question yet for cluster 5 (computation and analysis) and only one for cluster 9. `test/test_questions.py` checks the structure.
+- `eval/refusal_questions.jsonl`: 60 questions the topic check should refuse (`route` `neither`), in the fields of `eval/questions.jsonl` plus `kind`, so that `eval/classify.py --routers` is scored on a set with more refusals. 40 English questions written by `google/gemma-4-31b-it` with `eval/make_refusal_questions.py`, 4 kinds: `general` (6, general knowledge), `academic` (12, academic life outside open science), `decline_task` (12, an open-science topic but a task the bot should not do, such as writing or reviewing the user's text or ruling on the user's case) and `near_miss` (10, logistics forrt.org does not cover, such as a journal's fees or a conference's dates). 20 of them are translated into de, nl, es, it, tr, pt, zh and hi (`source: translation of …`); the translations are not yet checked by native speakers. Questions close to one already in the eval sets were dropped. Some are borderline on purpose, such as `rf28` (whether to collect more data, near optional stopping).
 - `eval/retrieval_questions.jsonl`: 474 questions for retrieval only (24 from `data/interim/questions_and_text.csv`, 150 synthetic, 300 translations to nl/de/es).
 
 All result files in `eval/results/` are shown on the page **`/eval`** (answer models, classifiers, embedding models, arena ratings), newest first.
@@ -233,3 +234,31 @@ Findings:
 2. Clef-flash, the current default, is the weakest decision model on this set (17 off-topic questions answered). PR #43 found the opposite on its simulated questions (0.65, with the LLM fallback); the labels here are hand-drafted and the sets differ, so test Jev as default with a real eval run before switching.
 3. "No check" is not a classifier: it sends everything to the papers and FORRT pages, so it only "fails" on off-topic questions, which then depend on `MIN_RELEVANCE` ("no sources") instead of a refusal.
 4. Each answer now also records its step times (topic check, search, re-rank, LLM answer): `timings` in the chat log and arena logs, and columns in `eval/run.py` results, shown per model on `/eval`.
+
+### 3.8 Topic check strategies with more refusals (12 November 2026, 209 questions, `eval/results/classify_261112-1332.csv`)
+
+`python eval/classify.py --routers jev,clef-flash,clef,llm,cosine --questions eval/questions.jsonl,eval/forrt_questions.jsonl,eval/refusal_questions.jsonl`: the strategies of 3.7 on 117 + 32 questions plus the 60 generated refusals of `eval/refusal_questions.jsonl`, so 88 of 209 should be refused (28 of 133 in 3.7). Cosine thresholds unchanged (`COSINE_PAPER_MIN` 0.62, `COSINE_PAGE_MIN` 0.51).
+
+| Topic check | Accuracy | False refusals | False answers | Earlier questions only (149) | Mean s | USD / 1k q |
+|---|---|---|---|---|---|---|
+| **Jev** | **0.82** | 0 | 25 | 0.87 | 0.2 | 0.02 |
+| Cosine | 0.72 | 6 | 44 | 0.84 | **0.1** | **0** |
+| LLM classifier (Llama 3.1 8B) | 0.71 | 6 | 41 | 0.78 | 0.4 | 0.08 |
+| Clef-flash (default) | 0.67 | 1 | 48 | 0.74 | 0.5 | 0.01 |
+| Clef | 0.63 | 1 | 51 | 0.71 | 0.4 | 0.06 |
+
+Generated refusals let through, by kind (translations included):
+
+| Topic check | general (8) | academic (18) | decline_task (18) | near_miss (16) |
+|---|---|---|---|---|
+| Jev | 0 | 0 | 14 | 4 |
+| Cosine | 0 | 16 | 13 | 6 |
+| LLM classifier | 0 | 6 | 13 | 9 |
+| Clef-flash | 0 | 13 | 9 | 9 |
+| Clef | 0 | 9 | 14 | 11 |
+
+Findings:
+1. **Jev stays the most accurate** and the only strategy that refuses every academic question outside open science; what it lets through is almost all `decline_task`.
+2. **`decline_task` questions pass every strategy**: their topic is open science, and the task (write my preregistration, rule on my consent form) is not what a topic check judges. They need the answer prompt to decline the task, or a check of its own.
+3. **Cosine lets academic questions through** (16 of 18): career, teaching and writing questions sit close to the papers about academic life in the index, above `COSINE_PAPER_MIN`. Its thresholds are still the in-sample ones of 3.7.
+4. Clef-flash, the current default of `DECISION_ROUTER`, is behind Jev on both sets.

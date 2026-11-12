@@ -28,3 +28,15 @@ def test_every_question_has_the_agreed_fields_and_labels():
 def test_old_questions_are_kept():
     ids = {q["id"] for q in QUESTIONS}
     assert {f"pr0{i}" for i in range(1, 8)} | {f"off{i:02d}" for i in range(1, 18)} | {f"ml{i:02d}" for i in range(1, 14)} <= ids
+
+
+def test_generated_refusals_follow_the_same_structure():
+    refusals = [json.loads(line) for line in (ROOT / "eval/refusal_questions.jsonl").read_text(encoding="utf-8").splitlines()]
+    ids = {q["id"] for q in refusals}
+    assert len(ids) == len(refusals) and not ids & {q["id"] for q in QUESTIONS}
+    for q in refusals:
+        assert list(q)[: len(KEYS)] == KEYS and set(q) == set(KEYS) | {"kind"}, q["id"]
+        assert q["type"] in TYPES and q["cluster"] == "", q["id"]
+        assert (q["expect"], q["route"]) == ("refuse", "neither"), q["id"]
+        assert q["kind"] in ("general", "academic", "decline_task", "near_miss"), q["id"]
+        assert q["lang"] == "en" or q["source"].startswith("translation of rf"), q["id"]
