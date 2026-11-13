@@ -7,7 +7,7 @@ Part 1, per generator: share of questions the expert finds good, share of rubric
 essential, nice to have or not needed, share not in the definition, and how often the
 generator's core/detail label matches the expert (core = essential, detail = nice to have).
 
-Part 2: the expert's 0-4 scores against the judge's (rubric_scores in
+Part 2: the expert's 1-5 scores against the judge's (rubric_scores in
 eval/results/glossary_<generator>_<mode>.csv): exact and within-one agreement per
 rubric item, the correlation of answer coverage, and mean coverage with and without the
 library by both. Without --part2 rows, it still prints the judge's coverage per
@@ -66,7 +66,7 @@ def part2_report(key, rows, runs):
         if not judged or set(scores) != set(judged):
             continue
         pairs += [(scores[i], judged[i]) for i in scores]
-        e, j = sum(scores.values()) / (4 * len(scores)), sum(judged.values()) / (4 * len(judged))
+        e, j = (sum(scores.values()) - len(scores)) / (4 * len(scores)), (sum(judged.values()) - len(judged)) / (4 * len(judged))
         coverage.append((e, j))
         by_mode[info["condition"]][0].append(e)
         by_mode[info["condition"]][1].append(j)

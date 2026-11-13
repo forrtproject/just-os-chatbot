@@ -2,6 +2,7 @@ import { renderSources, setupReferenceHandlers } from "./references.js";
 
 let battleId = null;
 let criteria = {};
+let scale = [1, 2, 3, 4, 5]; // from data-scale (config/criteria.json)
 
 // Read an NDJSON stream and call onChunk for each parsed line.
 async function readStream(response, onChunk) {
@@ -49,12 +50,12 @@ function setBusy(busy) {
   document.getElementById("send-button").disabled = busy;
 }
 
-// One 1-5 scale per criterion: a radio group, keyboard accessible
+// One scale per criterion: a radio group, keyboard accessible
 function ratingScale(label, key, text) {
   const group = el("fieldset", "rating");
   group.appendChild(el("legend", null, text));
   const scale = el("div", "rating-scale");
-  for (let value = 1; value <= 5; value++) {
+  for (const value of scale) {
     const option = el("label");
     const input = el("input");
     input.type = "radio";
@@ -221,6 +222,7 @@ async function loadLeaderboard() {
 document.addEventListener("DOMContentLoaded", () => {
   // [key, text] pairs: a list keeps the order (tojson would sort an object's keys)
   criteria = Object.fromEntries(JSON.parse(document.getElementById("arena").dataset.criteria));
+  scale = JSON.parse(document.getElementById("arena").dataset.scale);
   const input = document.getElementById("user-input");
   const send = document.getElementById("send-button");
   const boxes = document.querySelectorAll('#model-picker input[name="model"]');

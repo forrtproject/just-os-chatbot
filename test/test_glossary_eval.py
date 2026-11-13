@@ -23,7 +23,7 @@ def test_select_terms_keeps_terms_citing_an_indexed_doi():
 
 
 def test_coverage_over_all_items_and_core_items():
-    scores = {"r1": 4, "r2": 2}
+    scores = {"r1": 5, "r2": 3}  # 1-5 (#54): coverage is (score - 1) / 4, as ResearchQA's 4 and 2 on 0-4
     assert rubric_judge.coverage(scores, RUBRIC) == 0.75
     assert rubric_judge.coverage(scores, RUBRIC, "core") == 1.0
 
@@ -50,7 +50,7 @@ class FakeManager:
 def test_judge_clamps_scores_and_survives_bad_output():
     cost = [0.0]
     good = rubric_judge.judge(FakeManager(json.dumps({"scores": {"r1": 7, "r2": -1}})), "m", "q", "a", RUBRIC, cost)
-    assert good == {"r1": 4, "r2": 0} and cost[0] == 0.001
+    assert good == {"r1": 5, "r2": 1} and cost[0] == 0.001
     assert rubric_judge.judge(FakeManager("not json"), "m", "q", "a", RUBRIC, cost) is None
 
 

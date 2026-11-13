@@ -58,8 +58,8 @@
             own; you can stop and come back, your scores stay in this browser. When you are done, press
             <b>Save to the team</b> (stores a CSV on the bot's server, which goes into the repository) and, to be safe,
             <b>Export CSV</b> (a copy for you).</p>
-        <p class="review-scale"><b>Scores 0-5:</b> 0 = not at all / wrong, 1 = very poor, 2 = poor, 3 = acceptable,
-            4 = good, 5 = excellent. Choose <b>n/a</b> when the bot gave no answer (it refused or found no sources),
+        <p class="review-scale"><b>Scores {{ scale|first }}-{{ scale|last }}:</b>
+            {% for v, text in scale.items() %}{{ v }} = {{ text }}{{ ", " if not loop.last else "." }} {% endfor %}Choose <b>n/a</b> when the bot gave no answer (it refused or found no sources),
             or the criterion does not apply.</p>
 
         <div class="review-bar">
@@ -108,7 +108,7 @@
                 <label for="{{ key }}-{{ item.id }}">{{ text }}</label>
                 <select id="{{ key }}-{{ item.id }}" data-key="{{ key }}">
                     <option value="">–</option>
-                    {% for v in ["0", "1", "2", "3", "4", "5", "n/a"] %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+                    {% for v in scale|list + ["n/a"] %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
                 </select>
                 {% endfor %}
                 <textarea data-key="note" maxlength="2000" aria-label="Note for question {{ item.id }}"

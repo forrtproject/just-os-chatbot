@@ -42,5 +42,5 @@ git push
 ```
 
 The CSVs from `/review` have one row per question: reviewer, item_id, category, expected, bot_did, question,
-decision, correctness, citation_support, source_relevance, completeness, clarity (0-5 or n/a), note, saved_at.
+decision, correctness, citation_support, source_relevance, completeness, clarity (1-5 or n/a), note, saved_at.
 Compare them with the LLM judge by `item_id` (`eval/results/human_review_<date>.csv`, column `judge_support`).
