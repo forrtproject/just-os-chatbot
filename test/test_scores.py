@@ -99,3 +99,9 @@ def test_shared_report_by_configuration_and_on_the_eval_page(tmp_path):
     page = eval_report.people_and_judges(str(tmp_path / "scores"), str(tmp_path / "answers"))
     assert page["rows"] == 3 and page["criteria"] == ["correctness"] and page["labels"]["correctness"] == "Correctness"
     assert eval_report.people_and_judges(str(tmp_path / "none"), str(tmp_path / "none")) == {}
+
+
+def test_a_configuration_names_its_topic_check():
+    from just_os.scores import config_label
+    assert config_label({"answer_model": "m", "router": "jev"}) != config_label({"answer_model": "m", "router": "banded"})
+    assert config_label({"answer_model": "m"}) == "m"
