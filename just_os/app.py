@@ -20,6 +20,7 @@ from werkzeug.exceptions import TooManyRequests
 
 from config.settings import get_config
 from just_os.chat_manager import ChatManager
+from just_os import criteria
 from just_os import eval_report
 from just_os.decisions import ROUTERS
 from just_os.extensions import flask_static_digest
@@ -33,30 +34,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # a: A is better, b: B is better, tie: both are good, bad: both are bad
-# Arena: each answer is rated 1-5 on these criteria; the answer time is measured
-ARENA_CRITERIA = {
-    "correct": "Correct: the answer is right and complete",
-    "references": "References: the cited sources support the answer",
-    "clarity": "Clarity: clear and useful for the question",
-}
+# Arena: each answer is rated 1-5 on these criteria (config/criteria.json, #54); the answer time is measured
+ARENA_CRITERIA = criteria.ARENA
 ARENA_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 APPEND_LOCK = threading.Lock()  # chat, feedback and arena logs (_append_jsonl)
 
-# Review page (#8): per question one decision and 0-5 scores ("n/a" when the bot gave no answer)
-REVIEW_DECISIONS = {
-    "right": "Right call (answered when it should, or refused when it should)",
-    "should_refuse": "Wrong: it answered, but should have refused",
-    "should_answer": "Wrong: it refused or found no sources, but should have answered",
-    "unsure": "Unsure",
-}
-REVIEW_CRITERIA = {
-    "correctness": "Correctness: what the answer says is true and accurate",
-    "citation_support": "Citation support: each cited passage or page really says what the sentence citing it says",
-    "source_relevance": "Source relevance: the sources are the right ones for this question",
-    "completeness": "Completeness: it covers what a good answer to this question needs",
-    "clarity": "Clarity: clear, well organised, easy to act on",
-}
+# Review page (#8): per question one decision and 0-5 scores on shared criteria (config/criteria.json, #54),
+# "n/a" when the bot gave no answer
+REVIEW_DECISIONS = criteria.DECISIONS
+REVIEW_CRITERIA = criteria.REVIEW
 REVIEW_FIELDS = ["reviewer", "item_id", "category", "expected", "bot_did", "question", "decision",
                  *REVIEW_CRITERIA, "note", "saved_at"]
 
