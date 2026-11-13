@@ -17,6 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config.settings import get_config  # noqa: E402
+from just_os import criteria  # noqa: E402
 from just_os.qualle import OpenAIClientManager, QueryProcessor  # noqa: E402
 
 PROMPT = """You check the citations of an answer. The sources are numbered as the answer cites them.
@@ -50,7 +51,7 @@ def judge_row(processor: QueryProcessor, row: dict):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("run_csv")
-    parser.add_argument("--model", default="openai/gpt-oss-20b", help="judge model (OpenRouter id)")
+    parser.add_argument("--model", default=criteria.JUDGES["support"]["model"], help="judge model (default from config/criteria.json)")
     args = parser.parse_args()
 
     config = {**get_config(), "GENERAL_MODEL": args.model, "TEMPERATURE_GENERAL": 0.0}

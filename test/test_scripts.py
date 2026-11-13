@@ -273,7 +273,8 @@ def test_judge_sheet_and_review_items_show_every_question_with_its_cited_sources
     assert "Source [1]: Teams (https://forrt.org/about/teams/)" in text and "Page one" in text  # FORRT pages from 1
     assert "Source [0]: Paper A (https://doi.org/10.1/a)" in text and "the citation is invalid" in text  # [5]
     assert "**The bot:** refused" in text and "should be refused" in text
-    items = {i["id"]: i for i in build_review.items(run, [{"id": "r1", "category": "should be refused"}])}
+    items = {i["id"]: i for i in build_review.items(build_review.load_records([run]), [{"id": "r1", "category": "should be refused"}])}
+    assert items["r1"]["expected"] == "refuse" and items["a1"]["answer_id"] == "run#a1" and len(items["a1"]["key"]) == 10
     assert [(s["n"], s["cited"], s["link"]) for s in items["a1"]["sources"]] == [(0, True, "https://doi.org/10.1/a"), (1, False, "https://b.org")]
     assert "judge_support" not in json.dumps(items)  # reviewers score blind
     assert items["r1"]["bot_did"] == "refused" and items["r1"]["sources"] == []

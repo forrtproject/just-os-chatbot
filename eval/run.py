@@ -36,7 +36,7 @@ from just_os.rag_service import create_rag_service  # noqa: E402
 from just_os.references import normalize_doi, plain_metadata  # noqa: E402
 
 FIELDS = [
-    "id", "lang", "cluster", "type", "route", "expect", "outcome", "answered_from", "correct", "hit", "n_citations",
+    "id", "answer_model", "lang", "cluster", "type", "route", "expect", "outcome", "answered_from", "correct", "hit", "n_citations",
     "citations_valid", "seconds", "classify_s", "search_s", "rerank_s", "answer_s",
     "prompt_tokens", "completion_tokens", "cost_usd", "retrieval",
     "retrieved_dois", "question", "answer", "passages", "sources",
@@ -283,6 +283,7 @@ def main():
             answered_from, valid = answer_source(seen, refs)
             writer.writerow({
                 "id": q["id"],
+                "answer_model": config["CITATION_MODEL"],  # what answered, for the answer store (#54)
                 "lang": q.get("lang", "en"),
                 "cluster": q.get("cluster", ""),
                 "type": q.get("type", ""),

@@ -1,4 +1,3 @@
-import csv
 import glob
 import json
 import logging
@@ -22,6 +21,7 @@ from config.settings import get_config
 from just_os.chat_manager import ChatManager
 from just_os import criteria
 from just_os import eval_report
+from just_os.scores import SCALE as SCORE_SCALE, row as scores_row
 from just_os.decisions import ROUTERS
 from just_os.extensions import flask_static_digest
 from just_os import messages as msg
@@ -45,30 +45,47 @@ APPEND_LOCK = threading.Lock()  # chat, feedback and arena logs (_append_jsonl)
 REVIEW_DECISIONS = criteria.DECISIONS
 REVIEW_CRITERIA = criteria.REVIEW
 REVIEW_VALUES = ("", "n/a", *(str(v) for v in criteria.SCALE))
-REVIEW_FIELDS = ["reviewer", "item_id", "category", "expected", "bot_did", "question", "decision",
-                 *REVIEW_CRITERIA, "note", "saved_at"]
-
-
 def review_rows(data: Dict[str, Any], items: Dict[str, Dict]) -> tuple:
-    """(problem or None, CSV rows) for a POST from /review: {"reviewer": name, "scores": {item_id: {...}}}."""
+    """(problem or None, score rows, #54) for a POST from /review:
+    {"reviewer": name, "rubric": true when the rubric setting was on,
+     "scores": {item key: {"decision", <criterion>: "1"-"5" or "n/a", "note", "rubric": {item id: "1"-"5"}}}}.
+    One row per decision, criterion and rubric item scored, for the item's answer_id; the note goes with the
+    first row of its answer."""
     reviewer = data.get("reviewer")
     scores = data.get("scores")
     if not isinstance(reviewer, str) or not reviewer.strip() or len(reviewer) > 80:
         return "Write your name (at most 80 characters) at the top.", []
     if not isinstance(scores, dict) or not scores or not set(scores) <= set(items):
         return "No scores, or scores for unknown questions.", []
+    reviewer, setting = reviewer.strip(), "rubric" if data.get("rubric") is True else "default"
     rows, now = [], datetime.now(timezone.utc).isoformat(timespec="seconds")
-    for item_id, s in scores.items():
+    for item_key, s in scores.items():
+        item = items[item_key]
+        rubric = s.get("rubric", {}) if isinstance(s, dict) else None
         if not isinstance(s, dict) or s.get("decision", "") not in ("", *REVIEW_DECISIONS) or \
                 any(str(s.get(k, "")) not in REVIEW_VALUES for k in REVIEW_CRITERIA) or \
-                not isinstance(s.get("note", ""), str) or len(s.get("note", "")) > 2000:
-            return f"Invalid score for {item_id}.", []
-        item = items[item_id]
-        row = {"reviewer": reviewer.strip(), "item_id": item_id, "category": item["category"], "expected": item["expected"],
-               "bot_did": item["bot_did"], "question": item["question"], "decision": s.get("decision", ""),
-               **{k: str(s.get(k, "")) for k in REVIEW_CRITERIA}, "note": s.get("note", ""), "saved_at": now}
-        # a spreadsheet runs a cell that starts with = + - @ as a formula
-        rows.append({k: "'" + v if isinstance(v, str) and v[:1] and v[:1] in "=+-@" else v for k, v in row.items()})
+                not isinstance(s.get("note", ""), str) or len(s.get("note", "")) > 2000 or \
+                not isinstance(rubric, dict) or not set(rubric) <= {r["id"] for r in item.get("rubric", [])} or \
+                any(str(v) not in REVIEW_VALUES[2:] for v in rubric.values()):
+            return f"Invalid score for {item.get('id', item_key)}.", []
+        answer = []
+
+        def add(criterion, score, scale, row_setting="default"):
+            answer.append(scores_row(item["answer_id"], item.get("id", ""), criterion, score, scale, "person", reviewer,
+                                     now, setting=row_setting))
+
+        if s.get("decision"):
+            add("decision", s["decision"], None)
+        for k in REVIEW_CRITERIA:
+            if str(s.get(k, "")) not in ("", "n/a"):
+                add(k, int(s[k]), SCORE_SCALE)
+        for rubric_id, v in rubric.items():
+            add(f"rubric:{rubric_id}", int(v), SCORE_SCALE, setting)
+        if answer:
+            answer[0]["note"] = s.get("note", "")
+        rows += answer
+    if not rows:
+        return "Nothing scored yet.", []
     return None, rows
 
 
@@ -338,7 +355,7 @@ class FlaskApp:
             if items is None:
                 abort(404)
             return render_template("review.html", items=items, criteria=REVIEW_CRITERIA, decisions=REVIEW_DECISIONS,
-                                   scale=criteria.SCALE_LABELS)
+                                   scale=criteria.SCALE_LABELS, levels=criteria.RUBRIC_LEVELS)
 
         @self.app.route("/topics")
         def topics_page():
@@ -359,23 +376,23 @@ class FlaskApp:
         @self.app.route("/review/save", methods=["POST"])
         @self.rate_limit_manager.limiter.limit(self.rate_limit_manager.get_chat_rate_limit)
         def review_save():
-            """One reviewer's scores -> REVIEW_DIR/review_<name>_<time>.csv (a new file per save, never overwritten)."""
+            """One reviewer's scores -> SCORES_DIR/scores_review_<name>_<time>.jsonl, score rows (#54);
+            a new file per save, never overwritten."""
             items = self._review_items()
-            problem, rows = review_rows(request.get_json(silent=True) or {}, {i["id"]: i for i in items or []})
+            problem, rows = review_rows(request.get_json(silent=True) or {}, {i["key"]: i for i in items or []})
             if problem:
                 return jsonify({"status": "error", "message": problem}), 400
-            name = re.sub(r"[^a-z0-9]+", "-", rows[0]["reviewer"].lower()).strip("-")[:40] or "reviewer"
-            path = os.path.join(self.config["REVIEW_DIR"], f"review_{name}_{datetime.now(timezone.utc):%y%m%d-%H%M%S}.csv")
+            name = re.sub(r"[^a-z0-9]+", "-", rows[0]["scorer"].lower()).strip("-")[:40] or "reviewer"
+            folder = self.config.get("SCORES_DIR", "data/scores")
+            path = os.path.join(folder, f"scores_review_{name}_{datetime.now(timezone.utc):%y%m%d-%H%M%S}.jsonl")
             try:
-                os.makedirs(self.config["REVIEW_DIR"], exist_ok=True)
-                with open(path, "x", newline="", encoding="utf-8") as f:
-                    writer = csv.DictWriter(f, fieldnames=REVIEW_FIELDS)
-                    writer.writeheader()
-                    writer.writerows(rows)
+                os.makedirs(folder, exist_ok=True)
+                with open(path, "x", encoding="utf-8") as f:
+                    f.write("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows))
             except OSError as error:  # the reviewer still has the Export CSV button
                 logger.error("Could not save review %s: %s", path, error)
                 return jsonify({"status": "error", "message": "Could not save on the server; use Export CSV."}), 500
-            return jsonify({"status": "ok", "file": os.path.basename(path), "rows": len(rows)})
+            return jsonify({"status": "ok", "file": os.path.basename(path), "rows": len({r["answer_id"] for r in rows})})
 
         @self.app.route("/chat/feedback", methods=["POST"])
         @self.rate_limit_manager.limiter.limit(
@@ -426,6 +443,8 @@ class FlaskApp:
             return render_template(
                 "eval.html",
                 pairs=eval_report.pair_results(folder),
+                people=eval_report.people_and_judges(self.config.get("SCORES_DIR", "data/scores"),
+                                                     self.config.get("ANSWERS_DIR", "data/answers")),
                 answer_models=group("full pipeline", False, "correct"),
                 papers_models=sorted(group("papers", False, "judge"), key=lambda r: -(r["score"] or -1)),
                 defaults=eval_report.best_defaults(folder, ROUTERS),

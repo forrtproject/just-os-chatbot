@@ -185,9 +185,13 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # the settings above stay the fallback when the results cannot decide. A restart picks up new results
     "AUTO_DEFAULTS": False,
     # Page /review (#8): the questions, answers and sources people score (eval/build_review.py); scores
-    # are saved as one CSV per reviewer and save in REVIEW_DIR (in Git during the test phase, like the chats)
+    # were saved as one CSV per reviewer and save in REVIEW_DIR until #54; since then as score rows in SCORES_DIR
     "REVIEW_ITEMS_FILE": "eval/human_review_items.json",
     "REVIEW_DIR": "data/reviews",
+    # #54: answers people and judges score (eval/answers.py) and their score rows (eval/scores.py, the
+    # judges, /review), compared on /eval
+    "ANSWERS_DIR": "data/answers",
+    "SCORES_DIR": "data/scores",
     # Page /eval reads the result CSVs of eval/run.py, eval/classify.py and eval/compare_embeddings.py here
     "EVAL_RESULTS_DIR": "eval/results",
     # Chat page: every answered turn (question, answer, outcome: answered/off_topic/

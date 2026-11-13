@@ -25,22 +25,12 @@ import csv
 import glob
 import json
 import os
-import statistics
 import sys
-from collections import defaultdict
-from itertools import combinations
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from just_os import criteria  # noqa: E402
-
-SCALE = [criteria.SCALE[0], criteria.SCALE[-1]]
-UNIT = [0, 1]
-
-
-def row(answer_id, question_id, criterion, score, scale, kind, scorer, time="", note="", setting="default"):
-    return {"answer_id": answer_id, "question_id": question_id, "criterion": criterion, "score": score,
-            "scale": scale, "scorer_kind": kind, "scorer": scorer, "setting": setting, "time": time, "note": note}
+from just_os.scores import SCALE, UNIT, load, ranks, row, spearman, weighted_kappa, agreement  # noqa: E402,F401
 
 
 def gold_decision(r):
@@ -102,88 +92,25 @@ def arena_rows(ratings_jsonl):
     return out
 
 
-def unit(r):
-    low, high = r["scale"]
-    return (r["score"] - low) / (high - low)
-
-
-def ranks(xs):
-    order = sorted(range(len(xs)), key=lambda i: xs[i])
-    out = [0.0] * len(xs)
-    i = 0
-    while i < len(xs):
-        j = i
-        while j + 1 < len(xs) and xs[order[j + 1]] == xs[order[i]]:
-            j += 1
-        for k in range(i, j + 1):
-            out[order[k]] = (i + j) / 2
-        i = j + 1
-    return out
-
-
-def spearman(xs, ys):
-    if len(xs) < 3 or len(set(xs)) < 2 or len(set(ys)) < 2:
-        return None
-    return statistics.correlation(ranks(xs), ranks(ys))
-
-
-def weighted_kappa(xs, ys, low, high):
-    """Quadratic weighted kappa of two scorers on the same integer scale."""
-    if len(xs) < 2:
-        return None
-    k, n = high - low + 1, len(xs)
-    w = [[(i - j) ** 2 / (k - 1) ** 2 for j in range(k)] for i in range(k)]
-    observed = [[0.0] * k for _ in range(k)]
-    for x, y in zip(xs, ys):
-        observed[x - low][y - low] += 1 / n
-    px = [sum(observed[i]) for i in range(k)]
-    py = [sum(observed[i][j] for i in range(k)) for j in range(k)]
-    disagreement = sum(w[i][j] * observed[i][j] for i in range(k) for j in range(k))
-    chance = sum(w[i][j] * px[i] * py[j] for i in range(k) for j in range(k))
-    return None if chance == 0 else 1 - disagreement / chance
-
-
 def fmt(v, digits=2):
     return "–" if v is None else f"{v:.{digits}f}"
 
 
 def report(rows):
-    """Markdown: people against each automated scorer, and reviewers against each other."""
-    by = defaultdict(dict)  # (criterion, scorer or "people") -> {answer_id: [rows]}
-    for r in rows:
-        key = (r["criterion"], "people" if r["scorer_kind"] == "person" else r["scorer"])
-        by[key].setdefault(r["answer_id"], []).append(r)
+    """Markdown: people against each automated scorer, and reviewers against each other (just_os.scores)."""
+    result = agreement(rows)
     lines = ["| Criterion | People against | n answers | Agreement | People mean (0-1) | Scorer mean (0-1) |",
              "|---|---|---|---|---|---|"]
-    automated = sorted({k for k in by if k[1] != "people"})
-    for criterion, scorer in automated:
-        people, other = by.get((criterion, "people"), {}), by[(criterion, scorer)]
-        common = sorted(set(people) & set(other))
-        if not common:
-            continue
-        if criterion == "decision":
-            agree = [sum(p["score"] == other[a][0]["score"] for p in people[a]) / len(people[a]) for a in common]
-            lines.append(f"| decision | {scorer} | {len(common)} | {fmt(statistics.mean(agree))} same decision | – | – |")
-            continue
-        xs = [statistics.mean(unit(p) for p in people[a]) for a in common]
-        ys = [unit(other[a][0]) for a in common]
-        lines.append(f"| {criterion} | {scorer} | {len(common)} | {fmt(spearman(xs, ys))} Spearman | "
-                     f"{fmt(statistics.mean(xs))} | {fmt(statistics.mean(ys))} |")
+    for a in result["against"]:
+        if a["criterion"] == "decision":
+            lines.append(f"| decision | {a['scorer']} | {a['n']} | {fmt(a['same'])} same decision | – | – |")
+        else:
+            lines.append(f"| {a['criterion']} | {a['scorer']} | {a['n']} | {fmt(a['spearman'])} Spearman | "
+                         f"{fmt(a['people'])} | {fmt(a['scorer_mean'])} |")
     lines += ["", "| Criterion | Reviewers | n answers | Weighted kappa | Exact | Within 1 |", "|---|---|---|---|---|---|"]
-    for criterion in criteria.REVIEW:
-        scored = defaultdict(dict)
-        for answer, rs in by.get((criterion, "people"), {}).items():
-            for r in rs:
-                scored[r["scorer"]][answer] = r["score"]
-        for a, b in combinations(sorted(scored), 2):
-            common = sorted(set(scored[a]) & set(scored[b]))
-            xs, ys = [scored[a][i] for i in common], [scored[b][i] for i in common]
-            if not common:
-                continue
-            exact = sum(x == y for x, y in zip(xs, ys)) / len(xs)
-            near = sum(abs(x - y) <= 1 for x, y in zip(xs, ys)) / len(xs)
-            lines.append(f"| {criterion} | {a} / {b} | {len(common)} | {fmt(weighted_kappa(xs, ys, *SCALE))} | "
-                         f"{fmt(exact)} | {fmt(near)} |")
+    for r in result["reviewers"]:
+        lines.append(f"| {r['criterion']} | {r['a']} / {r['b']} | {r['n']} | {fmt(r['kappa'])} | "
+                     f"{fmt(r['exact'])} | {fmt(r['within_one'])} |")
     return "\n".join(lines)
 
 
@@ -198,8 +125,11 @@ def main():
     out = Path(args.out or f"data/scores/scores_{Path(args.run_csv).stem}.jsonl")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows), encoding="utf-8")
+    # rows other scorers wrote for the same answers, such as eval/criteria_judge.py
+    ids = {r["answer_id"] for r in rows}
+    rows += [r for r in load(out.parent, skip=out) if r["answer_id"] in ids]
     print(report(rows))
-    print(f"\n{len(rows)} score rows -> {out}")
+    print(f"\n{len(rows)} score rows ({out} and the other files of {out.parent} for these answers)")
 
 
 if __name__ == "__main__":

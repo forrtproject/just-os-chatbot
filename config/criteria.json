@@ -13,6 +13,11 @@
     "source_relevance": {"label": "Source relevance", "definition": "the sources are the right ones for this question"},
     "clarity": {"label": "Clarity", "definition": "clear, well organised, easy to act on"}
   },
+  "judges": {
+    "support": {"model": "openai/gpt-oss-20b"},
+    "rubric": {"model": "google/gemini-3.8-flash", "levels": {"1": "not at all", "2": "barely", "3": "partly", "4": "mostly", "5": "fully"}},
+    "criteria": {"model": "google/gemini-3.8-flash", "criteria": ["correctness", "completeness", "source_relevance", "clarity"], "prompt": "config/prompts/criteria_judge.txt"}
+  },
   "forms": {
     "review": {
       "criteria": ["correctness", "citation_support", "source_relevance", "completeness", "clarity"]

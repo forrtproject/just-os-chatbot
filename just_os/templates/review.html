@@ -32,6 +32,9 @@
         .review-form { display: grid; grid-template-columns: minmax(220px, 1fr) 2fr; gap: 8px 16px; margin-top: 12px; font-size: 0.9rem; align-items: start; }
         .review-form fieldset { grid-column: 1 / -1; border: 1px solid #e1e4e8; border-radius: 4px; }
         .review-form fieldset label { display: block; margin: 2px 0; }
+        .review-rubric { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(220px, 1fr) 2fr; gap: 6px 16px; }
+        .review-rubric legend { font-weight: bold; }
+        body:not(.rubric-on) .review-rubric, body.rubric-on .has-rubric .completeness { display: none; }
         .review-form select, .review-form textarea { padding: 4px 6px; border: 1px solid #b9c4c9; border-radius: 4px; font: inherit; }
         .review-form textarea { grid-column: 1 / -1; min-height: 60px; }
         .review-item.done { border-color: #2e8b57; }
@@ -56,7 +59,7 @@
             numbered passages from papers (with DOI) or forrt.org pages (with link). <b>[n]</b> in the answer points to
             source <b>[n]</b> below it; open a source to read the exact text the bot was given. Score each question on its
             own; you can stop and come back, your scores stay in this browser. When you are done, press
-            <b>Save to the team</b> (stores a CSV on the bot's server, which goes into the repository) and, to be safe,
+            <b>Save to the team</b> (stores your scores on the bot's server, in <code>data/scores/</code>, which goes into the repository) and, to be safe,
             <b>Export CSV</b> (a copy for you).</p>
         <p class="review-scale"><b>Scores {{ scale|first }}-{{ scale|last }}:</b>
             {% for v, text in scale.items() %}{{ v }} = {{ text }}{{ ", " if not loop.last else "." }} {% endfor %}Choose <b>n/a</b> when the bot gave no answer (it refused or found no sources),
@@ -67,11 +70,16 @@
             <input id="reviewer" autocomplete="name" placeholder="First and last name" maxlength="80">
             <button type="button" id="save">Save to the team</button>
             <button type="button" id="export" class="secondary">Export CSV</button>
+            <label for="review-setting">Score with</label>
+            <select id="review-setting">
+                <option value="default">Criteria</option>
+                <option value="rubric">Rubric, where a question has one</option>
+            </select>
             <span id="review-status" role="status" aria-live="polite"></span>
         </div>
 
         {% for item in items %}
-        <article class="review-item" data-id="{{ item.id }}" data-category="{{ item.category }}" data-expected="{{ item.expected }}"
+        <article class="review-item{{ ' has-rubric' if item.rubric }}" data-id="{{ item.key }}" data-qid="{{ item.id }}" data-category="{{ item.category }}" data-expected="{{ item.expected }}"
                  data-bot-did="{{ item.bot_did }}" data-question="{{ item.question }}">
             <h2>{{ loop.index }}. {{ item.question }}</h2>
             <div class="review-meta">
@@ -101,17 +109,29 @@
                 <fieldset>
                     <legend>Was answering or refusing the right call?</legend>
                     {% for key, text in decisions.items() %}
-                    <label><input type="radio" name="decision-{{ item.id }}" value="{{ key }}"> {{ text }}</label>
+                    <label><input type="radio" name="decision-{{ item.key }}" value="{{ key }}"> {{ text }}</label>
                     {% endfor %}
                 </fieldset>
                 {% for key, text in criteria.items() %}
-                <label for="{{ key }}-{{ item.id }}">{{ text }}</label>
-                <select id="{{ key }}-{{ item.id }}" data-key="{{ key }}">
+                <label for="{{ key }}-{{ item.key }}" class="{{ key }}">{{ text }}</label>
+                <select id="{{ key }}-{{ item.key }}" data-key="{{ key }}" class="{{ key }}">
                     <option value="">–</option>
                     {% for v in scale|list + ["n/a"] %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
                 </select>
                 {% endfor %}
-                <textarea data-key="note" maxlength="2000" aria-label="Note for question {{ item.id }}"
+                {% if item.rubric %}
+                <fieldset class="review-rubric">
+                    <legend>Rubric: how fully does the answer cover each point? (replaces completeness)</legend>
+                    {% for r in item.rubric %}
+                    <label for="rubric-{{ r.id }}-{{ item.key }}">{{ r.criterion }}</label>
+                    <select id="rubric-{{ r.id }}-{{ item.key }}" data-rubric="{{ r.id }}">
+                        <option value="">–</option>
+                        {% for v, text in levels.items() %}<option value="{{ v }}">{{ v }} {{ text }}</option>{% endfor %}
+                    </select>
+                    {% endfor %}
+                </fieldset>
+                {% endif %}
+                <textarea data-key="note" maxlength="2000" aria-label="Note for question {{ loop.index }}"
                           placeholder="Note (optional): what is wrong or missing, a wrong citation, anything worth knowing"></textarea>
             </div>
         </article>
@@ -120,9 +140,12 @@
 
     <script>
     (() => {
-        const FIELDS = {{ (["reviewer", "item_id", "category", "expected", "bot_did", "question", "decision"] + criteria|list + ["note", "saved_at"])|tojson }};
+        const FIELDS = {{ (["reviewer", "item_id", "category", "expected", "bot_did", "question", "decision"] + criteria|list + ["rubric", "note", "saved_at"])|tojson }};
         const CRITERIA = {{ criteria|list|tojson }};
-        const STORE = "just-os-review:" + {{ items|map(attribute="id")|join(",")|tojson }};
+        const STORE = "just-os-review:" + {{ items|map(attribute="key")|join(",")|tojson }};
+        const setting = document.getElementById("review-setting");
+        const rubricOn = () => setting.value === "rubric";
+        const showSetting = () => document.body.classList.toggle("rubric-on", rubricOn());
         const articles = [...document.querySelectorAll(".review-item")];
         const reviewer = document.getElementById("reviewer");
         const status = document.getElementById("review-status");
@@ -131,17 +154,25 @@
             const scores = {};
             for (const a of articles) {
                 const checked = a.querySelector("input[type=radio]:checked");
-                const s = { decision: checked ? checked.value : "" };
+                const s = { decision: checked ? checked.value : "", rubric: {} };
                 for (const el of a.querySelectorAll("[data-key]")) s[el.dataset.key] = el.value;
-                if (s.decision || s.note || CRITERIA.some((k) => s[k])) scores[a.dataset.id] = s;
-                a.classList.toggle("done", Boolean(s.decision) && CRITERIA.every((k) => s[k]));
+                // the rubric setting: rubric items in place of completeness, for answers whose question has a rubric
+                const rubricShown = rubricOn() && a.classList.contains("has-rubric");
+                const asked = rubricShown ? CRITERIA.filter((k) => k !== "completeness") : CRITERIA;
+                if (rubricShown) {
+                    delete s.completeness;
+                    for (const el of a.querySelectorAll("[data-rubric]")) if (el.value) s.rubric[el.dataset.rubric] = el.value;
+                }
+                const items = rubricShown ? a.querySelectorAll("[data-rubric]").length : 0;
+                if (s.decision || s.note || asked.some((k) => s[k]) || Object.keys(s.rubric).length) scores[a.dataset.id] = s;
+                a.classList.toggle("done", Boolean(s.decision) && asked.every((k) => s[k]) && Object.keys(s.rubric).length === items);
             }
             return scores;
         }
 
         function remember() {  // per-browser draft, so a closed tab loses nothing
             const scores = collect();
-            try { localStorage.setItem(STORE, JSON.stringify({ reviewer: reviewer.value, scores })); } catch (e) {}
+            try { localStorage.setItem(STORE, JSON.stringify({ reviewer: reviewer.value, rubric: rubricOn(), scores })); } catch (e) {}
             const done = articles.filter((a) => a.classList.contains("done")).length;
             status.textContent = `${done} of ${articles.length} questions fully scored`;
         }
@@ -151,12 +182,15 @@
             try { saved = JSON.parse(localStorage.getItem(STORE) || "null"); } catch (e) {}
             if (!saved) return;
             reviewer.value = saved.reviewer || "";
+            setting.value = saved.rubric ? "rubric" : "default";
+            showSetting();
             for (const a of articles) {
                 const s = (saved.scores || {})[a.dataset.id];
                 if (!s) continue;
                 const radio = a.querySelector(`input[type=radio][value="${s.decision}"]`);
                 if (radio) radio.checked = true;
                 for (const el of a.querySelectorAll("[data-key]")) el.value = s[el.dataset.key] || "";
+                for (const el of a.querySelectorAll("[data-rubric]")) el.value = (s.rubric || {})[el.dataset.rubric] || "";
             }
         }
 
@@ -174,9 +208,9 @@
             for (const a of articles) {
                 const s = scores[a.dataset.id];
                 if (!s) continue;
-                const row = { reviewer: reviewer.value.trim(), item_id: a.dataset.id, category: a.dataset.category,
+                const row = { reviewer: reviewer.value.trim(), item_id: a.dataset.qid, category: a.dataset.category,
                               expected: a.dataset.expected, bot_did: a.dataset.botDid, question: a.dataset.question,
-                              ...s, saved_at: now };
+                              ...s, rubric: Object.keys(s.rubric).length ? JSON.stringify(s.rubric) : "", saved_at: now };
                 lines.push(FIELDS.map((f) => csvCell(row[f])).join(","));
             }
             const link = document.createElement("a");
@@ -193,7 +227,7 @@
             status.textContent = "Saving…";
             try {
                 const r = await fetch("/review/save", { method: "POST", headers: { "Content-Type": "application/json" },
-                                                        body: JSON.stringify({ reviewer: reviewer.value.trim(), scores }) });
+                                                        body: JSON.stringify({ reviewer: reviewer.value.trim(), rubric: rubricOn(), scores }) });
                 const data = await r.json();
                 status.textContent = r.ok ? `Saved ${data.rows} questions for the team (${data.file}). Thank you!`
                                           : `Not saved: ${data.message}`;
@@ -202,6 +236,7 @@
             }
         });
 
+        setting.addEventListener("change", showSetting);
         restore();
         document.addEventListener("input", remember);
         document.addEventListener("change", remember);

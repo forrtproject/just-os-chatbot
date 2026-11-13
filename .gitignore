@@ -26,6 +26,7 @@ data/**
 !data/reviews/.gitkeep
 !data/reviews/*.csv
 !data/scores/*.jsonl
+!data/answers/*.jsonl
 archive/
 
 

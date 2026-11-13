@@ -79,3 +79,23 @@ def test_report_compares_people_with_judges_and_with_each_other():
     assert "| citation_support | support judge | 3 | 1.00 Spearman |" in text
     assert "| decision | gold | 1 | 1.00 same decision |" in text
     assert "| citation_support | Ann / Bo | 3 |" in text
+
+
+def test_shared_report_by_configuration_and_on_the_eval_page(tmp_path):
+    from just_os import eval_report
+    from just_os.scores import by_config
+    row = scores.row
+    rows = [row("r#a", "a", "correctness", 4, scores.SCALE, "person", "Ann"),
+            row("r#a", "a", "correctness", 0.5, scores.UNIT, "llm", "judge"),
+            row("r#b", "b", "correctness", 2, scores.SCALE, "person", "Ann")]
+    answers = {"r#a": {"config": {"answer_model": "m1", "retrieval": "hybrid+rerank"}}}
+    got = {g["config"]: g for g in by_config(rows, answers)}
+    assert got["m1, hybrid+rerank"]["scores"]["correctness"] == {"people": (0.75, 1), "judge": (0.5, 1)}
+    assert got["unknown model"]["answers"] == 1
+    (tmp_path / "scores").mkdir()
+    (tmp_path / "scores" / "scores_x.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    (tmp_path / "answers").mkdir()
+    (tmp_path / "answers" / "answers_x.jsonl").write_text(json.dumps({"answer_id": "r#a", **answers["r#a"]}) + "\n")
+    page = eval_report.people_and_judges(str(tmp_path / "scores"), str(tmp_path / "answers"))
+    assert page["rows"] == 3 and page["criteria"] == ["correctness"] and page["labels"]["correctness"] == "Correctness"
+    assert eval_report.people_and_judges(str(tmp_path / "none"), str(tmp_path / "none")) == {}
