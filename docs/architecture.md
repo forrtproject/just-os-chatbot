@@ -147,7 +147,7 @@ Limitations (measured 11 Nov with lingua 2.2.0 over all languages):
 | `test_retrieval.py` | Per-paper cap, BM25, rank fusion, hybrid retriever |
 | `test_answer_cache.py` | Answer cache hit/miss/expiry/namespace/size, no LLM call on a hit, `PROMPT_STYLE` |
 | `test_ingest.py` | Title match, `%PDF` check, `unique_metadata`, gunicorn reload flag |
-| `test_pipeline_options.py` | Chosen chat model, per-model answer cache, history keeps the user's words, `CONTEXT_METHOD=history`, citation check, FORRT lookup |
+| `test_pipeline_options.py` | Chosen chat model, per-model answer cache, history keeps the user's words, `CONTEXT_METHOD=history` and `hybrid`, citation check, FORRT lookup |
 | `test_forrt_pages.py` | Page extraction, link/citation/date checks, decision router and its fallback, FORRT page answer, language rewrite, `forrt` and `both` routes in `get_response` (pages in the Sources box), moved pages, small talk |
 | `test_scripts.py` | Judge, classifier summary, cluster PDF names and title check, HTML text, adding to an index, team bundle, dict-valued metadata in eval |
 | `test_rerank.py` | Re-ranker order and fallback to vector order |
@@ -165,7 +165,7 @@ flowchart LR
     W[forrt.org widget / built-in page] -->|POST /chat| A[app.py: validate, rate limit]
     A --> H[(Redis: chat history)]
     A --> Q[Qualle.get_response]
-    Q -->|history| RP[1 Rephrase - GENERAL_MODEL, or history in the prompt if CONTEXT_METHOD=history]
+    Q -->|history| RP[1 Rephrase - GENERAL_MODEL; CONTEXT_METHOD=hybrid (default) also puts the history in the answer prompt, history skips the rephrase]
     RP --> C{2 Classify - decision model if DECISION_ROUTER and confident, else GENERAL_MODEL}
     C -->|forrt, if FORRT_PAGES| FP[FORRT page router: page index → decision model picks pages → live fetch → answer → checks]
     C -->|forrt_lookup, if FORRT_LOOKUP| L[FORRT sheet search → list of links]
@@ -191,7 +191,7 @@ Each step yields a status line (`{"status": "in-progress", "message": ...}`). Th
 | BM25 keyword index (only with `SEARCH_MODE` `bm25` or `hybrid`) | RAM of each worker, built at start-up from the docstore | Until the worker stops | Exact-term search; a few hundred MB |
 | Embedding model, re-ranker, FAISS index | RAM of each Gunicorn worker (`rag_service` singleton), loaded in `post_worker_init` | Until the worker stops | Loading takes ~1 min and ~3 GB RAM per worker; keep `WEB_CONCURRENCY=1` |
 | Model weights (bge-m3, bge-reranker-v2-m3) | Docker volume `hf-cache` → `/home/python/.cache/huggingface`; `LLAMA_INDEX_CACHE_DIR` points llama-index to the same folder | Until the volume is deleted | No 2–3 GB download on each container start |
-| Chat history | Redis `chat:{chat_id}` (list, newest first): the question as the user typed it + the answer | `MESSAGE_TTL` = 1 h, reset on each message | Context for follow-up questions (rephrase or `CONTEXT_METHOD=history`); privacy-friendly |
+| Chat history | Redis `chat:{chat_id}` (list, newest first): the question as the user typed it + the answer | `MESSAGE_TTL` = 1 h, reset on each message | Context for follow-up questions (`CONTEXT_METHOD`: hybrid by default, rephrase or history; evaluation.md 3.16); privacy-friendly |
 | Rate-limit counters | Redis (Flask-Limiter `storage_uri`) | Per window in `RATE_LIMIT` | Shared by all workers |
 | Answer cache (only with `ANSWER_CACHE_TTL` > 0) | Redis list `answer_cache:<hash of models, index, prompt, retrieval settings>`: question vector + final answer, newest first, max `ANSWER_CACHE_MAX_ITEMS` | `ANSWER_CACHE_TTL` seconds | A first question with cosine ≥ `ANSWER_CACHE_MIN_SIMILARITY` to a recent one gets the stored answer: no LLM call. Shared by all users (stores question text) |
 | Arena rounds | Redis `arena:battle:{id}` (question, label → model + seconds) | 1 day, deleted when rated | Hide model names until the ratings are in |

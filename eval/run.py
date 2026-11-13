@@ -262,7 +262,10 @@ def main():
         for q in questions:
             q.setdefault("expect", "answer")  # eval/forrt_questions.jsonl: every question should be answered
             chat_id = f"eval-{uuid.uuid4()}"
-            # Multi-turn questions: the earlier turns go first in the same chat (not scored)
+            # Multi-turn questions: the earlier turns go first in the same chat (not scored). The counters
+            # must exist before them: record_complete adds to them (KeyError on the first question before)
+            seen.clear()
+            seen.update(ranked=[], raw=None, forrt=None, prompt_tokens=0, completion_tokens=0, cost=0.0)
             for turn in q.get("history", []):
                 list(qualle.get_response(turn, chat_id))
             seen.clear()

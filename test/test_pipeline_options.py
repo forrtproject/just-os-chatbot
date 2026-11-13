@@ -67,6 +67,28 @@ def test_history_method_passes_earlier_turns_and_skips_rephrase():
     assert seen["query"] == "What is open data? Any disadvantages?"
 
 
+def test_hybrid_method_searches_the_rephrased_question_and_answers_with_the_chat():
+    """CONTEXT_METHOD=hybrid: rephrase keeps topic switches and off-topic follow-ups apart (history joins
+    them), and the answer model still sees the user's words ("single-blind" became "double-blind")."""
+    q = make_qualle(True, [node("Paper")], [node("Paper")], "Answer [0].")
+    q.config = {**CONFIG, "CONTEXT_METHOD": "hybrid"}
+    q.chat_manager = HistoryChatManager([{"role": "user", "content": "What is peer review?"},
+                                         {"role": "assistant", "content": "It is ..."}])
+    q.query_processor.rephrase_query = lambda query, chat_id: "What is double-blind peer review?"
+    seen = {}
+    q.route = lambda query, router=None: seen.setdefault("routed", query) and "open_science"
+    retrieve = q.document_retriever.retrieve_and_rerank
+    q.document_retriever.retrieve_and_rerank = lambda query, *timings: (seen.setdefault("searched", query), retrieve(query))[1]
+
+    list(q.get_response("The one where the reviewer knows the author but not the reverse?", "chat"))
+
+    assert seen == {"routed": "What is double-blind peer review?", "searched": "What is double-blind peer review?"}
+    messages = q.response_generator.client_manager.calls[-1]["messages"]
+    assert [m["content"] for m in messages[1:3]] == ["What is peer review?", "It is ..."]
+    assert "The one where the reviewer knows the author" in messages[-1]["content"]
+    assert "(Meaning: What is double-blind peer review?)" in messages[-1]["content"]  # long chats: the rewrite too
+
+
 # --- #23: citation check
 
 
