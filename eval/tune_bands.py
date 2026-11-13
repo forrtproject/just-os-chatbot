@@ -73,17 +73,27 @@ def report_questions():
 
 
 def low_threshold(values, max_refused):
-    """The highest cut that leaves at most max_refused of values below it."""
-    values = sorted(values)
-    return values[math.floor(len(values) * max_refused)]
+    """The highest cut, at 3 decimals, that leaves at most max_refused of values below it: rounded
+    down, since a cut rounded up past the next value would refuse one more."""
+    cut = sorted(values)[math.floor(len(values) * max_refused)]
+    rounded = round(cut, 3)
+    return round(rounded - 0.001, 3) if rounded > cut else rounded
+
+
+def share(text):
+    """--max-refused: a share from 0 up to, not including, 1."""
+    value = float(text)
+    if not 0 <= value < 1:
+        raise argparse.ArgumentTypeError(f"{text} is not a share from 0 to below 1")
+    return value
 
 
 def thresholds(rows, margin, max_refused):
     """BAND_* settings from tuning rows (label, paper, page)."""
     off = [r for r in rows if r["label"] == "off_topic"]
     return {
-        "BAND_PAPER_LOW": round(low_threshold([r["paper"] for r in rows if r["label"] == "papers"], max_refused), 3),
-        "BAND_PAGE_LOW": round(low_threshold([r["page"] for r in rows if r["label"] == "pages"], max_refused), 3),
+        "BAND_PAPER_LOW": low_threshold([r["paper"] for r in rows if r["label"] == "papers"], max_refused),
+        "BAND_PAGE_LOW": low_threshold([r["page"] for r in rows if r["label"] == "pages"], max_refused),
         "BAND_PAPER_HIGH": round(max(r["paper"] for r in off) + margin, 3),
         "BAND_PAGE_HIGH": round(max(r["page"] for r in off) + margin, 3),
     }
@@ -108,12 +118,14 @@ def shares(rows, t, key):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--margin", type=float, default=0.01)
-    parser.add_argument("--max-refused", type=float, default=0.02)
+    parser.add_argument("--max-refused", type=share, default=0.02)
     args = parser.parse_args()
 
     from just_os.rag_service import create_rag_service
 
     qualle = create_rag_service(get_config(), None)
+    if qualle.forrt_pages is None:  # every page similarity would be -1, and so would the page thresholds
+        raise SystemExit("No FORRT page index loaded (vector_data/forrt_pages); the page thresholds need it.")
     rows = []
     for kind, questions in (("tune", tuning_questions()), ("report", report_questions())):
         for source, qid, label, question in questions:
