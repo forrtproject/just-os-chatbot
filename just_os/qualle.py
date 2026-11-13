@@ -16,6 +16,7 @@ from openai.types.chat import ChatCompletion
 import torch
 from sentence_transformers import CrossEncoder
 
+from config.settings import DEFAULT_CONFIG
 from just_os.answer_cache import AnswerCache
 from just_os import trace
 from just_os.chat_manager import ChatManager
@@ -1147,15 +1148,16 @@ class Qualle:
         page similarities are on different scales, so similarity never routes to FORRT on its own.
         The bands are set strictly: answering an off-topic question counts as the worse error."""
         paper, page = self.similarities(query)
-        c = self.config
-        if paper < c.get("BAND_PAPER_LOW", 0.0) and page < c.get("BAND_PAGE_LOW", 0.0):
+        c = {**DEFAULT_CONFIG, **self.config}
+        measured = self.forrt_pages is not None  # without FORRT pages, page is -1, not a similarity
+        if measured and paper < c["BAND_PAPER_LOW"] and page < c["BAND_PAGE_LOW"]:
             band, route = "low", "off_topic"
-        elif paper >= c.get("BAND_PAPER_HIGH", 1.0) and page < c.get("BAND_PAGE_HIGH", 1.0):
+        elif paper >= c["BAND_PAPER_HIGH"] and page < c["BAND_PAGE_HIGH"]:
             band, route = "high", "open_science"
         else:
             band = "middle"
-            middle = c.get("BAND_MIDDLE_ROUTER", "jev")
-            route = self.route(query, "jev" if middle == "banded" else middle)
+            middle = c["BAND_MIDDLE_ROUTER"]
+            route = self.route(query, "jev" if middle in ("banded", "") else middle)  # "" would mean ROUTER
         logger.info(f"Banded router: paper {paper:.3f}, page {page:.3f}, {band} band -> {route}")
         return route
 
