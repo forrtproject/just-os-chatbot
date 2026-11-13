@@ -1,0 +1,2 @@
+reviewer,item_id,category,expected,bot_did,question,decision,correctness,citation_support,source_relevance,completeness,clarity,note,saved_at
+Mohit Garg,pr01,open science,answer,answered from the papers,What is preregistration and why is it important?,right,4,4,3,4,4,"DOI is redirecting to the webpage, but not to the article or document. ",2026-11-13T08:58:17+00:00
