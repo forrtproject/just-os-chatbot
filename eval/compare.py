@@ -11,7 +11,7 @@ from statistics import mean
 
 
 def rate(rows, key):
-    values = [int(float(r[key])) for r in rows if r[key] != ""]  # a judge writes 1 back as 1.0
+    values = [int(float(r[key])) for r in rows if r[key] != ""]  # runs merged by run_batches.py have 1.0
     return f"{mean(values):.2f}" if values else "–"
 
 

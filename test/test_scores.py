@@ -40,7 +40,7 @@ def test_run_rows_give_gold_decision_metrics_and_judges(tmp_path):
 
 
 def test_run_rows_read_metrics_a_judge_wrote_back_as_floats(tmp_path):
-    """eval/judge.py rewrites the run with pandas, which turns hit 1 into 1.0."""
+    """Runs merged by eval/run_batches.py (pandas) have hit 1.0 in place of 1."""
     run = tmp_path / "run_x.csv"
     write_csv(run, RUN_FIELDS, [{"id": "a", "expect": "answer", "outcome": "answered", "hit": "1.0",
                                  "citations_valid": "0.0", "judge_support": "0.5"}])
