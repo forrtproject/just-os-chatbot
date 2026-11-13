@@ -37,6 +37,7 @@ def merge(files, order):
     """All rows into the first file (in question order); the other files are removed."""
     # as text, so a count in a column with empty cells stays 1 and does not become 1.0
     df = pd.concat([pd.read_csv(f, dtype=str, keep_default_na=False) for f in files]).drop_duplicates("id", keep="last")
+    order = [str(i) for i in order]  # the ids are read as text above; a questions file may give numbers
     df = df.set_index("id").loc[[i for i in order if i in set(df["id"])]].reset_index()
     df.to_csv(files[0], index=False)
     for f in files[1:]:

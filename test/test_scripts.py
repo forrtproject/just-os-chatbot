@@ -238,6 +238,13 @@ def test_run_batches_merge_keeps_counts_as_written(tmp_path, monkeypatch):
     merged = run_batches.merge(run_batches.run_files("m", "261112-1246"), ["q1", "q2", "q3"])
     assert merged.read_text(encoding="utf-8").splitlines() == ["id,hit,cost_usd", "q1,1,0.0001", "q2,,0", "q3,0,0.0002"]
 
+
+def test_run_batches_merge_keeps_rows_with_numeric_ids(tmp_path, monkeypatch):
+    monkeypatch.setattr(run_batches, "RESULTS", tmp_path)
+    (tmp_path / "run_261112-1300_m.csv").write_text("id,hit\n1,1\n2,\n", encoding="utf-8")
+    merged = run_batches.merge(run_batches.run_files("m", "261112-1246"), [1, 2])  # ids as a questions file gives them
+    assert merged.read_text(encoding="utf-8").splitlines() == ["id,hit", "1,1", "2,"]
+
 def test_scorecard_configurations_use_known_settings():
     from config.settings import DEFAULT_CONFIG
     configs = json.loads(scorecard.CONFIGS.read_text(encoding="utf-8"))
