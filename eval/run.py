@@ -63,6 +63,8 @@ def outcome_of(final):
         return "small_talk"
     if any(t in text for t in all_texts("no_sources")):
         return "no_sources"
+    if any(t in text for t in all_texts("generation_error") + all_texts("unexpected_error")):
+        return "error"  # the answer model returned nothing: was counted as answered
     return "answered"
 
 

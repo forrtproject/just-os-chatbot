@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eval"))
 
 from compare import summarize  # noqa: E402
-from run import FIELDS, answer_source, hit_of  # noqa: E402
+from run import FIELDS, answer_source, hit_of, outcome_of  # noqa: E402
 
 
 def test_summarize_counts_outcomes(tmp_path):
@@ -47,3 +47,9 @@ def test_hit_counts_expected_dois_in_papers_and_expected_urls_in_forrt_pages():
     assert hit_of({"expected_urls": ["https://forrt.org/glossary/"]}, [], forrt) == 0
     assert hit_of({"expected_dois": ["10.1/A"]}, ["10.1/a"], None) == 1
     assert hit_of({"id": "x"}, ["10.1/a"], forrt) == ""
+
+
+def test_an_answer_model_that_returned_nothing_is_an_error_not_an_answer():
+    from just_os.messages import message
+    assert outcome_of({"status": "complete", "message": f"<p>{message('generation_error')}</p>"}) == "error"
+    assert outcome_of({"status": "complete", "message": "<p>Open data is [1].</p>"}) == "answered"

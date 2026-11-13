@@ -663,6 +663,12 @@ class OpenAIClientManager:
             logger.error(f"Failed to initialize OpenAI client: {str(e)}")
             return None
 
+    def no_reasoning(self, model: str) -> Dict[str, Any]:
+        """NO_REASONING_MODELS reason by default and spent the whole answer cap on it: Qwen 3.7 Flash gave
+        172 empty answers of 2,000 tokens (eval 13 Nov). Only these get the field; others may refuse it."""
+        listed = {m.strip() for m in self.config.get("NO_REASONING_MODELS", "").split(",") if m.strip()}
+        return {"extra_body": {"reasoning": {"enabled": False}}} if model in listed else {}
+
     def create_chat_completion(
         self,
         model: str,
@@ -691,7 +697,7 @@ class OpenAIClientManager:
             return None
 
         try:
-            kwargs = {"model": model, "messages": messages, "temperature": temperature}
+            kwargs = {"model": model, "messages": messages, "temperature": temperature, **self.no_reasoning(model)}
             if max_tokens:
                 kwargs["max_tokens"] = max_tokens
 
@@ -721,7 +727,7 @@ class OpenAIClientManager:
         try:
             for chunk in client.chat.completions.create(
                 model=model, messages=messages, temperature=temperature, stream=True,
-                **({"max_tokens": max_tokens} if max_tokens else {}),
+                **({"max_tokens": max_tokens} if max_tokens else {}), **self.no_reasoning(model),
             ):
                 for choice in chunk.choices:
                     if choice.delta.content:

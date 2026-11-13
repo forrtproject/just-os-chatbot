@@ -342,3 +342,10 @@ def test_banded_router_refuses_and_answers_without_a_model_call_and_asks_in_betw
     assert q.route("Write my preregistration", "banded") == "off_topic"  # middle band: Jev decides
     assert q.decisions.models == ["typesafe/jev-1.14"]
     assert banded(0.45, 0.50).route("q", "banded") == "forrt"  # one source above its low: not refused
+
+
+def test_reasoning_is_switched_off_only_for_the_listed_models():
+    manager = qualle.OpenAIClientManager.__new__(qualle.OpenAIClientManager)
+    manager.config = {"NO_REASONING_MODELS": "qwen/qwen3.7-flash, x/y"}
+    assert manager.no_reasoning("qwen/qwen3.7-flash") == {"extra_body": {"reasoning": {"enabled": False}}}
+    assert manager.no_reasoning("openai/gpt-oss-20b") == {}

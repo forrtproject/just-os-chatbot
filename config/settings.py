@@ -13,6 +13,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "LLM_API_KEY": os.getenv("OPENROUTER_API_KEY"),
     "CITATION_MODEL": "meta-llama/llama-3.1-8b-instruct",
     "GENERAL_MODEL": "meta-llama/llama-3.1-8b-instruct",
+    # Models that reason by default and must not (their reasoning used up MAX_ANSWER_TOKENS, so the
+    # answer came back empty): OpenRouter's reasoning is switched off for these only
+    "NO_REASONING_MODELS": "qwen/qwen3.7-flash",
     # Seconds before an LLM call gives up (the answer then shows an error, not a hang)
     "LLM_TIMEOUT": 60,
     # Longest answer in tokens. Without a cap Llama 3.1 8B looped in Kannada and Marathi up to
