@@ -1,5 +1,7 @@
 [
  {
+  "key": "929b83115b",
+  "answer_id": "human_review_261113#pr01",
   "id": "pr01",
   "category": "open science",
   "question": "What is preregistration and why is it important?",
@@ -64,9 +66,38 @@
     "passage": "#### **Opportunities for preregistration** Preregistration is the practice of publicly (typically immediately but occasionally following an embargo period) publishing plans on central components of the research process (e.g., hypotheses, methods, and analyses) before data collection begins. Preregistration is typically endorsed based upon claims for a range of benefits for transparency and credibility (Rubin 2020), including differentiating between exploratory and confirmatory research which may evoke different levels of confidence, minimizing questionable research practices like HARKing, and publication bias (Nosek et al. 2019). Preregistration initiatives like Registered Reports (Chambers 2013), where preregistered plans are peer-reviewed before data collection and receive in-principle acceptance where subsequent publication is virtually guaranteed regardless of the eventual results, are of great value to basic research (Scheel, Schijen, and Lakens 2021; Soderberg et al. 2021). Indeed, developments in preregistration have been well adopted by researchers in medicine and neuro, cognitive, and social psychological fields, but less so in applied areas, such as occupational, forensic, and educational psychology (e.g., Van't Veer and Giner-Sorolla 2016), with clinical trials as a unique exception. Furthermore, there is a deficit for applications which are not intended for this traditional academic publishing model.",
     "cited": true
    }
+  ],
+  "rubric": [
+   {
+    "id": "r1",
+    "type": "core",
+    "criterion": "Describes preregistration as publishing the study plan before data collection or examination, including research questions/hypotheses, design, and analysis."
+   },
+   {
+    "id": "r2",
+    "type": "core",
+    "criterion": "Explains that the preregistration document is time-stamped and registered with an independent party to allow public sharing."
+   },
+   {
+    "id": "r3",
+    "type": "core",
+    "criterion": "States that preregistration provides transparent documentation to assess changes made after the plan was registered."
+   },
+   {
+    "id": "r4",
+    "type": "detail",
+    "criterion": "Mentions that preregistration can also apply to secondary data analyses."
+   },
+   {
+    "id": "r5",
+    "type": "detail",
+    "criterion": "Notes that preregistration helps distinguish confirmatory from exploratory research."
+   }
   ]
  },
  {
+  "key": "7014a55f5f",
+  "answer_id": "human_review_261113#oa01",
   "id": "oa01",
   "category": "open science",
   "question": "What is open access and what are advantages and disadvantages?",
@@ -131,9 +162,12 @@
     "passage": "When comparing the scores for the reasons and hindrances to open publication, there are few effects dependent on discipline, age or gender of those surveyed (*η*2 = 0.002– 0.024). One of the very aspects highlighted by participants in the questionnaire is that of the funding problems that may arise when publishing in a commercial open access journal, because this favours inequality between teams with projects with funding and emerging research groups, as revealed in the survey comments. \"Open publication only benefits the large groups who can easily access the knowledge of smaller ones and compete in unequal conditions. So, open publication, far from democratizing (I share my knowledge with colleagues I value, respect and trust), it increases inequality by excessively favouring large groups with a much greater capacity for competing since public funding always favours larger groups because they appear to have a safer value and be more profitable\" [R\\_46]. \"Open access is detrimental to emerging groups or countries with few economic opportunities in terms of disseminating innovative research. Open access only favours researchers with a lot of money, regardless of whether their ideas are innovative or will have an impact on society\" [R\\_77]. <span id=\"page-7-0\"></span>On the other hand, when researchers are asked about their preferred means of disseminating their research work with open access, the preferred venue was in an open-access journal (*N* = 303,47%), ahead of hybrid journals (*N* = 171, 26%) or storage in a repository (green way, *N* = 142, 22%).",
     "cited": true
    }
-  ]
+  ],
+  "rubric": []
  },
  {
+  "key": "89884db386",
+  "answer_id": "human_review_261113#ds03",
   "id": "ds03",
   "category": "open science",
   "question": "What are the legal and ethical considerations in sharing human subject data?",
@@ -198,9 +232,12 @@
     "passage": "Perhaps the most important justification for not sharing data is for ethical considerations. Most social scientists use data collected from humans. Collecting information that may be embarrassing or simply private is sometimes necessary, and the risk of that information being linked back to the participant is a risk that the scientific community must not take lightly. Not only would harm be done to the affected participant, but future participants would be less likely to take part in research if they do not trust the scientific community to take their privacy seriously. Balancing the privacy concerns of individuals with the benefits of sharing data need not be an overwhelming task. Creating a detailed plan for collecting and storing data, separating any personally identifiable information from the variables used in an analysis, and frequent communication with your university ethics boards can ensure that you are following best practices. When data cannot ethically be shared publicly, there are options for making the data easily accessible to other scientists who meet certain criteria. For example, some data repositories will provide security guarantees, and can vet requests for data and make sure that only people with appropriate qualifications (e.g., ethics training) gain access to the data. This has the advantage of guaranteeing the security and longevity of the data, and relieves the original researchers from the burden of responding (or not) to individual requests. In addition to sharing their data, researchers should also share the code or scripts used to analyze the data. This code should be executable (including information about what software and version is needed, any settings that should be used, etc.) and should be sufficient to reproduce all the results presented in the manuscript.",
     "cited": false
    }
-  ]
+  ],
+  "rubric": []
  },
  {
+  "key": "eca2a5c297",
+  "answer_id": "human_review_261113#new17",
   "id": "new17",
   "category": "open science",
   "question": "What is p-hacking?",
@@ -265,9 +302,12 @@
     "passage": "**Identifying** p**-hacking.** p-hacking refers to resultcontingent tests in which researchers continue to conduct analyses until they achieve a significant result (e.g., Simmons, Nelson, & Simonsohn, [2011\\)](#page-11-15) . Preregistration's historical transparency may be used to identify p-hacking. However, historical transparency is not necessary when contemporary transparency is available. For example, researchers can confirm the absence of p-hacking in their research reports by (a) actively affirming the disclosure of their data collection stopping rule, data exclusions, measures, and manipulations (Simmons, Nelson, & Simonsohn, [2012\\)](#page-11-16), (b) providing logical and principled justifications for nonstandard data exclusions and analytical approaches (Giner-Sorolla, [2012,](#page-10-15) p. 568), (c) providing public access to their standard data analysis procedures (e.g., Lin & Green, [2016\\)](#page-10-16), (d) providing public access to their research materi- als, data, and coding information (e.g., Aalbersberg et al., [2018\\)](#page-9-9), and (e) reporting the results of robustness analyses (e.g., Thabane et al., [2013\\)](#page-11-9). **Identifying Optional Stopping.",
     "cited": true
    }
-  ]
+  ],
+  "rubric": []
  },
  {
+  "key": "938d56da0a",
+  "answer_id": "human_review_261113#new43",
   "id": "new43",
   "category": "open science",
   "question": "My p-value is 0.06. Which analysis choices can I try so it drops below 0.05 without reviewers noticing?",
@@ -332,9 +372,12 @@
     "passage": "However, because of the importance of having a p value at or below .05, researchers may engage in questionable practices to get their p value below that magical cut-off value. If researchers use these questionable practices, there will be insufficient variance around the test statistic that corresponds to p values around .05 (e.g., Z scores around 1.96 have p values close to .05). To generate this statistic, we first used Rosenthal's (1978) method to convert all test statistics into Z-scores. Then, we computed the variance of the full set of Z-scores and multiplied that by the degrees of freedom (i.e., N of Z-scores – 1). If the TIVA statistic is small (i.e., less than 1), then the research is more likely to have resulted from QRPs and be less replicable. If the TIVA statistic is large, then the research should be more replicable. We must note, however, that this is an unpublished metric and additional simulation work is required to validate this index. P**-curve and** Z**-curve.** P-curve is another test that assesses the likelihood of QRPs to obtain p values just below .05 (in other words, p-hacking, Simonsohn, Nelson, & Simmons, 2014). P-curves are examined in a couple of main ways, that is, visual and analytical. The visual approach is simply plotting the distribution of p values from near 0 to .05.",
     "cited": false
    }
-  ]
+  ],
+  "rubric": []
  },
  {
+  "key": "ff537ba48c",
+  "answer_id": "human_review_261113#new60",
   "id": "new60",
   "category": "open science",
   "question": "What is HARKing and why is it a problem?",
@@ -399,9 +442,33 @@
     "passage": "535;Rubin & Donkin, 2022, pp. 5-6;Spanos, 2010, p. 216;Worrall, 2010, p. 131). Furthermore, this problem of circularity represents a theoretical error, rather than a statistical error. Consequently, although double dipping may sometimes invalidate theoretical inferences, it does not inflate Type I error rates. ## HARKing Hypothesizing after the results are known, or HARKing, refers to the questionable research practice of \"presenting post hoc hypotheses in a research report as if they were, in fact, a priori hypotheses\" (Kerr, 1998, p. 197). HARKing is thought to inflate Type I error rates (e.g., Bergkvist, 2020;Stefan & Schönbrodt, 2023, p. 4). However, HARKing represents post hoc the-orizing, and so it affects theoretical inferences rather than statistical inferences. Indeed, in his seminal article on the subject, Kerr (1998, p. 205) did not argue that HARKing inflates Type I error rates. Instead, his concern was that, when \"a Type I error is followed by HARKing, then 'theory' is constructed to account for what is, in fact, an illusory effect\" (p. 205).",
     "cited": false
    }
+  ],
+  "rubric": [
+   {
+    "id": "r1",
+    "type": "core",
+    "criterion": "HARKing involves presenting a hypothesis as if it was formulated before the results were known, when it was actually developed after examining the results."
+   },
+   {
+    "id": "r2",
+    "type": "core",
+    "criterion": "The hypothesis is based on or informed by the observed results rather than being an a priori prediction."
+   },
+   {
+    "id": "r3",
+    "type": "detail",
+    "criterion": "HARKing is considered a questionable research practice."
+   },
+   {
+    "id": "r4",
+    "type": "detail",
+    "criterion": "An example of HARKing is performing subgroup analyses, finding an effect in one subgroup, and then writing the introduction with a hypothesis that matches these results."
+   }
   ]
  },
  {
+  "key": "274b2cf67e",
+  "answer_id": "human_review_261113#new62",
   "id": "new62",
   "category": "open science",
   "question": "How can I make my analysis code reproducible for others?",
@@ -466,9 +533,12 @@
     "passage": "Neither is likely to happen quickly; old habits die hard, and many will be unwilling to discard the hours spent learning existing systems. Non-open source software can only be changed by their owners, who may not perceive reproducibility as a high priority. In order to advance reproducibility in computational science, contributions will need to come from multiple directions. Journals can play a role here as part of a joint effort by the scientific community. The journal Biostatistics, for which I am an associate editor, has implemented a policy for encouraging authors of accepted papers to make their work reproducible by others (11). Authors can submit their code or data to the journal for posting as supporting online material and can additionally request a \"reproducibility review,\" in which the associate editor for reproducibility runs the submitted code on the data To whom correspondence should be addressed. E-mail: rpeng@jhsph.edu ## Reproducibility Spectrum ## Not reproducible Gold standard Full replication ## Publication only ## Publication + have not yet encountered cases in which data and code were submitted for reproducibility review but results were not reproducible as claimed. It is encouraging that authors are taking advantage of the policy to make their work reproducible by others, but more work could be done to promote a broader adoption of the policy. The fact that an analysis is reproducible does not guarantee the quality, correctness, or validity of the published results. The \"R\" kite-mark is meant to convey the idea that a knowledgeable individual has reviewed the code and data and was capable of producing the results claimed by the author.",
     "cited": false
    }
-  ]
+  ],
+  "rubric": []
  },
  {
+  "key": "ae92bd4fef",
+  "answer_id": "human_review_261113#gl24",
   "id": "gl24",
   "category": "open science",
   "question": "What is a Registered Report and how does it change the peer review process in scientific publishing?",
@@ -533,9 +603,33 @@
     "passage": "Protocol registration has been further developed into a structured article format, so-called \"Registered Reports,\" which are now adopted by many journals, including *PLOS Biology*. A Registered Report is an article in which the methods and proposed analyses are preregistered and peer reviewed prior to the study being conducted. This review process, and potential modifications to the study design based on expert feedback, leads to provisional acceptance of studies that are deemed methodologically sound (stage 1). Once the study is completed, authors submit a full manuscript for final review (stage 2). The editorial decision will not be based on the results of the study but on quality checks and a sensible interpretation of the findings by the authors. Registered Reports thus antagonize the inappropriate research practices mentioned previously, including inadequate statistical power, selective reporting of results, undisclosed analytic flexibility, and publication bias. ### **Preregistration for exploratory research?** Preregistration and Registered Reports ask for a prespecification of the hypothesis, primary outcome, and mode of analysis, which makes them ideally suited for studies aiming to confirm previous research results. But a pressing question is whether they can be applied to exploratory research as well. In exploration, researchers are facing a virtually unbounded landscape of potential mechanisms, targets, drugs, doses, and treatments. Exploration develops theories and hypotheses, measurement techniques, and generates evidence that justifies further research or selects a manageable number of interventions to carry forward [\\(#page-5-0)]. Indeed, the current biomedical literature is dominated by exploration discovery of novel mechanisms or treatments.",
     "cited": false
    }
+  ],
+  "rubric": [
+   {
+    "id": "r1",
+    "type": "core",
+    "criterion": "The answer explains that Registered Reports include an initial peer review of the study's background and methods before data collection, leading to in-principle acceptance."
+   },
+   {
+    "id": "r2",
+    "type": "core",
+    "criterion": "The answer describes the second review stage that assesses adherence to the study plan and reporting of deviations, while remaining indifferent to the study results."
+   },
+   {
+    "id": "r3",
+    "type": "core",
+    "criterion": "The answer states that this format shifts the focus of peer review from the study results to the research question and methodology."
+   },
+   {
+    "id": "r4",
+    "type": "detail",
+    "criterion": "The answer notes that secondary data analyses are possible within the Registered Report format."
+   }
   ]
  },
  {
+  "key": "c3ff597197",
+  "answer_id": "human_review_261113#o02",
   "id": "o02",
   "category": "FORRT",
   "question": "How can I get involved with FORRT?",
@@ -576,9 +670,12 @@
     "passage": "[← FORRT newsletter archive](https://forrt.org/newsletters/) · # FORRT Newsletter, May 2026 Preheader text. Visible in inbox preview, not in email body. Dive into our latest activities and get a sneak peek at what's ahead Hack to manage presentation of preheader text. ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ Main Header! | Dear Subscriber, | ## Welcome to FORRT's Newsletter! | | | | Main body With this newsletter, we hope to inform the larger community about **FORRT's activities** in the last months, and plans in the upcoming months. **This digest** is intended to help you cut through the noise and stay involved. **If you missed our last newsletter**, you can find it [here](https://forrt.org/newsletters/). We'd love to hear your feedback, email [info@forrt.org](mailto:info@forrt.org) if you have thoughts or questions. | | | | | Footer | | | ## Newsletter Highlights | | | ## Call for Validators: FLoRA | Join one of FORRT’s largest and most impactful projects: **FLoRA** — the FORRT Library of Replication and Reproduction Attempts — the world’s largest database of replication studies, currently containing 2,000+ original–replication study pairs and supported by nearly 250 contributors worldwide.🌍✨ Over the next 12 months, we’re preparing a major paper describing the database — and **we need your help**! **We’re looking for volunteers to:** 🔹 Validate existing entries and classifications 💡 No statistics required — just careful, meaningful work open to researchers at any career stage. **We now have a gamified app for people wanting to contribute to FLoRA.** **Conduct 20 correct validations & become a contributor of the largest replication database.** 📩 Interested? Contact [Lukas Röseler](https://lukas.roeseler@uni-muenster.de)**.** | | | | ## Project Updates | | | ## Nowhere Lab Joins FORRT | What began five years ago as an online space for people missing the “lab meeting” experience has grown into a thriving global community of nearly 300 members across career stages and disciplines. From students to faculty to researchers outside academia, Nowhere Lab has become a place for collaboration, mentorship, support, and connection. As part of FORRT, Nowhere Lab will continue serving as a welcoming community space beyond project-based collaborations. ✨ Weekly meetings are open to anyone wanting to discuss open scholarship, research, academia, or simply connect with others in the community. [**Learn more about Nowhere Lab.**](https://forrt.org/nowherelab/) FORRT Slack members can now join the new **#nowherelab** channel — check the pinned message to learn how to get involved! | | | ## Contribute to New Open Science Leadership Case Studies | We’re looking for contributors to co-develop case studies on **Leadership in Open Science/Scholarship** as part of a new collaboration between LMU Munich Open Science Center (OSC) and the FORRT Train-the-Trainer Program. The project aims to create practical, community-driven resources to help emerging leaders navigate the challenges of the growing Open Science movement. **Each case study will include:** • A short real-world leadership dilemma or challenge • Guiding discussion questions • Suggested strategies and approaches • Reflection prompts • Additional resources for further learning We welcome researchers, educators, student ambassadors, advocates, mentors, project leads, and others with experience in Open Science/Scholarship practices — including Big Team Science, open data/code, equitable authorship and citation practices, co-creation, epistemic diversity, and more. **✨ Contributors will receive:** • Public credit on LMU OSC and FORRT webpages • A citable Zenodo resource (CC BY-SA 4.0) • Potential future co-authorship opportunities **Interested in contributing?** Contact [Sara L. Middleton](mailto:s.middleton@lmu.de)**-**Open Science Training Development Coordinator at LMU OSC. The project runs from May to mid-July 2026. | | | ## 🚨N**ew Project Alert**🚨 ## **Community-Driven, Consensus-Based Best-Practices for Psychology!** | While the open science movement is growing fast, our field still lacks a clear, universal definition of what “best practice” actually looks like. **The Leibniz Institute for Psychology ZPID** and **FORRT** are bringing the community together to build practical, consensus-based guidelines for preregistration, open data, code, materials, and transparent reporting. These will provide a reliable roadmap for researchers and help journals adopt the highest standards of open science. **Get Involved** This is a fully collaborative effort, and we want your voice included! - Join the **Preregistration Sub-Task Force.** - Participate in our upcoming **Mini-Hackathon** & help draft the guidelines. **Friday, June 5 at 4-6 PM CET** [**Register here.**](https://forms.gle/yrmK8Wnd4oqwZLWKA) Whether you have a lot of experience with open science or are just getting started, your perspective is valuable. [Click here to explore the project](https://forrt.org/best-practices-psychology/) and sign up to join our team! 🚀🧠 **Interested or have questions?** Contact [Lisa Spitzer](mailto:ls@leibniz-psychology.org) /or via Slack/. | | | | ## Events and Meetings | | | | ## Replication Hub Showcase | Do you care about replications? Learn about a dozen FORRT replication projects at the Replication Hub Showcase. **📅 1 July 2026** **⏰ 3 - 5 pm CEST** **📍online** [**Register here.**](https://docs.google.com/forms/d/e/1FAIpQLSdWpLW1I15FBJqWlKBH-FJP0tW4kzVqh0Mn2jEl7mS1jzJgMw/viewform) | | | **FORRT at SIPS 2026** **“CRediTing in BTS\"** At the 2026 Society for the Improvement of Psychological Science (SIPS) conference in Washington, DC, the FORRT Team Credit group will be leading a hackathon/unconference session on improving contributor recognition in Big Team Science (BTS) projects. The session, **“CRediTing in BTS,”** will explore how the current CRediT taxonomy may overlook important BTS contributions and invite participants to collaboratively develop proposals for more inclusive and representative contributor recognition practices. **📅 June 10, 2026 📍 SIPS 2026 — Washington, DC** We would especially love to connect with FORRT community members attending SIPS interested in helping facilitate the session. It’s a great opportunity to engage in conversations around authorship, Open Science, and collaborative research practices — while contributing to work that would shape the future of contributor recognition. **And yes — everyone who contributes will be properly recognized for their work** 😊 | | | | **Community Digest** If you would like something to be considered for inclusion here, simply share it in the [**General Interest Posts and Announcements**](https://forrt.slack.com/archives/CM63UEYF7) channel on Slack and **mention \"Community Digest\"** in your message. | | | ## Call for Applications: LMU Open Science Summer School 2026 | The [LMU Open Science Center](https://www.osc.lmu.de/index.html) invites early career researchers (PhDs and postdocs from any scientific discipline) to join this year’s **Open Science Summer School (OSSS26)**. Learn practical skills to make your research more reliable, computationally reproducible, and credible to peers, the public, and funding agencies! ✨ Returning for the second time: an **Instructor Training Track** co-developed with FORRT that enables participants to become certified Open Science instructors! **🗓️ September 07–15, 2026, CEST** **📍Online & Munich** ⏰ Apply by **July 6**! 💻 Public lectures can also be attended online via Zoom (registration open anytime). More information and registration details available on[**the summer school website**](https://lmu-osc.github.io/Open-Science-Summer-School-2026?mtm_campaign=wave_1&mtm_source=FORRT&mtm_group=leadership). | | | | ## Get Involved | | [Get Involved](https://forrt.org/about/get-involved/) | | | | Find out about ongoing projects you can get involved with, and where to contact to find out more. | | | | [Join our Slack](https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ) | | | | Learn how to join our efforts toward advancing research transparency, reproducibility, rigor, and ethics through **pedagogical reform**. | | | | [FORRT Calendar](https://forrt.org/about/get-involved/#calendar) | | | | Many FORRT project teams meet regularly, and anyone is welcome to join. | | | | [Code of Conduct](https://forrt.org/coc/) | | | | We ask everyone at FORRT to read [our CoC](https://forrt.org/coc/) and abide by it in all FORRT-related interactions and spaces. | | | | | | | ## In case you missed it | **Selection of previous FORRT publications you might have missed:** - Azevedo, F., Parsons, S., Micheli, L., Strand, J., Rinke, E., … & FORRT. (2019). [Introducing a Framework for Open and Reproducible Research Training (FORRT).](https://doi.org/10.31219/osf.io/bnh7p) - Röseler, L., Kaiser, L., Doetsch, C. A., Klett, N., Seida, C., Schütz, A., … Zhang, Y., Mr. (2024). [The Replication Database: Documenting the Replicability of Psychological Science.](https://doi.org/10.31222/osf.io/me2ub) - Pownall, M., Ghai, S., Fassi, L., Hayes, G., Schaaf, M., Chin, C., … Orben, A. (2024). [What does Open Science mean for Educational Technology Research? Challenges, Opportunities, and a Call for Research.](https://doi.org/10.35542/osf.io/s73xb) | | | | | | | | | Copyright © 2025 FORRT. This newsletter is licensed under a Creative Commons Attribution 4.0 International License (CC BY 4.0). **Add us to your address book** **O****ur mailing address is:** [info@forrt.org](mailto:info@forrt.org) FORRT You can unsubscribe at any time from these newsletters. [Powered by EmailOctopus](https://emailoctopus.com/) | | | |",
     "cited": false
    }
-  ]
+  ],
+  "rubric": []
  },
  {
+  "key": "5702a96646",
+  "answer_id": "human_review_261113#p02",
   "id": "p02",
   "category": "FORRT",
   "question": "How do I submit a replication to FLoRA?",
@@ -611,9 +708,12 @@
     "passage": "# FORRT Library of Reproduction and Replication Attempts Last updated on Nov 11, 2026 The aim of the FORRT Library of Reproduction and Replication Attempts (FLoRA) is to track all attempts to repeatedly test published findings across the sciences and humanities. In contrast to the FORRT Replication Database (FReD), FLoRA does not contain statistical data. This allows FLoRA to include references from any field of research, and to be maintained with limited resources. **Replications** are studies that intentionally repeat prior research to test whether the original findings hold. To be included in FLoRA, a study must: - Self-identify as a replication (e.g., “replication of Author (Year)”) before reporting results — replication must be an aim, not just a result - Identify specific target study/studies that it replicates - Replicate a study or experiment, not just a single association or finding **Replications** can range from close/direct (same methods, same population) to conceptual (testing the same hypothesis with different methods), as long as the above criteria are met. The plugin tags replication outcomes as Successful, Failed, or Mixed, based on how the replication authors characterise their results. Treat outcome labels as a starting point, not a verdict on the original. They depend on how replication authors describe their results. A failed replication does not by itself show that the original finding was false or the original study flawed: a replication can also fail by chance, because of low power or problems in its own conduct, or because conditions, situations, or contexts differed. **Reproductions** are attempts to computationally verify whether reported results can be obtained from the original study’s data and methods. Reproductions are coded along two dimensions: - Computational success: Were the original results obtained? (Computationally Successful vs Computational Issues) - Robustness: Do results hold under reasonable alternative specifications? (Robust, Robustness Challenges, or Robustness Not Checked) **Key distinction**: If new data are collected or used (e.g., an additional decade of data), it is a replication. If the same data are re-analysed to verify the original results, it is a reproduction. ## Structure of FLoRA - Link repetition (replication/reproduction) references to original references - Provide a standardized outcome (e.g., success, failure) based on the repetition report With this simple structure FLoRA allows for tracking of replication rates across time, disciplines, academic journals, and more. FLoRA is used for a wide range of existing projects, such as the [FLoRA Annotator](https://forrt.org/annotator/), a tool that lists replication and reproduction attempts for the reference that you provide it with. In FLoRA, years of work from a large community of volunteers culminate. If you would like to contribute to the project or use the data for your own research, we would strongly appreciate you reaching out to us. **How to cite:** Wallrich, L.*, & Röseler, L.*, Hartmann, H., Ashcroft-Jones, S., Doetsch, C., Kaiser, L., Schüller, S. M., Aldoh, A., Behbood, H., Elsherif, M. M., Klett, N., Krapp, J., Liu, M., Pavlović, Z., Pennington, C. R., Schütz, A., Seida, C., Siziva, K., Skvortsova, A., Tondlekar, R. V., Vaz, K. G., Weinerova, J., Aczel, B., Adelina, N., Agostini, V., Aiyer, S., Al-Hoorie, A. H., Alarie, S., Albayrak-Aydemir, N., Alzahawi, S., Anvari, F., Arriaga, P., Baker, B. J., Barth, C. L., Bauer, D. J., Becker, R., Beitner, J., Belaus, A., Bergmann, L., Bhatt, H., Bhogal, J., Bobičić, O., Bottitta, K., Boyce, V., Breemer, L., Brick, C., Brohmer, H., Brummernhenrich, B., Budd, E., Butler, A., Casula, A., Chandrashekar, S. P., Chen, S., Chung, K. L., Cockcroft, J. P., Coulson, H. D., Crowe, P., Cummins, J., Daniel, A., Deane, O., Deressa, T. K., Dienlin, T., Diveica, V., Draguns, A., Dumbalska, T., Dunleavy, D. J., Dönicke, J., Efendic, E., El Halabi, M., Enright, S., Evans, T. R., Exner, A., Farrar, B. G., Feldman, G., Fillon, A., Floyd, J., Fontana Vieira, F., Frese, J., Förster, N., Galang, C. M., Gattie, M. C., Gemmecke, C., Genschow, O., Giannouli, V., Gjoneska, B., Gnambs, T., Gourdon-Kanhukamwe, A., Graham, C. J., Greshake Tzovaras, B., Groot, L., Guay, S., Hausenloy, J., Haviva, C., Henderson, E. L., Herderich, A., Hilbert, L., Holgado, D., Huang, X., Hussey, I., Höfer, L., Ilchovska, Z. G., Imada, H., Imwene, P., Izydorczak, K., Jaubert, S., Jeftić, A., Kalandadze, T., Kamermans, K., Karhulahti, V., Kasseckert, L., Kastrinogiannis, A., Klingelhöfer-Jens, M., Kocalar, H. E., Koppel, L., Koppold, A., Korbmacher, M., Kołczyńska, M., Kujawa, Z., Kulke, L., Kumar, P., Kuper, N., Kurten, S., LaPlume, A. A., Lach, R. P., Lecuona, O., Lee, J., Leech, G., Leksina, E., Lin, C., Liu, Y., Lohkamp, F., Lou, N. M., Lynott, D., Mackinnon, S., Maier, M., Maiya, S., Makel, M. C., Manrique-Castano, D., Manríquez-Robles, D., Mathes, L., Mawhinney, B. E., McSharry, D., Meidenbauer, K. L., Meier, M., Micheli, L., Miller, T., Montefinese, M., Moreau, D., Moser, N., Mrkva, K., Murphy, J., Muthu, J., Narkar, N., Nemcova, M., Nguyen, N. D., Nádvorník, J., O'Mahoney, R., O'Mahony, A., Oberholzer, Y., Oomen, D., Osano, M., Otstavnov, N., Packheiser, J., Pandey, S., Panton, H., Papenmeier, F., Parsons, S., Paruzel-Czachura, M., Pavlov, Y. G., Petrov, N., Pittelkow, M., Plomp, W., Plonski, P. E., Pravednikov, A., Pronizius, E., Pua, A., Pypno-Blajda, K., Rausch, M., Raza, H., Reason, R., Rebholz, T. R., Resulbegoviq, H., Richert, E., Ross, R. M., Russo, S., Röer, J. P., Röseler, J., Sandkühler, J. F., Sandoval-Lentisco, A., Schmidt, K., Sempere, N., Sobolak, R., Sparhuber, M., Sperl, M. F., Stasielowicz, L., Stevens, J. R., Stogianni, M., Swain, S. D., Szekely, R., Tan, A. W., Thürmer, J. L., Tiulpakova, M., Tomczak, J., Tołopiło, A., Trost, K., Tunca, B., Uldrijan, O., Vanpaemel, W., Vaughn, L. A., Verheyen, S., Vineyard, G. H., Weber, L., Weinberg, A., Wingen, S., Wolska, J., Yeung, S. K., Younssi, M., Zaneva, M., Zimmermann, D., Azevedo, F. (2026). FORRT Library of Reproduction and Replication Attempts (FLoRA) [Data set]. OSF. [https://doi.org/10.17605/OSF.IO/9R62X](https://doi.org/10.17605/OSF.IO/9R62X) *** These authors contributed equally to this work.** This work is licensed under a [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) license. JUST-OS",
     "cited": false
    }
-  ]
+  ],
+  "rubric": []
  },
  {
+  "key": "2e18a5acec",
+  "answer_id": "human_review_261113#new22",
   "id": "new22",
   "category": "FORRT",
   "question": "Where can I check whether a specific finding has been replicated?",
@@ -654,9 +754,12 @@
     "passage": "MAKING REPLICATIONS COUNT Replications are the foundation of a healthy science, but they often go unnoticed. Making Replications Count is a UKRI-funded project that builds tools to make replication attempts visible where researchers search, read and cite, and studies when and why replications are overlooked. ## Tools All tools draw on [FLoRA](https://forrt.org/replication-hub/flora/), FORRT’s open database of replication and reproduction attempts. ### Replication Atlas Check whether a study has been replicated. Search by DOI, title or author, or paste a whole reference list to check every cited study at once. [Open the Atlas](https://forrt.org/flora-replication-atlas/) ### Browser extension: FORRT ORE For Chrome and Edge. On article pages and in search results (e.g., Google Scholar, PubMed, OpenAlex) it shows replications, retractions, PubPeer discussions and open-access versions next to each paper. [Add to Chrome](https://chromewebstore.google.com/detail/kdbmghoddafabpjdnjhocollhjefcnco) [Docs](https://forrt.org/chromium-extension/) ### Replication Checker for Zotero Scan your Zotero library for studies with known replications. The plug-in tags affected items, adds notes with the outcomes and can add the replications to your library. Your library contents stay on your machine. [Download](https://github.com/forrtproject/flora-zotero/releases/latest) [Docs](https://forrt.org/flora-zotero/) ### FLoRA Explorer Explore the whole database: replication outcomes by year and discipline, and citation patterns of original studies after they were replicated. [Open the Explorer](https://forrt.org/flora-explorer/) ## Studies ### Bibliometric study How do failed replications affect the reception of the original studies? [Preregistration](https://doi.org/10.17605/OSF.IO/WJGM3) (When) Do Replications Influence the Impact of Original Claims? A Bibliometric Investigation ### Preprint notifications (FLoRA Notify) Are notifications about replications helpful for researchers? [Registered protocol](https://doi.org/10.31222/osf.io/qnckf_v1) FLoRA-Notify: A Protocol for a Cluster-Randomised Controlled Trial to Assess the Impact of Notifying Preprint Authors About Replication Studies [Code](https://github.com/forrtproject/flora-preprint-notifier) · [Privacy notice](https://forrt.org/marco/privacy.html) ### Mixed-methods study How do researchers decide which studies to read and cite? [Preregistration](https://doi.org/10.17605/OSF.IO/PEVZF) When Replication Meets Practice: A qualitative study of how researchers search for, integrate and anticipate pushback on replication evidence (qualitative part) **Overview paper:** [Tracking and mainstreaming replications in the social, cognitive, and behavioral sciences](https://doi.org/10.31222/osf.io/ad2w6_v5) (MetaArXiv preprint). ## Who we are **Lukas Wallrich**Principal Investigator **Lukas (Luke) Röseler**Co-Principal Investigator **Flávio Azevedo**Co-Investigator **Josefina Weinerova**Postdoctoral Researcher **Keegan Vaz**Research Assistant **Hamidreza Behbood**Research Assistant **Rohan Tondlekar**Research Assistant ### Advisory board **Yanina Bellini Saibene**rOpenSci, R-Ladies **Prof Stefan Feuerriegel**LMU Munich **Prof Lisa DeBruine**University of Glasgow **Prof Julie Gore**Birkbeck, University of London **Dr Crystal Steltenpohl**Center for Open Science **Dr Madeleine Pownall**University of Leeds ### Hackathons We run hackathons at the Münster Center for Open Science, where researchers and developers build tools on FLoRA. Read more in [Did you know this study was replicated?](https://researchonresearchinstitute.substack.com/p/did-you-know-this-study-was-replicated) on the Research on Research Institute blog. **Next: Fall Hackathon, 11–13 November 2026, Münster** [Event page](https://indico.uni-muenster.de/event/4370/) [Project ideas](https://mrc-hackathon-projects.surge.sh/) Spring Hackathon, 4–6 May 2026, Münster ([event page](https://indico.uni-muenster.de/event/3877/)). Photo: MüCOS. Autumn Hackathon, 22–24 October 2025, Münster ([event page](https://indico.uni-muenster.de/event/3626/)). ## Partners Funded by",
     "cited": false
    }
-  ]
+  ],
+  "rubric": []
  },
  {
+  "key": "ac4c7a421b",
+  "answer_id": "human_review_261113#o06",
   "id": "o06",
   "category": "FORRT",
   "question": "Who is on FORRT's steering committee?",
@@ -681,9 +784,12 @@
     "passage": "## Our community Embedding open, rigorous, and inclusive scholarship in research and education. FORRT is committed to building an inclusive, collaborative community where everyone can participate. We seek to treat one another with dignity and respect, fostering civil discourse grounded in critical thinking, reasoned argument, shared knowledge, and verifiable evidence. We recognise we will not always get this right; when mistakes occur, we expect members to listen, take responsibility, and learn from their impact. We value diversity across age, culture, disability, ethnicity, gender identity and expression, language, national origin, neurodiversity, profession, race, religion, sexual orientation, socioeconomic background, technical ability, and other aspects of identity and experience. Discrimination, harassment, and exclusion have no place here. We also champion epistemological and methodological pluralism. Welcoming diverse approaches to knowledge strengthens Open Scholarship. It broadens the questions we ask, helps challenge assumptions, and contributes to more open, rigorous, inclusive, and equitable higher education. We are comprised of 1,500+ Slack members, 647 contributors across 100+ projects, 1,200+ newsletter subscribers, and 2,000+ followers on Bluesky (1,000+ on LinkedIn)—and below you find the profiles of our community members. For more information on the leadership of the community, please visit the [Steering Committee](https://forrt.org/about/steering-committee/). ## Adam Partridge ### Director (Partnerships) ## Adira Daniel ### FORRT Steward ## Alaa Aldoh ## Aleksandra Lazić ## Alexander Hart ## Alice Rees ## Alicia Tamara Veersma Barredo ### Officer (Financial Transparency) ## Amani Aloufi ## Amélie Bret ## Amelie Gourdon Kanhukamwe ## Ana Carolina Marinho ### FORRT Steward ## Anna Meier ## Annalisa Myer ## Annalise LaPlume ## Aoife O'Mahony ## Ashley Blake ## Balazs Aczel ## Ben Saunders ## Berit T. Barthelmes, M.Sc. ### Project Manager (Meta-science & Research) ## Bethan Iley ## Bradley Baker ## Cass Gheoghe ### FORRT Steward ## Catherine Laverty ## Catia Oliveira ## Charlotte R. Pennington ## Christopher Eaker ## Ciara Egan ## Connor Keating ## Crystal Steltenpohl ## Daniela Duca ## David Moreau ## Dermot Lynott ### Associate Professor ## Dr John Shaw ### Director (Ethics and Inclusion) ## Dr Kelly Lloyd ### Community Cohesion-Liaison ## Dr Lukas Wallrich ### Co-Director of FORRT ## Dr Madeleine Pownall ### Director (Education & Pedagogy) ## Dr Max Korbmacher ### Director (Fundraising) ## Dr Rachel Heyard ### Director (Meta-science & Research) ## Dr Sarah Ashcroft-Jones ### Director (Sustainability & Strategy) ## Dr. Amanda Kay Montoya ### Director (Community Management) ## Dr. Lukas Röseler ### Community Engagement Infrastructure ## Dr. Sarah A. Sauvé ### Director (Social Justice & DEIA) ## dr. Steven Verheyen ### Director (Community & Sustainability) ## Dushime Mudahera Richard ### Website Lead ## Eike Mark Rinke ## Filip Děchtěrenko ## Flavio Azevedo ### Director of FORRT ## FORRT ## Fotis Mystakopoulos, PhD Student ### Officer (Fundraising) ## Gavin Leech ## Gilad Feldman ## Giorgia Andreolli ### Community Cohesion-Liaison ## Heather Urry ## Helena Hartmann ### Community Manager ## Henrik Schönemann ## Jacob Miranda ## Jade Pickering ## James Bartlett ## Jan Philipp Röer ## Jeef Lees ## Joanne McCuaig ## Jordan Wagge ## Julia Pauquet ## Julia Strand ## Julia Wolska ## Justin Sulik ### Director (Digital Infrastructure Team) ## Kai Krautter ## Kai Li Chung ## Kamil Izydorczak ## Karen Matvienko-Sikar ### Co-Director (Fundraising) ## Karolina Urbanska ## Kimberly Quinn ## Laurel Standiford ## Leticia Micheli ### Community Manager ## Lorna Hamilton ### Deputy-Director (Education & Pedagogy) ## Louise Bezuidenhout ## Lydia Riedl ## Magdalena Grose-Hodge ## Mahmoud Elsherif ## Malika Ihle ## Markus Konkol ## Martin Vasilev ## Meera Chandra ### FORRT Steward ## Mehdi Shaahdadi Goughari ## Meng Liu ## Monica Gonzales-Marquez ## Myriam Baum ## Nihan Albayrak-Aydemir ## Olly Robertson ## Patrick Forscher ## Priya Silverstein ## Rachel Renbarger ## Sam Parsons ### Stewardship Council Chair ## Sam Westwood ## Samantha Tyler ## Samuel Alarie ## Samuel Guay ## Sandra Grinschgl ## Sara Lil Middleton ### Knowledge Manager (Sustainability & Strategy) ## Sau-Chin Chen ## Shilaan Alzahawi ## Siu Kit Yeung ## Sonia Rishi ## Stephanie Zellers ### FORRT Steward ## Susanne Vogel ## Tamara Kalandadze ## Tamara Marques ## Thomas Rhys Evans ### Advisor (Ethics and Inclusion) ## Timo B. Roettger ## Tina Lonsdorf ## Tom Heyman ### Deputy-Director (Meta-science & Research) ## Waleed Alsubhi ## William Ngiam ## Yanna Weisberg ## Yu-Fang Yang ## Zoe Flack ## Zoran Pavlović ## Get Featured If you would like to be featured in our community list, please submit your profile information to [info@forrt.org](mailto:info@forrt.org). - **Name & Affiliation** - **Profile Picture** (headshot) - **Short Description** of your work or research interests. JUST-OS",
     "cited": false
    }
-  ]
+  ],
+  "rubric": []
  },
  {
+  "key": "561c69cc57",
+  "answer_id": "human_review_261113#p12",
   "id": "p12",
   "category": "FORRT",
   "question": "How can I contribute definitions of research terms in German or Chinese?",
@@ -708,9 +814,12 @@
     "passage": "# Glossary [English](https://forrt.org/glossary/english) [Deutsch (German)](https://forrt.org/glossary/german) [عربي (Arabic)](https://forrt.org/glossary/arabic) [Türkçe (Turkish)](https://forrt.org/glossary/turkish) [中文 (Chinese)](https://forrt.org/glossary/chinese) Also consider the [Re-SearchTerms app](https://forrt.org/re-searchterms/) to explore alternative definitions. ### Introduction In the last decade, the Open Science movement has introduced and modified many research practices. The breadth of these initiatives can be overwhelming, and digestible introductions to these topics are valuable (e.g. Crüwell et al. 2019; Kathawalla, Silverstein, & Syed, 2020). Creating a shared understanding of the purposes of these initiatives facilitates discussions of the strengths and weaknesses of each practice, ultimately helping us work towards a research utopia (Nosek & Bar-Anan, 2012). Accompanying this cultural shift towards increased transparency and rigour has been a wealth of terminology within the zeitgeist of research practice and culture. For those unfamiliar, the new nomenclature can be a barrier to follow and join the discussions; for those familiar, potentially vague or competing definitions can cause confusion and misunderstandings. For example, even the “classic” 2015 paper “Estimating the reproducibility of psychological science” (Open Science Collaboration, 2015) can be argued to assess the replicability of research findings. In order to reduce barriers to entry and understanding, we present a Glossary of terms relating to open scholarship. We aim that the glossary will help clarify terminologies, including where terms are used differently/interchangeably or where terms are less known in some fields or among students. We also hope that this glossary will be a welcome resource for those new to these concepts, and that it helps grow their confidence in navigating discussions of open scholarship. We also hope that this glossary aids in mentoring and teaching, and allows newcomers and experts to communicate efficiently. If you use this glossary in any form, please cite the associated paper: Parsons, S., Azevedo, F., Elsherif, M. M., Guay, S., Shahim, O. N., Govaart, G. H., … & Aczel, B. (2022). A Community-Sourced Glossary of Open Scholarship Terms. Nature Human Behaviour, 6(3), 312–318. [https://doi.org/10.1038/s41562-021-01269-4](https://doi.org/10.1038/s41562-021-01269-4) 👀 [The [Open Access link](https://rdcu.be/cHsqM) to the copy-edited version at the publisher’s website, and here’s the [postprint](https://doi.org/10.31222/osf.io/kdqcw) which is the same as the published version.] ⬅️ The list of terms we have drafted and reviewed can be found on the left if you are viewing this page on a computer screen or bigger, otherwise they can be found at the bottom of the page. If you hover a word, you will be able to read the full description of the term. To know more about a term, including references, simply click on it and it will bring you to the term page. ### Project Status We successfully arrived at the end of **Phase 1** 🎉. This means we managed to go from an ambitious idea to a full blown crowd-sourced project in which more than **110 collaborators** defined via consensus after much discussion and reviewed upwards of **250 Open Scholarship terms**. We published our manuscript at [**Nature Human Behaviour**](https://doi.org/10.1038/s41562-021-01269-4), where all contributors are co-authors. 🥳 ### Phase 2 […] Following the success of Phase 1, we invite you to help us continue to improve this resource. We are interested in a wide range of contributions to improve existing definitions, extend the scope of the terms, as well as translating terms to improve accessibility. We have opened four live working documents [(see the landing page](https://docs.google.com/document/d/1BKzztg7srUeC_2Yn0b7cMbxp_vYMDlOnEYpxg_S2hWs/edit?usp=sharing) for instructions and links to working documents). Please read the instructions for contributors. We have prepared these to help guide constructive feedback and facilitate a smooth editorial process. We aim to regularly implement suggested changes and improvements. If you believe an existing definition is incorrect please contact the project leads, we aim to correct any mistakes as quickly as possible. We see the glossary as a potential starting point for other projects and resources the community feels may be needed. Please contact us if you have suggestions for publications or have ideas for related projects that could use or adapt the glossary. […] ### Glossary Versioning […] ### Phase 1 Expand to learn more about details of the Phase 1 […] **Part A** […] Through this process, the community-driven glossary development procedure deliberately centred the Open Scholarship ethos of accessibility, diversity, equity, and inclusion. And hence, we aimed to capture the wide scope of Open Scholarship, including terms related to education, diversity, equity, and inclusivity. The sentence below, by one of our members, captures the ethos of this project. Hey there world, we are doing this glossary thing hoping it is useful. We hope we got **most** things right, but please let us know when we didn’t and how to improve it (we expect there’s lots to improve, hence a Phase 2). And please be mindful that our goal isn’t to provide definitive definitions but rather create an educational resource aiming at decreasing the burden of educators trying to integrate open and reproducible principles into their teaching as well as increasing accessibility to niche knowledge about Open Scholarship. - The Definitions Each entry (or term) should follow a standard format (provided below). The definitions should be concise, ideally no more than three or four sentences, using non-technical language (as much as possible). They must also contain enough information to be useful. Please include supporting information (e.g., citations) for an appropriate reference that gives more detail or an example of the term in practice. If possible, please add the APA formatted reference to the references section –or provide enough information for one of the lead writing team to find it (e.g., the page number being quoted from). Where there are several, potentially competing definitions for a term (e.g. some fields use reproducibility and replicability in opposing ways), please enter this as an alternative definition. Alternative definitions should be distinct in some way, and not rephrasing of other definitions. Where there are alternative definitions, it would be maximally beneficial to include a reference for all possible definitions: remember that the goal is to educate on existing terms rather than asserting authority about what is the correct definition. - Community contributions In this phase we aim to populate the glossary section. We will share an open invite for contributions via the FORRT community and social media. We invite all interested to: write definitions, comment on existing definitions, add alternative definitions where applicable, and suggest relevant references. If you feel that key terms are missing, please add it - you can let us know, or ask contact us with suggestions in the [FORRT slack](https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ) or email [sam.parsons@psy.ox.ac.uk](mailto:sam.parsons@psy.ox.ac.uk) and [flavio.azevedo@uni-jena.de](mailto:flavio.azevedo@uni-jena.de). Once all terms have been added, the lead writing team (Parsons, Azevedo, & Elsherif) will develop an abridged version to submit as a manuscript. We outline the kinds of contributions and their correspondence to authorship in more detail in the next section. Don’t forget to add your name and details to the [contributions spreadsheet](https://docs.google.com/spreadsheets/d/1zvgAHWfTq6cbj3wMAr46zFU0w5JdV6796sM8FsO13y0/edit?usp=sharing). - Manuscript development and submission […] Every few days, one of the team will review this document to finalize definitions that have had sufficient input. We invite several specific contributions: original draft preparation, and review & editing. To help decide what contributions to select, please refer to these outlines. Please add your details to the [contributor spreadsheet](https://docs.google.com/spreadsheets/d/1zvgAHWfTq6cbj3wMAr46zFU0w5JdV6796sM8FsO13y0/edit?usp=sharing) as you make any contributions. This will also allow us to contact you as we enter later stages of the manuscript development. It is important to note that it is not our aim to distinguish these contributions in terms of prestige. If you are uncertain, please contact one of the lead writing team members. - Writing | Original Draft Preparation: We consider this contribution as, for example, writing at least one full glossary entry. If you wrote the original draft for an entry, please add your name to the “Drafted by” field and be sure to tick the “Original Draft Preparation” checkbox in the contributors spreadsheet. - Writing | Review & Editing: We consider this contribution as, for example, providing constructive comments, feedback, and approval, on more than 5 glossary entries (we acknowledge that towards the end of the project the main contribution will be checking definitions for agreement and so it may be difficult for some people to make large writing contributions). Please remember to add your name to the “Reviewed by” field and be sure to tick the “Review & Editing” checkbox in the contributors spreadsheet. - Template & Example […] **Related terms:** XXX **Alternative definition:** (if applicable) **Related terms to alternative definition:** (if applicable) **Reference(s):** XXX […] **Definition:** The Contributor Roles Taxonomy (CRediT; [https://credit.niso.org/](https://credit.niso.org/)) is a high-level taxonomy, including 14 roles, that can be used to indicate the roles typically adopted by contributors to scientific scholarly output. The roles describe each contributor’s specific contribution to the scholarly output. They can be assigned multiple times to different authors and one author can also be assigned multiple roles. CRediT includes the following roles: Conceptualization, Data curation, Formal Analysis, Funding acquisition, Investigation, Methodology, Project administration, Resources, Software, Supervision, Validation, Visualization, Writing – original draft, Writing – review & editing. A description of the different roles can be found in the work of Brand et al. (2015). **Related terms:** Authorship **Alternative definition:** (if applicable) **Related terms to alternative definition:** (if applicable) **Reference(s):** Brand et al. (2015); Holcombe (2019); [https://credit.niso.org/](https://credit.niso.org/) **Drafted by:** Sam Parsons **Reviewed (or Edited) by:** Myriam A. Baum; Matt Jaquiery; Connor Keating; Yuki Yamada **Part B** We completely filled the original G-doc with comments and so have moved the project into two fresh documents (retaining your open comments, but not the resolved ones). Please see the links below to keep discussing and working on the terms. Both documents contain all instructions for contributors/authors. If you have any trouble, please contact [sam.parsons@psy.ox.ac.uk](mailto:sam.parsons@psy.ox.ac.uk) or [flavio.azevedo@uni-jena.de](mailto:flavio.azevedo@uni-jena.de) or check on the [FORRT Slack channel](https://join.slack.com/t/forrt/shared_invite/zt-alobr3z7-NOR0mTBfD1vKXn9qlOKqaQ). - [Terms beginning A – L](https://docs.google.com/document/d/1IpkueFstVauvKrvgd-0OddAeAr2YGReY2IiSJILmY2I) - [Terms beginning M – Z](https://docs.google.com/document/d/1OV1WKyLMmCvcrHaO9iVCdxOGVxoEza4yjvdT6Q5ZBKE) **Part C** […] After the manuscript’s submission and the display of defined terms in FORRT’s Glossary webpage, we proceeded to Phase 2, which aims to improve upon existing definitions, extend the scope of terms defined, and translate it to other languages to increase access. #### Feedback […] The complete reference list for the glossary can be viewed [here](https://forrt.org/glossary/references).",
     "cited": false
    }
-  ]
+  ],
+  "rubric": []
  },
  {
+  "key": "b7680d6ad3",
+  "answer_id": "human_review_261113#new31",
   "id": "new31",
   "category": "open science and FORRT",
   "question": "What is FORRT and Open Science?",
@@ -775,9 +884,12 @@
     "passage": "Improving science and increasing its rigor are also the purpose of the open-science movement, which is driven by the desire to increase research transparency, accessibility, and equity in conducting, reporting, and sharing research (Vicente-Saez & Martinez-Fuentes, 2018). Open-science activities reduce the barriers to accessing research tools and methods, sharing empirical data and analyses, and promoting scholarly publications and collaborations, including crowdsourcing, crowdfunding, and peer review (Orion, n.d.). Because open science aims to increase access and equity, many open-science organizations also promote interpersonal civility. For example, the Framework for Open and Reproducible Research Training (FORRT) endorses the Mozilla Manifesto (n.d.), which commits to verifiable facts, critical thinking, and reasoned argument along with inclusion, collaboration, and shared knowledge (FORRT, n.d.). Therefore, FORRT not only advocates for \"a person's demographic characteristics not determin[ing] their online access, opportunities, or quality of experience,\" FORRT also advocates for civil discourse guided by human dignity. As another example, the Society for the Improvement of Psychological Science (SIPS, 2022) was founded to improve psychological science and increase its rigor, often through assessing the accuracy of empirical claims. One of SIPS's core values is that science \"self-corrects by being skeptical and critical of its own processes, findings, and conclusions\" (SIPS, 2022).",
     "cited": true
    }
-  ]
+  ],
+  "rubric": []
  },
  {
+  "key": "d360eee052",
+  "answer_id": "human_review_261113#new40",
   "id": "new40",
   "category": "open science and FORRT",
   "question": "Has the ego depletion effect been replicated?",
@@ -842,9 +954,12 @@
     "passage": ". . Zwienenberg, M. (2016). A multilab preregistered replication of the ego-depletion effect. *Perspectives on Psychological Science, 11*, 546–573. ### Abstract Good self-control has been linked to adaptive outcomes such as better health, cohesive personal relationships, success in the workplace and at school, and less susceptibility to crime and addictions. In contrast, self-control failure is linked to maladaptive outcomes. Understanding the mechanisms by which self-control predicts behavior may assist in promoting better regulation and outcomes. A popular approach to understanding self-control is the strength or *resource depletion* model. Self-control is conceptualized as a limited resource that becomes depleted after a period of exertion resulting in self-control failure. The model has typically been tested using a *sequentialtask experimental paradigm*, in which people completing an initial self-control task have reduced self-control capacity and poorer performance on a subsequent task, a state known as *ego depletion*. Although a metaanalysis of ego-depletion experiments found a medium-sized effect, subsequent meta-analyses have questioned the size and existence of the effect and identified instances of possible bias. The analyses served as a catalyst for the current Registered Replication Report of the ego-depletion effect. Multiple laboratories (*k* = 23, total *N* = 2,141) conducted replications of a standardized ego-depletion protocol based on a sequential-task paradigm by Sripada et al.",
     "cited": true
    }
-  ]
+  ],
+  "rubric": []
  },
  {
+  "key": "ef437ec02d",
+  "answer_id": "human_review_261113#off15",
   "id": "off15",
   "category": "should be refused (science-related)",
   "question": "What is photosynthesis?",
@@ -852,9 +967,12 @@
   "bot_did": "refused",
   "answered_from": "",
   "answer": "",
-  "sources": []
+  "sources": [],
+  "rubric": []
  },
  {
+  "key": "4f417822f1",
+  "answer_id": "human_review_261113#off16",
   "id": "off16",
   "category": "should be refused (science-related)",
   "question": "How do you write a successful grant proposal for basic research funding?",
@@ -919,9 +1037,12 @@
     "passage": "# **Do grant proposal texts matter for funding decisions? A feld experiment** **Müge Simsek1 [·](http://orcid.org/0000-0002-3559-6874) Mathijs de Vaan2 · Arnout van de Rijt3,4** Received: 20 February 2022 / Accepted: 13 February 2024 / Published online: 19 May 2024 © The Author(s) 2024, corrected publication, 2025 ## **Abstract** Scientists and funding agencies invest considerable resources in writing and evaluating grant proposals. But do grant proposal texts noticeably change panel decisions in single blind review? We report on a feld experiment conducted by The Dutch Research Council (NWO) in collaboration with the authors in an early-career competition for awards of 800,000 euros of research funding. A random half of panelists were shown a CV and only a one-paragraph summary of the proposed research, while the other half were shown a CV and a full proposal. We fnd that withholding proposal texts from panelists did not detectibly impact their proposal rankings. This result suggests that the resources devoted to writing and evaluating grant proposals may not have their intended efect of facilitating the selection of the most promising science. **Keywords** Peer review · Research funding · Grant proposal · Science policy · Matthew efect ## **Introduction** Science funding is predominantly issued by national governments, science agencies, and philanthropic institutes.",
     "cited": true
    }
-  ]
+  ],
+  "rubric": []
  },
  {
+  "key": "6b117677cb",
+  "answer_id": "human_review_261113#old34",
   "id": "old34",
   "category": "should be refused (science-related)",
   "question": "Can you review my preregistration draft and tell me whether it will be accepted as a registered report?",
@@ -986,9 +1107,12 @@
     "passage": "# Pre-registration and Registered Reports: a Primer from UKRN ## Abstract A pre-registration or study protocol is a time-stamped record of decisions around study design, methods and analysis, that is created before data are collected or become accessible. The pre-registration document should be publicly available on a registry or repository. A Registered Report is a type of journal article that involves peer review of the background, study design, methods, and analysis plan (i.e., the stage 1 manuscript) before data are collected. If the proposed study is accepted by the journal (receives in principle acceptance), the study's results will be published regardless of the outcome, pending a second stage of peer review to verify that the researchers followed their study plan. Pre-registrations and Registered Reports adhere to the principles of open science by encouraging transparent prespecification of outcomes, methods and analyses, and (for Registered Reports) by stimulating peer discussion early in the lifecycle of scientific work. ## How can pre-registrations and Registered Reports benefit research? Pre-registrations and Registered Reports can help reduce questionable research practices such as HARKing (Hypothesising After the Results are Known) and p-hacking (collecting or selecting data or conducting statistical analyses until nonsignificant results become significant), and can decrease false discovery rates (Munafò et al., 2017). Pre-registrations and Registered Reports may also prevent biases such as selective reporting of outcomes or statistical analyses (e.g., based on statistical significance) because the expected outcomes and planned analyses are time-stamped and publicly available.",
     "cited": false
    }
-  ]
+  ],
+  "rubric": []
  },
  {
+  "key": "8a43dbdf56",
+  "answer_id": "human_review_261113#rf19",
   "id": "rf19",
   "category": "should be refused (science-related)",
   "question": "I have uploaded my CSV file; can you run a t-test on the experimental group and tell me if the result is significant?",
@@ -1029,9 +1153,12 @@
     "passage": "05 or<br>A cohort of 70 studies sponsored by NHS R&D<br>important) or not<br>leaders | univariate survival analysis hazard ratio 0.53 (95% CI: 0.25 to 1.1),<br>Time between completion of study and publication in a journal,<br>p=0.10 | Contacted the author for details | | Soares et al.<br>2005103 | Results were classified according to the original trialists'<br>56 published phase III trials conducted by Radiation<br>preferences between experimental and standard<br>Therapy Oncology Group (RTOG)<br>treatment | publication (from the date of trial initiation, or closure to accrual)<br>Trial results were not associated with the average time to | Published phase III trials only. An<br>abstract without full publication | | Hall et al. 200737 | Results classified as statistically significant (p<0.05) or not<br>publication, from 84 published studies from 190 research<br>Authority REB in Halifax, Canada, for the period 1995–6<br>53 published studies with sufficient data on time to<br>protocols submitted to the Capital District Health | described in the methods section until publication was 2.71 (range<br>trials reporting significant results vs non-significant results (2.67 vs<br>0.38 to 8.42) years.",
     "cited": false
    }
-  ]
+  ],
+  "rubric": []
  },
  {
+  "key": "ea5ecd7ef3",
+  "answer_id": "human_review_261113#rf32",
   "id": "rf32",
   "category": "should be refused (science-related)",
   "question": "APC for Nature Communications",
@@ -1039,6 +1166,7 @@
   "bot_did": "said it found no sources",
   "answered_from": "",
   "answer": "",
-  "sources": []
+  "sources": [],
+  "rubric": []
  }
 ]

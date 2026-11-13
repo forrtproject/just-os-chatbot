@@ -11,7 +11,7 @@ the host's `data/` folders and goes into Git from there.
 | Good/Bad feedback on a chat answer | `data/chats/feedback.jsonl` | the tester presses Good/Bad |
 | Every arena question with all model answers | `data/arena/rounds.jsonl` | all answers are complete |
 | Arena ratings (1-5 per answer) | `data/arena/ratings.jsonl` (and Redis, for the leaderboard) | the tester submits the ratings |
-| Answer reviews (`/review`) | `data/reviews/review_<name>_<time>.csv`, one file per save | the reviewer presses **Save to the team** |
+| Answer reviews (`/review`) | `data/scores/scores_review_<name>_<time>.jsonl`, one file per save, score rows (#54); before #54 `data/reviews/review_<name>_<time>.csv` | the reviewer presses **Save to the team** |
 
 All five are writable mounts in `compose.yaml` and are tracked in Git during the test phase (`.gitignore`).
 Writes from parallel requests are serialised, so two answers finishing at once cannot mix their lines.
@@ -36,11 +36,12 @@ Writes from parallel requests are serialised, so two answers finishing at once c
 ## After the session
 
 ```
-git add data/chats data/arena data/reviews
+git add data/chats data/arena data/reviews data/scores
 git commit -m "Test session <date>: chats, arena rounds and ratings, reviews"
 git push
 ```
 
-The CSVs from `/review` have one row per question: reviewer, item_id, category, expected, bot_did, question,
-decision, correctness, citation_support, source_relevance, completeness, clarity (1-5 or n/a), note, saved_at.
-Compare them with the LLM judge by `item_id` (`eval/results/human_review_<date>.csv`, column `judge_support`).
+A save from `/review` holds score rows (#54): one per answer, criterion and reviewer, with the answer's `answer_id`,
+the score on 1-5 (or the decision), the setting (`rubric` for rubric items scored with the rubric setting on) and the
+note. `/eval` (People and judges) and `python eval/scores.py eval/results/human_review_<date>.csv` compare them with
+the judges. The CSVs saved before #54 have one row per question and are still read by `eval/scores.py`.

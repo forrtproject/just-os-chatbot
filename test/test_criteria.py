@@ -3,7 +3,8 @@
 from just_os import criteria
 from just_os.app import ARENA_CRITERIA, REVIEW_CRITERIA, REVIEW_DECISIONS, review_rows, valid_ratings
 
-ITEMS = {"q1": {"category": "", "expected": "answer", "bot_did": "answered", "question": "?"}}
+ITEMS = {"q1": {"answer_id": "run#q1", "id": "q1", "category": "", "expected": "answer", "bot_did": "answered", "question": "?",
+               "rubric": [{"id": "r1", "criterion": "Says what it is", "type": "core"}]}}
 
 
 def test_pages_show_the_same_texts_as_before():
@@ -37,12 +38,22 @@ def test_review_and_arena_accept_the_same_scale():
         assert valid_ratings({"A": {c: value for c in ARENA_CRITERIA}}) == ok, value
 
 
-def test_review_keeps_empty_fields_empty():
-    problem, rows = review_rows({"reviewer": "r", "scores": {"q1": {"decision": "", "correctness": "4", "note": ""}}}, ITEMS)
+def test_review_saves_score_rows_for_the_answer():
+    problem, rows = review_rows({"reviewer": " Ann ", "scores": {"q1": {"decision": "right", "correctness": "4",
+                                                                       "clarity": "n/a", "note": "fine"}}}, ITEMS)
     assert problem is None
-    assert rows[0]["decision"] == "" and rows[0]["note"] == "" and rows[0]["clarity"] == ""  # was "'" before #54
-    _, rows = review_rows({"reviewer": "r", "scores": {"q1": {"note": "=1+1"}}}, ITEMS)
-    assert rows[0]["note"] == "'=1+1"  # a formula is still quoted
+    assert [(r["answer_id"], r["criterion"], r["score"], r["scorer"]) for r in rows] == [
+        ("run#q1", "decision", "right", "Ann"), ("run#q1", "correctness", 4, "Ann")]
+    assert rows[0]["note"] == "fine" and rows[1]["scale"] == [1, 5] and rows[0]["scale"] is None
+    assert review_rows({"reviewer": "Ann", "scores": {"q1": {"note": ""}}}, ITEMS)[0] == "Nothing scored yet."
+
+
+def test_review_rubric_setting_adds_rubric_rows():
+    data = {"reviewer": "Ann", "rubric": True, "scores": {"q1": {"rubric": {"r1": "5"}, "correctness": "3"}}}
+    problem, rows = review_rows(data, ITEMS)
+    assert problem is None and ("rubric:r1", 5, "rubric") in [(r["criterion"], r["score"], r["setting"]) for r in rows]
+    for bad in ({"r9": "5"}, {"r1": "0"}, {"r1": "n/a"}, ["r1"]):
+        assert review_rows({"reviewer": "Ann", "scores": {"q1": {"rubric": bad}}}, ITEMS)[0] == "Invalid score for q1."
 
 
 def test_judges_take_criteria_levels_and_models_from_the_file():

@@ -287,28 +287,35 @@ def test_topic_check_choice_is_checked_and_passed_on(app):
     assert 'id="router-select"' in html and 'value="jev"' in html and 'value="none"' in html
 
 
-def test_review_page_and_save_keep_every_reviewer_in_its_own_csv(app, tmp_path):
-    import csv
-    items = [{"id": "q1", "category": "open science", "question": "What is open data?", "expected": "answer",
-              "bot_did": "answered from the papers", "answered_from": "papers", "answer": "Open data is [0].",
+def test_review_page_shows_answers_blind_and_saves_score_rows(app, tmp_path):
+    items = [{"key": "k1", "answer_id": "run_261113-0800_openai__gpt-oss-20b#q1", "id": "q1", "category": "open science",
+              "question": "What is open data?", "expected": "answer", "bot_did": "answered from the papers",
+              "answered_from": "papers", "answer": "Open data is [0].",
               "sources": [{"n": 0, "title": "Paper", "doi": "10.1/a", "link": "https://doi.org/10.1/a",
-                           "passage": "Open data are free.", "cited": True}]}]
+                           "passage": "Open data are free.", "cited": True}],
+              "rubric": [{"id": "r1", "criterion": "Says data are free to reuse", "type": "core"}]}]
     (tmp_path / "items.json").write_text(json.dumps(items))
-    app.config.update(REVIEW_ITEMS_FILE=str(tmp_path / "items.json"), REVIEW_DIR=str(tmp_path / "reviews"))
+    app.config.update(REVIEW_ITEMS_FILE=str(tmp_path / "items.json"), SCORES_DIR=str(tmp_path / "scores"))
     client = app.app.test_client()
     html = client.get("/review").get_data(as_text=True)
     assert "What is open data?" in html and "DOI 10.1/a" in html and "Open data are free." in html
     assert "Scores 1-5:" in html and '<option value="0">' not in html  # the arena's scale (#54)
-    scores = {"q1": {"decision": "right", "correctness": "4", "citation_support": "5", "source_relevance": "n/a",
-                     "completeness": "3", "clarity": "4", "note": "=HYPERLINK(x)"}}
+    assert "gpt-oss" not in html and 'data-id="k1"' in html  # blind: the answer_id stays on the server
+    assert "Says data are free to reuse" in html and 'id="rubric-setting"' in html
+    scores = {"k1": {"decision": "right", "correctness": "4", "citation_support": "5", "source_relevance": "n/a",
+                     "completeness": "3", "clarity": "4", "note": "=HYPERLINK(x)", "rubric": {}}}
     assert client.post("/review/save", json={"reviewer": "", "scores": scores}).status_code == 400  # name needed
-    assert client.post("/review/save", json={"reviewer": "A", "scores": {"zz": {}}}).status_code == 400  # unknown id
-    assert client.post("/review/save", json={"reviewer": "A", "scores": {"q1": {"correctness": "9"}}}).status_code == 400
+    assert client.post("/review/save", json={"reviewer": "A", "scores": {"zz": {}}}).status_code == 400  # unknown key
+    assert client.post("/review/save", json={"reviewer": "A", "scores": {"k1": {"correctness": "9"}}}).status_code == 400
     first = client.post("/review/save", json={"reviewer": "Ada L.", "scores": scores}).get_json()
-    second = client.post("/review/save", json={"reviewer": "Bo", "scores": scores}).get_json()
-    assert first["file"] != second["file"] and first["file"].startswith("review_ada-l_")
-    rows = list(csv.DictReader(open(tmp_path / "reviews" / first["file"], encoding="utf-8")))
-    assert rows[0]["citation_support"] == "5" and rows[0]["note"] == "'=HYPERLINK(x)"  # no formula in a spreadsheet
+    second = client.post("/review/save", json={"reviewer": "Bo", "rubric": True,
+                                               "scores": {"k1": {"rubric": {"r1": "2"}}}}).get_json()
+    assert first["file"] != second["file"] and first["file"].startswith("scores_review_ada-l_") and first["rows"] == 1
+    rows = [json.loads(line) for line in open(tmp_path / "scores" / first["file"], encoding="utf-8")]
+    assert {r["answer_id"] for r in rows} == {"run_261113-0800_openai__gpt-oss-20b#q1"} and len(rows) == 5
+    assert rows[0]["criterion"] == "decision" and rows[0]["note"] == "=HYPERLINK(x)"  # JSON, no spreadsheet formula
+    (rubric_row,) = [json.loads(line) for line in open(tmp_path / "scores" / second["file"], encoding="utf-8")]
+    assert (rubric_row["criterion"], rubric_row["score"], rubric_row["setting"]) == ("rubric:r1", 2, "rubric")
     app.config["REVIEW_ITEMS_FILE"] = str(tmp_path / "missing.json")
     assert client.get("/review").status_code == 404
 

@@ -58,7 +58,7 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 | `MAX_ANSWER_TOKENS` | longest answer in tokens (default 2000; `0` = no cap): stops answers that loop, seen in Kannada and Marathi |
 | `ARENA_MAX_MODELS` | most models per arena question (default 10) |
 | `CHAT_LOG_FILE`, `CHAT_FEEDBACK_FILE` | every chat turn and every Good/Bad feedback are appended here (default `data/chats/chats.jsonl`, `data/chats/feedback.jsonl`; in Git during the test phase); empty = not saved. Writes from parallel requests are serialised, so long lines never interleave |
-| `REVIEW_ITEMS_FILE`, `REVIEW_DIR` | the human review page `/review` (#8): its questions (`eval/human_review_items.json`, built by `eval/build_review.py`) and where saved scores go (`data/reviews/`, writable mount in `compose.yaml`) |
+| `REVIEW_ITEMS_FILE`, `SCORES_DIR`, `ANSWERS_DIR`, `REVIEW_DIR` | the human review page `/review` (#8, #54): its answers (`eval/human_review_items.json`, built by `eval/build_review.py` from the answer store `data/answers/`), where saved scores go (`data/scores/`, writable mount in `compose.yaml`), and the reviews saved as CSV before #54 (`data/reviews/`) |
 | `PROMPT_STYLE` | `openscholar` (default) or `short` (model-neutral answer prompt) |
 | `ANSWER_CACHE_TTL` | seconds to reuse answers to near-identical first questions; `0` = off (default) |
 | `PROXY_FIX_X_FOR` | number of trusted reverse proxies (prod: `1`), so the rate limit uses the client IP; `0` = none (default) |
