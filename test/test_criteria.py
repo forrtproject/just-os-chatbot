@@ -46,6 +46,9 @@ def test_review_saves_score_rows_for_the_answer():
         ("run#q1", "decision", "right", "Ann"), ("run#q1", "correctness", 4, "Ann")]
     assert rows[0]["note"] == "fine" and rows[1]["scale"] == [1, 5] and rows[0]["scale"] is None
     assert review_rows({"reviewer": "Ann", "scores": {"q1": {"note": ""}}}, ITEMS)[0] == "Nothing scored yet."
+    # a note needs a score to go with, or it would be dropped without a word
+    problem, rows = review_rows({"reviewer": "Ann", "scores": {"q1": {"note": "the source is retracted"}}}, ITEMS)
+    assert problem == "The note on q1 needs a decision or a score to be saved." and rows == []
 
 
 def test_review_rubric_setting_adds_rubric_rows():
