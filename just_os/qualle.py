@@ -367,7 +367,7 @@ class DocumentRetriever:
         torch.set_num_threads(config.get("RERANK_THREADS", 6))
         self.rerank = config.get("RERANK", True)
         self.search_mode = config.get("SEARCH_MODE", "vector")
-        self.min_vector_similarity = config.get("MIN_VECTOR_SIMILARITY", 0.0)
+        self.min_vector_similarity = config.get("MIN_VECTOR_SIMILARITY", DEFAULT_CONFIG["MIN_VECTOR_SIMILARITY"])
         # VERIFY_CITATIONS also scores with the re-ranker model
         needed = self.rerank or config.get("VERIFY_CITATIONS")
         self.reranker = CrossEncoder(config["RERANK_MODEL"]) if needed else None

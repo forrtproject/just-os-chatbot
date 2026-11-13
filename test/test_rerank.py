@@ -86,6 +86,11 @@ def test_rerank_off_gives_no_sources_below_the_vector_similarity(monkeypatch):
         assert retriever.retrieve_and_rerank("q")[0] == kept
 
 
+
+def test_rerank_off_without_the_setting_uses_the_default_vector_similarity(monkeypatch):
+    far = scored([1.0, 1.2])  # best cosine 0.50, below the default 0.55 of config/settings.py
+    assert make_retriever(monkeypatch, far, None, RERANK=False).retrieve_and_rerank("q")[0] == []
+
 def test_bm25_search_has_no_vector_similarity_check(monkeypatch):
     hits = scored([3.5, 1.2])  # BM25 scores, on no fixed scale
     retriever = make_retriever(monkeypatch, hits, None, RERANK=False, SEARCH_MODE="bm25", MIN_VECTOR_SIMILARITY=0.55)
