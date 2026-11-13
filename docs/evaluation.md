@@ -548,6 +548,7 @@ Limits: 135 of the 138 chats were written for this eval (3 from the chat log) an
 | llm | 0.810 | 6 | 12 | 0.084 |
 | clef-flash | 0.783 | 1 | 17 | 0.008 |
 | clef | 0.731 | 1 | 18 | 0.070 |
+| none (baseline: no check, every question answered as `both`) | 0.035 | 0 | 28 | 0.000 |
 
 **Pairs** (Jev in front; the same Correct with the other two topic check runs; rubric coverage from the papers-route run; `pairs_261113-1511.csv` also has the seven models of the overnight runs):
 
@@ -557,7 +558,7 @@ Limits: 135 of the 138 chats were written for this eval (3 from the chat log) an
 | OpenScholar 8B | 0.919 | 137 | 0.61 | 0.59 | 0.67 |
 | gpt-oss-20b | 0.895 | 133 | 0.62 | **0.68** | **0.78** |
 
-**Search settings** (hit@7 / judge support / rubric coverage on the 25 questions with a rubric):
+**Search settings** (hit@7 and judge support over all 172 questions, rubric coverage over the 25 questions with a rubric; given as hit@7 / judge support / rubric coverage):
 
 | Search | Llama 3.1 8B | gpt-oss-20b | OpenScholar 8B |
 |---|---|---|---|
@@ -574,6 +575,6 @@ Findings:
 1. **Jev and banded are tied** as the best topic checks; neither turns away more than one in-scope question, and both let 7 of the 28 off-topic questions through.
 2. **Llama 3.1 8B answers the most** (143 of 144 with Jev); gpt-oss-20b and OpenScholar more often find no passage above the relevance threshold. **gpt-oss-20b writes the best-supported answers** of the three (judge 0.68 against 0.57-0.59; rubric 0.78 against 0.66-0.67). Next to the overnight runs, gpt-oss-20b has the highest rubric coverage of all eight models (Qwen3 14B 0.72, Mistral Small 3.2 0.72), while Gemma 3 12B and 27B (0.77) and Mistral Small 3.2 (0.75) have higher judge support.
 3. **The re-ranker lowers hit@7** by 0.04-0.07 for vector and hybrid search and raises it slightly for bm25. Judge support does not follow: with hybrid search the re-ranker raises it for all three models (+0.03 to +0.06), with vector search the effect is mixed. On rubric coverage no setting is ahead of the others by more than the noise of 25 questions.
-4. **Plain vector search does as well as the default on every measure** for all three models, without the 15-38 s the re-ranker added per question in this run. bm25 alone finds an expected paper far less often (0.41-0.44).
+4. **Plain vector search matches or beats the default on hit@7 and rubric coverage** for all three models, without the 15-38 s the re-ranker added per question in this run. On judge support it is behind the default for Llama (0.53 against 0.56) and OpenScholar (0.56 against 0.61) and ahead for gpt-oss-20b (0.65 against 0.63). bm25 alone finds an expected paper far less often (0.41-0.44).
 
-Limits: `expected_dois` were picked by hand from bge-m3 vector search results (section 1), so hit@7 favours vector search; judge support and rubric coverage do not use them. One judge per measure, and rubric coverage on 25 questions. With 172 questions a difference in Correct below about 0.05 is within noise. Answer times are not comparable between runs: the runs shared one machine and some reused the ranked chunks of another run (`--cache-retrieval`). The runs predate #53, #55 and #59.
+Limits: `expected_dois` were picked by hand from bge-m3 vector search results and a title and full-text search of the index (section 1), so hit@7 may favour vector search; judge support and rubric coverage do not use them. One judge per measure, and rubric coverage on 25 questions. With 172 questions a difference in Correct below about 0.05 is within noise. Answer times are not comparable between runs: the runs shared one machine and some reused the ranked chunks of another run (`--cache-retrieval`). The runs predate #53, #55 and #59.
