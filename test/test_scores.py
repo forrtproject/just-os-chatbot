@@ -99,3 +99,23 @@ def test_shared_report_by_configuration_and_on_the_eval_page(tmp_path):
     page = eval_report.people_and_judges(str(tmp_path / "scores"), str(tmp_path / "answers"))
     assert page["rows"] == 3 and page["criteria"] == ["correctness"] and page["labels"]["correctness"] == "Correctness"
     assert eval_report.people_and_judges(str(tmp_path / "none"), str(tmp_path / "none")) == {}
+
+
+def test_a_reviewers_later_save_replaces_the_earlier_one(tmp_path):
+    """/review writes every score of the page to a new file on each save, so an answer one person scored and
+    saved twice must count once, with the later score."""
+    from just_os.scores import load
+    row = scores.row
+    first = [row("a1", "a", "clarity", 2, scores.SCALE, "person", "Ann", "2026-11-13T10:00:00+00:00"),
+             row("a1", "a", "decision", "unsure", None, "person", "Ann", "2026-11-13T10:00:00+00:00")]
+    second = [row("a1", "a", "clarity", 4, scores.SCALE, "person", "Ann", "2026-11-13T11:00:00+00:00"),
+              row("a1", "a", "decision", "right", None, "person", "Ann", "2026-11-13T11:00:00+00:00"),
+              row("a2", "a", "clarity", 3, scores.SCALE, "person", "Ann", "2026-11-13T11:00:00+00:00")]
+    other = [row("a1", "a", "clarity", 5, scores.SCALE, "person", "Bo", "2026-11-13T09:00:00+00:00")]
+    # file names sort the later save first, so the order of the files must not decide
+    for name, rows in [("scores_review_ann_2.jsonl", first), ("scores_review_ann_1.jsonl", second),
+                       ("scores_review_bo_1.jsonl", other)]:
+        (tmp_path / name).write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    got = sorted((r["scorer"], r["answer_id"], r["criterion"], r["score"]) for r in load(tmp_path))
+    assert got == [("Ann", "a1", "clarity", 4), ("Ann", "a1", "decision", "right"), ("Ann", "a2", "clarity", 3),
+                   ("Bo", "a1", "clarity", 5)]

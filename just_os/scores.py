@@ -26,12 +26,19 @@ def row(answer_id, question_id, criterion, score, scale, kind, scorer, time="", 
 
 
 def load(folder, skip=None) -> List[Dict]:
-    """The rows of every scores_*.jsonl file in `folder` but `skip`; none for a missing folder."""
-    out = []
+    """The rows of every scores_*.jsonl file in `folder` but `skip`; none for a missing folder. A scorer's
+    newest row per answer and criterion replaces the older ones (by `time`): /review writes every score
+    of the page to a new file on each save."""
+    newest: Dict = {}
     for path in sorted(Path(folder).glob("scores_*.jsonl")):
         if skip is None or path.resolve() != Path(skip).resolve():
-            out += [json.loads(line) for line in open(path, encoding="utf-8") if line.strip()]
-    return out
+            for line in open(path, encoding="utf-8"):
+                if line.strip():
+                    r = json.loads(line)
+                    key = (r["scorer_kind"], r["scorer"], r["answer_id"], r["criterion"])
+                    if key not in newest or (r.get("time") or "") >= (newest[key].get("time") or ""):
+                        newest[key] = r
+    return list(newest.values())
 
 
 def unit(r: Dict) -> float:
