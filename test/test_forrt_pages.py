@@ -263,3 +263,13 @@ def test_what_is_forrt_is_not_answered_in_hungarian(tmp_path):
     pages.answer("what is forrt")
     prompt = client.calls[0]["messages"][0]["content"] + client.calls[0]["messages"][1]["content"]
     assert "Hungarian" not in prompt and "language of the question" in prompt
+
+
+def test_bare_urls_become_links():
+    text = "Join here: https://join.slack.com/t/forrt/x. Or see [Get involved](https://forrt.org/about/get-involved/) or <https://forrt.org/>."
+    out = forrt_checks.autolink(text)
+    assert "<https://join.slack.com/t/forrt/x>." in out  # the full stop stays outside the link
+    assert "[Get involved](https://forrt.org/about/get-involved/)" in out and "<https://forrt.org/>" in out
+    assert out.count("<https://forrt.org/>") == 1  # an existing autolink is not wrapped twice
+    html = qualle.markdown.markdown(out)
+    assert 'href="https://join.slack.com/t/forrt/x"' in html

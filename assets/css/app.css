@@ -815,6 +815,19 @@ button#send-button:disabled {
     cursor: pointer;
 }
 
+/* Chat: ask the same question again after a model or network error */
+.retry-button {
+    font: inherit;
+    font-size: small;
+    margin-top: 8px;
+    padding: 4px 14px;
+    border: 1px solid #004055;
+    border-radius: 12px;
+    background: white;
+    color: #004055;
+    cursor: pointer;
+}
+
 .feedback-choice[aria-pressed="true"] {
     border-color: #004055;
     background: #e6eff2;

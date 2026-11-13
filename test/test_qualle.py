@@ -349,3 +349,21 @@ def test_reasoning_is_switched_off_only_for_the_listed_models():
     manager.config = {"NO_REASONING_MODELS": "qwen/qwen3.7-flash, x/y"}
     assert manager.no_reasoning("qwen/qwen3.7-flash") == {"extra_body": {"reasoning": {"enabled": False}}}
     assert manager.no_reasoning("openai/gpt-oss-20b") == {}
+
+
+def test_an_empty_answer_at_the_token_cap_is_asked_again_with_low_reasoning():
+    from types import SimpleNamespace
+    calls = []
+
+    def create(**kwargs):
+        calls.append(kwargs)
+        empty = len(calls) == 1
+        message = SimpleNamespace(content="" if empty else "Answer [1].")
+        return SimpleNamespace(choices=[SimpleNamespace(finish_reason="length" if empty else "stop", message=message)])
+
+    manager = qualle.OpenAIClientManager.__new__(qualle.OpenAIClientManager)
+    manager.config = {}
+    manager._client_for = lambda model: SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    response = manager.create_chat_completion("openai/gpt-oss-20b", [{"role": "user", "content": "q"}], max_tokens=1500)
+    assert response.choices[0].message.content == "Answer [1]." and len(calls) == 2
+    assert calls[1]["extra_body"] == {"reasoning": {"effort": "low"}}

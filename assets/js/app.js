@@ -76,7 +76,8 @@ function removeDraft() {
   document.getElementById("draft-answer")?.remove();
 }
 
-function addMessage(message, sender, sources = null, turnId = null) {
+// retryQuestion: the question to ask again when this answer is an error (model or network failure)
+function addMessage(message, sender, sources = null, turnId = null, retryQuestion = null) {
   const chatMessages = document.getElementById("chat-messages");
 
   const messageDiv = document.createElement("div");
@@ -95,7 +96,17 @@ function addMessage(message, sender, sources = null, turnId = null) {
   if (sources && sources.length) {
     messageDiv.appendChild(renderSources(sources));
   }
-  if (turnId) {
+  if (retryQuestion) {
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "retry-button";
+    retry.textContent = "Try again";
+    retry.addEventListener("click", () => {
+      retry.remove();
+      sendMessage(retryQuestion, { repeat: true });
+    });
+    messageDiv.appendChild(retry);
+  } else if (turnId) {
     messageDiv.appendChild(feedbackBar(turnId));
   }
 
@@ -119,11 +130,12 @@ function addMessage(message, sender, sources = null, turnId = null) {
   }
 }
 
-async function sendMessage(message) {
+async function sendMessage(message, { repeat = false } = {}) {
   const chatMessages = document.getElementById("chat-messages");
+  const question = message;
 
   console.log("user message: " + message);
-  if (message) {
+  if (message && !repeat) {
     const userMessageBox = document.createElement("div");
     const messageP = document.createElement("p");
     messageP.innerText = message;
@@ -156,6 +168,15 @@ async function sendMessage(message) {
     messageInput.disabled = false;
     sendButton.style.display = "block";
     statusMessage.innerText = "";
+  }
+
+  // The final message: an answer, a refusal, or an error (status "error", or outcome "error" when the
+  // answer model returned nothing); errors get a Try again button, refusals and answers do not
+  function finish(data) {
+    endStream();
+    removeDraft();
+    const failed = data.status === "error" || data.outcome === "error";
+    addMessage(data.message, "bot", data.metadata?.references, data.turn_id, failed ? question : null);
   }
 
   try {
@@ -195,10 +216,8 @@ async function sendMessage(message) {
             console.log("Received message:", message);
             const data = JSON.parse(message);
 
-            if (data.status === "complete") {
-              endStream();
-              removeDraft();
-              addMessage(data.message, "bot", data.metadata?.references, data.turn_id);
+            if (data.status === "complete" || data.status === "error") {
+              finish(data);
             } else if (data.status === "partial") {
               draft += data.delta;
               baseMessage = "Writing the answer";
@@ -222,10 +241,8 @@ async function sendMessage(message) {
       try {
         console.log("Processing remaining buffer:", buffer);
         const data = JSON.parse(buffer);
-        if (data.status === "complete") {
-          endStream();
-          removeDraft();
-          addMessage(data.message, "bot", data.metadata?.references, data.turn_id);
+        if (data.status === "complete" || data.status === "error") {
+          finish(data);
         } else {
           baseMessage = data.message;
         }
@@ -235,6 +252,7 @@ async function sendMessage(message) {
     }
   } catch (error) {
     console.error("Error:", error);
+    finish({ status: "error", message: "<p>The bot could not be reached. Check your connection and try again.</p>" });
   }
 }
 

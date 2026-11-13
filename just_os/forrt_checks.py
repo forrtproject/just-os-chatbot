@@ -83,6 +83,13 @@ def allowed_keys(pages: Iterable[Dict[str, Any]]) -> Set[str]:
     return keys | {k.split("?")[0] for k in keys}
 
 
+def autolink(text: str) -> str:
+    """Bare URLs as Markdown autolinks (<url>), so the page shows them as links: the answer models write
+    "join here: https://join.slack.com/..." and Markdown leaves a bare URL as plain text. Links already
+    in [label](url) or <url> are left as they are; a trailing full stop or bracket stays outside."""
+    return BARE_URL.sub(lambda m: f"<{clean_url(m.group(0))}>" + m.group(0)[len(clean_url(m.group(0))):], text)
+
+
 def strip_unsupported_links(text: str, pages: List[Dict[str, Any]]) -> Tuple[str, List[str]]:
     keys = allowed_keys(pages)
     removed: List[str] = []
@@ -113,7 +120,7 @@ def strip_unsupported_links(text: str, pages: List[Dict[str, Any]]) -> Tuple[str
         if not ok(m.group(0)):
             removed.append(clean_url(m.group(0)))
             return ""
-        return clean_url(m.group(0))
+        return autolink(m.group(0))
 
     text = MD_LINK.sub(md, text)
     text = AUTOLINK.sub(auto, text)

@@ -19,6 +19,7 @@ from just_os.answer_cache import AnswerCache
 from just_os.chat_manager import ChatManager
 from just_os.decisions import DECISION_ROUTERS, DecisionClient
 from just_os.forrt_lookup import ForrtLookup
+from just_os import forrt_checks as checks
 from just_os.forrt_pages import ForrtPages
 from just_os.hybrid import vector_cosine
 from just_os import messages as msg
@@ -582,7 +583,7 @@ class ResponseGenerator:
                 response = response.split("[Response_Start]", 1)[1]
             if "[Response_End]" in response:
                 response = response.split("[Response_End]")[0]
-            return response
+            return checks.autolink(response)
         except Exception as e:
             logger.error(f"Error post-processing response: {str(e)}")
             return raw_response
@@ -707,7 +708,16 @@ class OpenAIClientManager:
             if tool_choice:
                 kwargs["tool_choice"] = tool_choice
 
-            return client.chat.completions.create(**kwargs)
+            response = client.chat.completions.create(**kwargs)
+            choice = response.choices[0] if response and response.choices else None
+            if (choice and choice.finish_reason == "length" and not (choice.message.content or "").strip()
+                    and not tools and "reasoning" not in kwargs.get("extra_body", {})):
+                # a reasoning model (gpt-oss) used the whole token cap on reasoning and wrote no answer
+                # (19 of 172 FORRT-page answers, eval 13 Nov): ask once more with little reasoning
+                logger.warning(f"Empty answer from {model} at the token cap; asking again with low reasoning effort")
+                kwargs["extra_body"] = {**kwargs.get("extra_body", {}), "reasoning": {"effort": "low"}}
+                response = client.chat.completions.create(**kwargs)
+            return response
         except Exception as e:
             logger.error(f"OpenAI API error: {str(e)}")
             return None
