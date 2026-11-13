@@ -49,6 +49,8 @@ def main():
     parser.add_argument("--since", required=True, help="first run to count, YYMMDD-HHMM")
     parser.add_argument("--questions", default="eval/questions.jsonl")
     parser.add_argument("--general-model", default="meta-llama/llama-3.1-8b-instruct")
+    parser.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
+                        help="a setting for this run's containers only, e.g. RERANK=true (the live bot keeps its own)")
     parser.add_argument("--route", choices=["open_science", "forrt"],
                         help="every question one way (eval/pairs.py); files are run_*_<model>__route-<route>.csv")
     args = parser.parse_args()
@@ -58,7 +60,8 @@ def main():
     for model in args.models:
         route = ["--route", args.route] if args.route else []
         label = f"{model}__route-{args.route}" if args.route else model
-        run_all(label, ["--model", model, "--general-model", args.general_model, *route], args.since, lines, order)
+        run_all(label, ["--model", model, "--general-model", args.general_model, *route], args.since, lines, order,
+                dict(kv.split("=", 1) for kv in args.set))
 
 
 def read_questions(files):
