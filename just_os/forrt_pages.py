@@ -229,7 +229,8 @@ class ForrtPages:
         return [{"rec": self.records[i], "score": float(scores[i])} for i in top]
 
     # 2. selection (decision model; falls back to the top search results)
-    def select(self, question: str, candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def select(self, question: str, candidates: List[Dict[str, Any]], strict: bool = False) -> List[Dict[str, Any]]:
+        """strict (pages next to the papers): only a clear yes counts; no fallback when unsure or failed."""
         max_pages = self.config.get("FORRT_MAX_PAGES", 4)
         questions = {}
         for n, c in enumerate(candidates, 1):
@@ -241,7 +242,7 @@ class ForrtPages:
         answers, info = self.decisions.decide(self.config.get("FORRT_SELECT_MODEL", "cloudflare/clef"),
                                               f"Today's date: {date.today().isoformat()}\nUser question: {question}", questions)
         if answers is None:
-            chosen = list(range(min(max_pages, len(candidates))))
+            chosen = [] if strict else list(range(min(max_pages, len(candidates))))
         else:
             probs = []
             for n in range(1, len(candidates) + 1):
@@ -251,16 +252,34 @@ class ForrtPages:
             order = sorted(range(len(probs)), key=lambda i: -probs[i])
             threshold, floor = self.config.get("FORRT_DECISION_THRESHOLD", 0.7), self.config.get("FORRT_DECISION_FLOOR", 0.2)
             chosen = [i for i in order if probs[i] >= threshold][:max_pages]
-            if not chosen and order and probs[order[0]] >= floor:
+            if not chosen and order and probs[order[0]] >= floor and not strict:
                 # unsure (e.g. "what is zotero"): keep the plausible pages and the top search result
                 chosen = [i for i in order if probs[i] >= floor][: min(3, max_pages)]
                 if 0 not in chosen:
                     chosen = chosen[: min(3, max_pages) - 1] + [0]
-        if TIME_WORDS.search(question):
+        if TIME_WORDS.search(question) and not strict:
             for i, c in enumerate(candidates):
                 if c["rec"]["url"] in self.listing_urls and i not in chosen:
                     chosen = [i] + chosen[: max_pages - 1]
         return [candidates[i]["rec"] for i in chosen]
+
+    # 2b. pages next to the papers (FORRT_IN_PAPERS): a papers answer can also read forrt.org pages
+    def extra_sources(self, question: str, min_score: Optional[float]) -> List[Dict[str, Any]]:
+        """[{title, url, date, text}] for the papers route: pages with a search score >= min_score (None: no
+        floor, for the `both` route), then a clear yes from the decision model (strict select), at most
+        FORRT_IN_PAPERS_MAX_PAGES, each cut to the FORRT_IN_PAPERS_MAX_CHARS that best match the question.
+        No page close enough: no decision call."""
+        candidates = [c for c in self.retrieve(question) if min_score is None or c["score"] >= min_score]
+        if not candidates:
+            return []
+        chosen = self.select(question, candidates, strict=True)[: self.config.get("FORRT_IN_PAPERS_MAX_PAGES", 2)]
+        found = []
+        for rec in chosen:
+            markdown = self.fetch(rec["url"])["markdown"]
+            if markdown:
+                found.append({"title": rec["title"], "url": rec["url"], "date": rec.get("date"),
+                              "text": trim(markdown, question, self.config.get("FORRT_IN_PAPERS_MAX_CHARS", 3000))})
+        return found
 
     # 3. fetch: always live from forrt.org; an in-memory cache of FORRT_CACHE_TTL seconds, no files
     def fetch(self, url: str) -> Dict[str, Any]:
