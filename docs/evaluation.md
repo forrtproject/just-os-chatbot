@@ -33,6 +33,7 @@ A wrong refusal or a missing source in the answering eval can come from either s
 | Reviewer sheet | `python eval/export_questions.py [eval/results/run_X.csv]` (host: needs openpyxl) | `eval/questions.xlsx`: each question with its expected DOIs/URLs and the DOIs the bot cited in the newest run, one per cell as a clickable `https://doi.org/…` link with the title; the retrieved DOIs, the matches, and empty columns to judge them |
 | Thresholds of the banded topic check | `docker compose exec web python eval/tune_bands.py [--margin 0.01] [--max-refused 0.02]` | the four `BAND_*` settings and the share of each question set in each band; `eval/results/bands_<YYMMDD>.csv` (similarities per question) |
 | Coverage audit | `python eval/coverage.py` | `eval/results/coverage_<YYMMDD>.{csv,md,svg}` (see [data.md](data.md) 4) |
+| Topic map (section 3.12) | `uv sync --group analysis`, then `python eval/topic_map/build_map.py` (about 5 min on a laptop CPU), `taxonomy.py`, `title_check.py`, `page.py [--before eval/.topic_map/<older run>]` (host; `--index`, `--work` and `--pdfs` change the defaults; the last three call OpenRouter bge-m3 for a few cents) | `eval/results/topic_map_<YYMMDD>.{html,md,csv}`: the interactive map of every chunk, coverage of the 93 FORRT sub-clusters, the eval questions by similarity, papers with a wrong text or title. Working files in `eval/.topic_map/` (not in Git) |
 | Arena (human ratings) | http://localhost:8000/arena with `ARENA_ENABLED=true`: pick models, rate each answer 1-5 on correct / references / clarity | `/arena/leaderboard`, `/arena/ratings` |
 
 Question sets:
@@ -403,3 +404,15 @@ With `AUTO_DEFAULTS=true` the bot takes its defaults for chat and arena from the
 
 The weighting is to be checked against the human review (`/review`, #8): if people's citation-support scores agree with the judge better than their completeness scores agree with the rubric judge, 2:1 stands.
 
+### 3.12 Topic map of the index (13 November 2026, `eval/results/topic_map_261113.{html,md,csv}`)
+
+**What it is:** a map of every chunk in `vs_latest_bge-m3` (1,354 papers, 146,899 chunks), built from the index vectors with no LLM (`eval/topic_map/`): UMAP + HDBSCAN find 292 topics, c-TF-IDF names them. Each of the 93 FORRT sub-cluster names (the folders of the cluster PDFs) is then compared with the papers: the similarity of its 10th-closest paper gives a status, blind < 0.56, thin < 0.59, covered < 0.63, strong otherwise. The name alone is the probe, so a short name such as "Equity" can score low although papers cover it in other words: the status says where to look, not what is missing. Compared with the 513-paper index before the cluster PDFs.
+
+Findings:
+1. **Blind spots went from 14 to 7** of 93 sub-clusters, strong ones from 24 to 49. Still blind: Equity, Public and Private Partnerships, Religion and culture, Sexuality, Feminist Thought, Inclusion (all but one in cluster 9) and Rights retention strategies.
+2. **16% of chunks are reference lists or near-empty** (22,860): 22% of the JUST-OS chunks, 8% of the cluster chunks (GROBID drops reference lists, marker does not). On the 66 answerable questions of the earlier eval set they took 0.9 of the top 20 search results on average, so they rarely reach an answer.
+3. **6 JUST-OS papers hold another work's text** (1,741 chunks), for example "Course on Open Science 101" holds spine-surgery abstracts: the DOI in the FORRT sheet points to another work. 7 cluster papers have a wrong title (a licence line or page header) and 29 show their file name as title. Lists: `eval/topic_map/wrong_files.json`, `wrong_titles.json`.
+4. **One document can fill a topic:** 61 topics come mostly from one paper; Haklay 2018 (2,096 chunks), the SAGE Handbook of Qualitative Research and Reproducible Research with R and RStudio are the largest.
+5. **Similarity separates trivia, not near-topic questions** (133 single-turn questions of `eval/questions.jsonl`): at 0.55 on the closest paper chunk or FORRT page, every answerable question stays and 36% of the 28 to refuse fall below; career, grant and SPSS questions score 0.56 to 0.73, like open-science ones. This agrees with the banded topic check (3.11).
+
+Limits: the statuses rest on one probe per sub-cluster and thresholds set by eye on this index; the wrong files and titles were confirmed by hand from the lowest title-to-text similarities only.

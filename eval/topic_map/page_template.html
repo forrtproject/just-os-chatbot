@@ -1,0 +1,568 @@
+<title>JUST-OS Corpus Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column (max 1080px); the map is the hero, analysis sections follow as plain bands. */
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --ink: #14171c; --ink-2: #4a505b; --ink-3: #7a808b;
+  --line: #e2e5ea; --grid: #eceef2;
+  --topic: #2a78d6; --single: #eb6834; --refs: #b9bec7;
+  --hi: #6250d6; --src-j: #2a78d6; --src-c: #1baf7a;
+  --blind: #c43c3c; --blind-bg: #fbe9e9; --thin: #9a6a00; --thin-bg: #fbf1d9;
+  --covered: #2b5f9e; --covered-bg: #e6eef9; --strong: #1d7a4c; --strong-bg: #e2f3ea;
+  --f-display: "Instrument Sans", "Inter", system-ui, sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;  /* light theme only, on every system setting */
+}
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 36px 64px; display: grid; gap: 56px }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em }
+h1 { font-size: clamp(28px, 4.4vw, 40px); font-weight: 700 }
+h2 { font-size: 24px; font-weight: 600 }
+h3 { font-size: 16px; font-weight: 600 }
+p { margin: 0; max-width: 68ch; color: var(--ink-2) }
+.eyebrow { font: 500 12px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3) }
+.mono, .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums }
+section { display: grid; gap: 18px; min-width: 0 }
+.head { display: grid; gap: 10px }
+
+/* header + figures */
+header { display: grid; gap: 14px }
+.figs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-top: 10px }
+.fig { padding: 14px 14px 14px 0; display: grid; gap: 4px; min-width: 0 }
+.fig + .fig { padding-left: 14px; border-left: 1px solid var(--line) }
+.fig b { font: 500 24px/1.1 var(--f-mono); font-variant-numeric: tabular-nums; color: var(--ink) }
+.fig span { font-size: 12.5px; color: var(--ink-3); line-height: 1.35 }
+@media (max-width: 760px) { .figs { grid-template-columns: repeat(2, minmax(0, 1fr)) } .fig + .fig { border-left: 0; padding-left: 0 } .fig { border-bottom: 1px solid var(--line) } }
+
+/* map */
+.mapbox { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: grid }
+.mapbar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line) }
+.legend { display: flex; flex-wrap: wrap; gap: 6px }
+.legend button { display: inline-flex; align-items: center; gap: 7px; background: var(--surface); color: var(--ink-2) }
+.legend button i, .legend-chip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block }
+.legend-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-2); padding: 6px 4px }
+.legend button[aria-pressed="false"] { color: var(--ink-3); text-decoration: line-through; background: var(--bg) }
+.legend button[aria-pressed="false"] i { opacity: .25 }
+.mapbar label { font-size: 13px; color: var(--ink-2); display: flex; gap: 8px; align-items: center; min-width: 0; flex: 0 1 auto }
+.mapbar label select { width: min(210px, 100%) }
+.mapbar-r { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-left: auto; min-width: 0 }
+.search { position: relative; min-width: 160px; flex: 1 1 200px; max-width: 260px }
+.search input { width: 100%; font: inherit; font-size: 13px; padding: 6px 8px 6px 28px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink) }
+.search svg { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; stroke: var(--ink-3); fill: none }
+select, button { font: inherit; font-size: 13px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; max-width: 100% }
+select:focus-visible, button:focus-visible, input:focus-visible, .row:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px }
+button { cursor: pointer }
+button:hover { border-color: var(--ink-3) }
+.mapmain { display: grid; grid-template-columns: minmax(0, 1fr) 300px }
+@media (max-width: 880px) { .mapmain { grid-template-columns: minmax(0, 1fr) } .side { border-left: 0; border-top: 1px solid var(--line) } .search { flex-basis: 100%; max-width: none } .mapbar-r { margin-left: 0; width: 100% } }
+.canvaswrap { position: relative; aspect-ratio: 1.2; max-width: 100%; touch-action: none; overflow: hidden }
+@media (max-width: 640px) { .canvaswrap { aspect-ratio: 1 } }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab }
+canvas.drag { cursor: grabbing }
+canvas.over { cursor: pointer }
+.zoom { position: absolute; right: 10px; top: 10px; display: grid; gap: 4px; z-index: 1 }
+.zoom button { width: 32px; height: 32px; padding: 0; font: 500 16px/1 var(--f-mono); background: var(--surface); box-shadow: 0 1px 3px rgb(0 0 0 / .08) }
+.zoom .lvl { font: 500 10.5px/1 var(--f-mono); color: var(--ink-3); text-align: center; padding-top: 2px }
+.hint { position: absolute; left: 10px; bottom: 10px; font-size: 11.5px; color: var(--ink-3); background: color-mix(in srgb, var(--surface) 85%, transparent); padding: 4px 8px; border-radius: 5px; pointer-events: none }
+.side { border-left: 1px solid var(--line); padding: 16px; display: grid; gap: 12px; align-content: start; min-width: 0; max-height: 100%; overflow-y: auto }
+.side .empty { color: var(--ink-3); font-size: 13px; line-height: 1.5 }
+.side h3 { font-size: 17px }
+.side .kv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; border-block: 1px solid var(--line); padding-block: 10px }
+.side .kv div { display: grid; gap: 2px } .side .kv b { font: 500 17px/1.1 var(--f-mono) } .side .kv span { font-size: 11.5px; color: var(--ink-3) }
+.side .kw { display: flex; flex-wrap: wrap; gap: 5px }
+.side .kw span { font-size: 12px; padding: 3px 7px; border-radius: 5px; background: var(--bg); border: 1px solid var(--line); color: var(--ink-2) }
+.side ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 13px }
+.side li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; color: var(--ink-2) }
+.side li b { font: 500 12px/1.5 var(--f-mono); color: var(--ink-3) }
+.side .lbl { font: 500 11px/1 var(--f-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3) }
+.side .acts { display: flex; gap: 8px; flex-wrap: wrap }
+.badge { font: 500 11px/1 var(--f-mono); padding: 4px 6px; border-radius: 4px; justify-self: start }
+.badge.topic { color: var(--topic); background: color-mix(in srgb, var(--topic) 12%, transparent) }
+.badge.one { color: #b4461a; background: color-mix(in srgb, var(--single) 14%, transparent) }
+.badge.refs { color: var(--ink-2); background: var(--grid) }
+.results { display: grid; gap: 2px }
+.results button { text-align: left; background: transparent; border: 0; border-radius: 5px; padding: 6px 8px; display: grid; gap: 2px; font-size: 13px }
+.results button:hover { background: var(--bg) }
+.results small { color: var(--ink-3); font-size: 11.5px }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 12px; font-size: 12.5px; line-height: 1.45; width: min(320px, 80%); box-shadow: 0 6px 24px rgb(0 0 0 / .12); z-index: 2 }
+.tip h4 { margin: 0 0 4px; font: 600 13px/1.3 var(--f-display) }
+.tip .meta { font-family: var(--f-mono); font-size: 11.5px; color: var(--ink-3); margin-bottom: 6px }
+.tip .papers { color: var(--ink-2) }
+.mapnote { padding: 10px 14px; font-size: 12.5px; color: var(--ink-3); border-top: 1px solid var(--line) }
+
+/* coverage */
+.covtools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden }
+.seg button { border: 0; border-radius: 0; background: transparent; color: var(--ink-2) }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg) }
+.statuskey { display: flex; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-3); margin-left: auto }
+.cov { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto }
+.covgrid { min-width: 720px }
+.stat { display: grid; gap: 3px; justify-items: center }
+.stat small { font: 10.5px/1 var(--f-mono); color: var(--ink-3); white-space: nowrap }
+.strip .was { position: absolute; top: 4px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; border: 2px solid var(--ink-3); background: var(--surface) }
+.strip .move { position: absolute; top: 8px; height: 2px; background: var(--strong); opacity: .7 }
+.delta { font: 500 12.5px/1 var(--f-mono); text-align: right; color: var(--ink-3) }
+.delta.up { color: var(--strong) } .delta.down { color: var(--blind) }
+.covkey { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-3); align-items: center }
+.covkey i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) 92px 280px 60px 70px; gap: 14px; align-items: center; padding: 7px 14px; border-top: 1px solid var(--grid); cursor: pointer }
+.row:hover, .row.sel { background: color-mix(in srgb, var(--hi) 8%, transparent) }
+.row .nm { font-size: 13.5px; min-width: 0 }
+.row .nm small { display: block; color: var(--ink-3); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.grp { padding: 14px 14px 6px; display: flex; gap: 10px; align-items: baseline; border-top: 1px solid var(--line) }
+.grp:first-child { border-top: 0 }
+.grp .eyebrow { color: var(--ink-3) }
+.chip { font: 500 11px/1 var(--f-mono); letter-spacing: .04em; text-transform: uppercase; padding: 5px 7px; border-radius: 5px; text-align: center; white-space: nowrap }
+.chip.blind { color: var(--blind); background: var(--blind-bg) } .chip.thin { color: var(--thin); background: var(--thin-bg) }
+.chip.covered { color: var(--covered); background: var(--covered-bg) } .chip.strong { color: var(--strong); background: var(--strong-bg) }
+.strip { position: relative; height: 18px }
+.strip .rail { position: absolute; left: 0; right: 0; top: 8px; height: 2px; background: var(--grid); border-radius: 2px }
+.strip .band { position: absolute; top: 8px; height: 2px; background: var(--ink-3); opacity: .45 }
+.strip .dot { position: absolute; top: 4px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 2px var(--surface) }
+.strip .best { position: absolute; top: 3px; width: 2px; height: 12px; margin-left: -1px; background: var(--ink-3) }
+.axis { display: grid; grid-template-columns: minmax(0, 1fr) 92px 280px 60px 70px; gap: 14px; padding: 10px 14px 6px; position: sticky; top: 0; background: var(--surface); z-index: 1; border-bottom: 1px solid var(--line) }
+.axis .ticks { position: relative; height: 16px; font: 11px/1 var(--f-mono); color: var(--ink-3) }
+.axis .ticks span { position: absolute; transform: translateX(-50%); top: 2px }
+.axis .lab { font: 500 11px/1.2 var(--f-mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em }
+.pdfs { font-family: var(--f-mono); font-size: 12.5px; text-align: right; color: var(--ink-2) }
+
+/* gate */
+.gatebox { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 14px }
+.gatectl { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center }
+.gatectl input[type=range] { width: min(320px, 100%); accent-color: var(--hi) }
+.gstat { display: flex; gap: 22px; flex-wrap: wrap }
+.gstat div { display: grid; gap: 2px }
+.gstat b { font: 500 22px/1 var(--f-mono); font-variant-numeric: tabular-nums }
+.gstat span { font-size: 12px; color: var(--ink-3) }
+.svgwrap { overflow-x: auto; position: relative }
+svg text { font-family: var(--f-mono); font-size: 11px; fill: var(--ink-3) }
+.gtip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; width: min(300px, 80%); box-shadow: 0 6px 24px rgb(0 0 0 / .12) }
+
+/* findings */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 8px; align-content: start }
+.card p { font-size: 14px }
+table { border-collapse: collapse; width: 100%; font-size: 13px }
+th, td { text-align: left; padding: 8px 10px; border-top: 1px solid var(--line); vertical-align: top }
+th { font: 500 11px/1.2 var(--f-mono); text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); border-top: 0 }
+td.n { font-family: var(--f-mono); text-align: right; white-space: nowrap }
+.tablewrap { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto }
+.tablewrap table { min-width: 620px }
+ol.steps { margin: 0; padding-left: 22px; display: grid; gap: 10px; max-width: 76ch; color: var(--ink-2) }
+ol.steps b { color: var(--ink); font-weight: 600 }
+code { font-family: var(--f-mono); font-size: .9em; background: var(--grid); padding: 1px 5px; border-radius: 4px }
+footer { font-size: 12.5px; color: var(--ink-3); border-top: 1px solid var(--line); padding-top: 16px }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">JUST-OS · index <span class="mono">__INDEX__</span> (__PAPERS__ papers, __DATE__)__BEFORE_EYEBROW__</div>
+    <h1>JUST-OS Corpus Map</h1>
+    <p>What the bot's papers actually talk about, which parts of the FORRT curriculum the __CLUSTER_PAPERS__ FORRT cluster papers filled in and which are still empty, and how far a free embedding check can go in deciding whether a question is worth an LLM call. Built from the vectors already in the index; no LLM was used.</p>
+    <div class="figs" id="figs"></div>
+  </header>
+
+  <section>
+    <div class="head">
+      <div class="eyebrow">1 · Topic map</div>
+      <h2>__TOPICS__ topics found in __CHUNKS__ chunks</h2>
+      <p>Each dot is one of the __CHUNKS__ chunks the bot can retrieve, placed by meaning (UMAP of the bge-m3 vectors) and grouped into topics with HDBSCAN. Scroll or use + and − to zoom, drag to move, and click a dot to open its topic. Search finds topics by keyword or paper title. Switch the colours to <b>Source</b> to see where the FORRT cluster PDFs landed. Pick a FORRT sub-cluster, or click one in section 2, to see where its 150 closest chunks sit.</p>
+    </div>
+    <div class="mapbox">
+      <div class="mapbar">
+        <div class="seg" role="group" aria-label="Colour dots by"><button id="cm-kind" aria-pressed="true">Topic type</button><button id="cm-src" aria-pressed="false">Source</button></div>
+        <div class="legend" id="srclegend" hidden><span class="legend-chip"><i style="background:var(--src-j)"></i>JUST-OS papers</span><span class="legend-chip"><i style="background:var(--src-c)"></i>FORRT cluster PDFs</span></div>
+        <div class="legend" id="kindlegend" role="group" aria-label="Show topic types">
+          <button id="k-topic" aria-pressed="true" data-kind="topic"><i style="background:var(--topic)"></i>Topic (several papers)</button>
+          <button id="k-one" aria-pressed="true" data-kind="one paper"><i style="background:var(--single)"></i>Single-paper topic</button>
+          <button id="k-refs" aria-pressed="true" data-kind="reference lists"><i style="background:var(--refs)"></i>Reference lists</button>
+        </div>
+        <div class="mapbar-r">
+        <label for="subsel">Sub-cluster
+          <select id="subsel"><option value="">None</option></select>
+        </label>
+        <div class="search">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" stroke-width="1.6"></circle><path d="M11 11l3.5 3.5" stroke-width="1.6" stroke-linecap="round"></path></svg>
+          <input id="q" type="search" placeholder="Search topics or papers" aria-label="Search topics or papers" autocomplete="off">
+        </div>
+        </div>
+      </div>
+      <div class="mapmain">
+        <div class="canvaswrap" id="cw">
+          <canvas id="map" aria-label="Zoomable scatter map of chunks by topic"></canvas>
+          <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zreset" aria-label="Reset view" style="font-size:12px">⤢</button><div class="lvl" id="zlvl">1×</div></div>
+          <div class="hint" id="hint">Scroll to zoom · drag to move · click a dot</div>
+          <div class="tip" id="tip" hidden></div>
+        </div>
+        <aside class="side" id="side" aria-live="polite"></aside>
+      </div>
+      <div class="mapnote" id="mapnote">Labels name the largest multi-paper topics in view; zoom in to see more.</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <div class="eyebrow">2 · Blind spots</div>
+      <h2>__BLIND_HEADING__</h2>
+      <p>For each sub-cluster name we rank the papers by their closest chunk. The filled dot is how close the <b>10th-best paper</b> gets now; __BEFORE_RING__ When the dot is low, only a handful of papers really cover the topic. The tick marks the single best paper. For scale, a question written from a paper scores 0.60–0.65 against that paper. The last column counts how many of the 10 closest papers are FORRT cluster PDFs. The probe is the sub-cluster name alone, so a short name such as “Equity” can score low even when papers cover it in other words: treat the score as a guide to where to look, not a verdict.</p>
+    </div>
+    <div class="covtools">
+      <div class="seg" role="group" aria-label="Sort">
+        <button id="byc" aria-pressed="true">By cluster</button><button id="byw" aria-pressed="false">Weakest first</button>
+      </div>
+      <div class="covkey"><span><i style="background:var(--ink)"></i>10th-best paper now</span><span><i style="border:2px solid var(--ink-3);background:var(--surface)"></i>before the cluster PDFs</span><span><i style="width:2px;height:12px;border-radius:0;background:var(--ink-3)"></i>best paper</span></div>
+      <div class="statuskey"><span class="chip blind">blind</span>&lt; 0.56 <span class="chip thin">thin</span>&lt; 0.59 <span class="chip covered">covered</span>&lt; 0.63 <span class="chip strong">strong</span></div>
+    </div>
+    <div class="cov"><div class="covgrid">
+      <div class="axis"><div class="lab">Sub-cluster</div><div class="lab" style="text-align:center">Status</div><div class="ticks" id="ticks"></div><div class="lab" style="text-align:right">Change</div><div class="lab" style="text-align:right" title="Of the 10 closest papers, how many are FORRT cluster PDFs">Cluster PDFs in top 10</div></div>
+      <div id="covrows"></div>
+    </div></div>
+  </section>
+
+  <section>
+    <div class="head">
+      <div class="eyebrow">3 · Pre-LLM gate</div>
+      <h2>Can we skip the LLM when we have nothing?</h2>
+      <p>Gate score = the closest chunk among the papers and the FORRT pages to the question, computed with the same bge-m3 embedding the bot already runs (local, or $0.01 per million tokens on OpenRouter). Below, the __QUESTIONS__ single-turn questions of <code>eval/questions.jsonl</code>, labelled by the team as "should answer" or "should refuse". Move the threshold.</p>
+    </div>
+    <div class="gatebox">
+      <div class="gatectl">
+        <label for="thr" style="font-size:13px;color:var(--ink-2);display:flex;gap:10px;align-items:center">Threshold <input id="thr" type="range" min="0.44" max="0.70" step="0.005" value="0.55"> <b class="mono" id="thrv">0.550</b></label>
+        <div class="gstat">
+          <div><b id="kept">–</b><span>answerable questions kept</span></div>
+          <div><b id="blocked">–</b><span>should-refuse questions blocked for free</span></div>
+        </div>
+      </div>
+      <div class="svgwrap" id="gw"><svg id="gate" role="img" aria-label="Gate score per eval question"></svg><div class="gtip" id="gtip" hidden></div></div>
+    </div>
+    <div class="cards">
+      <div class="card"><h3>Clear off-topic: free refusal</h3><p>Everyday trivia (microwaves, rainbows, the deepest ocean) scores below 0.55, and no answerable question does. A 0.55 cut-off refuses them before any LLM call. The margin is small: "How do birds fly?" scores 0.547, the lowest answerable question 0.563.</p></div>
+      <div class="card"><h3>Near-topic: still needs the classifier</h3><p>Career advice, grant writing, SPSS help and "which journal" score 0.56–0.73, the same range as real open-science questions. Embedding similarity cannot tell these apart, so the LLM classifier stays for the middle band. The new papers, the large handbooks above all, raised off-topic scores by up to 0.06.</p></div>
+      <div class="card"><h3>Low score inside scope means a gap</h3><p>The cluster papers fixed named replication effects (power posing: 0 → 5 close papers, ego depletion: 4 → 13) and citizen science (3 → 11). Still thin: persistent identifiers ("Is there any free PID?": 0 papers), ORCID (1), Gold OA (2) and ghost authorship (2).</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <div class="eyebrow">4 · Data problems found</div>
+      <h2>Wrong files and wrong titles</h2>
+      <p>Comparing each paper's title with the meaning of its own chunks found two problems. In six JUST-OS papers the text has nothing to do with the title: the DOI in the FORRT sheet points to another work and Unpaywall downloaded that work. In some FORRT cluster papers the text is right but the title is wrong, because the PDF converter took a page header, a licence line or a mismatched DOI as the title. The bot cites both under the wrong title.</p>
+    </div>
+    <h3>Wrong text behind the title (JUST-OS papers)</h3>
+    <div class="tablewrap"><table><thead><tr><th>Title in the index</th><th>DOI</th><th>What the text actually is</th><th style="text-align:right">Chunks</th><th style="text-align:right">Title ↔ text</th></tr></thead><tbody id="bad"></tbody></table></div>
+    <h3>Wrong title on the right text (FORRT cluster PDFs)</h3>
+    <div class="tablewrap"><table><thead><tr><th>Title in the index</th><th>What the text actually is</th><th style="text-align:right">Chunks</th><th style="text-align:right">Title ↔ text</th></tr></thead><tbody id="badt"></tbody></table></div>
+    <p id="fnt"></p>
+    <div class="cards">
+      <div class="card"><h3>16% of chunks are reference lists or near-empty</h3><p>22,860 chunks are mostly citations, author lists or markup: 22% of the JUST-OS chunks but only 8% of the cluster chunks, because GROBID drops the reference list and marker does not. 11,916 JUST-OS chunks still carry marker's <code>&lt;span id="page-…"&gt;</code> anchors. They form 33 junk topics on the map and take retrieval slots from real text.</p></div>
+      <div class="card"><h3>61 topics come mostly from one paper</h3><p>Three long documents dominate the biggest of these: Haklay 2018 on citizen science (1,159 of its 2,096 chunks in one topic), <i>The SAGE Handbook of Qualitative Research</i> (1,060) and <i>Reproducible Research with R and RStudio</i> (921). A sub-cluster that looks covered may rest on one book, and the books also pull off-topic questions closer.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="head"><div class="eyebrow">5 · Next steps</div><h2>What to do with this</h2></div>
+    <ol class="steps">
+      <li><b>Fix the six wrong files.</b> Correct the DOIs in the FORRT sheet and drop their chunks from the index (1,741 chunks).</li>
+      <li><b>Fix the cluster-paper titles.</b> The seven wrong titles above, plus the 29 papers whose title is still the file name (for example <code>C09 SC08 Incl Henrich 2010</code>). Users see these titles in the source list.</li>
+      <li><b>Use the gap list for content.</b> The free similarity check now exists as the banded topic check (<code>ROUTER=banded</code>, docs/evaluation.md 3.11). An in-scope question with a low score points to missing papers, not to a question to refuse.</li>
+      <li><b>Drop reference-list chunks</b> from the JUST-OS papers: filter them at query time, or convert those papers with GROBID when the index is next rebuilt.</li>
+      <li><b>Check the seven remaining blind spots by hand.</b> Equity, Public–Private Partnerships, Religion and culture, Sexuality, Feminist Thought, Inclusion and Rights retention. Equity and Inclusion each have 20 PDFs in their folders, yet few papers sit close to the name. Either the PDFs cover the topic in other words (a short one-word name is a weak probe), or the material is thin. Then add sources for PIDs/ORCID, Gold OA and ghost authorship.</li>
+    </ol>
+  </section>
+
+  <footer>Index: <code>__INDEX__</code> (__PAPERS__ documents).__BEFORE_FOOTER__ Scripts: <code>eval/topic_map/</code> (UMAP + HDBSCAN + c-TF-IDF; see docs/evaluation.md). Embeddings: BAAI/bge-m3 (identical vectors locally and on OpenRouter). The questions shown come from the labelled eval set only, not from user chats.</footer>
+</div>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(() => {
+const D = JSON.parse(document.getElementById('data').textContent);
+const CL = {1:"Replication Crisis and Credibility Revolution",2:"Conceptual and Statistical Knowledge",3:"Ways of Working",4:"Pre-analysis Planning",5:"Reproducible Analyses",6:"FAIR Data and Materials",7:"Publication Sharing",8:"Replication and Meta-research",9:"Academic Structures and Institutions",10:"Qualitative Research",11:"Research Integrity"};
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const el = (t, a = {}, txt) => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; return e; };
+const fmt = n => n.toLocaleString('en-US');
+
+// ---- figures
+const S = D.summary;
+[[fmt(S.papers), 'papers, of which ' + S.cluster_papers + ' FORRT cluster PDFs'], [fmt(S.chunks), 'chunks the bot retrieves from'], [S.kinds.topic, 'multi-paper topics (of ' + S.topics + ')'],
+ [Math.round(S.boiler * 100) + '%', 'chunks that are reference lists or near-empty'], [S.blind + ' / ' + S.subs, 'FORRT sub-clusters still blind' + (S.blind_before != null ? ' (was ' + S.blind_before + ')' : '')]]
+ .forEach(([b, s]) => { const f = el('div', {class: 'fig'}); f.append(el('b', {}, b), el('span', {}, s)); document.getElementById('figs').append(f); });
+
+// ---- map: zoom, pan, select, search
+const T = new Map(D.topics.map(t => [t.id, t]));
+const cv = document.getElementById('map'), cw = document.getElementById('cw'), tip = document.getElementById('tip');
+const side = document.getElementById('side'), note = document.getElementById('mapnote'), sel = document.getElementById('subsel');
+const [x0, x1, y0, y1] = S.extent, N = D.points.length;
+const PX = new Float32Array(N), PY = new Float32Array(N), PT = new Int32Array(N), PS = new Uint8Array(N);
+let colorBy = 'kind';
+const TI = new Map();  // topic id -> point indices
+D.points.forEach(([x, y, t, z], i) => { PX[i] = x; PY[i] = y; PT[i] = t; PS[i] = z || 0; if (!TI.has(t)) TI.set(t, []); TI.get(t).push(i); });
+// spatial grid in data space for hover / click lookups
+const GN = 96, gw_ = (x1 - x0) / GN, gh_ = (y1 - y0) / GN, grid = Array.from({length: GN * GN}, () => []);
+const cell = (x, y) => [Math.min(GN - 1, Math.max(0, Math.floor((x - x0) / gw_))), Math.min(GN - 1, Math.max(0, Math.floor((y - y0) / gh_)))];
+for (let i = 0; i < N; i++) { const [a, b] = cell(PX[i], PY[i]); grid[b * GN + a].push(i); }
+
+let W = 0, H = 0, sc0 = 1, view = {k: 1, cx: 0, cy: 0};
+let hiSub = null, selTopic = null, found = null;
+const hidden = new Set();
+const KMIN = 0.6, KMAX = 40;
+const sx = x => W / 2 + (x - view.cx) * sc0 * view.k, sy = y => H / 2 - (y - view.cy) * sc0 * view.k;
+const dx_ = X => view.cx + (X - W / 2) / (sc0 * view.k), dy_ = Y => view.cy - (Y - H / 2) / (sc0 * view.k);
+const kindKey = t => t.kind === 'topic' ? 'topic' : t.kind === 'one paper' ? 'one' : 'refs';
+// label: first two keywords that are real words (skip hyphenation debris such as "ion", "pap")
+const short = t => t.kind === 'reference lists' ? 'Reference lists' : (t.kw.split(', ').filter(w => w.replace(/[^a-z]/gi, '').length >= 4 && !/^(paps?|ble|tion|ment)\b/i.test(w) && !/^(\w+) \1$/.test(w)).slice(0, 2).join(' · ') || t.label);
+// fit the view to where 98% of the chunks are, not to the few far outliers
+const pct = (arr, q) => { const s = Float32Array.from(arr).sort(); return s[Math.floor(q * (s.length - 1))]; };
+const fx0 = pct(D.points.map(p => p[0]), 0.01), fx1 = pct(D.points.map(p => p[0]), 0.99), fy0 = pct(D.points.map(p => p[1]), 0.01), fy1 = pct(D.points.map(p => p[1]), 0.99);
+
+let queued = false;
+const draw = () => { if (!queued) { queued = true; requestAnimationFrame(render); } };
+function size() { const dpr = window.devicePixelRatio || 1, r = cw.getBoundingClientRect(); W = r.width; H = r.height;
+  cv.width = W * dpr; cv.height = H * dpr; sc0 = Math.min((W - 40) / (fx1 - fx0), (H - 40) / (fy1 - fy0)); if (!view.cx && !view.cy) { view.cx = (fx0 + fx1) / 2; view.cy = (fy0 + fy1) / 2; } render(); }
+function render() {
+  queued = false; const dpr = window.devicePixelRatio || 1, g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = css('--surface'); g.fillRect(0, 0, W, H);
+  const col = {topic: css('--topic'), 'one paper': css('--single'), 'reference lists': css('--refs')}, hc = css('--hi');
+  const focus = selTopic != null || found != null || hiSub != null;
+  const r = Math.min(3.4, 1.05 * Math.pow(view.k, 0.38)), d = r * 2;
+  const inFocus = t => (selTopic != null && t === selTopic) || (found != null && found.has(t));
+  // pass 1: background (everything, dimmed when something is focused)
+  if (colorBy === 'source') {
+    const sc = [css('--src-j'), css('--src-c')];
+    for (const z of [0, 1]) { g.fillStyle = sc[z]; g.globalAlpha = focus ? 0.13 : 0.55;
+      for (let i = 0; i < N; i++) { if (PS[i] !== z) continue; const t = T.get(PT[i]); if (hidden.has(t.kind)) continue;
+        const X = sx(PX[i]), Y = sy(PY[i]); if (X < -4 || Y < -4 || X > W + 4 || Y > H + 4) continue; g.fillRect(X - r, Y - r, d, d); } }
+  } else for (const kind of ['reference lists', 'one paper', 'topic']) {
+    if (hidden.has(kind)) continue; g.fillStyle = col[kind]; g.globalAlpha = focus ? 0.13 : (kind === 'reference lists' ? 0.45 : 0.6);
+    for (let i = 0; i < N; i++) { const t = T.get(PT[i]); if (t.kind !== kind) continue;
+      const X = sx(PX[i]), Y = sy(PY[i]); if (X < -4 || Y < -4 || X > W + 4 || Y > H + 4) continue; g.fillRect(X - r, Y - r, d, d); }
+  }
+  // pass 2: focused topics on top
+  if (selTopic != null || found != null) {
+    g.globalAlpha = 0.9;
+    for (const id of (selTopic != null ? [selTopic] : found)) { const t = T.get(id); if (hidden.has(t.kind)) continue;
+      g.fillStyle = id === selTopic ? hc : col[t.kind];
+      for (const i of TI.get(id) || []) { const X = sx(PX[i]), Y = sy(PY[i]); if (X < -4 || Y < -4 || X > W + 4 || Y > H + 4) continue; g.fillRect(X - r - .4, Y - r - .4, d + .8, d + .8); } }
+  }
+  g.globalAlpha = 1;
+  if (hiSub) { const surf = css('--surface');
+    for (const [x, y] of hiSub.pts) { g.beginPath(); g.arc(sx(x), sy(y), Math.max(3.5, r + 1.5), 0, 7); g.fillStyle = hc; g.fill(); g.lineWidth = 1.5; g.strokeStyle = surf; g.stroke(); } }
+  // labels: biggest topics in view, more as you zoom in, greedy non-overlap
+  const placed = [], maxL = Math.round((W < 600 ? 8 : 16) + 9 * Math.log2(view.k));
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  const cand = D.topics.filter(t => !hidden.has(t.kind) && t.kind !== 'reference lists' && (t.kind === 'topic' || view.k > 2.2))
+    .sort((a, b) => (b.id === selTopic) - (a.id === selTopic) || b.chunks - a.chunks);
+  let n = 0;
+  for (const t of cand) { if (n >= maxL) break;
+    const X = sx(t.x), Y = sy(t.y); if (X < 0 || Y < 0 || X > W || Y > H) continue;
+    const isSel = t.id === selTopic; g.font = (isSel ? '700 13px ' : '600 11.5px ') + css('--f-display');
+    const lab = short(t), w = g.measureText(lab).width + 8, box = [X - w / 2, Y - 9, X + w / 2, Y + 9];
+    if (!isSel && (box[0] < 2 || box[2] > W - 2 || placed.some(b => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3])))) continue;
+    placed.push(box); n++;
+    g.globalAlpha = focus && !inFocus(t.id) ? 0.45 : 1; g.lineWidth = 4; g.strokeStyle = css('--surface'); g.strokeText(lab, X, Y);
+    g.fillStyle = isSel ? hc : css('--ink'); g.fillText(lab, X, Y); g.globalAlpha = 1; }
+  document.getElementById('zlvl').textContent = (view.k < 10 ? view.k.toFixed(1) : Math.round(view.k)) + '×';
+}
+function nearest(mx, my) {
+  const rad = 9, dxr = rad / (sc0 * view.k), X = dx_(mx), Y = dy_(my);
+  const [a0, b0] = cell(X - dxr, Y - dxr), [a1, b1] = cell(X + dxr, Y + dxr); let best = -1, bd = rad * rad;
+  for (let b = b0; b <= b1; b++) for (let a = a0; a <= a1; a++) for (const i of grid[b * GN + a]) {
+    if (hidden.has(T.get(PT[i]).kind)) continue; const ex = sx(PX[i]) - mx, ey = sy(PY[i]) - my, dd = ex * ex + ey * ey; if (dd < bd) { bd = dd; best = i; } }
+  return best;
+}
+// --- view changes
+function zoomAt(f, mx, my) { const X = dx_(mx), Y = dy_(my); const k = Math.max(KMIN, Math.min(KMAX, view.k * f));
+  view.k = k; view.cx = X - (mx - W / 2) / (sc0 * k); view.cy = Y + (my - H / 2) / (sc0 * k); clampView(); draw(); }
+function clampView() { const hw = W / 2 / (sc0 * view.k), hh = H / 2 / (sc0 * view.k);
+  view.cx = Math.max(x0 - hw * 0.5, Math.min(x1 + hw * 0.5, view.cx)); view.cy = Math.max(y0 - hh * 0.5, Math.min(y1 + hh * 0.5, view.cy)); }
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function flyTo(cx, cy, k) { k = Math.max(KMIN, Math.min(KMAX, k)); const a = {...view}, t0 = performance.now(), dur = reduce ? 0 : 380;
+  const step = now => { const p = dur ? Math.min(1, (now - t0) / dur) : 1, e = 1 - Math.pow(1 - p, 3), lk = Math.log(a.k) + (Math.log(k) - Math.log(a.k)) * e;
+    view = {k: Math.exp(lk), cx: a.cx + (cx - a.cx) * e, cy: a.cy + (cy - a.cy) * e}; render(); if (p < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step); }
+function fitIndices(idx, pad = 1.5) { let a = Infinity, b = -Infinity, c = Infinity, d = -Infinity;
+  for (const i of idx) { a = Math.min(a, PX[i]); b = Math.max(b, PX[i]); c = Math.min(c, PY[i]); d = Math.max(d, PY[i]); }
+  const k = Math.min(W / ((b - a) * pad + 0.4) / sc0, H / ((d - c) * pad + 0.4) / sc0); flyTo((a + b) / 2, (c + d) / 2, k); }
+const reset = () => flyTo((fx0 + fx1) / 2, (fy0 + fy1) / 2, 1);
+document.getElementById('zin').onclick = () => zoomAt(1.6, W / 2, H / 2);
+document.getElementById('zout').onclick = () => zoomAt(1 / 1.6, W / 2, H / 2);
+document.getElementById('zreset').onclick = reset;
+cv.addEventListener('wheel', e => { e.preventDefault(); const r = cv.getBoundingClientRect();
+  zoomAt(Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0018)), e.clientX - r.left, e.clientY - r.top); }, {passive: false});
+cv.addEventListener('dblclick', e => { const r = cv.getBoundingClientRect(); zoomAt(2, e.clientX - r.left, e.clientY - r.top); });
+// drag to pan, pinch to zoom, click to select
+const ptrs = new Map(); let drag = null, pinch = null;
+cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (ptrs.size === 1) drag = {x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy, moved: false};
+  if (ptrs.size === 2) { const [p, q] = [...ptrs.values()]; pinch = {d: Math.hypot(p[0] - q[0], p[1] - q[1]), k: view.k}; drag = null; } });
+cv.addEventListener('pointermove', e => {
+  const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pinch && ptrs.size === 2) { const [p, q] = [...ptrs.values()], dd = Math.hypot(p[0] - q[0], p[1] - q[1]);
+    zoomAt(pinch.k * dd / pinch.d / view.k, (p[0] + q[0]) / 2 - r.left, (p[1] + q[1]) / 2 - r.top); return; }
+  if (drag) { const ddx = e.clientX - drag.x, ddy = e.clientY - drag.y;
+    if (!drag.moved && Math.hypot(ddx, ddy) > 4) { drag.moved = true; cv.classList.add('drag'); tip.hidden = true; }
+    if (drag.moved) { view.cx = drag.cx - ddx / (sc0 * view.k); view.cy = drag.cy + ddy / (sc0 * view.k); clampView(); draw(); return; } }
+  if (e.pointerType === 'touch') return;
+  const i = nearest(mx, my); cv.classList.toggle('over', i >= 0);
+  if (i < 0) { tip.hidden = true; return; }
+  const t = T.get(PT[i]); tip.replaceChildren(el('h4', {}, short(t)),
+    el('div', {class: 'meta'}, `${fmt(t.chunks)} chunks · ${t.papers} papers · top paper ${Math.round(t.share * 100)}%`),
+    el('div', {class: 'papers'}, t.top.split(' | ')[0].replace(/\s*\(\d+\)$/, '')), el('div', {class: 'meta', style: 'margin:6px 0 0'}, 'Click to open'));
+  tip.hidden = false; const tw = tip.offsetWidth, th = tip.offsetHeight;
+  tip.style.left = Math.max(4, Math.min(mx + 14, r.width - tw - 6)) + 'px'; tip.style.top = (my + 14 + th > r.height ? my - th - 10 : my + 14) + 'px';
+});
+const endPtr = e => { const wasClick = drag && !drag.moved && ptrs.size === 1; ptrs.delete(e.pointerId);
+  if (ptrs.size < 2) pinch = null;
+  if (wasClick) { const r = cv.getBoundingClientRect(), i = nearest(e.clientX - r.left, e.clientY - r.top); selectTopic(i >= 0 ? PT[i] : null, false); }
+  if (ptrs.size === 0) { drag = null; cv.classList.remove('drag'); } };
+cv.addEventListener('pointerup', endPtr); cv.addEventListener('pointercancel', e => { ptrs.delete(e.pointerId); drag = null; pinch = null; cv.classList.remove('drag'); });
+cv.addEventListener('pointerleave', () => { tip.hidden = true; });
+cv.tabIndex = 0;
+cv.addEventListener('keydown', e => { const s = 60 / (sc0 * view.k), m = {ArrowLeft: [-s, 0], ArrowRight: [s, 0], ArrowUp: [0, s], ArrowDown: [0, -s]};
+  if (m[e.key]) { e.preventDefault(); view.cx += m[e.key][0]; view.cy += m[e.key][1]; clampView(); draw(); }
+  else if (e.key === '+' || e.key === '=') zoomAt(1.4, W / 2, H / 2); else if (e.key === '-') zoomAt(1 / 1.4, W / 2, H / 2);
+  else if (e.key === 'Escape') { selectTopic(null); } else if (e.key === '0') reset(); });
+new ResizeObserver(size).observe(cw);
+
+// --- legend toggles
+document.querySelectorAll('.legend button').forEach(b => b.addEventListener('click', () => {
+  const k = b.dataset.kind, on = b.getAttribute('aria-pressed') === 'true'; b.setAttribute('aria-pressed', String(!on));
+  on ? hidden.add(k) : hidden.delete(k); draw(); }));
+
+// --- colour mode
+const cmK = document.getElementById('cm-kind'), cmS = document.getElementById('cm-src');
+function setColor(m) { colorBy = m; cmK.setAttribute('aria-pressed', String(m === 'kind')); cmS.setAttribute('aria-pressed', String(m === 'source'));
+  document.getElementById('srclegend').hidden = m !== 'source'; draw(); }
+cmK.onclick = () => setColor('kind'); cmS.onclick = () => setColor('source');
+
+// --- side panel
+function papersOf(t) { return t.top.split(' | ').filter(Boolean).map(s => { const m = s.match(/^(.*)\s\((\d+)\)$/); return m ? [m[1], +m[2]] : [s, null]; }); }
+function topicButton(t) { const b = el('button', {}); b.append(el('span', {}, short(t)), el('small', {}, `${fmt(t.chunks)} chunks · ${t.papers} papers`));
+  b.onclick = () => selectTopic(t.id, true); return b; }
+function panel() {
+  side.replaceChildren();
+  if (selTopic != null) {
+    const t = T.get(selTopic), kk = kindKey(t);
+    side.append(el('span', {class: 'badge ' + kk}, kk === 'topic' ? 'Topic · several papers' : kk === 'one' ? 'Single-paper topic' : 'Reference lists / boilerplate'),
+      el('h3', {}, short(t)));
+    const kv = el('div', {class: 'kv'});
+    [[fmt(t.chunks), 'chunks'], [t.papers, 'papers'], [t.p3, 'papers with 3+ real chunks']].forEach(([b, s]) => { const d = el('div'); d.append(el('b', {}, b), el('span', {}, s)); kv.append(d); });
+    side.append(kv, el('div', {style: 'font-size:13px;color:var(--ink-2)'}, `${Math.round(t.cl * 100)}% of its chunks come from FORRT cluster PDFs`), el('div', {class: 'lbl'}, 'Keywords'));
+    const kw = el('div', {class: 'kw'}); t.kw.split(', ').forEach(w => kw.append(el('span', {}, w))); side.append(kw);
+    side.append(el('div', {class: 'lbl'}, 'Main papers (chunks in this topic)'));
+    const ul = el('ul'); papersOf(t).forEach(([p, n]) => { const li = el('li'); li.append(el('span', {}, p), el('b', {}, n ?? '')); ul.append(li); }); side.append(ul);
+    if (kk !== 'refs') side.append(el('div', {class: 'lbl'}, 'Closest FORRT sub-cluster (rough)'), el('div', {style: 'font-size:13px;color:var(--ink-2)'}, `${t.fsub} · ${CL[t.fc]}`));
+    const acts = el('div', {class: 'acts'}), z = el('button', {}, 'Zoom to topic'), c = el('button', {}, 'Clear');
+    z.onclick = () => fitIndices(TI.get(t.id)); c.onclick = () => selectTopic(null); acts.append(z, c); side.append(acts);
+  } else if (found != null) {
+    side.append(el('div', {class: 'lbl'}, `${found.size} topic${found.size === 1 ? '' : 's'} match “${qi.value.trim()}”`));
+    const res = el('div', {class: 'results'}); [...found].map(id => T.get(id)).sort((a, b) => b.chunks - a.chunks).slice(0, 40).forEach(t => res.append(topicButton(t)));
+    side.append(found.size ? res : el('p', {class: 'empty'}, 'No topic has this word in its keywords or main papers. That alone can mean a blind spot.'));
+  } else {
+    side.append(el('p', {class: 'empty'}, 'Click any dot to open its topic: keywords, main papers and how many papers really cover it. Or start from one of the largest topics:'));
+    const res = el('div', {class: 'results'}); D.topics.filter(t => t.kind === 'topic').sort((a, b) => b.chunks - a.chunks).slice(0, 10).forEach(t => res.append(topicButton(t)));
+    side.append(res);
+  }
+}
+function selectTopic(id, zoom) { selTopic = id; tip.hidden = true; panel(); draw(); if (id != null && zoom) fitIndices(TI.get(id)); }
+
+// --- search
+const qi = document.getElementById('q'); let qt;
+qi.addEventListener('input', () => { clearTimeout(qt); qt = setTimeout(() => {
+  const q = qi.value.trim().toLowerCase(); selTopic = null;
+  found = q.length < 2 ? null : new Set(D.topics.filter(t => (t.label + ' ' + t.kw + ' ' + t.top).toLowerCase().includes(q)).map(t => t.id));
+  panel(); draw(); }, 120); });
+qi.addEventListener('keydown', e => { if (e.key === 'Enter' && found && found.size) { const ids = [...found]; fitIndices(ids.flatMap(id => TI.get(id)), 1.2); } });
+panel();
+
+// ---- sub-cluster select + coverage list
+for (let c = 1; c <= 11; c++) { const og = el('optgroup', {label: c + ' · ' + CL[c]});
+  D.subs.forEach((s, i) => { if (s.c === c) og.append(el('option', {value: i}, s.name)); }); sel.append(og); }
+function highlight(i) {
+  hiSub = i === '' || i == null ? null : D.subs[+i]; sel.value = i ?? '';
+  document.querySelectorAll('.row').forEach(r => r.classList.toggle('sel', r.dataset.i === String(i)));
+  note.textContent = hiSub ? `Purple: the 150 chunks closest to “${hiSub.name}” (closest ${hiSub.pts[0][2].toFixed(2)}, 150th ${hiSub.pts[149][2].toFixed(2)}). Spread thin across the map means the corpus has no real home for it.`
+                           : 'Labels name the largest multi-paper topics in view; zoom in to see more.';
+  draw();
+}
+sel.addEventListener('change', () => highlight(sel.value));
+const LO = 0.45, HI = 0.76, pos = v => ((Math.max(LO, Math.min(HI, v)) - LO) / (HI - LO) * 100) + '%';
+const ticks = document.getElementById('ticks'); [0.5, 0.55, 0.6, 0.65, 0.7, 0.75].forEach(v => { const s = el('span', {}, v.toFixed(2)); s.style.left = pos(v); ticks.append(s); });
+function rows(mode) {
+  const box = document.getElementById('covrows'); box.replaceChildren();
+  const idx = D.subs.map((s, i) => i);
+  const mk = i => { const s = D.subs[i], r = el('div', {class: 'row', tabindex: '0', 'data-i': i, role: 'button', 'aria-label': s.name + ', ' + s.status});
+    const nm = el('div', {class: 'nm'}, s.name); nm.append(el('small', {}, mode === 'w' ? CL[s.c] : s.top.split(' | ')[0]));
+    const st = el('div', {class: 'strip', title: `10th paper ${s.p10}` + (s.p10_before != null ? ` (was ${s.p10_before})` : '') + ` · best ${s.best} · ${s.pdfs} PDFs in the cluster folder`});
+    const rail = el('div', {class: 'rail'}), band = el('div', {class: 'band'}); band.style.left = pos(s.p10); band.style.width = `calc(${pos(s.best)} - ${pos(s.p10)})`;
+    const best = el('div', {class: 'best'}); best.style.left = pos(s.best);
+    const dot = el('div', {class: 'dot'}); dot.style.left = pos(s.p10); dot.style.background = css('--' + s.status);
+    st.append(rail, band, best);
+    if (s.p10_before != null && Math.abs(s.p10 - s.p10_before) >= 0.003) { const mv = el('div', {class: 'move'}), lo = Math.min(s.p10, s.p10_before), hi_ = Math.max(s.p10, s.p10_before);
+      mv.style.left = pos(lo); mv.style.width = `calc(${pos(hi_)} - ${pos(lo)})`; if (s.p10 < s.p10_before) mv.style.background = css('--blind');
+      const was = el('div', {class: 'was'}); was.style.left = pos(s.p10_before); st.append(mv, was); }
+    st.append(dot);
+    const stat = el('div', {class: 'stat'}); stat.append(el('span', {class: 'chip ' + s.status}, s.status));
+    if (s.status_before && s.status_before !== s.status) stat.append(el('small', {}, 'was ' + s.status_before));
+    const dv = s.p10_before != null ? s.p10 - s.p10_before : null;
+    const delta = el('div', {class: 'delta' + (dv > 0.004 ? ' up' : dv < -0.004 ? ' down' : '')}, dv == null ? '–' : (dv >= 0 ? '+' : '−') + Math.abs(dv).toFixed(3));
+    r.append(nm, stat, st, delta, el('div', {class: 'pdfs'}, s.top10_cluster + ' / 10'));
+    const go = () => { highlight(String(i)); document.querySelector('.mapbox').scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center'}); };
+    r.addEventListener('click', go); r.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    return r; };
+  if (mode === 'w') idx.sort((a, b) => D.subs[a].p10 - D.subs[b].p10).forEach(i => box.append(mk(i)));
+  else for (let c = 1; c <= 11; c++) { const these = idx.filter(i => D.subs[i].c === c); const blind = these.filter(i => D.subs[i].status === 'blind').length;
+    const gh = el('div', {class: 'grp'}); gh.append(el('h3', {}, c + ' · ' + CL[c]), el('span', {class: 'eyebrow'}, these.length + ' sub-clusters' + (blind ? ' · ' + blind + ' blind' : '')));
+    box.append(gh); these.sort((a, b) => D.subs[a].p10 - D.subs[b].p10).forEach(i => box.append(mk(i))); }
+  if (hiSub) highlight(String(D.subs.indexOf(hiSub)));
+}
+const byc = document.getElementById('byc'), byw = document.getElementById('byw');
+byc.onclick = () => { byc.setAttribute('aria-pressed', 'true'); byw.setAttribute('aria-pressed', 'false'); rows('c'); };
+byw.onclick = () => { byw.setAttribute('aria-pressed', 'true'); byc.setAttribute('aria-pressed', 'false'); rows('w'); };
+rows('c');
+
+// ---- gate dot plot
+const G = D.gate, svg = document.getElementById('gate'), gw = document.getElementById('gw'), gtip = document.getElementById('gtip'), thr = document.getElementById('thr');
+const GL = 0.44, GH = 0.78, NS = 'http://www.w3.org/2000/svg';
+const sv = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+function gate() {
+  const t = +thr.value; document.getElementById('thrv').textContent = t.toFixed(3);
+  const ans = G.filter(q => q.e === 'answer'), ref = G.filter(q => q.e === 'refuse');
+  document.getElementById('kept').textContent = Math.round(100 * ans.filter(q => q.s >= t).length / ans.length) + '%';
+  document.getElementById('blocked').textContent = Math.round(100 * ref.filter(q => q.s < t).length / ref.length) + '%';
+  const w = Math.max(600, gw.clientWidth), h = 190, L = 120, R = 16, X = v => L + (v - GL) / (GH - GL) * (w - L - R);
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`); svg.setAttribute('width', w); svg.setAttribute('height', h); svg.replaceChildren();
+  for (let v = 0.45; v <= 0.7751; v += 0.05) { svg.append(sv('line', {x1: X(v), x2: X(v), y1: 14, y2: h - 26, stroke: css('--grid')}));
+    const tx = sv('text', {x: X(v), y: h - 8, 'text-anchor': 'middle'}); tx.textContent = v.toFixed(2); svg.append(tx); }
+  [['Should answer', 62, 'answer', css('--topic')], ['Should refuse', 132, 'refuse', css('--single')]].forEach(([lab, yc, key, col]) => {
+    const tx = sv('text', {x: 0, y: yc + 4}); tx.textContent = lab; tx.style.fill = css('--ink-2'); tx.style.fontFamily = css('--f-body'); tx.style.fontSize = '12.5px'; svg.append(tx);
+    const qs = G.filter(q => q.e === key).sort((a, b) => a.s - b.s); const lanes = [];
+    qs.forEach(q => { const x = X(q.s); let k = 0; while (lanes[k] != null && x - lanes[k] < 9) k++; lanes[k] = x;
+      const y = yc + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 8.5;
+      const c = sv('circle', {cx: x, cy: y, r: 4.2, fill: q.s < t ? css('--refs') : col, stroke: css('--surface'), 'stroke-width': 1.5});
+      c.addEventListener('mouseenter', () => { gtip.replaceChildren(el('div', {class: 'mono', style: 'font-size:11.5px;color:var(--ink-3);margin-bottom:4px'}, `score ${q.s.toFixed(3)} · ${q.n} papers ≥ 0.60 · route ${q.route}`), el('div', {}, q.q));
+        gtip.hidden = false; const r = gw.getBoundingClientRect(); gtip.style.left = Math.min(x + 10, r.width - gtip.offsetWidth - 4) + 'px'; gtip.style.top = (y + 12) + 'px'; });
+      c.addEventListener('mouseleave', () => gtip.hidden = true); svg.append(c); });
+  });
+  svg.append(sv('line', {x1: X(t), x2: X(t), y1: 6, y2: h - 26, stroke: css('--hi'), 'stroke-width': 2}));
+  const tl = sv('text', {x: X(t) + 6, y: 14}); tl.textContent = 'gate'; tl.style.fill = css('--hi'); svg.append(tl);
+}
+thr.addEventListener('input', gate); new ResizeObserver(gate).observe(gw);
+
+// ---- wrong files
+const tb = document.getElementById('bad');
+const tbt = document.getElementById('badt');
+(D.badtitles || []).forEach(b => { const tr = el('tr'); tr.append(el('td', {}, b.title), el('td', {}, b.actual), el('td', {class: 'n'}, fmt(b.chunks)), el('td', {class: 'n'}, b.sim.toFixed(2))); tbt.append(tr); });
+if (S.filename_titles) document.getElementById('fnt').textContent = `${S.filename_titles} more cluster papers have no title at all: the file name is used, for example “C09 SC08 Incl Henrich 2010”.`;
+D.bad.forEach(b => { const tr = el('tr'); tr.append(el('td', {}, b.title), el('td', {class: 'mono', style: 'font-size:12px'}, b.doi), el('td', {}, b.actual), el('td', {class: 'n'}, fmt(b.chunks)), el('td', {class: 'n'}, b.sim.toFixed(2))); tb.append(tr); });
+})();
+</script>
