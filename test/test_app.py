@@ -301,7 +301,7 @@ def test_review_page_shows_answers_blind_and_saves_score_rows(app, tmp_path):
     assert "What is open data?" in html and "DOI 10.1/a" in html and "Open data are free." in html
     assert "Scores 1-5:" in html and '<option value="0">' not in html  # the arena's scale (#54)
     assert "gpt-oss" not in html and 'data-id="k1"' in html  # blind: the answer_id stays on the server
-    assert "Says data are free to reuse" in html and 'id="rubric-setting"' in html
+    assert "Says data are free to reuse" in html and 'id="review-setting"' in html and '<option value="rubric">' in html
     scores = {"k1": {"decision": "right", "correctness": "4", "citation_support": "5", "source_relevance": "n/a",
                      "completeness": "3", "clarity": "4", "note": "=HYPERLINK(x)", "rubric": {}}}
     assert client.post("/review/save", json={"reviewer": "", "scores": scores}).status_code == 400  # name needed

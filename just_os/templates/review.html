@@ -70,7 +70,11 @@
             <input id="reviewer" autocomplete="name" placeholder="First and last name" maxlength="80">
             <button type="button" id="save">Save to the team</button>
             <button type="button" id="export" class="secondary">Export CSV</button>
-            <label><input type="checkbox" id="rubric-setting"> Score against the rubric, where a question has one</label>
+            <label for="review-setting">Score with</label>
+            <select id="review-setting">
+                <option value="default">Criteria</option>
+                <option value="rubric">Rubric, where a question has one</option>
+            </select>
             <span id="review-status" role="status" aria-live="polite"></span>
         </div>
 
@@ -139,8 +143,9 @@
         const FIELDS = {{ (["reviewer", "item_id", "category", "expected", "bot_did", "question", "decision"] + criteria|list + ["rubric", "note", "saved_at"])|tojson }};
         const CRITERIA = {{ criteria|list|tojson }};
         const STORE = "just-os-review:" + {{ items|map(attribute="key")|join(",")|tojson }};
-        const setting = document.getElementById("rubric-setting");
-        const showSetting = () => document.body.classList.toggle("rubric-on", setting.checked);
+        const setting = document.getElementById("review-setting");
+        const rubricOn = () => setting.value === "rubric";
+        const showSetting = () => document.body.classList.toggle("rubric-on", rubricOn());
         const articles = [...document.querySelectorAll(".review-item")];
         const reviewer = document.getElementById("reviewer");
         const status = document.getElementById("review-status");
@@ -152,7 +157,7 @@
                 const s = { decision: checked ? checked.value : "", rubric: {} };
                 for (const el of a.querySelectorAll("[data-key]")) s[el.dataset.key] = el.value;
                 // the rubric setting: rubric items in place of completeness, for answers whose question has a rubric
-                const rubricShown = setting.checked && a.classList.contains("has-rubric");
+                const rubricShown = rubricOn() && a.classList.contains("has-rubric");
                 const asked = rubricShown ? CRITERIA.filter((k) => k !== "completeness") : CRITERIA;
                 if (rubricShown) {
                     delete s.completeness;
@@ -167,7 +172,7 @@
 
         function remember() {  // per-browser draft, so a closed tab loses nothing
             const scores = collect();
-            try { localStorage.setItem(STORE, JSON.stringify({ reviewer: reviewer.value, rubric: setting.checked, scores })); } catch (e) {}
+            try { localStorage.setItem(STORE, JSON.stringify({ reviewer: reviewer.value, rubric: rubricOn(), scores })); } catch (e) {}
             const done = articles.filter((a) => a.classList.contains("done")).length;
             status.textContent = `${done} of ${articles.length} questions fully scored`;
         }
@@ -177,7 +182,7 @@
             try { saved = JSON.parse(localStorage.getItem(STORE) || "null"); } catch (e) {}
             if (!saved) return;
             reviewer.value = saved.reviewer || "";
-            setting.checked = Boolean(saved.rubric);
+            setting.value = saved.rubric ? "rubric" : "default";
             showSetting();
             for (const a of articles) {
                 const s = (saved.scores || {})[a.dataset.id];
@@ -222,7 +227,7 @@
             status.textContent = "Saving…";
             try {
                 const r = await fetch("/review/save", { method: "POST", headers: { "Content-Type": "application/json" },
-                                                        body: JSON.stringify({ reviewer: reviewer.value.trim(), rubric: setting.checked, scores }) });
+                                                        body: JSON.stringify({ reviewer: reviewer.value.trim(), rubric: rubricOn(), scores }) });
                 const data = await r.json();
                 status.textContent = r.ok ? `Saved ${data.rows} questions for the team (${data.file}). Thank you!`
                                           : `Not saved: ${data.message}`;
