@@ -473,7 +473,7 @@ First comparison of people and automated scorers on the same answers (#54): the 
 |---|---|---|---|---|---|
 | decision | gold (outcome against `expect`) | 20 | 0.90 same decision | – | – |
 | citation support | support judge | 18 | 0.18 Spearman | 0.63 | 0.64 |
-| citation support | citations valid | 13 | – (always 1) | 0.65 | 1.00 |
+| citation support (until #63; now citation format) | citations valid | 13 | – (always 1) | 0.65 | 1.00 |
 | source relevance | hit@7 | 15 | 0.46 Spearman | 0.70 | 0.87 |
 | correctness | criteria judge (gemini-3.8-flash) | 18 | 0.61 Spearman | 0.69 | 0.72 |
 | completeness | criteria judge | 18 | 0.29 Spearman | 0.65 | 0.78 |
