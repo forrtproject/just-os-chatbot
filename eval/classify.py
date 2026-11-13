@@ -7,7 +7,8 @@
 
 Runs only the topic check (no retrieval, no answer). --routers runs the whole check
 (Qualle.route), one ROUTERS strategy at a time, scored against the 4 "route" labels; a
-question without "route" counts as forrt. --models runs only the LLM classifier
+question without "route" takes it from "expect" (answer → open_science, refuse → neither),
+and one with neither field counts as forrt. --models runs only the LLM classifier
 (GENERAL_MODEL) with each model: "expect": answer → should be open science; refuse →
 should not. With --intent, an optional "intent" field gives the gold class instead.
 Prints a Markdown table: accuracy, false refusals, false answers, errors, time, cost,
