@@ -42,6 +42,7 @@ def test_generated_refusals_follow_the_same_structure():
         assert (q["expect"], q["route"]) == ("refuse", "neither"), q["id"]
         assert q["kind"] in ("general", "academic", "decline_task", "near_miss"), q["id"]
         assert q["lang"] == "en" or q["source"].startswith("translation of rf"), q["id"]
+        assert isinstance(q["question"], str) and q["question"].strip() and q["format"] == "Single question", q["id"]
 
 def test_rubric_questions_carry_a_reference_answer_and_numbered_rubric_items():
     rubric = [q for q in QUESTIONS if RUBRIC_KEYS & set(q)]

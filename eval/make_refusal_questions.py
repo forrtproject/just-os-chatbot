@@ -3,7 +3,7 @@
     OPENROUTER_API_KEY=... python eval/make_refusal_questions.py [--model google/gemma-4-31b-it]
 
 Four kinds of question the bot should refuse, written in English by one model, then a share of
-them translated into the other languages of the eval set:
+them translated into the eight languages of LANGUAGES (de, nl, es, it, tr, pt, zh, hi):
   general       general knowledge (rarely hard; few of them)
   academic      academic life outside open science (careers, grants, visas, writing, teaching in general)
   decline_task  an open-science topic, but a task the bot should not do (legal or ethics rulings on the
