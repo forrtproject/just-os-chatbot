@@ -35,3 +35,11 @@ def test_review_and_arena_accept_the_same_scale():
         problem, _ = review_rows({"reviewer": "r", "scores": {"q1": {"correctness": str(value)}}}, ITEMS)
         assert (problem is None) == ok, value
         assert valid_ratings({"A": {c: value for c in ARENA_CRITERIA}}) == ok, value
+
+
+def test_review_keeps_empty_fields_empty():
+    problem, rows = review_rows({"reviewer": "r", "scores": {"q1": {"decision": "", "correctness": "4", "note": ""}}}, ITEMS)
+    assert problem is None
+    assert rows[0]["decision"] == "" and rows[0]["note"] == "" and rows[0]["clarity"] == ""  # was "'" before #54
+    _, rows = review_rows({"reviewer": "r", "scores": {"q1": {"note": "=1+1"}}}, ITEMS)
+    assert rows[0]["note"] == "'=1+1"  # a formula is still quoted

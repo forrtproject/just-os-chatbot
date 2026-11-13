@@ -68,7 +68,7 @@ def review_rows(data: Dict[str, Any], items: Dict[str, Dict]) -> tuple:
                "bot_did": item["bot_did"], "question": item["question"], "decision": s.get("decision", ""),
                **{k: str(s.get(k, "")) for k in REVIEW_CRITERIA}, "note": s.get("note", ""), "saved_at": now}
         # a spreadsheet runs a cell that starts with = + - @ as a formula
-        rows.append({k: "'" + v if isinstance(v, str) and v[:1] in "=+-@" else v for k, v in row.items()})
+        rows.append({k: "'" + v if isinstance(v, str) and v[:1] and v[:1] in "=+-@" else v for k, v in row.items()})
     return None, rows
 
 
