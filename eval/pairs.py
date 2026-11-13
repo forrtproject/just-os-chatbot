@@ -103,6 +103,8 @@ def main():
         for model, paths in sorted(runs.items()):
             table.append({"topic_check": router, "answer_model": model,
                           **score(decisions, read(paths["open_science"]), read(paths["forrt"]))})
+    if not table:
+        sys.exit(f"no topic check in {classify_csv.name} shares questions with the answer runs")
     table.sort(key=lambda r: (-(r["correct"] or 0), -(r["judge_support"] or 0)))
     out = RESULTS / f"pairs_{datetime.now():%y%m%d-%H%M}.csv"
     with open(out, "w", newline="", encoding="utf-8") as f:

@@ -143,6 +143,8 @@ def pair_results(folder: str) -> Dict:
     if not files:
         return {}
     rows = _rows(files[-1])
+    if not rows:  # an empty table (no model had both runs) shows as "no pair table yet"
+        return {}
     for r in rows:
         for key in ("correct", "hit", "citations_valid", "judge_support", "mean_s", "usd_per_1k"):
             r[key] = float(r[key]) if r[key] not in ("", None) else None

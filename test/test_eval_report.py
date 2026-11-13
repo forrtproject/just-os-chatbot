@@ -179,3 +179,8 @@ def test_topics_page_shows_the_newest_topic_map(tmp_path):
     assert client.get("/topics/map").get_data(as_text=True) == "<html>new map</html>"
     flask_app.config.update(EVAL_RESULTS_DIR=str(tmp_path / "none"))
     assert client.get("/topics").status_code == 404 and 'href="/topics"' not in client.get("/eval").get_data(as_text=True)
+
+
+def test_an_empty_pair_table_counts_as_none(tmp_path):
+    (tmp_path / "pairs_261113-1235.csv").write_text("topic_check,answer_model,n,correct\n", encoding="utf-8")
+    assert eval_report.pair_results(str(tmp_path)) == {}
