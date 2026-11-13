@@ -29,7 +29,8 @@ def app(tmp_path):
     flask_app.config["CHAT_FEEDBACK_FILE"] = str(tmp_path / "chats" / "feedback.jsonl")
     flask_app.chat_manager.redis = fakeredis.FakeRedis()
     flask_app._rag_service = FakeRag()
-    flask_app.config.update(ARENA_ENABLED=True, ARENA_MODELS="m1,m2", RATE_LIMIT="1000/minute")
+    # ROUTER "": the tests must not depend on the default topic check in .env
+    flask_app.config.update(ARENA_ENABLED=True, ARENA_MODELS="m1,m2", RATE_LIMIT="1000/minute", ROUTER="")
     flask_app.rate_limit_manager.limiter.enabled = False
     return flask_app
 
