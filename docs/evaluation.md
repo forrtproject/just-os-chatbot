@@ -33,7 +33,7 @@ A wrong refusal or a missing source in the answering eval can come from either s
 | Reviewer sheet | `python eval/export_questions.py [eval/results/run_X.csv]` (host: needs openpyxl) | `eval/questions.xlsx`: each question with its expected DOIs/URLs and the DOIs the bot cited in the newest run, one per cell as a clickable `https://doi.org/…` link with the title; the retrieved DOIs, the matches, and empty columns to judge them |
 | Thresholds of the banded topic check | `docker compose exec web python eval/tune_bands.py [--margin 0.01] [--max-refused 0.02]` | the four `BAND_*` settings and the share of each question set in each band; `eval/results/bands_<YYMMDD>.csv` (similarities per question) |
 | Coverage audit | `python eval/coverage.py` | `eval/results/coverage_<YYMMDD>.{csv,md,svg}` (see [data.md](data.md) 4) |
-| Topic map (section 3.12) | `uv sync --group analysis`, then `python eval/topic_map/build_map.py` (about 5 min on a laptop CPU), `taxonomy.py`, `title_check.py`, `page.py [--before eval/.topic_map/<older run>]` (host; `--index`, `--work` and `--pdfs` change the defaults; the last three call OpenRouter bge-m3 for a few cents) | `eval/results/topic_map_<YYMMDD>.{html,md,csv}`: the interactive map of every chunk, coverage of the 93 FORRT sub-clusters, the eval questions by similarity, papers with a wrong text or title. Working files in `eval/.topic_map/` (not in Git) |
+| Topic map (section 3.13) | `uv sync --group analysis`, then `python eval/topic_map/build_map.py` (about 5 min on a laptop CPU), `taxonomy.py`, `title_check.py`, `page.py [--before eval/.topic_map/<older run>]` (host; `--index`, `--work` and `--pdfs` change the defaults; the last three call OpenRouter bge-m3 for a few cents) | `eval/results/topic_map_<YYMMDD>.{html,md,csv}`: the interactive map of every chunk, coverage of the 93 FORRT sub-clusters, the eval questions by similarity, papers with a wrong text or title. Working files in `eval/.topic_map/` (not in Git) |
 | Arena (human ratings) | http://localhost:8000/arena with `ARENA_ENABLED=true`: pick models, rate each answer 1-5 on correct / references / clarity | `/arena/leaderboard`, `/arena/ratings` |
 
 Question sets:
@@ -385,7 +385,7 @@ Findings:
 
 Limits: the report has only 28 questions to refuse, since the 60 of `eval/refusal_questions.jsonl` were used for tuning; the `route` labels are drafts; the default topic check is unchanged (`ROUTER` empty, `DECISION_ROUTER_MODEL` clef-flash).
 
-### 3.11 How the default answer model and topic check are chosen (13 November 2026)
+### 3.12 How the default answer model and topic check are chosen (13 November 2026)
 
 With `AUTO_DEFAULTS=true` the bot takes its defaults for chat and arena from the results at every start (`just_os/eval_report.best_defaults`); the `/eval` page explains each section and marks the defaults.
 
@@ -404,7 +404,7 @@ With `AUTO_DEFAULTS=true` the bot takes its defaults for chat and arena from the
 
 The weighting is to be checked against the human review (`/review`, #8): if people's citation-support scores agree with the judge better than their completeness scores agree with the rubric judge, 2:1 stands.
 
-### 3.12 Topic map of the index (13 November 2026, `eval/results/topic_map_261113.{html,md,csv}`)
+### 3.13 Topic map of the index (13 November 2026, `eval/results/topic_map_261113.{html,md,csv}`)
 
 **What it is:** a map of every chunk in `vs_latest_bge-m3` (1,354 papers, 146,899 chunks), built from the index vectors with no LLM (`eval/topic_map/`): UMAP + HDBSCAN find 292 topics, c-TF-IDF names them. Each of the 93 FORRT sub-cluster names (the folders of the cluster PDFs) is then compared with the papers: the similarity of its 10th-closest paper gives a status, blind < 0.56, thin < 0.59, covered < 0.63, strong otherwise. The name alone is the probe, so a short name such as "Equity" can score low although papers cover it in other words: the status says where to look, not what is missing. Compared with the 513-paper index before the cluster PDFs.
 
