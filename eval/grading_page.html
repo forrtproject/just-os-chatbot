@@ -86,7 +86,7 @@ kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4p
 <script>
 const DATA = /*DATA*/null;
 const STORE = "glossary-grading-v1";
-const SCALE = ["0 not at all", "1 barely", "2 partly", "3 mostly", "4 fully"];
+const SCALE = ["1 not at all", "2 barely", "3 partly", "4 mostly", "5 fully"];
 const NEED = [["essential", "Essential"], ["nice", "Nice to have"], ["not", "Not needed"]];
 const QOK = [["yes", "Yes"], ["partly", "Partly"], ["no", "No"]];
 const HELP = {
@@ -94,8 +94,8 @@ const HELP = {
       For each rubric item, say whether a good answer to the question must cover it (<b>Essential</b>), would ideally cover it (<b>Nice to have</b>) or need not (<b>Not needed</b>),
       and tick <b>Not in the definition</b> when the glossary definition does not state it. The label core or detail is what the generator chose; judge the item yourself.`,
   2: `<b>Part 2: grade the answer as the LLM judge does.</b> For each rubric item, decide how fully the answer covers it, whatever the language of the answer:
-      0 not at all, 1 barely, 2 partly, 3 mostly, 4 fully. Judge only what the answer says; citation markers such as [2] do not matter.
-      Keys <kbd>0</kbd>–<kbd>4</kbd> score the next open rubric item, <kbd>←</kbd> <kbd>→</kbd> move between answers.`
+      1 not at all, 2 barely, 3 partly, 4 mostly, 5 fully. Judge only what the answer says; citation markers such as [2] do not matter.
+      Keys <kbd>1</kbd>–<kbd>5</kbd> score the next open rubric item, <kbd>←</kbd> <kbd>→</kbd> move between answers.`
 };
 
 let state = { part: 1, pos: { 1: 0, 2: 0 }, grader: "", p1: {}, p2: {} };
@@ -149,13 +149,13 @@ function render() {
     html += `<div class="card"><div class="label">Question asked to the bot</div><div class="question">${esc(e.question)}</div>
       <div class="label">The bot's answer</div><div class="answer">${esc(e.answer)}</div></div>
       <div class="card"><div class="label">Rubric: how fully does the answer cover each point?</div>
-      <p class="explain">The rubric is the checklist for the question above: each item is one point a good answer to it should make. Score how fully the bot's answer covers each item, from 0 (not at all) to 4 (fully).</p>`;
+      <p class="explain">The rubric is the checklist for the question above: each item is one point a good answer to it should make. Score how fully the bot's answer covers each item, from 1 (not at all) to 5 (fully).</p>`;
     let marked = false;
     e.rubric.forEach((r) => {
       const v = g.r[r.id];
       const next = !marked && !Number.isInteger(v); if (next) marked = true;
       html += `<div class="row${next ? " next" : ""}"><div class="criterion">${esc(r.id)}: ${esc(r.criterion)}</div>
-        ${choiceButtons(SCALE.map((l, i) => [i, l]), Number.isInteger(v) ? v : "", `data-score="${r.id}"`)}</div>`;
+        ${choiceButtons(SCALE.map((l, i) => [i + 1, l]), Number.isInteger(v) ? v : "", `data-score="${r.id}"`)}</div>`;
     });
   }
   html += `<p class="meta">Comment (optional)</p><textarea id="comment">${esc(g.comment || "")}</textarea></div>`;
@@ -193,7 +193,7 @@ document.addEventListener("keydown", (ev) => {
   if (["TEXTAREA", "INPUT"].includes(document.activeElement.tagName)) return;
   if (ev.key === "ArrowRight") go(state.pos[state.part] + 1);
   else if (ev.key === "ArrowLeft") go(state.pos[state.part] - 1);
-  else if (state.part === 2 && /^[0-4]$/.test(ev.key)) {
+  else if (state.part === 2 && /^[1-5]$/.test(ev.key)) {
     const e = current(), g = entryOf(2, e.key), open = e.rubric.find((r) => !Number.isInteger(g.r[r.id]));
     if (open) { g.r[open.id] = +ev.key; save(); render(); }
   }

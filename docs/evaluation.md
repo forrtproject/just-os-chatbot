@@ -92,7 +92,7 @@ Why the scores look low: many documents are on the same subject (for example, ma
 | **hit@7** | For questions with `expected_dois`: one of them is in the 7 sources that the LLM saw; for questions with `expected_urls` (all of `eval/forrt_questions.jsonl`): one of them is among the forrt.org pages a FORRT-page answer used |
 | **Judge support** | After `eval/judge.py`: mean share of cited sentences that their source passage supports (0-1); "–" when the run was not judged |
 | **Citations valid** | Share of answers where every `[n]` in the text points to a source in the list |
-| **Rubric coverage** | For questions with a rubric, after `eval/rubric_judge.py`: mean score of the rubric items, 0 (not covered) to 4 (fully), divided by 4 |
+| **Rubric coverage** | For questions with a rubric, after `eval/rubric_judge.py`: mean score of the rubric items, 1 (not covered) to 5 (fully), minus 1, divided by 4 (the 1-5 scale of every score, #54; the same value as ResearchQA's 0-4 divided by 4) |
 | **Mean s / p95 s** | Mean and 95th-percentile answer time in seconds (target p95 ≤ 15 s) |
 | **USD / 1k q** | OpenRouter cost for 1,000 questions (from the token counts) |
 

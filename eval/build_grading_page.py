@@ -7,7 +7,7 @@ Part 1 rates every item: is the question one a researcher would ask, and for eac
 item, should a good answer cover it (essential, nice to have, not needed) and is it in the
 glossary definition. This is the check ResearchQA ran with PhD annotators.
 
-Part 2 grades answers against a rubric on the 0-4 scale of eval/rubric_judge.py, with the
+Part 2 grades answers against a rubric on the 1-5 scale of eval/rubric_judge.py, with the
 same instructions the judge gets, so the expert's scores and the judge's compare directly.
 Both see the answer as the app shows it; the page also removes the [n] markers, which would
 tell the expert which answers had the library.
