@@ -283,3 +283,37 @@ def test_topic_check_choice_is_checked_and_passed_on(app):
     assert [r["router"] for r in read_jsonl(app.config["CHAT_LOG_FILE"])] == ["cosine", "default"]
     html = client.get("/").get_data(as_text=True)
     assert 'id="router-select"' in html and 'value="jev"' in html and 'value="none"' in html
+
+
+def test_review_page_and_save_keep_every_reviewer_in_its_own_csv(app, tmp_path):
+    import csv
+    items = [{"id": "q1", "category": "open science", "question": "What is open data?", "expected": "answer",
+              "bot_did": "answered from the papers", "answered_from": "papers", "answer": "Open data is [0].",
+              "sources": [{"n": 0, "title": "Paper", "doi": "10.1/a", "link": "https://doi.org/10.1/a",
+                           "passage": "Open data are free.", "cited": True}]}]
+    (tmp_path / "items.json").write_text(json.dumps(items))
+    app.config.update(REVIEW_ITEMS_FILE=str(tmp_path / "items.json"), REVIEW_DIR=str(tmp_path / "reviews"))
+    client = app.app.test_client()
+    html = client.get("/review").get_data(as_text=True)
+    assert "What is open data?" in html and "DOI 10.1/a" in html and "Open data are free." in html
+    scores = {"q1": {"decision": "right", "correctness": "4", "citation_support": "5", "source_relevance": "n/a",
+                     "completeness": "3", "clarity": "4", "note": "=HYPERLINK(x)"}}
+    assert client.post("/review/save", json={"reviewer": "", "scores": scores}).status_code == 400  # name needed
+    assert client.post("/review/save", json={"reviewer": "A", "scores": {"zz": {}}}).status_code == 400  # unknown id
+    assert client.post("/review/save", json={"reviewer": "A", "scores": {"q1": {"correctness": "9"}}}).status_code == 400
+    first = client.post("/review/save", json={"reviewer": "Ada L.", "scores": scores}).get_json()
+    second = client.post("/review/save", json={"reviewer": "Bo", "scores": scores}).get_json()
+    assert first["file"] != second["file"] and first["file"].startswith("review_ada-l_")
+    rows = list(csv.DictReader(open(tmp_path / "reviews" / first["file"], encoding="utf-8")))
+    assert rows[0]["citation_support"] == "5" and rows[0]["note"] == "'=HYPERLINK(x)"  # no formula in a spreadsheet
+    app.config["REVIEW_ITEMS_FILE"] = str(tmp_path / "missing.json")
+    assert client.get("/review").status_code == 404
+
+
+def test_parallel_log_writes_keep_whole_lines(app, tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+    path = str(tmp_path / "log.jsonl")
+    big = ["x" * 50000]  # longer than one write call
+    with ThreadPoolExecutor(8) as pool:
+        list(pool.map(lambda i: app._append_jsonl(path, [json.dumps({"i": i, "text": big[0]})]), range(40)))
+    assert sorted(json.loads(line)["i"] for line in open(path, encoding="utf-8")) == list(range(40))

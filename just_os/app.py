@@ -1,8 +1,10 @@
+import csv
 import json
 import logging
 import os
 import random
 import secrets
+import threading
 import re
 import uuid
 from datetime import datetime, timezone
@@ -37,6 +39,48 @@ ARENA_CRITERIA = {
     "clarity": "Clarity: clear and useful for the question",
 }
 ARENA_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+APPEND_LOCK = threading.Lock()  # chat, feedback and arena logs (_append_jsonl)
+
+# Review page (#8): per question one decision and 0-5 scores ("n/a" when the bot gave no answer)
+REVIEW_DECISIONS = {
+    "right": "Right call (answered when it should, or refused when it should)",
+    "should_refuse": "Wrong: it answered, but should have refused",
+    "should_answer": "Wrong: it refused or found no sources, but should have answered",
+    "unsure": "Unsure",
+}
+REVIEW_CRITERIA = {
+    "correctness": "Correctness: what the answer says is true and accurate",
+    "citation_support": "Citation support: each cited passage or page really says what the sentence citing it says",
+    "source_relevance": "Source relevance: the sources are the right ones for this question",
+    "completeness": "Completeness: it covers what a good answer to this question needs",
+    "clarity": "Clarity: clear, well organised, easy to act on",
+}
+REVIEW_FIELDS = ["reviewer", "item_id", "category", "expected", "bot_did", "question", "decision",
+                 *REVIEW_CRITERIA, "note", "saved_at"]
+
+
+def review_rows(data: Dict[str, Any], items: Dict[str, Dict]) -> tuple:
+    """(problem or None, CSV rows) for a POST from /review: {"reviewer": name, "scores": {item_id: {...}}}."""
+    reviewer = data.get("reviewer")
+    scores = data.get("scores")
+    if not isinstance(reviewer, str) or not reviewer.strip() or len(reviewer) > 80:
+        return "Write your name (at most 80 characters) at the top.", []
+    if not isinstance(scores, dict) or not scores or not set(scores) <= set(items):
+        return "No scores, or scores for unknown questions.", []
+    rows, now = [], datetime.now(timezone.utc).isoformat(timespec="seconds")
+    for item_id, s in scores.items():
+        if not isinstance(s, dict) or s.get("decision", "") not in ("", *REVIEW_DECISIONS) or \
+                any(str(s.get(k, "")) not in ("", "n/a", "0", "1", "2", "3", "4", "5") for k in REVIEW_CRITERIA) or \
+                not isinstance(s.get("note", ""), str) or len(s.get("note", "")) > 2000:
+            return f"Invalid score for {item_id}.", []
+        item = items[item_id]
+        row = {"reviewer": reviewer.strip(), "item_id": item_id, "category": item["category"], "expected": item["expected"],
+               "bot_did": item["bot_did"], "question": item["question"], "decision": s.get("decision", ""),
+               **{k: str(s.get(k, "")) for k in REVIEW_CRITERIA}, "note": s.get("note", ""), "saved_at": now}
+        # a spreadsheet runs a cell that starts with = + - @ as a formula
+        rows.append({k: "'" + v if isinstance(v, str) and v[:1] in "=+-@" else v for k, v in row.items()})
+    return None, rows
 
 
 def valid_ratings(ratings) -> bool:
@@ -212,7 +256,8 @@ class FlaskApp:
         @self.app.context_processor
         def page_links():
             """For templates/_nav.html: link to the arena only when it is on."""
-            return {"nav_arena": self.config["ARENA_ENABLED"]}
+            return {"nav_arena": self.config["ARENA_ENABLED"],
+                    "nav_review": os.path.isfile(self.config.get("REVIEW_ITEMS_FILE") or "")}
 
         @self.app.route("/")
         def home():
@@ -286,6 +331,35 @@ class FlaskApp:
                 self._generate_chat_response(user_message, chat_id, model, stream, router),
                 mimetype="text/event-stream",
             )
+
+        @self.app.route("/review")
+        def review_page():
+            """Human review of the bot's answers (#8): scores per question, saved as CSV."""
+            items = self._review_items()
+            if items is None:
+                abort(404)
+            return render_template("review.html", items=items, criteria=REVIEW_CRITERIA, decisions=REVIEW_DECISIONS)
+
+        @self.app.route("/review/save", methods=["POST"])
+        @self.rate_limit_manager.limiter.limit(self.rate_limit_manager.get_chat_rate_limit)
+        def review_save():
+            """One reviewer's scores -> REVIEW_DIR/review_<name>_<time>.csv (a new file per save, never overwritten)."""
+            items = self._review_items()
+            problem, rows = review_rows(request.get_json(silent=True) or {}, {i["id"]: i for i in items or []})
+            if problem:
+                return jsonify({"status": "error", "message": problem}), 400
+            name = re.sub(r"[^a-z0-9]+", "-", rows[0]["reviewer"].lower()).strip("-")[:40] or "reviewer"
+            path = os.path.join(self.config["REVIEW_DIR"], f"review_{name}_{datetime.now(timezone.utc):%y%m%d-%H%M%S}.csv")
+            try:
+                os.makedirs(self.config["REVIEW_DIR"], exist_ok=True)
+                with open(path, "x", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=REVIEW_FIELDS)
+                    writer.writeheader()
+                    writer.writerows(rows)
+            except OSError as error:  # the reviewer still has the Export CSV button
+                logger.error("Could not save review %s: %s", path, error)
+                return jsonify({"status": "error", "message": "Could not save on the server; use Export CSV."}), 500
+            return jsonify({"status": "ok", "file": os.path.basename(path), "rows": len(rows)})
 
         @self.app.route("/chat/feedback", methods=["POST"])
         @self.rate_limit_manager.limiter.limit(
@@ -458,13 +532,24 @@ class FlaskApp:
         """Append ratings to ARENA_RATINGS_FILE; Redis stays the source of the leaderboard."""
         self._append_jsonl(self.config.get("ARENA_RATINGS_FILE"), rows)
 
+    def _review_items(self) -> Optional[list]:
+        """The review questions (eval/build_review.py), or None when the file is missing."""
+        try:
+            with open(self.config.get("REVIEW_ITEMS_FILE") or "", encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            return None
+
     def _append_jsonl(self, path: Optional[str], rows: list[str]) -> None:
-        """Append JSON lines to path (empty path: do nothing)."""
+        """Append JSON lines to path (empty path: do nothing).
+
+        One lock for all threads: a chat log line holds the whole answer (often > 8 KB), which Python
+        writes in several system calls, so two answers finishing at once could interleave their lines."""
         if not path:
             return
         try:
             os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-            with open(path, "a", encoding="utf-8") as file:
+            with APPEND_LOCK, open(path, "a", encoding="utf-8") as file:
                 file.write("".join(row + "\n" for row in rows))
         except OSError as error:  # a log write must never fail the user's request
             logger.warning("Could not append to %s: %s", path, error)

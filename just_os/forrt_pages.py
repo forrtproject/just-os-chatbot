@@ -349,7 +349,8 @@ class ForrtPages:
         text, removed = checks.strip_unsupported_links(text, pages)
         text = checks.clean_citations(text, len(pages))
         # the pages go to the Sources box under the answer (Qualle), not into the text
-        sources = [{"n": p["n"], "title": p["title"], "url": p["url"]} for p in pages]
+        # excerpt: the text the model read (eval/run.py saves it for the judges; the app shows title and url)
+        sources = [{"n": p["n"], "title": p["title"], "url": p["url"], "excerpt": p["excerpt"]} for p in pages]
         trace.update(rewrite=problems, removed_links=removed, seconds=round(time.perf_counter() - start, 1))
         logger.info(f"Timing: FORRT pages {trace['seconds']}s, {len(pages)} pages, removed links {removed}")
         return {"text": text, "sources": sources, "found": True, "trace": trace}

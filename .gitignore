@@ -23,6 +23,8 @@ data/**
 !data/chats/.gitkeep
 !data/chats/chats.jsonl
 !data/chats/feedback.jsonl
+!data/reviews/.gitkeep
+!data/reviews/*.csv
 archive/
 
 

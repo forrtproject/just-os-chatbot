@@ -12,7 +12,8 @@
 | [issues.md](issues.md) | Source text of the GitHub issues |
 | [curators.md](curators.md) | How a curator adds new FORRT resources to the index with one command (`./run curate`) |
 | [web-resources.md](web-resources.md) | The sample of 50 web resources without DOI (#18): which pages came through, and what to do with the rest |
-| [judge-check.md](judge-check.md) | The LLM judge's scores for the 12 Nov run, answer by answer, to check by hand (#8) |
+| [judge-check.md](judge-check.md) | 20 English questions (open science, FORRT, both, should-refuse): the bot's answers, sources and the LLM judge's scores, to check by hand (#8); the same questions without the judge's scores are on `/review` |
+| [team-testing.md](team-testing.md) | How to run a team test session through the tunnel without losing chats, arena ratings or reviews; the 100-question sheet and the `/review` page |
 
 Setup and the `/chat` API are in the [root README](../README.md).
 

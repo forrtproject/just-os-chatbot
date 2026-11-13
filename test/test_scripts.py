@@ -255,17 +255,28 @@ def test_scorecard_runs_a_configuration_with_its_settings(tmp_path, monkeypatch)
     assert merged.name.endswith("_cfg-x.csv") and scorecard.latest_runs(["x", "y"]) == [merged]
 
 
-def test_judge_sheet_lists_judged_answers_lowest_first_with_their_cited_passages(tmp_path):
+def test_judge_sheet_and_review_items_show_every_question_with_its_cited_sources(tmp_path):
+    import build_review
     run = tmp_path / "run.csv"
+    papers = json.dumps([{"n": 0, "title": "Paper A", "doi": "10.1/a", "url": ""}, {"n": 1, "title": "Paper B", "doi": "", "url": "https://b.org"}])
     pd.DataFrame([
-        {"id": "a1", "question": "Q1?", "answer": "Fine [0].", "passages": json.dumps(["P zero", "P one"]), "judge_support": 1.0},
-        {"id": "a2", "question": "Q2?", "answer": "Weak [1]. Bad [5].", "passages": json.dumps(["P zero", "P one"]), "judge_support": 0.5},
-        {"id": "r1", "question": "Pizza?", "answer": "Sorry", "passages": "[]", "judge_support": None},
+        {"id": "a1", "question": "Q1?", "expect": "answer", "outcome": "answered", "answered_from": "papers",
+         "answer": "Fine [0].", "passages": json.dumps(["P zero", "P one"]), "sources": papers, "judge_support": 1.0},
+        {"id": "a2", "question": "Q2?", "expect": "answer", "outcome": "answered", "answered_from": "forrt pages",
+         "answer": "Weak [1]. Bad [5].", "passages": json.dumps(["Page one"]),
+         "sources": json.dumps([{"n": 1, "title": "Teams", "url": "https://forrt.org/about/teams/"}]), "judge_support": 0.5},
+        {"id": "r1", "question": "Pizza?", "expect": "refuse", "outcome": "refused", "answered_from": "", "answer": "",
+         "passages": "[]", "sources": "[]", "judge_support": None},
     ]).to_csv(run, index=False)
-    text = judge_sheet.sheet(run)
-    assert text.index("## a2") < text.index("## a1") and "## r1" not in text  # lowest score first, unjudged left out
-    assert "Passage [1]" in text and "P one" in text and "Passage [0]</summary>" in text
-    assert "the citation is invalid" in text  # [5] has no passage
+    text = judge_sheet.sheet(run, {"r1": "should be refused"})
+    assert text.index("## a2") < text.index("## a1") < text.index("## r1")  # judged lowest first, then the rest
+    assert "Source [1]: Teams (https://forrt.org/about/teams/)" in text and "Page one" in text  # FORRT pages from 1
+    assert "Source [0]: Paper A (https://doi.org/10.1/a)" in text and "the citation is invalid" in text  # [5]
+    assert "**The bot:** refused" in text and "should be refused" in text
+    items = {i["id"]: i for i in build_review.items(run, [{"id": "r1", "category": "should be refused"}])}
+    assert [(s["n"], s["cited"], s["link"]) for s in items["a1"]["sources"]] == [(0, True, "https://doi.org/10.1/a"), (1, False, "https://b.org")]
+    assert "judge_support" not in json.dumps(items)  # reviewers score blind
+    assert items["r1"]["bot_did"] == "refused" and items["r1"]["sources"] == []
 
 
 def test_pairs_pick_the_answer_the_topic_check_would_have_sent(tmp_path):

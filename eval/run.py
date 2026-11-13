@@ -39,7 +39,7 @@ FIELDS = [
     "id", "lang", "cluster", "type", "route", "expect", "outcome", "answered_from", "correct", "hit", "n_citations",
     "citations_valid", "seconds", "classify_s", "search_s", "rerank_s", "answer_s",
     "prompt_tokens", "completion_tokens", "cost_usd", "retrieval",
-    "retrieved_dois", "question", "answer", "passages",
+    "retrieved_dois", "question", "answer", "passages", "sources",
 ]
 
 
@@ -86,6 +86,26 @@ def hit_of(q, ranked_dois, forrt):
         return ""
     pages = {s["url"].rstrip("/").lower() for s in (forrt or {}).get("sources", [])}
     return int(any(d in ranked_dois for d in expected) or bool(urls & pages))
+
+
+def passages_of(seen, limit=800):
+    """The text each [n] of the answer points to: the paper chunks (numbered from 0) or, for an answer
+    from the FORRT pages, the page excerpts (numbered from 1). limit 0 keeps the whole text."""
+    if seen.get("forrt") is not None:
+        texts = [s.get("excerpt", "") for s in seen["forrt"]["sources"]]
+    else:
+        texts = [n.text for n in seen["ranked"]]
+    return [" ".join(t.split())[: limit or None] for t in texts]
+
+
+def sources_of(seen):
+    if seen.get("forrt") is not None:
+        return [{"n": s["n"], "title": s["title"], "url": s["url"]} for s in seen["forrt"]["sources"]]
+    out = []
+    for i, node in enumerate(seen["ranked"]):
+        meta = plain_metadata(node.metadata)
+        out.append({"n": i, "title": meta.get("title", ""), "doi": doi_of(node), "url": meta.get("link_to_resource", "")})
+    return out
 
 
 def doi_of(node) -> str:
@@ -260,7 +280,9 @@ def main():
                 "question": q["question"],
                 "answer": (seen["raw"] or "") if args.full_answers else (seen["raw"] or "")[:2000],
                 # what the answer model saw, for eval/judge.py
-                "passages": json.dumps([" ".join(n.text.split())[:800] for n in seen["ranked"]]),
+                "passages": json.dumps(passages_of(seen, 0 if args.full_answers else 800)),
+                # per passage its title and DOI or URL, numbered as the answer cites them (human review)
+                "sources": json.dumps(sources_of(seen)),
             })
             f.flush()
             print(f"{q['id']:6} {outcome:10} {seconds:5.1f}s")

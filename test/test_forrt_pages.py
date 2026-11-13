@@ -126,7 +126,8 @@ def test_forrt_answer_from_the_picked_page(tmp_path):
     result = pages.answer("Which teams can I join?")
     assert result["found"] and result["trace"]["selected"] == ["https://forrt.org/about/teams/"]
     assert "https://forrt.slack.com/x" in result["text"]
-    assert result["sources"] == [{"n": 1, "title": "Teams", "url": "https://forrt.org/about/teams/"}]
+    assert [(s["n"], s["title"], s["url"]) for s in result["sources"]] == [(1, "Teams", "https://forrt.org/about/teams/")]
+    assert "Team Credit" in result["sources"][0]["excerpt"]  # the page text the model read (eval/run.py saves it)
     assert "forrt.org/about/teams" not in result["text"]  # the page goes to the Sources box, not the text
     assert "Team Credit" in client.calls[0]["messages"][1]["content"]  # the page text reached the model
 

@@ -162,6 +162,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "ARENA_RATINGS_FILE": "data/arena/ratings.jsonl",
     # Every arena question with all answers, rated or not (JSON lines); empty = not saved
     "ARENA_ROUNDS_FILE": "data/arena/rounds.jsonl",
+    # Page /review (#8): the questions, answers and sources people score (eval/build_review.py); scores
+    # are saved as one CSV per reviewer and save in REVIEW_DIR (in Git during the test phase, like the chats)
+    "REVIEW_ITEMS_FILE": "eval/human_review_items.json",
+    "REVIEW_DIR": "data/reviews",
     # Page /eval reads the result CSVs of eval/run.py, eval/classify.py and eval/compare_embeddings.py here
     "EVAL_RESULTS_DIR": "eval/results",
     # Chat page: every answered turn (question, answer, outcome: answered/off_topic/

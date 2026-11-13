@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JUST-OS Answer Review</title>
+    <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+    <style>
+        #review-page { max-width: 980px; margin: 0 auto; padding: 0 16px 48px; font-family: "Helvetica", sans-serif; color: #313131; }
+        #review-page h1 { color: #004055; font-size: 2rem; margin: 16px 0 8px; }
+        .review-intro, .review-scale { font-size: 0.95rem; line-height: 1.5; max-width: 80ch; }
+        .review-bar { position: sticky; top: 0; z-index: 2; background: #fffef4; border-bottom: 1px solid #e1e4e8;
+                      display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 10px 0; }
+        .review-bar label { font-weight: bold; }
+        .review-bar input { padding: 6px 8px; border: 1px solid #b9c4c9; border-radius: 4px; min-width: 220px; }
+        .review-bar button { padding: 7px 14px; border-radius: 4px; border: 1px solid #004055; background: #004055; color: white; cursor: pointer; }
+        .review-bar button.secondary { background: white; color: #004055; }
+        #review-status { font-size: small; color: #555; }
+        .review-item { background: white; border: 1px solid #e1e4e8; border-radius: 4px; padding: 16px 20px; margin: 20px 0; }
+        .review-item h2 { font-size: 1.2rem; color: #004055; margin: 0 0 6px; }
+        .review-meta { font-size: small; color: #444; display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 8px; }
+        .review-meta b { color: #313131; }
+        .review-item h3 { font-size: 1rem; margin: 14px 0 4px; }
+        .review-answer { white-space: pre-wrap; background: #f7f9fa; border-radius: 4px; padding: 10px 12px; font-size: 0.95rem; line-height: 1.5; }
+        .review-sources { list-style: none; padding: 0; margin: 0; font-size: 0.9rem; }
+        .review-sources li { border-top: 1px solid #eef0f2; padding: 6px 0; }
+        .review-sources .tag { font-size: small; padding: 1px 6px; border-radius: 3px; background: #e6f1f4; color: #004055; margin-left: 6px; }
+        .review-sources .tag.unused { background: #f1f1f1; color: #666; }
+        .review-sources details { margin-top: 4px; }
+        .review-sources details p { background: #f7f9fa; padding: 8px 10px; border-radius: 4px; line-height: 1.5; }
+        .review-form { display: grid; grid-template-columns: minmax(220px, 1fr) 2fr; gap: 8px 16px; margin-top: 12px; font-size: 0.9rem; align-items: start; }
+        .review-form fieldset { grid-column: 1 / -1; border: 1px solid #e1e4e8; border-radius: 4px; }
+        .review-form fieldset label { display: block; margin: 2px 0; }
+        .review-form select, .review-form textarea { padding: 4px 6px; border: 1px solid #b9c4c9; border-radius: 4px; font: inherit; }
+        .review-form textarea { grid-column: 1 / -1; min-height: 60px; }
+        .review-item.done { border-color: #2e8b57; }
+    </style>
+</head>
+
+<body>
+    <div id="header-bar">
+        <img src='/images/qualle.png' id="header-logo" alt="JUST-OS">
+    </div>
+    {% include "_nav.html" %}
+    <main id="review-page">
+        <h1>Answer review</h1>
+        <p class="review-intro">{{ items|length }} questions were asked to the JUST-OS bot. For each one you see the question,
+            what the bot should have done (answer or refuse), what it did, its answer, and every source it read: the
+            numbered passages from papers (with DOI) or forrt.org pages (with link). <b>[n]</b> in the answer points to
+            source <b>[n]</b> below it; open a source to read the exact text the bot was given. Score each question on its
+            own; you can stop and come back, your scores stay in this browser. When you are done, press
+            <b>Save to the team</b> (stores a CSV on the bot's server, which goes into the repository) and, to be safe,
+            <b>Export CSV</b> (a copy for you).</p>
+        <p class="review-scale"><b>Scores 0-5:</b> 0 = not at all / wrong, 1 = very poor, 2 = poor, 3 = acceptable,
+            4 = good, 5 = excellent. Choose <b>n/a</b> when the bot gave no answer (it refused or found no sources),
+            or the criterion does not apply.</p>
+
+        <div class="review-bar">
+            <label for="reviewer">Your name</label>
+            <input id="reviewer" autocomplete="name" placeholder="First and last name" maxlength="80">
+            <button type="button" id="save">Save to the team</button>
+            <button type="button" id="export" class="secondary">Export CSV</button>
+            <span id="review-status" role="status" aria-live="polite"></span>
+        </div>
+
+        {% for item in items %}
+        <article class="review-item" data-id="{{ item.id }}" data-category="{{ item.category }}" data-expected="{{ item.expected }}"
+                 data-bot-did="{{ item.bot_did }}" data-question="{{ item.question }}">
+            <h2>{{ loop.index }}. {{ item.question }}</h2>
+            <div class="review-meta">
+                <span><b>Category:</b> {{ item.category }}</span>
+                <span><b>The bot should:</b> {{ "answer" if item.expected == "answer" else "refuse (decline politely)" }}</span>
+                <span><b>The bot:</b> {{ item.bot_did }}</span>
+                <span><b>Question id:</b> {{ item.id }}</span>
+            </div>
+
+            <h3>What the bot answered</h3>
+            <div class="review-answer">{{ item.answer or "(No answer: the bot " ~ item.bot_did ~ ".)" }}</div>
+
+            <h3>Where it got it ({{ item.sources|length }} {{ "forrt.org pages" if item.answered_from == "forrt pages" else "paper passages" }})</h3>
+            {% if item.sources %}
+            <ul class="review-sources">
+                {% for s in item.sources|sort(attribute="cited", reverse=True) %}
+                <li><b>[{{ s.n }}]</b> {{ s.title }}
+                    {% if s.link %}— <a href="{{ s.link }}" target="_blank" rel="noopener noreferrer">{{ ("DOI " ~ s.doi) if s.doi else s.link }}</a>{% endif %}
+                    <span class="tag {{ '' if s.cited else 'unused' }}">{{ "cited in the answer" if s.cited else "read, not cited" }}</span>
+                    {% if s.passage %}<details><summary>Text the bot was given</summary><p>{{ s.passage }}</p></details>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}<p>No sources: the bot did not search.</p>{% endif %}
+
+            <div class="review-form">
+                <fieldset>
+                    <legend>Was answering or refusing the right call?</legend>
+                    {% for key, text in decisions.items() %}
+                    <label><input type="radio" name="decision-{{ item.id }}" value="{{ key }}"> {{ text }}</label>
+                    {% endfor %}
+                </fieldset>
+                {% for key, text in criteria.items() %}
+                <label for="{{ key }}-{{ item.id }}">{{ text }}</label>
+                <select id="{{ key }}-{{ item.id }}" data-key="{{ key }}">
+                    <option value="">–</option>
+                    {% for v in ["0", "1", "2", "3", "4", "5", "n/a"] %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+                </select>
+                {% endfor %}
+                <textarea data-key="note" maxlength="2000" aria-label="Note for question {{ item.id }}"
+                          placeholder="Note (optional): what is wrong or missing, a wrong citation, anything worth knowing"></textarea>
+            </div>
+        </article>
+        {% endfor %}
+    </main>
+
+    <script>
+    (() => {
+        const FIELDS = {{ (["reviewer", "item_id", "category", "expected", "bot_did", "question", "decision"] + criteria|list + ["note", "saved_at"])|tojson }};
+        const CRITERIA = {{ criteria|list|tojson }};
+        const STORE = "just-os-review:" + {{ items|map(attribute="id")|join(",")|tojson }};
+        const articles = [...document.querySelectorAll(".review-item")];
+        const reviewer = document.getElementById("reviewer");
+        const status = document.getElementById("review-status");
+
+        function collect() {
+            const scores = {};
+            for (const a of articles) {
+                const checked = a.querySelector("input[type=radio]:checked");
+                const s = { decision: checked ? checked.value : "" };
+                for (const el of a.querySelectorAll("[data-key]")) s[el.dataset.key] = el.value;
+                if (s.decision || s.note || CRITERIA.some((k) => s[k])) scores[a.dataset.id] = s;
+                a.classList.toggle("done", Boolean(s.decision) && CRITERIA.every((k) => s[k]));
+            }
+            return scores;
+        }
+
+        function remember() {  // per-browser draft, so a closed tab loses nothing
+            const scores = collect();
+            try { localStorage.setItem(STORE, JSON.stringify({ reviewer: reviewer.value, scores })); } catch (e) {}
+            const done = articles.filter((a) => a.classList.contains("done")).length;
+            status.textContent = `${done} of ${articles.length} questions fully scored`;
+        }
+
+        function restore() {
+            let saved = null;
+            try { saved = JSON.parse(localStorage.getItem(STORE) || "null"); } catch (e) {}
+            if (!saved) return;
+            reviewer.value = saved.reviewer || "";
+            for (const a of articles) {
+                const s = (saved.scores || {})[a.dataset.id];
+                if (!s) continue;
+                const radio = a.querySelector(`input[type=radio][value="${s.decision}"]`);
+                if (radio) radio.checked = true;
+                for (const el of a.querySelectorAll("[data-key]")) el.value = s[el.dataset.key] || "";
+            }
+        }
+
+        function csvCell(v) {
+            v = String(v ?? "");
+            if (/^[=+\-@]/.test(v)) v = "'" + v;  // no formulas when opened in a spreadsheet
+            return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+        }
+
+        document.getElementById("export").addEventListener("click", () => {
+            const scores = collect();
+            if (!reviewer.value.trim()) { status.textContent = "Write your name at the top first."; reviewer.focus(); return; }
+            const now = new Date().toISOString();
+            const lines = [FIELDS.join(",")];
+            for (const a of articles) {
+                const s = scores[a.dataset.id];
+                if (!s) continue;
+                const row = { reviewer: reviewer.value.trim(), item_id: a.dataset.id, category: a.dataset.category,
+                              expected: a.dataset.expected, bot_did: a.dataset.botDid, question: a.dataset.question,
+                              ...s, saved_at: now };
+                lines.push(FIELDS.map((f) => csvCell(row[f])).join(","));
+            }
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(new Blob([lines.join("\n") + "\n"], { type: "text/csv" }));
+            link.download = `review_${reviewer.value.trim().replace(/[^A-Za-z0-9]+/g, "-")}.csv`;
+            link.click();
+            status.textContent = `Exported ${lines.length - 1} questions.`;
+        });
+
+        document.getElementById("save").addEventListener("click", async () => {
+            const scores = collect();
+            if (!reviewer.value.trim()) { status.textContent = "Write your name at the top first."; reviewer.focus(); return; }
+            if (!Object.keys(scores).length) { status.textContent = "Nothing scored yet."; return; }
+            status.textContent = "Saving…";
+            try {
+                const r = await fetch("/review/save", { method: "POST", headers: { "Content-Type": "application/json" },
+                                                        body: JSON.stringify({ reviewer: reviewer.value.trim(), scores }) });
+                const data = await r.json();
+                status.textContent = r.ok ? `Saved ${data.rows} questions for the team (${data.file}). Thank you!`
+                                          : `Not saved: ${data.message}`;
+            } catch (e) {
+                status.textContent = "Not saved: the server could not be reached. Use Export CSV and send the file.";
+            }
+        });
+
+        restore();
+        document.addEventListener("input", remember);
+        document.addEventListener("change", remember);
+        remember();
+    })();
+    </script>
+</body>
+
+</html>

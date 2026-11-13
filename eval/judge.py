@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config.settings import get_config  # noqa: E402
 from just_os.qualle import OpenAIClientManager, QueryProcessor  # noqa: E402
 
-PROMPT = """You check the citations of an answer. The sources are numbered from 0.
+PROMPT = """You check the citations of an answer. The sources are numbered as the answer cites them.
 For every sentence of the answer that cites a source, such as [2], decide whether that
 source supports what the sentence says.
 
@@ -38,7 +38,8 @@ def judge_row(processor: QueryProcessor, row: dict):
     passages = json.loads(row.get("passages") or "[]")
     if row.get("outcome") != "answered" or not passages or not row.get("answer"):
         return ""
-    sources = "\n".join(f"[{i}] {text}" for i, text in enumerate(passages))
+    start = 1 if row.get("answered_from") == "forrt pages" else 0  # FORRT pages are numbered from 1
+    sources = "\n".join(f"[{i}] {text}" for i, text in enumerate(passages, start))
     value = processor._structured_output(PROMPT.format(sources=sources, answer=row["answer"]), "supported_share", "number")
     try:
         return round(min(max(float(value), 0.0), 1.0), 2)
