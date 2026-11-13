@@ -320,3 +320,34 @@ def test_parallel_log_writes_keep_whole_lines(app, tmp_path):
     with ThreadPoolExecutor(8) as pool:
         list(pool.map(lambda i: app._append_jsonl(path, [json.dumps({"i": i, "text": big[0]})]), range(40)))
     assert sorted(json.loads(line)["i"] for line in open(path, encoding="utf-8")) == list(range(40))
+
+
+# --- debug panel (DEBUG_PANEL, just_os/trace.py)
+
+
+class DebugRag:
+    def __init__(self):
+        self.options = None
+
+    def get_response(self, message, chat_id, model, **options):
+        self.options = options
+        yield {"status": "complete", "message": "<p>answer</p>", "outcome": "answered"}
+
+
+def test_debug_panel_is_on_by_default_and_the_setting_turns_it_off(app):
+    client = app.app.test_client()
+    assert b"JUSTOS_DEBUG_PANEL = true" in client.get("/").data
+    rag = app._rag_service = DebugRag()
+    client.post("/chat", json={"message": "a question", "chat_id": "c", "debug": True}).get_data()
+    assert rag.options == {"debug": True}
+
+    app.config["DEBUG_PANEL"] = False
+    assert b"JUSTOS_DEBUG_PANEL = false" in client.get("/").data
+    client.post("/chat", json={"message": "a question", "chat_id": "c", "debug": True}).get_data()
+    assert rag.options == {}  # the call is as before
+
+
+def test_widget_request_without_debug_is_unchanged(app):
+    rag = app._rag_service = DebugRag()
+    app.app.test_client().post("/chat", json={"message": "a question", "chat_id": "c"}).get_data()
+    assert rag.options == {}

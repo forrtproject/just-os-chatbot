@@ -15,6 +15,8 @@ from typing import Any, Dict, Optional, Tuple
 
 import httpx
 
+from just_os import trace
+
 logger = logging.getLogger(__name__)
 
 # Topic check per request (chat and arena dropdowns, eval/classify.py --routers): see Qualle.route.
@@ -63,9 +65,11 @@ class DecisionClient:
         except Exception as exc:
             info.update(ms=round((time.perf_counter() - start) * 1000), error=f"{exc.__class__.__name__}: {str(exc)[:200]}")
             logger.error(f"Decision model {model} failed: {info['error']}")
+            trace.decision_call(model, start, info, questions, None)
             return None, info
         usage = out.get("usage") or {}
         info.update(ms=round((time.perf_counter() - start) * 1000), cost=usage.get("cost"))
+        trace.decision_call(model, start, info, questions, out.get("answers", out))
         return out.get("answers", out), info
 
     def route(self, model: str, question: str) -> Tuple[Optional[str], float, Dict[str, Any]]:

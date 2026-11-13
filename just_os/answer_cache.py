@@ -16,6 +16,8 @@ from typing import Any, Dict, Optional
 
 import numpy as np
 
+from just_os import trace
+
 logger = logging.getLogger(__name__)
 
 # Settings that change the answer: a cache entry is only reused with the same values
@@ -53,6 +55,7 @@ class AnswerCache:
         vector = np.asarray(self.embed_model.get_query_embedding(query), dtype=np.float32)
         return vector / (np.linalg.norm(vector) or 1.0)
 
+    @trace.step("answer cache", lambda result, *a, **k: {"hit": bool(result)})
     def lookup(self, query: str, model: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Return the stored entry ({"response", "text"}) of the most similar fresh question."""
         try:

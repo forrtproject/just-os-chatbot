@@ -32,6 +32,7 @@ from bs4 import BeautifulSoup, NavigableString, Tag
 from just_os import forrt_checks as checks
 from just_os import messages as msg
 from just_os.decisions import DecisionClient
+from just_os import trace
 
 logger = logging.getLogger(__name__)
 
@@ -209,6 +210,8 @@ class ForrtPages:
         logger.info(f"FORRT pages: {len(self.records)} pages from {self.dir}")
 
     # 1. candidates
+    @trace.step("page search", lambda result, *a, **k: {"pages": [
+        {"title": c["rec"]["title"], "url": c["rec"]["url"], "score": round(c["score"], 4)} for c in result]})
     def retrieve(self, question: str) -> List[Dict[str, Any]]:
         qv = np.asarray(self.embed_model.get_query_embedding(question), dtype=np.float32)
         qv = qv / max(float(np.linalg.norm(qv)), 1e-12)
@@ -315,6 +318,8 @@ class ForrtPages:
             temperature=0, max_tokens=self.config.get("FORRT_MAX_ANSWER_TOKENS", 1500))
         return (completion.choices[0].message.content or "").strip() if completion else ""
 
+    @trace.step("FORRT pages", lambda result, *a, **k: {k2: v for k2, v in (result.get("trace") or {}).items()
+                                                         if k2 in ("fetched", "language", "rewrite", "removed_links")})
     def answer(self, question: str, model: Optional[str] = None, language_text: Optional[str] = None) -> Dict[str, Any]:
         """{"text": Markdown answer citing [n], "sources": [{n, title, url}], "trace": {...}}; text is None on error.
         language_text: what the user typed (a rephrased follow-up may be in another language)."""
