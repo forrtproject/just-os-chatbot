@@ -46,7 +46,9 @@ def test_run_rows_read_metrics_a_judge_wrote_back_as_floats(tmp_path):
                                  "citations_valid": "0.0", "judge_support": "0.5"}])
     got = {(r["criterion"], r["scorer"]): r["score"] for r in scores.run_rows(run)}
     assert got[("source_relevance", "hit@7")] == 1
-    assert got[("citation_support", "citations valid")] == 0
+    assert got[("citation_format", "citations valid")] == 0
+    # a format check (every [n] points to a source) is not evidence of support: kept apart
+    assert ("citation_support", "citations valid") not in got
 
 
 def test_review_rows_keep_each_reviewers_last_save_and_skip_na(tmp_path):
