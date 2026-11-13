@@ -41,6 +41,11 @@ MODELS = {
     "E4": {"name": "Qwen/Qwen3-Embedding-0.6B", "query": QWEN_QUERY},
     "E5": {"name": "qwen/qwen3-embedding-4b", "api": True, "query": QWEN_QUERY},
     "E6": {"name": "qwen/qwen3-embedding-8b", "api": True, "query": QWEN_QUERY},
+    # 13 Nov: OpenScholar's own retriever (Contriever, mean pooling, no prefixes), a scientific ModernBERT
+    # model, and Snowflake's multilingual arctic-embed (custom code, "query: " on questions, CLS pooling)
+    "E7": {"name": "OpenSciLM/OpenScholar_Retriever"},
+    "E8": {"name": "J0nasW/sciembed-full"},
+    "E9": {"name": "Snowflake/snowflake-arctic-embed-m-v2.0", "query": "query: ", "trust_remote_code": True},
 }
 
 
@@ -62,7 +67,7 @@ def local_model(spec, device):
     return HuggingFaceEmbedding(
         model_name=spec["name"], query_instruction=spec.get("query"),
         text_instruction=spec.get("text"), embed_batch_size=32, device=device,
-        model_kwargs=kwargs,
+        model_kwargs=kwargs, trust_remote_code=spec.get("trust_remote_code", False),
     )
 
 
