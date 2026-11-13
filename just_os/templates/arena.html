@@ -15,7 +15,7 @@
         <img src='/images/qualle.png' id="header-logo" alt="JUST-OS">
     </div>
     {% include "_nav.html" %}
-    <div id="arena" data-criteria='{{ criteria.items() | list | tojson }}' data-max-models="{{ max_models }}">
+    <div id="arena" data-criteria='{{ criteria.items() | list | tojson }}' data-scale='{{ scale | list | tojson }}' data-max-models="{{ max_models }}">
         <p class="arena-intro">Choose the models, ask a question, and rate each answer from 1 (bad) to 5 (very good).
             All models get the same sources.{% if blind %} The model names appear after you submit your ratings.{% endif %}</p>
 
@@ -74,7 +74,7 @@
                 </thead>
                 <tbody></tbody>
             </table>
-            <p class="arena-note">Mean rating from 1 to 5 per criterion; overall = mean of the criteria.
+            <p class="arena-note">Mean rating from {{ scale|first }} to {{ scale|last }} per criterion; overall = mean of the criteria.
                 Sorted by overall, then time. Few ratings give unstable numbers.</p>
         </div>
     </div>

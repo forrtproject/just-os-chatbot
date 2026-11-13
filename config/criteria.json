@@ -1,5 +1,5 @@
 {
-  "scale": [0, 4],
+  "scale": {"min": 1, "max": 5, "labels": {"1": "wrong or very poor", "2": "poor", "3": "acceptable", "4": "good", "5": "excellent"}},
   "decisions": {
     "right": "Right call (answered when it should, or refused when it should)",
     "should_refuse": "Wrong: it answered, but should have refused",
@@ -15,11 +15,9 @@
   },
   "forms": {
     "review": {
-      "scale": [0, 5],
       "criteria": ["correctness", "citation_support", "source_relevance", "completeness", "clarity"]
     },
     "arena": {
-      "scale": [1, 5],
       "criteria": {
         "correct": {"label": "Correct", "definition": "the answer is right and complete", "maps_to": ["correctness", "completeness"]},
         "references": {"label": "References", "definition": "the cited sources support the answer", "maps_to": ["citation_support", "source_relevance"]},

@@ -1,7 +1,9 @@
-"""config/criteria.json (#54): one set of criteria for the review page, the arena and later the judges."""
+"""config/criteria.json (#54): one set of criteria and one scale for the review page, the arena and later the judges."""
 
 from just_os import criteria
 from just_os.app import ARENA_CRITERIA, REVIEW_CRITERIA, REVIEW_DECISIONS, review_rows, valid_ratings
+
+ITEMS = {"q1": {"category": "", "expected": "answer", "bot_did": "answered", "question": "?"}}
 
 
 def test_pages_show_the_same_texts_as_before():
@@ -27,13 +29,9 @@ def test_forms_use_only_shared_criteria():
     assert set().union(*criteria.ARENA_MAPS_TO.values()) == shared  # the arena covers every shared criterion
 
 
-def test_scales_in_the_file_match_what_the_pages_accept():
-    forms = criteria.DEFINITIONS["forms"]
-    low, high = forms["review"]["scale"]
-    items = {"q1": {"category": "", "expected": "answer", "bot_did": "answered", "question": "?"}}
-    for value, ok in [(low, True), (high, True), (low - 1, False), (high + 1, False)]:
-        problem, _ = review_rows({"reviewer": "r", "scores": {"q1": {"correctness": str(value)}}}, items)
+def test_review_and_arena_accept_the_same_scale():
+    assert list(criteria.SCALE) == [1, 2, 3, 4, 5] == list(criteria.SCALE_LABELS)
+    for value, ok in [(1, True), (5, True), (0, False), (6, False)]:
+        problem, _ = review_rows({"reviewer": "r", "scores": {"q1": {"correctness": str(value)}}}, ITEMS)
         assert (problem is None) == ok, value
-    low, high = forms["arena"]["scale"]
-    for value, ok in [(low, True), (high, True), (low - 1, False), (high + 1, False)]:
         assert valid_ratings({"A": {c: value for c in ARENA_CRITERIA}}) == ok, value
