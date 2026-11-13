@@ -531,3 +531,49 @@ Findings:
 6. **After this run** the prompt's example was changed: it read "what are its criticisms for qualitative work?" and the rewrite copied "qualitative" into "What are its main criticisms?" (chat a01, all 3 runs). The new example is on a topic outside the eval set; this change is not in the numbers above.
 
 Limits: 135 of the 138 chats were written for this eval (3 from the chat log) and are not reviewed; one judge; no re-ranker in this run; Llama 3.1 8B as answer and rewrite model.
+
+### 3.17 Topic checks, answer models and search settings (13 November 2026, 172 questions, `dev` at b7771e7)
+
+**Question:** which topic check sorts questions best, how Llama 3.1 8B, gpt-oss-20b and OpenScholar 8B answer behind it, and whether the search method and the re-ranker change what the answer model sees. The runs used `dev` of the morning of 13 November, before #53 (Replication Handbook in the FORRT pages), #55 (`FORRT_IN_PAPERS`) and #59 (follow-up context), so they describe the bot before those changes.
+
+**Runs:** 172 questions, the 140 of `eval/questions.jsonl` and the 32 of `eval/forrt_questions.jsonl` (144 should be answered, 28 refused). Topic check: `eval/classify.py --routers jev,clef-flash,clef,llm,cosine,banded,none` on these and `eval/refusal_questions.jsonl` (232 questions), 3 times (`classify_261113-0847`, `-0856`, `-0907`). Pairs: each model with `--route open_science` and `--route forrt` (`eval/run_batches.py`), then `eval/pairs.py` (`pairs_261113-1511.csv`). Search settings: the six `search-*` configurations of `eval/configs.json` with each model, topic check on (`run_261113-*_cfg-<configuration>__<model>.csv`). Every run judged with `eval/judge.py` and, except the FORRT routes, `eval/rubric_judge.py` (rubric scores moved to 1-5). OpenScholar answered from the self-hosted server.
+
+**Topic check** (the 172 questions, without `refusal_questions.jsonl`, on which banded was tuned; mean of 3 runs, accuracy varies by at most 0.009):
+
+| Topic check | Accuracy | False refusals (of 144) | False answers (of 28) | USD / 1k q |
+|---|---|---|---|---|
+| **jev** | **0.895** | 0 | 7 | 0.021 |
+| **banded** | **0.891** | 1 | 7 | 0.014 |
+| cosine | 0.866 | 6 | 9 | 0.000 |
+| llm | 0.810 | 6 | 12 | 0.084 |
+| clef-flash | 0.783 | 1 | 17 | 0.008 |
+| clef | 0.731 | 1 | 18 | 0.070 |
+
+**Pairs** (Jev in front; the same Correct with the other two topic check runs; rubric coverage from the papers-route run; `pairs_261113-1511.csv` also has the seven models of the overnight runs):
+
+| Answer model | Correct | Answered (of 144) | hit | Judge support | Rubric coverage |
+|---|---|---|---|---|---|
+| Llama 3.1 8B | 0.953 | 143 | 0.61 | 0.57 | 0.66 |
+| OpenScholar 8B | 0.919 | 137 | 0.61 | 0.59 | 0.67 |
+| gpt-oss-20b | 0.895 | 133 | 0.62 | **0.68** | **0.78** |
+
+**Search settings** (hit@7 / judge support / rubric coverage on the 25 questions with a rubric):
+
+| Search | Llama 3.1 8B | gpt-oss-20b | OpenScholar 8B |
+|---|---|---|---|
+| vector | **0.68** / 0.53 / 0.64 | **0.65** / **0.65** / **0.77** | **0.63** / 0.56 / **0.66** |
+| vector + re-ranker | 0.61 / 0.56 / 0.61 | 0.60 / 0.62 / 0.71 | 0.59 / 0.56 / 0.61 |
+| hybrid | 0.66 / 0.50 / 0.64 | 0.61 / 0.61 / 0.76 | 0.62 / 0.57 / 0.64 |
+| hybrid + re-ranker (default) | 0.59 / **0.56** / 0.64 | 0.57 / 0.63 / 0.75 | 0.56 / **0.61** / 0.60 |
+| bm25 | 0.44 / 0.49 / 0.63 | 0.41 / 0.60 / 0.75 | 0.41 / 0.51 / 0.59 |
+| bm25 + re-ranker | 0.46 / 0.54 / 0.64 | 0.46 / 0.60 / 0.76 | 0.44 / 0.51 / 0.60 |
+
+Correct stays between 0.83 and 0.90 in every setting.
+
+Findings:
+1. **Jev and banded are tied** as the best topic checks; neither turns away more than one in-scope question, and both let 7 of the 28 off-topic questions through.
+2. **Llama 3.1 8B answers the most** (143 of 144 with Jev); gpt-oss-20b and OpenScholar more often find no passage above the relevance threshold. **gpt-oss-20b writes the best-supported answers** of the three (judge 0.68 against 0.57-0.59; rubric 0.78 against 0.66-0.67). Next to the overnight runs, gpt-oss-20b has the highest rubric coverage of all eight models (Qwen3 14B 0.72, Mistral Small 3.2 0.72), while Gemma 3 12B and 27B (0.77) and Mistral Small 3.2 (0.75) have higher judge support.
+3. **The re-ranker lowers hit@7** by 0.04-0.07 for vector and hybrid search and raises it slightly for bm25. Judge support does not follow: with hybrid search the re-ranker raises it for all three models (+0.03 to +0.06), with vector search the effect is mixed. On rubric coverage no setting is ahead of the others by more than the noise of 25 questions.
+4. **Plain vector search does as well as the default on every measure** for all three models, without the 15-38 s the re-ranker added per question in this run. bm25 alone finds an expected paper far less often (0.41-0.44).
+
+Limits: `expected_dois` were picked by hand from bge-m3 vector search results (section 1), so hit@7 favours vector search; judge support and rubric coverage do not use them. One judge per measure, and rubric coverage on 25 questions. With 172 questions a difference in Correct below about 0.05 is within noise. Answer times are not comparable between runs: the runs shared one machine and some reused the ranked chunks of another run (`--cache-retrieval`). The runs predate #53, #55 and #59.
