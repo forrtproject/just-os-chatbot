@@ -18,7 +18,8 @@ A wrong refusal or a missing source in the answering eval can come from either s
 | Several models, resumable | `python eval/run_batches.py --since <YYMMDD-HHMM> <model> [<model> ...]` (host) | per model one `run_*.csv`: batches of 30 questions in fresh processes (one long process runs out of the Docker VM's 7.6 GB after ~47 questions); after a stop, the next start skips the questions already in the model's run files since `--since` and merges them when complete |
 | Named configuration, one command (E4, #32) | `python eval/scorecard.py <name> [<name> ...] [--limit N] [--since YYMMDD-HHMM] [--no-judge]` (host); `--table` only prints the table | A configuration is a name in `eval/configs.json` with the settings that differ from `.env` (for example `{"ROUTER": "jev", "CITATION_MODEL": "openai/gpt-oss-20b"}`: a topic check + answer model pair). Runs it like `run_batches.py` into `run_<YYMMDD-HHMM>_cfg-<name>.csv`, judges it with `judge.py`, and prints the table of the newest run of each configuration |
 | Every topic check x answer model pair (#9, #10) | 1. per answer model `python eval/run_batches.py --since <YYMMDD-HHMM> --questions eval/questions.jsonl,eval/forrt_questions.jsonl --route open_science <model>` and the same with `--route forrt`; 2. `eval/judge.py` on the papers run; 3. `eval/classify.py --routers jev,clef-flash,clef,llm,cosine,banded,none --questions <same files>`; 4. `python eval/pairs.py` | `eval/results/pairs_<YYMMDD-HHMM>.csv`: per pair Correct, answered, refused, hit, citations, judge, seconds, cost. The topic check only picks where a question goes, so each model answers every question once from the papers and once from the FORRT pages, and each topic check's decision per question picks the answer the pair gives: 2 runs per model instead of one per pair. `--route` runs reuse the ranked chunks (`--cache-retrieval`, `eval/.retrieval_cache/`), so the re-ranker runs once per question for all models and their seconds are answer time only |
-| Human review of 20 answers (#8) | 1. `docker compose run --rm -T web python eval/run.py --questions eval/human_review_questions.jsonl --full-answers --out eval/results/human_review_<YYMMDD>.csv` (20 English questions: 8 open science, 5 FORRT, 2 both, 5 science-related that should be refused); 2. `eval/judge.py` on it (FORRT-page answers are judged too, against the page text); 3. `python eval/judge_sheet.py <csv> --questions eval/human_review_questions.jsonl` → `docs/judge-check.md` (with the judge's scores); 4. `python eval/build_review.py <csv> --questions ...` → `eval/human_review_items.json` | Reviewers open `/review` (also through the tunnel), write their name, score each question (decision + five 0-5 scores + note) and press **Save to the team**: one CSV per save in `data/reviews/`, which is in Git during the test phase. Commit and push that folder afterwards. Compare their scores with `judge_support` by `item_id` |
+| Human review of 20 answers (#8) | 1. `docker compose run --rm -T web python eval/run.py --questions eval/human_review_questions.jsonl --full-answers --out eval/results/human_review_<YYMMDD>.csv` (20 English questions: 8 open science, 5 FORRT, 2 both, 5 science-related that should be refused); 2. `eval/judge.py` on it (FORRT-page answers are judged too, against the page text); 3. `python eval/judge_sheet.py <csv> --questions eval/human_review_questions.jsonl` → `docs/judge-check.md` (with the judge's scores); 4. `python eval/build_review.py <csv> --questions ...` → `eval/human_review_items.json` | Reviewers open `/review` (also through the tunnel), write their name, score each question (decision + five 1-5 scores, the arena's scale, + note) and press **Save to the team**: one CSV per save in `data/reviews/`, which is in Git during the test phase. Commit and push that folder afterwards. Compare their scores with `judge_support` by `item_id` |
+| Score rows and people against judges (#54) | `python eval/scores.py eval/results/human_review_<YYMMDD>.csv [--reviews data/reviews] [--arena data/arena/ratings.jsonl]` (host; standard library only) | `data/scores/scores_<run>.jsonl`: one row per answer, criterion and scorer (person, LLM judge or gold metric) with the raw score and its scale, from the run's columns, the last review of each reviewer per question and the arena ratings; prints people against each judge or metric (Spearman, means on 0-1) and reviewer against reviewer (quadratic weighted kappa, exact, within 1) |
 | 100 questions for a team arena session (#12) | `python eval/make_arena_sheet.py` | `eval/arena_test_questions.csv` / `.xlsx`: category, where to test (Arena, or Chat for the 10 two-part questions), the question and follow-up, what the bot should do, 3 suggested models, columns for tester and notes |
 | Table of runs | `docker compose exec web python eval/compare.py [csv ...]` | Markdown table (with "Judge support" once judged) |
 | LLM judge (#8) | `docker compose exec web python eval/judge.py eval/results/run_X.csv [--model ...]` | adds `judge_support` (0-1) to the run CSV; needs runs made after 10 Nov (they save the passages) |
@@ -92,7 +93,7 @@ Why the scores look low: many documents are on the same subject (for example, ma
 | **hit@7** | For questions with `expected_dois`: one of them is in the 7 sources that the LLM saw; for questions with `expected_urls` (all of `eval/forrt_questions.jsonl`): one of them is among the forrt.org pages a FORRT-page answer used |
 | **Judge support** | After `eval/judge.py`: mean share of cited sentences that their source passage supports (0-1); "–" when the run was not judged |
 | **Citations valid** | Share of answers where every `[n]` in the text points to a source in the list |
-| **Rubric coverage** | For questions with a rubric, after `eval/rubric_judge.py`: mean score of the rubric items, 0 (not covered) to 4 (fully), divided by 4 |
+| **Rubric coverage** | For questions with a rubric, after `eval/rubric_judge.py`: mean score of the rubric items, 1 (not covered) to 5 (fully), minus 1, divided by 4 (the 1-5 scale of every score, #54; the same value as ResearchQA's 0-4 divided by 4) |
 | **Mean s / p95 s** | Mean and 95th-percentile answer time in seconds (target p95 ≤ 15 s) |
 | **USD / 1k q** | OpenRouter cost for 1,000 questions (from the token counts) |
 
@@ -442,3 +443,29 @@ Findings:
 1. **The handbook and FORRT pages reach general questions** (1/10 → 9/10) and the answers on the 140 questions keep their quality on average; refusals do not change (the topic check decides them before this step).
 2. **On the 23 answers that got a page, citation support fell from 0.59 to 0.53:** few answers and a noisy judge, but plausibly pages rated "partly" (24 of 57) cited for claims they only partly back. On by default for the handbook and FLoRA gains; worth a hand check of these answers, and `FORRT_IN_PAPERS_MIN_SCORE` can be raised if it holds.
 3. Time: +0.1 s on the 140 questions (most add no page and make no decision call); +3 s on the handbook questions (long chapters read live). In production the page search runs while the re-ranker does, which hides part of it. 2 of 242 questions hit `FORRT_IN_PAPERS_TIMEOUT` (10 s) and were answered from the papers alone.
+
+### 3.15 People against the judges (13 November 2026, 20 questions, `data/scores/scores_human_review_261113.jsonl`)
+
+First comparison of people and automated scorers on the same answers (#54): the run `eval/results/human_review_261113.csv` (20 English questions, `eval/human_review_questions.jsonl`) and the reviews of Meltem Aksoy and Mohit Garg on `/review` during the team test, all on 1-5. `python eval/scores.py eval/results/human_review_261113.csv`.
+
+| Criterion | People against | n answers | Agreement | People mean (0-1) | Scorer mean (0-1) |
+|---|---|---|---|---|---|
+| decision | gold (outcome against `expect`) | 20 | 0.90 same decision | – | – |
+| citation support | support judge | 18 | 0.18 Spearman | 0.63 | 0.64 |
+| citation support | citations valid | 13 | – (always 1) | 0.65 | 1.00 |
+| source relevance | hit@7 | 15 | 0.46 Spearman | 0.70 | 0.87 |
+
+| Criterion | Weighted kappa, Meltem / Mohit (14 answers) | Exact | Within 1 |
+|---|---|---|---|
+| correctness | 0.35 | 0.64 | 0.79 |
+| citation support | 0.48 | 0.50 | 0.93 |
+| source relevance | 0.37 | 0.36 | 0.64 |
+| completeness | 0.45 | 0.43 | 0.86 |
+| clarity | 0.09 | 0.14 | 0.79 |
+
+Findings, on few answers:
+1. **People and the gold labels agree on answering or refusing** in 90% of answers.
+2. **The support judge's mean matches people's (0.64 and 0.63), but it ranks answers differently** (Spearman 0.18): the judge is not yet a reliable stand-in for people on single answers.
+3. **The two reviewers agree only moderately** (kappa 0.35-0.48) and barely on clarity (0.09), and source relevance is within 1 point on only 9 of 14 answers: the criteria need sharper definitions or examples before people's scores can check the judges.
+4. Correctness, completeness and clarity have no automated scorer yet (#54, step 4), and the run was not rubric-judged (3 of the 20 questions have a rubric).
+

@@ -4,9 +4,10 @@
         [--items eval/questions.jsonl] [--model google/gemini-3.8-flash]
 
 For each answered row whose question has a rubric in --items, a judge model scores every
-rubric item from 0 (not covered) to 4 (fully covered), the scale of ResearchQA. Columns
+rubric item from 1 (not covered) to 5 (fully covered): the five levels of ResearchQA's 0-4 on the
+1-5 scale every score uses (config/criteria.json, #54). Columns
 added to the run CSV (empty for questions without a rubric):
-- rubric_coverage: mean score / 4 over all items (0-1)
+- rubric_coverage: mean of (score - 1) / 4 over all items (0-1, the same value as ResearchQA's score / 4)
 - rubric_core: the same over the "core" items only
 - rubric_scores: the scores per item id, as JSON
 - doi_recall: share of the item's expected_dois among the sources the answer cites
@@ -32,7 +33,7 @@ from just_os.qualle import OpenAIClientManager  # noqa: E402
 
 PROMPT = """You grade an answer against a rubric. For each rubric item, decide how fully the
 answer covers it, whatever the language of the answer:
-0 not at all, 1 barely, 2 partly, 3 mostly, 4 fully.
+1 not at all, 2 barely, 3 partly, 4 mostly, 5 fully.
 Judge only what the answer says; citation markers such as [2] do not matter.
 
 Question: {question}
@@ -43,11 +44,11 @@ Answer:
 Rubric:
 {rubric}
 
-Return a JSON object {{"scores": {{"<item id>": <0-4>, ...}}}} with one entry per item."""
+Return a JSON object {{"scores": {{"<item id>": <1-5>, ...}}}} with one entry per item."""
 
 
 def judge(manager, model, question, answer, rubric, cost):
-    """Scores per rubric item id (0-4), or None when the judge fails."""
+    """Scores per rubric item id (1-5), or None when the judge fails."""
     items = "\n".join(f"{r['id']}: {r['criterion']}" for r in rubric)
     try:
         response = manager.client.chat.completions.create(
@@ -59,7 +60,7 @@ def judge(manager, model, question, answer, rubric, cost):
         )
         cost[0] += getattr(response.usage, "cost", 0) or 0
         scores = parse_json(response.choices[0].message.content)["scores"]
-        return {r["id"]: min(max(int(scores[r["id"]]), 0), 4) for r in rubric}
+        return {r["id"]: min(max(int(scores[r["id"]]), 1), 5) for r in rubric}
     except Exception as e:  # noqa: BLE001  a failed judgement leaves the row empty, the run goes on
         print(f"judge failed: {e}")
         return None
@@ -67,7 +68,7 @@ def judge(manager, model, question, answer, rubric, cost):
 
 def coverage(scores, rubric, kind=None):
     ids = [r["id"] for r in rubric if kind in (None, r["type"])]
-    return round(sum(scores[i] for i in ids) / (4 * len(ids)), 3) if ids else ""
+    return round(sum(scores[i] - 1 for i in ids) / (4 * len(ids)), 3) if ids else ""
 
 
 def doi_recall(row, item):

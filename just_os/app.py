@@ -20,6 +20,7 @@ from werkzeug.exceptions import TooManyRequests
 
 from config.settings import get_config
 from just_os.chat_manager import ChatManager
+from just_os import criteria
 from just_os import eval_report
 from just_os.decisions import ROUTERS
 from just_os.extensions import flask_static_digest
@@ -33,30 +34,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # a: A is better, b: B is better, tie: both are good, bad: both are bad
-# Arena: each answer is rated 1-5 on these criteria; the answer time is measured
-ARENA_CRITERIA = {
-    "correct": "Correct: the answer is right and complete",
-    "references": "References: the cited sources support the answer",
-    "clarity": "Clarity: clear and useful for the question",
-}
+# Arena: each answer is rated on these criteria and scale (config/criteria.json, #54); the answer time is measured
+ARENA_CRITERIA = criteria.ARENA
 ARENA_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 APPEND_LOCK = threading.Lock()  # chat, feedback and arena logs (_append_jsonl)
 
-# Review page (#8): per question one decision and 0-5 scores ("n/a" when the bot gave no answer)
-REVIEW_DECISIONS = {
-    "right": "Right call (answered when it should, or refused when it should)",
-    "should_refuse": "Wrong: it answered, but should have refused",
-    "should_answer": "Wrong: it refused or found no sources, but should have answered",
-    "unsure": "Unsure",
-}
-REVIEW_CRITERIA = {
-    "correctness": "Correctness: what the answer says is true and accurate",
-    "citation_support": "Citation support: each cited passage or page really says what the sentence citing it says",
-    "source_relevance": "Source relevance: the sources are the right ones for this question",
-    "completeness": "Completeness: it covers what a good answer to this question needs",
-    "clarity": "Clarity: clear, well organised, easy to act on",
-}
+# Review page (#8): per question one decision and scores on shared criteria and the same scale as the arena
+# (config/criteria.json, #54), "n/a" when the bot gave no answer
+REVIEW_DECISIONS = criteria.DECISIONS
+REVIEW_CRITERIA = criteria.REVIEW
+REVIEW_VALUES = ("", "n/a", *(str(v) for v in criteria.SCALE))
 REVIEW_FIELDS = ["reviewer", "item_id", "category", "expected", "bot_did", "question", "decision",
                  *REVIEW_CRITERIA, "note", "saved_at"]
 
@@ -72,7 +60,7 @@ def review_rows(data: Dict[str, Any], items: Dict[str, Dict]) -> tuple:
     rows, now = [], datetime.now(timezone.utc).isoformat(timespec="seconds")
     for item_id, s in scores.items():
         if not isinstance(s, dict) or s.get("decision", "") not in ("", *REVIEW_DECISIONS) or \
-                any(str(s.get(k, "")) not in ("", "n/a", "0", "1", "2", "3", "4", "5") for k in REVIEW_CRITERIA) or \
+                any(str(s.get(k, "")) not in REVIEW_VALUES for k in REVIEW_CRITERIA) or \
                 not isinstance(s.get("note", ""), str) or len(s.get("note", "")) > 2000:
             return f"Invalid score for {item_id}.", []
         item = items[item_id]
@@ -80,19 +68,19 @@ def review_rows(data: Dict[str, Any], items: Dict[str, Dict]) -> tuple:
                "bot_did": item["bot_did"], "question": item["question"], "decision": s.get("decision", ""),
                **{k: str(s.get(k, "")) for k in REVIEW_CRITERIA}, "note": s.get("note", ""), "saved_at": now}
         # a spreadsheet runs a cell that starts with = + - @ as a formula
-        rows.append({k: "'" + v if isinstance(v, str) and v[:1] in "=+-@" else v for k, v in row.items()})
+        rows.append({k: "'" + v if isinstance(v, str) and v[:1] and v[:1] in "=+-@" else v for k, v in row.items()})
     return None, rows
 
 
 def valid_ratings(ratings) -> bool:
-    """{"A": {"correct": 1-5, "references": 1-5, "clarity": 1-5}, ...} with at least one answer."""
+    """{"A": {"correct": s, "references": s, "clarity": s}, ...}, s on the shared scale, with at least one answer."""
     return (
         isinstance(ratings, dict)
         and bool(ratings)
         and all(
             isinstance(scores, dict)
             and set(scores) == set(ARENA_CRITERIA)
-            and all(type(v) is int and 1 <= v <= 5 for v in scores.values())
+            and all(type(v) is int and v in criteria.SCALE for v in scores.values())
             for scores in ratings.values()
         )
     )
@@ -346,7 +334,8 @@ class FlaskApp:
             items = self._review_items()
             if items is None:
                 abort(404)
-            return render_template("review.html", items=items, criteria=REVIEW_CRITERIA, decisions=REVIEW_DECISIONS)
+            return render_template("review.html", items=items, criteria=REVIEW_CRITERIA, decisions=REVIEW_DECISIONS,
+                                   scale=criteria.SCALE_LABELS)
 
         @self.app.route("/topics")
         def topics_page():
@@ -447,6 +436,7 @@ class FlaskApp:
                 embeddings=eval_report.embedding_runs(folder),
                 arena=arena,
                 criteria=ARENA_CRITERIA,
+                scale=criteria.SCALE_LABELS,
             )
 
         @self.app.route("/up")
@@ -467,6 +457,7 @@ class FlaskApp:
                 max_models=self.config["ARENA_MAX_MODELS"],
                 routers=ROUTERS,
                 criteria=ARENA_CRITERIA,
+                scale=criteria.SCALE_LABELS,
                 blind=self.config["ARENA_BLIND"],
             )
 
@@ -508,14 +499,14 @@ class FlaskApp:
 
         @self.app.route("/arena/rate", methods=["POST"])
         def arena_rate():
-            """Store 1-5 ratings per answer and criterion, then reveal the model names."""
+            """Store ratings per answer and criterion, then reveal the model names."""
             if not self.config["ARENA_ENABLED"]:
                 abort(404)
             data = request.get_json(silent=True) or {}
             ratings = data.get("ratings")
             if not valid_ratings(ratings):
                 names = ", ".join(ARENA_CRITERIA)
-                return jsonify({"status": "error", "message": f"Rate each answer 1-5 on: {names}."}), 400
+                return jsonify({"status": "error", "message": f"Rate each answer {criteria.SCALE[0]}-{criteria.SCALE[-1]} on: {names}."}), 400
             # getdel: one rating round per battle
             battle = self.chat_manager.redis.getdel(f"arena:battle:{data.get('battle_id')}")
             if battle is None:

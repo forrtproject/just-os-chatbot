@@ -1,0 +1,28 @@
+{
+  "scale": {"min": 1, "max": 5, "labels": {"1": "wrong or very poor", "2": "poor", "3": "acceptable", "4": "good", "5": "excellent"}},
+  "decisions": {
+    "right": "Right call (answered when it should, or refused when it should)",
+    "should_refuse": "Wrong: it answered, but should have refused",
+    "should_answer": "Wrong: it refused or found no sources, but should have answered",
+    "unsure": "Unsure"
+  },
+  "criteria": {
+    "correctness": {"label": "Correctness", "definition": "what the answer says is true and accurate"},
+    "completeness": {"label": "Completeness", "definition": "it covers what a good answer to this question needs"},
+    "citation_support": {"label": "Citation support", "definition": "each cited passage or page really says what the sentence citing it says"},
+    "source_relevance": {"label": "Source relevance", "definition": "the sources are the right ones for this question"},
+    "clarity": {"label": "Clarity", "definition": "clear, well organised, easy to act on"}
+  },
+  "forms": {
+    "review": {
+      "criteria": ["correctness", "citation_support", "source_relevance", "completeness", "clarity"]
+    },
+    "arena": {
+      "criteria": {
+        "correct": {"label": "Correct", "definition": "the answer is right and complete", "maps_to": ["correctness", "completeness"]},
+        "references": {"label": "References", "definition": "the cited sources support the answer", "maps_to": ["citation_support", "source_relevance"]},
+        "clarity": {"label": "Clarity", "definition": "clear and useful for the question", "maps_to": ["clarity"]}
+      }
+    }
+  }
+}

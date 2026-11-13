@@ -146,6 +146,7 @@ def test_arena_page_keeps_criteria_order(app):
     start = html.index("data-criteria='") + len("data-criteria='")
     keys = [key for key, _ in json.loads(html[start:html.index("'", start)])]
     assert keys == ["correct", "references", "clarity"]  # same order as the table headers
+    assert "data-scale='[1, 2, 3, 4, 5]'" in html  # the scale of the review page too (#54)
 
 
 def test_chat_rejects_unknown_model(app):
@@ -297,6 +298,7 @@ def test_review_page_and_save_keep_every_reviewer_in_its_own_csv(app, tmp_path):
     client = app.app.test_client()
     html = client.get("/review").get_data(as_text=True)
     assert "What is open data?" in html and "DOI 10.1/a" in html and "Open data are free." in html
+    assert "Scores 1-5:" in html and '<option value="0">' not in html  # the arena's scale (#54)
     scores = {"q1": {"decision": "right", "correctness": "4", "citation_support": "5", "source_relevance": "n/a",
                      "completeness": "3", "clarity": "4", "note": "=HYPERLINK(x)"}}
     assert client.post("/review/save", json={"reviewer": "", "scores": scores}).status_code == 400  # name needed

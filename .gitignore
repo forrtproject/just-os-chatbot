@@ -25,6 +25,7 @@ data/**
 !data/chats/feedback.jsonl
 !data/reviews/.gitkeep
 !data/reviews/*.csv
+!data/scores/*.jsonl
 archive/
 
 
