@@ -138,7 +138,7 @@ Two modes, both writing `eval/results/classify_<YYMMDD-HHMM>.csv` (one row per s
 
 A strategy tuned on these questions, such as the thresholds of `cosine`, scores too high on them; check it on questions it was not tuned on (section 3.7).
 
-**Question sets for the topic check.** `banded` is tuned on one group of files and reported on the other, and no question is in both; `cosine` was tuned on the reporting files themselves (3.7), so its scores there are in-sample:
+**Question sets for the topic check.** `banded` is tuned on one group of files and reported on the other, and no question is in both, though four tuning questions paraphrase report questions (q037 and pr01, q078 and q156 and t02, q007 and g02), too few to move the thresholds; `cosine` was tuned on the reporting files themselves (3.7), so its scores there are in-sample:
 
 | File | Questions | How it was built | Gold label | Checked by people | Used for |
 |---|---|---|---|---|---|
