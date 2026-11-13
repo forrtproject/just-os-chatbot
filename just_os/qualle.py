@@ -1,3 +1,4 @@
+import contextvars
 import html
 import json
 import logging
@@ -16,6 +17,7 @@ import torch
 from sentence_transformers import CrossEncoder
 
 from just_os.answer_cache import AnswerCache
+from just_os import trace
 from just_os.chat_manager import ChatManager
 from just_os.decisions import DECISION_ROUTERS, DecisionClient
 from just_os.forrt_lookup import ForrtLookup
@@ -292,6 +294,7 @@ Return your answer as a valid JSON object with a single string entry "category"
             return None
         return result
 
+    @trace.step("rephrase", lambda result, self, query, chat_id: {"from": query, "to": result})
     def rephrase_query(self, query: str, chat_id: str) -> str:
         """
         Rephrase a query based on conversation history.
@@ -356,6 +359,7 @@ class DocumentRetriever:
         self.adaptive_ratio = config.get("ADAPTIVE_TOP_K_RATIO", 0.5)
         self.adaptive_min = config.get("ADAPTIVE_TOP_K_MIN", 3)
 
+    @trace.step("citation check", lambda result, *a, **k: {"unverified": sorted(result)})
     def unsupported_citations(self, text: str, nodes: List[Any]) -> set:
         """
         VERIFY_CITATIONS: score each (cited sentence, cited chunk) pair with the re-ranker.
@@ -437,6 +441,7 @@ class DocumentRetriever:
             logger.error(f"Error formatting context: {str(e)}")
             return ""
 
+    @trace.step("sources", lambda result, *a, **k: {"retrieved": len(result[1]), "kept": len(result[0])})
     def retrieve_and_rerank(
         self, query: str, timings: Optional[Dict[str, float]] = None
     ) -> Tuple[List[Any], List[Any]]:
@@ -461,7 +466,13 @@ class DocumentRetriever:
             return [], []
 
         if not self.rerank:
-            return self.search_order(query, nodes), nodes
+            ordered = self.search_order(query, nodes)
+            if trace.active():
+                # vector search scores are FAISS L2 distances of unit vectors: as cosine (vector_cosine), higher = closer
+                cosine = self.search_mode == "vector"
+                self.trace_sources([((1 - n.score / 2) if cosine and n.score is not None else n.score, n) for n in nodes],
+                                   ordered, None, "cosine" if cosine else "search")
+            return ordered, nodes
 
         try:
             scores = self.reranker.predict(
@@ -480,13 +491,41 @@ class DocumentRetriever:
         ranked = sorted(zip(scores, nodes), key=lambda pair: pair[0], reverse=True)
 
         kept = [(score, node) for score, node in ranked if score > self.min_relevance]
+        cutoff = None
         if self.adaptive_top_k and kept:
             # a targeted question keeps only its few strong chunks, a broad one up to MAX_CHUNKS
             cutoff = float(kept[0][0]) * self.adaptive_ratio
             kept = [pair for i, pair in enumerate(kept) if i < self.adaptive_min or pair[0] >= cutoff]
         ranked_nodes = self.limit_per_document([node for _, node in kept])
+        if trace.active():
+            self.trace_sources(ranked, ranked_nodes, cutoff, "rerank")
 
         return ranked_nodes, nodes
+
+    def trace_sources(self, scored: List[Tuple[Any, Any]], sent: List[Any], cutoff: Optional[float], kind: str) -> None:
+        """Debug panel: every retrieved chunk with its score, and why it was not sent to the model."""
+        sent_ids = {id(node): i for i, node in enumerate(sent)}
+        rows = []
+        for rank, (score, node) in enumerate(scored):
+            meta = plain_metadata(node.metadata)
+            score = None if score is None else float(score)
+            if id(node) in sent_ids:
+                why = None
+            elif kind == "rerank" and score is not None and score <= self.min_relevance:
+                why = "below minimum relevance"
+            elif kind == "cosine" and not sent and self.min_vector_similarity > 0:
+                why = "best match below minimum similarity"
+            elif cutoff is not None and score is not None and score < cutoff and rank >= self.adaptive_min:
+                why = "below adaptive cut-off"
+            else:
+                why = "paper or chunk limit"
+            rows.append({"title": meta.get(TITLE_KEY) or "Unknown title", "url": meta.get("link_to_resource") or meta.get("doi") or "",
+                         "score": None if score is None else round(score, 4), "sent": id(node) in sent_ids,
+                         "n": sent_ids.get(id(node)), "why": why, "text": " ".join(node.text.split())[:400]})
+        floor = {"rerank": self.min_relevance, "cosine": self.min_vector_similarity or None}.get(kind)
+        trace.note(sources={"kind": kind, "min_relevance": floor,
+                            "cutoff": cutoff, "max_chunks": self.n_context_items, "max_per_doc": self.max_per_doc,
+                            "chunks": rows})
 
 
 class ResponseGenerator:
@@ -530,6 +569,7 @@ class ResponseGenerator:
             {"role": "user", "content": prompt},
         ]
 
+    @trace.step("answer")
     def stream_response(
         self,
         query: str,
@@ -545,6 +585,7 @@ class ResponseGenerator:
             max_tokens=self.config.get("MAX_ANSWER_TOKENS"),
         )
 
+    @trace.step("answer")
     def generate_response(
         self,
         query: str,
@@ -713,6 +754,11 @@ class OpenAIClientManager:
             kwargs["tools"] = tools
         if tool_choice:
             kwargs["tool_choice"] = tool_choice
+        traced = trace.active() is not None
+        if traced:
+            if self.usage_request(client):
+                kwargs["extra_body"] = {**kwargs.get("extra_body", {}), **self.usage_request(client)}
+            started, attempts = time.perf_counter(), 0
 
         # The first try plus LLM_RETRIES more on a provider error, a time-out or an empty answer; only
         # then does the user see an error (and Try again). OpenScholar is not retried: it takes minutes
@@ -721,6 +767,8 @@ class OpenAIClientManager:
         for attempt in range(retries + 1):
             if attempt:
                 time.sleep(min(2 ** (attempt - 1), 4))
+            if traced:
+                attempts = attempt + 1
             try:
                 response = client.chat.completions.create(**kwargs)
             except Exception as e:
@@ -729,13 +777,22 @@ class OpenAIClientManager:
                 continue
             choice = response.choices[0] if response and response.choices else None
             if tools or (choice and (choice.message.content or "").strip()):
+                if traced:
+                    trace.llm_call(model, started, getattr(response, "usage", None), attempts=attempts)
                 return response
             logger.warning(f"Empty answer from {model} (try {attempt + 1} of {retries + 1})")
             if choice and choice.finish_reason == "length" and "reasoning" not in kwargs.get("extra_body", {}):
                 # a reasoning model (gpt-oss) used the whole token cap on reasoning and wrote no answer
                 # (19 of 172 FORRT-page answers, eval 13 Nov): the next tries reason less
                 kwargs["extra_body"] = {**kwargs.get("extra_body", {}), "reasoning": {"effort": "low"}}
+        if traced:
+            trace.llm_call(model, started, getattr(response, "usage", None), attempts=attempts,
+                           error=None if response else "no answer after all tries")
         return response
+
+    def usage_request(self, client: OpenAI) -> Dict[str, Any]:
+        """Debug trace: ask OpenRouter to report the cost of the call (other servers do not know the field)."""
+        return {"usage": {"include": True}} if "openrouter.ai" in str(client.base_url) else {}
 
     def stream_chat_completion(
         self, model: str, messages: List[Dict[str, str]], temperature: float = 0.3,
@@ -749,16 +806,26 @@ class OpenAIClientManager:
         if not client:
             logger.error("OpenAI client not initialized")
             return
+        options = {**({"max_tokens": max_tokens} if max_tokens else {}), **self.no_reasoning(model)}
+        traced = trace.active() is not None
+        if traced:  # debug trace: the last chunk then carries the token counts (and the cost on OpenRouter)
+            body = {**options.get("extra_body", {}), **self.usage_request(client)}
+            options.update(stream_options={"include_usage": True}, **({"extra_body": body} if body else {}))
+        started, usage, error = time.perf_counter(), None, None
         try:
             for chunk in client.chat.completions.create(
-                model=model, messages=messages, temperature=temperature, stream=True,
-                **({"max_tokens": max_tokens} if max_tokens else {}), **self.no_reasoning(model),
+                model=model, messages=messages, temperature=temperature, stream=True, **options,
             ):
+                usage = getattr(chunk, "usage", None) or usage
                 for choice in chunk.choices:
                     if choice.delta.content:
                         yield choice.delta.content
         except Exception as e:
             logger.error(f"OpenAI API error (stream): {str(e)}")
+            error = str(e)
+        finally:
+            if traced:
+                trace.llm_call(model, started, usage, error=error, stream=True)
 
 
 class ReferenceProcessor:
@@ -1038,6 +1105,7 @@ class Qualle:
         distance, _ = vector_retriever._index.vector_store._faiss_index.search(q, 1)
         paper = 1 - float(distance[0][0]) / 2  # squared L2 of unit vectors → cosine
         page = float((self.forrt_pages.vectors @ q[0]).max()) if self.forrt_pages is not None else -1.0
+        trace.note(similarity={"paper": round(paper, 4), "page": round(page, 4)})
         return paper, page
 
     def cosine_route(self, query: str) -> str:
@@ -1072,6 +1140,7 @@ class Qualle:
         logger.info(f"Banded router: paper {paper:.3f}, page {page:.3f}, {band} band -> {route}")
         return route
 
+    @trace.step("topic check", lambda result, self, query, router=None: {"route": result, "router": router or self.config.get("ROUTER") or ""})
     def route(self, query: str, router: Optional[str] = None) -> Optional[str]:
         """open_science / forrt / both / off_topic / small_talk (or forrt_lookup from the LLM classifier); None = model error.
 
@@ -1128,18 +1197,41 @@ class Qualle:
 
     def get_response(
         self, query: str, chat_id: str, model: Optional[str] = None, stream: bool = False,
-        router: Optional[str] = None,
+        router: Optional[str] = None, debug: bool = False,
     ) -> Generator[Dict[str, Any], None, None]:
         """The response messages (see _respond). Every final message also gets "timings":
         seconds for classify_s (topic check), search_s, rerank_s, answer_s (LLM, with the
-        retry) and total_s; a step that did not run is missing (refusals stop early)."""
+        retry) and total_s; a step that did not run is missing (refusals stop early).
+        debug: the final message also gets "debug", the trace of the turn (just_os/trace.py)."""
         timings: Dict[str, float] = {}
         start = time.time()
-        for message in self._respond(query, chat_id, model, stream, router, timings):
-            if message.get("status") in ("complete", "error"):
-                done = {k: round(v, 2) for k, v in timings.items()}
-                message = {**message, "timings": {**done, "total_s": round(time.time() - start, 2)}}
-            yield message
+        token = trace.begin() if debug else None
+        try:
+            if debug:
+                trace.note(settings=self.debug_settings(model, router))
+            for message in self._respond(query, chat_id, model, stream, router, timings):
+                if message.get("status") in ("complete", "error"):
+                    done = {k: round(v, 2) for k, v in timings.items()}
+                    message = {**message, "timings": {**done, "total_s": round(time.time() - start, 2)}}
+                    if debug:
+                        message["debug"] = trace.active().export(message["timings"])
+                yield message
+        finally:
+            if token is not None:
+                trace.end(token)
+
+    def debug_settings(self, model: Optional[str], router: Optional[str]) -> Dict[str, Any]:
+        """The settings that shape an answer, for the debug panel (thresholds next to the scores)."""
+        c = self.config
+        keys = ("GENERAL_MODEL", "CONTEXT_METHOD", "DECISION_ROUTER", "DECISION_ROUTER_MODEL",
+                "DECISION_ROUTER_MIN_CONFIDENCE", "COSINE_PAPER_MIN", "COSINE_PAGE_MIN", "BAND_PAPER_LOW",
+                "BAND_PAGE_LOW", "BAND_PAPER_HIGH", "BAND_PAGE_HIGH", "BAND_MIDDLE_ROUTER", "EMBEDDING_MODEL",
+                "SEARCH_MODE", "RETRIEVER_TOP_K", "RERANK", "RERANK_MODEL", "MIN_RELEVANCE", "ADAPTIVE_TOP_K",
+                "ADAPTIVE_TOP_K_RATIO", "MAX_CHUNKS", "MAX_CHUNKS_PER_DOC", "VERIFY_CITATIONS", "FORRT_PAGES",
+                "FORRT_IN_PAPERS", "FORRT_IN_PAPERS_MIN_SCORE", "FORRT_SELECT_MODEL", "FORRT_DECISION_THRESHOLD",
+                "FORRT_DECISION_FLOOR", "FORRT_ANSWER_MODEL", "ANSWER_CACHE_TTL")
+        return {"answer_model": model or c.get("CITATION_MODEL"), "router": router or c.get("ROUTER") or "",
+                **{k.lower(): c.get(k) for k in keys if k in c}}
 
     def _respond(
         self, query: str, chat_id: str, model: Optional[str], stream: bool,
@@ -1352,7 +1444,9 @@ class Qualle:
             return None
         min_score = None if intent == "both" else self.config.get("FORRT_IN_PAPERS_MIN_SCORE", 0.6)
         pool = ThreadPoolExecutor(1)
-        job = pool.submit(self.forrt_pages.extra_sources, query, min_score)
+        # copy_context: the debug trace also sees the pages job
+        job = pool.submit(contextvars.copy_context().run, trace.step("FORRT pages next to papers")(self.forrt_pages.extra_sources),
+                          query, min_score)
         pool.shutdown(wait=False)
         return job
 

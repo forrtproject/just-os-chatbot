@@ -277,6 +277,7 @@ class FlaskApp:
                 models=self.chat_models(),
                 default_model=self.config["CITATION_MODEL"],
                 routers=ROUTERS,
+                debug_panel=bool(self.config.get("DEBUG_PANEL", True)),
             )
 
         @self.app.route("/chat", methods=["POST"])
@@ -298,6 +299,8 @@ class FlaskApp:
                 stream = request.json.get("stream") is True
                 # Optional topic check for this question (the page's dropdown; see ROUTERS)
                 router = request.json.get("router") or None
+                # Optional: the page's debug panel (?debug=1) asks for the trace of the turn
+                debug = request.json.get("debug") is True and bool(self.config.get("DEBUG_PANEL", True))
             except (KeyError, TypeError) as e:
                 logger.error(f"Invalid request data: {str(e)}")
                 return jsonify(
@@ -324,7 +327,7 @@ class FlaskApp:
                 return jsonify({"status": "error", "message": "Unknown topic check."}), 400
 
             return Response(
-                self._generate_chat_response(user_message, chat_id, model, stream, router),
+                self._generate_chat_response(user_message, chat_id, model, stream, router, debug),
                 mimetype="text/event-stream",
             )
 
@@ -676,7 +679,7 @@ class FlaskApp:
 
     def _generate_chat_response(
         self, user_message: str, chat_id: str, model: Optional[str] = None, stream: bool = False,
-        router: Optional[str] = None,
+        router: Optional[str] = None, debug: bool = False,
     ) -> Generator[str, None, None]:
         """
         Generate chat responses as a stream.
@@ -693,7 +696,8 @@ class FlaskApp:
             rag_service = self.get_rag_service()
             if rag_service:
                 # without the flag the call is exactly as before #41 (widget, older services)
-                options = {**({"stream": True} if stream else {}), **({"router": router} if router else {})}
+                options = {**({"stream": True} if stream else {}), **({"router": router} if router else {}),
+                           **({"debug": True} if debug else {})}
                 for response in rag_service.get_response(user_message, chat_id, model, **options):
                     if response.get("status") in ("complete", "error"):
                         response = self._log_turn(user_message, chat_id, model, response, router)

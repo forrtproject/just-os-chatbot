@@ -1,4 +1,5 @@
 import { renderSources, setupReferenceHandlers } from "./references.js";
+import { addDebugTurn, debugEnabled, initDebug, resetDebug } from "./debug.js";
 
 // "How was this answer?" under each answer: Good/Bad, then an optional comment, sent once
 function feedbackBar(turnId) {
@@ -111,6 +112,7 @@ function addMessage(message, sender, sources = null, turnId = null, retryQuestio
   }
 
   chatMessages.appendChild(messageDiv);
+  const added = messageDiv;
 
   // If this is a bot message, scroll the previous user message to the top
   if (sender === "bot") {
@@ -128,6 +130,7 @@ function addMessage(message, sender, sources = null, turnId = null, retryQuestio
       });
     }
   }
+  return added;
 }
 
 async function sendMessage(message, { repeat = false } = {}) {
@@ -176,7 +179,8 @@ async function sendMessage(message, { repeat = false } = {}) {
     endStream();
     removeDraft();
     const failed = data.status === "error" || data.outcome === "error";
-    addMessage(data.message, "bot", data.metadata?.references, data.turn_id, failed ? question : null);
+    const shown = addMessage(data.message, "bot", data.metadata?.references, data.turn_id, failed ? question : null);
+    addDebugTurn(shown, data, question);
   }
 
   try {
@@ -191,6 +195,7 @@ async function sendMessage(message, { repeat = false } = {}) {
         model: document.getElementById("model-select")?.value,
         router: document.getElementById("router-select")?.value || undefined,
         stream: true,
+        debug: debugEnabled() || undefined,
       }),
     });
     const reader = response.body.getReader();
@@ -265,6 +270,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const newChatButton = document.getElementById("new-chat-button");
   const modal = document.getElementById("info-modal");
   const closeModal = document.querySelector(".close-modal");
+  initDebug();
 
   userInput.value =
     "How does open science reshape the future of interdisciplinary and collaborative research?";
@@ -311,6 +317,7 @@ document.addEventListener("DOMContentLoaded", function () {
     
     // Generate a new chat ID
     window.chatId = crypto.randomUUID();
+    resetDebug();
     
     // Reset the input field with the default question
     userInput.value = "How does open science reshape the future of interdisciplinary and collaborative research?";

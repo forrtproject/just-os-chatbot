@@ -158,6 +158,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "MIN_MESSAGE_LENGTH": 3,
     # Chat settings
     "MESSAGE_TTL": 3600,  # 1 hour in seconds
+    # Debug panel on the built-in chat page: per turn the rewritten question, topic check scores,
+    # source scores, step times and model costs. False: no panel, and /chat ignores "debug" requests
+    "DEBUG_PANEL": True,
     # Arena (page /arena): the user picks models, each answers the same question from the
     # same sources, and the user rates each answer 1-5. Off by default: one LLM call per model.
     # The candidates of docs/evaluation.md 3.3 (all on OpenRouter) + the self-hosted
