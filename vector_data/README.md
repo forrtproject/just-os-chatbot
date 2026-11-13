@@ -14,7 +14,8 @@ at question time (in-memory cache `FORRT_CACHE_TTL`). No page text is stored her
 | `vectors.npy` | float32, one row per record (same order): the bge-m3 (`EMBEDDING_MODEL`) vector of the description, not of the page |
 
 Scope: forrt.org menu pages, announcements (`/post/`), newsletters, Educators' Corner, Pedagogies,
-Neurodiversity lesson bank, Replication Hub and the project sites in `config/forrt_extra_urls.txt`.
+Neurodiversity lesson bank, Replication Hub and the project sites in `config/forrt_extra_urls.txt`
+(including the 12 chapters of the Replication Handbook, `replication-handbook/<chapter>.html`).
 Not included: curated resources, clusters, glossary terms (open-science content for the papers path).
 
 Rebuild after site changes and commit the result:

@@ -273,3 +273,12 @@ def test_bare_urls_become_links():
     assert out.count("<https://forrt.org/>") == 1  # an existing autolink is not wrapped twice
     html = qualle.markdown.markdown(out)
     assert 'href="https://join.slack.com/t/forrt/x"' in html
+
+
+def test_book_chapter_urls_keep_their_html_ending():
+    """forrt.org/replication-handbook/planning.html/ is a 404: the index must keep the file URL."""
+    from scripts.build_forrt_pages import norm_url
+
+    assert norm_url("https://forrt.org/replication-handbook/planning.html") == "https://forrt.org/replication-handbook/planning.html"
+    assert norm_url("https://forrt.org/replication-handbook/index.html") == "https://forrt.org/replication-handbook/"
+    assert norm_url("/replication-hub#x") == "https://forrt.org/replication-hub/"

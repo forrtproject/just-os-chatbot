@@ -67,7 +67,8 @@ Return this JSON object:
 def norm_url(url: str) -> str:
     url = urljoin("https://forrt.org/", url.strip()).split("#")[0].split("?")[0]
     url = re.sub(r"index\.html?$", "", url)
-    return url if url.endswith("/") else url + "/"
+    # a book chapter (forrt.org/replication-handbook/planning.html) is a file: a trailing slash gives 404
+    return url if url.endswith("/") or re.search(r"\.html?$", url) else url + "/"
 
 
 def in_scope(url: str, menu: set, extras: set) -> bool:
