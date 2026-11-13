@@ -69,6 +69,7 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 | `SEARCH_MODE` | `vector` (default), `bm25` (keywords alone) or `hybrid` (vector + BM25, merged by reciprocal rank fusion); replaces `HYBRID_SEARCH=true`, which is now `SEARCH_MODE=hybrid` |
 | `RERANK` | `true` (default): re-rank the found chunks with `RERANK_MODEL` and drop those at or below `MIN_RELEVANCE`; `false`: keep the search order without loading the re-ranker |
 | `MIN_VECTOR_SIMILARITY` | with `RERANK=false`: "no sources" when the best vector match of the question has a lower cosine (default 0.55; `0` = no check; not used with `SEARCH_MODE=bm25`) |
+| `LLM_RETRIES` | a failed model call (provider error, time-out, empty answer) is tried this many more times before the chat shows an error with **Try again** (default 3; not for OpenScholar). Keep (1 + `LLM_RETRIES`) × `LLM_TIMEOUT` under `WEB_TIMEOUT` |
 | `MAX_CHUNKS_PER_DOC` | at most this many chunks of one paper in the context; `0` = no limit (default) |
 | `ADAPTIVE_TOP_K`, `ADAPTIVE_TOP_K_RATIO`, `ADAPTIVE_TOP_K_MIN` | adaptive top-k (#33), off by default: keep the re-ranked chunks scoring at least `RATIO` (0.5) of the best one, at least `MIN` (3), at most `MAX_CHUNKS` |
 

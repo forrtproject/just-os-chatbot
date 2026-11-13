@@ -644,7 +644,7 @@ class OpenAIClientManager:
         return self.client
 
     def _create_client(
-        self, api_key: Optional[str], base_url: str, timeout: Optional[float] = None, retries: int = 1
+        self, api_key: Optional[str], base_url: str, timeout: Optional[float] = None, retries: int = 0
     ) -> Optional[OpenAI]:
         """
         Create an OpenAI client instance.
@@ -658,7 +658,7 @@ class OpenAIClientManager:
                 api_key=api_key,
                 base_url=base_url,
                 timeout=timeout or self.config.get("LLM_TIMEOUT", 60),
-                max_retries=retries,
+                max_retries=retries,  # 0: create_chat_completion retries (LLM_RETRIES), so they do not multiply
             )
         except Exception as e:
             logger.error(f"Failed to initialize OpenAI client: {str(e)}")
@@ -697,30 +697,36 @@ class OpenAIClientManager:
             logger.error("OpenAI client not initialized")
             return None
 
-        try:
-            kwargs = {"model": model, "messages": messages, "temperature": temperature, **self.no_reasoning(model)}
-            if max_tokens:
-                kwargs["max_tokens"] = max_tokens
+        kwargs = {"model": model, "messages": messages, "temperature": temperature, **self.no_reasoning(model)}
+        if max_tokens:
+            kwargs["max_tokens"] = max_tokens
+        if tools:
+            kwargs["tools"] = tools
+        if tool_choice:
+            kwargs["tool_choice"] = tool_choice
 
-            if tools:
-                kwargs["tools"] = tools
-
-            if tool_choice:
-                kwargs["tool_choice"] = tool_choice
-
-            response = client.chat.completions.create(**kwargs)
-            choice = response.choices[0] if response and response.choices else None
-            if (choice and choice.finish_reason == "length" and not (choice.message.content or "").strip()
-                    and not tools and "reasoning" not in kwargs.get("extra_body", {})):
-                # a reasoning model (gpt-oss) used the whole token cap on reasoning and wrote no answer
-                # (19 of 172 FORRT-page answers, eval 13 Nov): ask once more with little reasoning
-                logger.warning(f"Empty answer from {model} at the token cap; asking again with low reasoning effort")
-                kwargs["extra_body"] = {**kwargs.get("extra_body", {}), "reasoning": {"effort": "low"}}
+        # The first try plus LLM_RETRIES more on a provider error, a time-out or an empty answer; only
+        # then does the user see an error (and Try again). OpenScholar is not retried: it takes minutes
+        retries = 0 if model == self.config.get("OPENSCHOLAR_MODEL") else self.config.get("LLM_RETRIES", 3)
+        response = None
+        for attempt in range(retries + 1):
+            if attempt:
+                time.sleep(min(2 ** (attempt - 1), 4))
+            try:
                 response = client.chat.completions.create(**kwargs)
-            return response
-        except Exception as e:
-            logger.error(f"OpenAI API error: {str(e)}")
-            return None
+            except Exception as e:
+                logger.error(f"OpenAI API error ({model}, try {attempt + 1} of {retries + 1}): {str(e)}")
+                response = None
+                continue
+            choice = response.choices[0] if response and response.choices else None
+            if tools or (choice and (choice.message.content or "").strip()):
+                return response
+            logger.warning(f"Empty answer from {model} (try {attempt + 1} of {retries + 1})")
+            if choice and choice.finish_reason == "length" and "reasoning" not in kwargs.get("extra_body", {}):
+                # a reasoning model (gpt-oss) used the whole token cap on reasoning and wrote no answer
+                # (19 of 172 FORRT-page answers, eval 13 Nov): the next tries reason less
+                kwargs["extra_body"] = {**kwargs.get("extra_body", {}), "reasoning": {"effort": "low"}}
+        return response
 
     def stream_chat_completion(
         self, model: str, messages: List[Dict[str, str]], temperature: float = 0.3,
@@ -1251,7 +1257,10 @@ class Qualle:
                     if len(visible) > shown:
                         yield {"status": "partial", "delta": visible[shown:]}
                         shown = len(visible)
-                response_text = raw or None
+                # nothing streamed (provider error or an empty answer): the normal call, with its retries
+                response_text = raw or self.response_generator.generate_response(
+                    query, context, model, history=history_for_answer
+                )
             else:
                 response_text = self.response_generator.generate_response(
                     query, context, model, history=history_for_answer

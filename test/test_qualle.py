@@ -253,7 +253,7 @@ def test_llm_calls_have_a_time_limit():
         {"LLM_API_KEY": "k", "BASE_URL": "https://openrouter.ai/api/v1", "OPENSCHOLAR_BASE_URL": "", "LLM_TIMEOUT": 7}
     )
     assert manager.client.timeout == 7
-    assert manager.client.max_retries == 1
+    assert manager.client.max_retries == 0  # create_chat_completion retries (LLM_RETRIES)
 
 
 def test_openscholar_has_its_own_time_limit():
@@ -262,7 +262,7 @@ def test_openscholar_has_its_own_time_limit():
         "OPENSCHOLAR_BASE_URL": "http://openscholar.test/v1", "OPENSCHOLAR_API_KEY": "os", "OPENSCHOLAR_TIMEOUT": 600,
     })
     assert (manager.openscholar_client.timeout, manager.openscholar_client.max_retries) == (600, 0)
-    assert (manager.client.timeout, manager.client.max_retries) == (60, 1)
+    assert (manager.client.timeout, manager.client.max_retries) == (60, 0)
 
 
 # --- topic check per request (Qualle.route router=...)
@@ -351,8 +351,17 @@ def test_reasoning_is_switched_off_only_for_the_listed_models():
     assert manager.no_reasoning("openai/gpt-oss-20b") == {}
 
 
-def test_an_empty_answer_at_the_token_cap_is_asked_again_with_low_reasoning():
+def fake_manager(create, **config):
     from types import SimpleNamespace
+    manager = qualle.OpenAIClientManager.__new__(qualle.OpenAIClientManager)
+    manager.config = {"OPENSCHOLAR_MODEL": "openscholar-8b", **config}
+    manager._client_for = lambda model: SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    return manager
+
+
+def test_an_empty_answer_at_the_token_cap_is_asked_again_with_low_reasoning(monkeypatch):
+    from types import SimpleNamespace
+    monkeypatch.setattr(qualle.time, "sleep", lambda s: None)
     calls = []
 
     def create(**kwargs):
@@ -361,9 +370,41 @@ def test_an_empty_answer_at_the_token_cap_is_asked_again_with_low_reasoning():
         message = SimpleNamespace(content="" if empty else "Answer [1].")
         return SimpleNamespace(choices=[SimpleNamespace(finish_reason="length" if empty else "stop", message=message)])
 
-    manager = qualle.OpenAIClientManager.__new__(qualle.OpenAIClientManager)
-    manager.config = {}
-    manager._client_for = lambda model: SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    manager = fake_manager(create)
     response = manager.create_chat_completion("openai/gpt-oss-20b", [{"role": "user", "content": "q"}], max_tokens=1500)
     assert response.choices[0].message.content == "Answer [1]." and len(calls) == 2
     assert calls[1]["extra_body"] == {"reasoning": {"effort": "low"}}
+
+
+def test_a_failing_model_is_tried_three_more_times_before_the_error(monkeypatch):
+    from types import SimpleNamespace
+    pauses = []
+    monkeypatch.setattr(qualle.time, "sleep", pauses.append)
+    calls = []
+
+    def flaky(**kwargs):  # provider errors twice, then answers
+        calls.append(kwargs)
+        if len(calls) < 3:
+            raise ConnectionError("provider 502")
+        return SimpleNamespace(choices=[SimpleNamespace(finish_reason="stop", message=SimpleNamespace(content="Answer."))])
+
+    q = [{"role": "user", "content": "q"}]
+    assert fake_manager(flaky).create_chat_completion("m/x", q).choices[0].message.content == "Answer."
+    assert len(calls) == 3 and pauses == [1, 2]
+
+    calls.clear()
+    def down(**kwargs):
+        calls.append(kwargs)
+        raise ConnectionError("provider down")
+
+    assert fake_manager(down, LLM_RETRIES=3).create_chat_completion("m/x", q) is None
+    assert len(calls) == 4  # the first try and 3 retries, then the user sees the error and Try again
+    calls.clear()
+    assert fake_manager(down).create_chat_completion("openscholar-8b", q) is None and len(calls) == 1  # minutes per answer
+
+
+def test_an_empty_streamed_answer_falls_back_to_the_call_with_retries():
+    q = make_qualle(True, [node("Paper")], [node("Paper")], "Answer [0].")
+    q.response_generator.stream_response = lambda *a, **k: iter(())  # the stream gave nothing
+    final = list(q.get_response("What is open data?", "chat", stream=True))[-1]
+    assert final["outcome"] == "answered" and "Answer" in final["message"]
