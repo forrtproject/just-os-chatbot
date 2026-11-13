@@ -35,7 +35,8 @@ def record(answer_id, origin, question, config, answer, *, question_id="", time=
 
 
 def run_model(stem):
-    """The answer model in a run file name: run_<YYMMDD-HHMM>_<model, / as __>[__route-<route>][_noretrieval]."""
+    """The answer model and forced route from a run file name, run_<YYMMDD-HHMM>_<model, / as __>[__route-<route>]
+    [_noretrieval]; for runs written before eval/run.py had an answer_model column."""
     m = re.match(r"run_\d{6}-\d{4}_(.+)$", stem)
     if not m:
         return "", ""
@@ -58,7 +59,8 @@ def from_run(run_csv):
         answer = r.get("answer", "")
         # without --full-answers run.py cuts the answer at 2,000 characters and each passage at 800
         complete = len(answer) != 2000 and all(len(p) != 800 for p in passages)
-        config = {"run": stem, "answer_model": model, "retrieval": r.get("retrieval", ""), "route": route}
+        config = {"run": stem, "answer_model": r.get("answer_model") or model, "retrieval": r.get("retrieval", ""),
+                  "route": route}
         out.append(record(f"{stem}#{r['id']}", "run", r["question"], config, answer, question_id=r["id"],
                           outcome=r.get("outcome", ""), answered_from=r.get("answered_from", ""), sources=sources,
                           seconds=float(r["seconds"]) if r.get("seconds") else "",
