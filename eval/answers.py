@@ -10,6 +10,7 @@ arena, one for the chat), so that people and judges score the same stored answer
 - question_id: the eval question's id; empty for a question typed in the arena or the chat
 - question, origin (run, arena, chat), time
 - config: what produced the answer (answer model, topic check, retrieval, forced route, run)
+- expect: what the bot should have done (answer, refuse), for eval questions
 - outcome (answered, refused, no_sources, error, small_talk; empty when the source does not say) and
   answered_from (papers, forrt pages), in the terms of eval/run.py; the chat log's are mapped (CHAT_OUTCOMES)
 - answer: the text as the bot wrote it; sources: [{n, title, doi, url, passage}], numbered as the
@@ -28,9 +29,9 @@ from pathlib import Path
 
 
 def record(answer_id, origin, question, config, answer, *, question_id="", time="", outcome="", answered_from="",
-           sources=(), seconds="", cost_usd="", complete=True):
+           sources=(), seconds="", cost_usd="", complete=True, expect=""):
     return {"answer_id": answer_id, "question_id": question_id, "origin": origin, "time": time, "question": question,
-            "config": config, "outcome": outcome, "answered_from": answered_from, "answer": answer,
+            "config": config, "expect": expect, "outcome": outcome, "answered_from": answered_from, "answer": answer,
             "sources": list(sources), "seconds": seconds, "cost_usd": cost_usd, "complete": complete}
 
 
@@ -63,6 +64,7 @@ def from_run(run_csv):
                   "route": route}
         out.append(record(f"{stem}#{r['id']}", "run", r["question"], config, answer, question_id=r["id"],
                           outcome=r.get("outcome", ""), answered_from=r.get("answered_from", ""), sources=sources,
+                          expect=r.get("expect", ""),
                           seconds=float(r["seconds"]) if r.get("seconds") else "",
                           cost_usd=float(r["cost_usd"]) if r.get("cost_usd") else "", complete=complete))
     return out
