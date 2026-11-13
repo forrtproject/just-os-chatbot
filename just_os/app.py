@@ -185,6 +185,12 @@ class FlaskApp:
         """Initialize the Flask application with all necessary components."""
         # Load configuration
         self.config = get_config()
+        if self.config.get("AUTO_DEFAULTS"):
+            # the eval winners become the defaults of chat and arena (read again at every start)
+            chosen = eval_report.best_defaults(self.config.get("EVAL_RESULTS_DIR", "eval/results"), ROUTERS)
+            logger.info("AUTO_DEFAULTS: %s (fallback: %s, %s)", chosen or "no eval results",
+                        self.config["CITATION_MODEL"], self.config.get("ROUTER") or "DECISION_ROUTER")
+            self.config.update(chosen)
 
         # Initialize Flask app
         self.app = Flask(__name__, static_folder="../public", static_url_path="")
@@ -256,7 +262,7 @@ class FlaskApp:
         @self.app.context_processor
         def page_links():
             """For templates/_nav.html: link to the arena only when it is on."""
-            return {"nav_arena": self.config["ARENA_ENABLED"],
+            return {"nav_arena": self.config["ARENA_ENABLED"], "default_router": self.config.get("ROUTER") or "",
                     "nav_review": os.path.isfile(self.config.get("REVIEW_ITEMS_FILE") or "")}
 
         @self.app.route("/")
@@ -432,7 +438,9 @@ class FlaskApp:
                 abort(404)
             return render_template(
                 "arena.html",
-                models=self.arena_models(),
+                # the default answer model first, marked like on the chat page
+                models=sorted(self.arena_models(), key=lambda m: m != self.config["CITATION_MODEL"]),
+                default_model=self.config["CITATION_MODEL"],
                 max_models=self.config["ARENA_MAX_MODELS"],
                 routers=ROUTERS,
                 criteria=ARENA_CRITERIA,

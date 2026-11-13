@@ -23,7 +23,7 @@
             <label for="router-select">Topic check</label>
             <select id="router-select">
                 {% for key, label in routers.items() %}
-                <option value="{{ key }}">{{ label }}</option>
+                <option value="{{ key }}">{{ ('Default: ' ~ routers[default_router]) if key == '' and default_router in routers else label }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -38,7 +38,7 @@
             <fieldset>
                 <legend class="visually-hidden">Models to compare</legend>
                 {% for model in models %}
-                <label><input type="checkbox" name="model" value="{{ model }}" checked> {{ model }}</label>
+                <label><input type="checkbox" name="model" value="{{ model }}" checked> {{ model }}{% if model == default_model %} (default){% endif %}</label>
                 {% endfor %}
             </fieldset>
         </details>

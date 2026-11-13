@@ -40,7 +40,7 @@
         <label for="router-select">Topic check</label>
         <select id="router-select">
             {% for key, label in routers.items() %}
-            <option value="{{ key }}">{{ label }}</option>
+            <option value="{{ key }}">{{ ('Default: ' ~ routers[default_router]) if key == '' and default_router in routers else label }}</option>
             {% endfor %}
         </select>
     </div>

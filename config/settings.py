@@ -166,6 +166,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "ARENA_RATINGS_FILE": "data/arena/ratings.jsonl",
     # Every arena question with all answers, rated or not (JSON lines); empty = not saved
     "ARENA_ROUNDS_FILE": "data/arena/rounds.jsonl",
+    # true: at start-up the answer model (CITATION_MODEL) and the topic check (ROUTER) of chat and arena
+    # are the eval winners in EVAL_RESULTS_DIR (eval_report.best_defaults, the /eval summary cards);
+    # the settings above stay the fallback when the results cannot decide. A restart picks up new results
+    "AUTO_DEFAULTS": False,
     # Page /review (#8): the questions, answers and sources people score (eval/build_review.py); scores
     # are saved as one CSV per reviewer and save in REVIEW_DIR (in Git during the test phase, like the chats)
     "REVIEW_ITEMS_FILE": "eval/human_review_items.json",

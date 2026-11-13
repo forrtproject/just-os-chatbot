@@ -104,3 +104,37 @@ def test_eval_page_shows_pairs_answer_models_and_search(tmp_path):
     html = flask_app.app.test_client().get("/eval").get_data(as_text=True)
     assert "Best pair<b>jev + m/a</b>" in html and "hsl(120 65% 85%)" in html  # summary card and green cell
     assert "Best search<b>search-bm25</b>" in html and "<td>m/a</td><td><b>0.7</b></td>" in html
+
+
+def test_best_defaults_take_only_complete_runs_and_the_newest_topic_check_run(tmp_path):
+    def run(name, judge, n=2, errors=0):
+        rows = [{**run_row(str(i), "answer", "error" if i < errors else "answered", 3), "judge_support": judge} for i in range(n)]
+        write(tmp_path / f"run_261113-0{name[0]}00_{name}__route-open_science.csv", rows)
+
+    run("1a__good", 0.7)
+    run("2b__partial", 0.95, n=1)  # higher judge, but not all questions
+    run("3c__broken", 0.9, errors=1)  # errors
+    def classify(stamp, rows):
+        write(tmp_path / f"classify_{stamp}.csv", [{"model": m, "id": str(i), "gold": "forrt", "predicted": p, "seconds": s, "usd": 0}
+                                                   for m, p, s in rows for i in range(2)])
+    classify("261112-0900", [("router: jev", "forrt", 0.3), ("router: cosine", "neither", 0.1)])
+    classify("261112-1700", [("router: jev", "forrt", 0.3), ("router: banded", "forrt", 0.2), ("m/llm", "forrt", 0.1)])
+    chosen = eval_report.best_defaults(str(tmp_path), ["", "jev", "banded", "cosine"])
+    assert chosen == {"CITATION_MODEL": "1a/good", "ROUTER": "banded"}  # tie on accuracy: the faster router
+    assert eval_report.best_defaults(str(tmp_path / "none"), ["jev"]) == {}
+
+
+def test_auto_defaults_set_chat_and_arena_defaults(tmp_path, monkeypatch):
+    import fakeredis
+    from config import settings
+    from just_os.app import FlaskApp
+    write(tmp_path / "run_261113-0100_m__best__route-open_science.csv", [{**run_row("a", "answer", "answered", 3), "judge_support": 0.9}])
+    monkeypatch.setitem(settings.DEFAULT_CONFIG, "AUTO_DEFAULTS", True)
+    monkeypatch.setitem(settings.DEFAULT_CONFIG, "EVAL_RESULTS_DIR", str(tmp_path))
+    monkeypatch.setitem(settings.DEFAULT_CONFIG, "ARENA_MODELS", "x/other,m/best")
+    flask_app = FlaskApp()
+    flask_app.chat_manager.redis = fakeredis.FakeRedis()
+    flask_app.config.update(ARENA_ENABLED=True)
+    assert flask_app.config["CITATION_MODEL"] == "m/best"
+    html = flask_app.app.test_client().get("/arena").get_data(as_text=True)
+    assert html.index("m/best (default)") < html.index("x/other")

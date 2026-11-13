@@ -84,25 +84,30 @@ def classifier_runs(folder: str) -> List[Dict]:
     """One row per model and eval/classify.py run, newest run first, best accuracy first."""
     out = []
     for path in sorted(Path(folder).glob("classify_*.csv"), reverse=True):
-        by_model: Dict[str, List[Dict[str, str]]] = {}
-        for row in _rows(path):
-            by_model.setdefault(row["model"], []).append(row)
-        rows = []
-        for model, items in by_model.items():
-            done = [r for r in items if r["predicted"]]
-            rows.append({
-                "run": path.stem.removeprefix("classify_"),
-                "model": model,
-                "n": len(items),
-                "accuracy": round(sum(r["gold"] == r["predicted"] for r in items) / len(items), 2),
-                "false_refusals": sum(r["gold"] not in REFUSE_LABELS and r["predicted"] in REFUSE_LABELS for r in done),
-                "false_answers": sum(r["gold"] in REFUSE_LABELS and r["predicted"] not in REFUSE_LABELS for r in done),
-                "errors": len(items) - len(done),
-                "mean_s": _mean((r["seconds"] for r in items), 1),
-                "usd_per_1k": round(mean(float(r["usd"] or 0) for r in items) * 1000, 3),
-            })
-        out += sorted(rows, key=lambda r: -r["accuracy"])
+        out += classifier_runs_of(path)
     return out
+
+
+def classifier_runs_of(path: Path) -> List[Dict]:
+    """The rows of one eval/classify.py run, best accuracy first."""
+    by_model: Dict[str, List[Dict[str, str]]] = {}
+    for row in _rows(path):
+        by_model.setdefault(row["model"], []).append(row)
+    rows = []
+    for model, items in by_model.items():
+        done = [r for r in items if r["predicted"]]
+        rows.append({
+            "run": path.stem.removeprefix("classify_"),
+            "model": model,
+            "n": len(items),
+            "accuracy": round(sum(r["gold"] == r["predicted"] for r in items) / len(items), 2),
+            "false_refusals": sum(r["gold"] not in REFUSE_LABELS and r["predicted"] in REFUSE_LABELS for r in done),
+            "false_answers": sum(r["gold"] in REFUSE_LABELS and r["predicted"] not in REFUSE_LABELS for r in done),
+            "errors": len(items) - len(done),
+            "mean_s": _mean((r["seconds"] for r in items), 1),
+            "usd_per_1k": round(mean(float(r["usd"] or 0) for r in items) * 1000, 3),
+        })
+    return sorted(rows, key=lambda r: -r["accuracy"])
 
 
 def by_model(runs: List[Dict], score: str) -> List[Dict]:
@@ -146,3 +151,30 @@ def pair_results(folder: str) -> Dict:
                     key=lambda c: -mean(r["correct"] or 0 for r in rows if r["topic_check"] == c))
     models = sorted(grid, key=lambda m: -max(r["correct"] or 0 for r in grid[m].values()))
     return {"run": files[-1].stem.removeprefix("pairs_"), "rows": rows, "grid": grid, "checks": checks, "models": models}
+
+
+def best_defaults(folder: str, routers: Iterable[str]) -> Dict[str, str]:
+    """The eval winners as the bot's defaults (AUTO_DEFAULTS): {"CITATION_MODEL": ..., "ROUTER": ...}.
+
+    Answer model: the best judge score among the papers runs (eval/pairs.py input, the newest per model)
+    that cover the whole question set without errors, so a partial or failing run cannot win.
+    Topic check: the most accurate router in the newest classify run with at least two routers (all
+    scored on the same questions); a tie goes to the cheaper, then the faster one (banded and Jev tie at
+    154 of 172; banded needs no model call for a third of the questions). A key is missing when nothing qualifies.
+    """
+    out: Dict[str, str] = {}
+    papers = by_model([r for r in answer_runs(folder) if r["kind"] == "papers" and not r["config"]], "judge")
+    full = max((r["n"] for r in papers), default=0)
+    qualified = [r for r in papers if r["n"] == full and r["errors"] == 0 and r["judge"] is not None]
+    if qualified:
+        out["CITATION_MODEL"] = max(qualified, key=lambda r: r["judge"])["model"]
+    known = set(routers) - {""}
+    for path in sorted(Path(folder).glob("classify_*.csv"), reverse=True):
+        rows = [r for r in classifier_runs_of(path) if r["model"].removeprefix("router: ") in known
+                and r["model"].startswith("router: ") and not r["errors"]]
+        if len(rows) >= 2:
+            # a tie goes to the cheaper check (fewer model calls), then the faster one
+            best = min(rows, key=lambda r: (-r["accuracy"], r["usd_per_1k"], r["mean_s"] or 0))
+            out["ROUTER"] = best["model"].removeprefix("router: ")
+            break
+    return out
