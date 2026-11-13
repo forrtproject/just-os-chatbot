@@ -229,6 +229,15 @@ def test_run_batches_resumes_and_merges(tmp_path, monkeypatch):
     assert not (tmp_path / f"run_261112-1400_{m}.csv").exists()
 
 
+
+def test_run_batches_merge_keeps_counts_as_written(tmp_path, monkeypatch):
+    """A count column with empty cells (hit for a refusal) must stay 1, not become 1.0."""
+    monkeypatch.setattr(run_batches, "RESULTS", tmp_path)
+    (tmp_path / "run_261112-1300_m.csv").write_text("id,hit,cost_usd\nq1,1,0.0001\nq2,,0\n", encoding="utf-8")
+    (tmp_path / "run_261112-1400_m.csv").write_text("id,hit,cost_usd\nq3,0,0.0002\n", encoding="utf-8")
+    merged = run_batches.merge(run_batches.run_files("m", "261112-1246"), ["q1", "q2", "q3"])
+    assert merged.read_text(encoding="utf-8").splitlines() == ["id,hit,cost_usd", "q1,1,0.0001", "q2,,0", "q3,0,0.0002"]
+
 def test_scorecard_configurations_use_known_settings():
     from config.settings import DEFAULT_CONFIG
     configs = json.loads(scorecard.CONFIGS.read_text(encoding="utf-8"))
