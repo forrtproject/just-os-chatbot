@@ -163,3 +163,19 @@ def test_question_spread_counts_the_question_files(tmp_path):
     spread = eval_report.question_spread(str(tmp_path))
     assert spread["main"]["n"] == 2 and dict(spread["main"]["expect"]) == {"answer": 1, "refuse": 1}
     assert (spread["main"]["with_dois"], spread["main"]["with_rubric"], spread["forrt"]["n"]) == (1, 1, 1)
+
+
+def test_topics_page_shows_the_newest_topic_map(tmp_path):
+    import fakeredis
+    from just_os.app import FlaskApp
+    (tmp_path / "topic_map_261112.html").write_text("<html>old map</html>", encoding="utf-8")
+    (tmp_path / "topic_map_261113.html").write_text("<html>new map</html>", encoding="utf-8")
+    flask_app = FlaskApp()
+    flask_app.chat_manager.redis = fakeredis.FakeRedis()
+    flask_app.config.update(EVAL_RESULTS_DIR=str(tmp_path))
+    client = flask_app.app.test_client()
+    page = client.get("/topics").get_data(as_text=True)
+    assert 'href="/topics"' in page and 'src="/topics/map"' in page and "261113" in page
+    assert client.get("/topics/map").get_data(as_text=True) == "<html>new map</html>"
+    flask_app.config.update(EVAL_RESULTS_DIR=str(tmp_path / "none"))
+    assert client.get("/topics").status_code == 404 and 'href="/topics"' not in client.get("/eval").get_data(as_text=True)

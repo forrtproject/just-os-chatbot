@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JUST-OS Topic Map</title>
+    <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+    <style>
+        #topics-page { max-width: 1200px; margin: 0 auto; padding: 0 16px 24px; font-family: "Helvetica", sans-serif; color: #313131; }
+        #topics-page h1 { color: #004055; font-size: 2rem; margin: 16px 0 8px; }
+        #topics-page p { font-size: 0.95rem; line-height: 1.55; max-width: 85ch; }
+        #topics-frame { width: 100%; height: 85vh; border: 1px solid #e1e4e8; border-radius: 4px; background: white; }
+    </style>
+</head>
+
+<body>
+    <div id="header-bar">
+        <img src='/images/qualle.png' id="header-logo" alt="JUST-OS">
+    </div>
+    {% include "_nav.html" %}
+    <main id="topics-page">
+        <h1>Topic map of the library</h1>
+        <p>Everything the bot can search, drawn from the index's own vectors (no LLM): each dot is one chunk of a paper,
+            placed near chunks with similar meaning, and coloured by FORRT topic. It shows which FORRT sub-clusters the
+            library covers and which it does not (blind spots), papers whose text belongs to another work, papers with a
+            wrong title, and chunks that are only reference lists. Built by <code>eval/topic_map/</code> (PR #52); run
+            {{ run }}; the summary is in <code>docs/evaluation.md</code> 3.13.
+            <a href="/topics/map" target="_blank" rel="noopener">Open the map on its own page</a>.</p>
+        <iframe id="topics-frame" src="/topics/map" title="Topic map of the library" loading="lazy"></iframe>
+    </main>
+</body>
+
+</html>

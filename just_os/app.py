@@ -1,4 +1,5 @@
 import csv
+import glob
 import json
 import logging
 import os
@@ -10,7 +11,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Dict, Any, Generator, Optional
 
-from flask import Flask, Response, abort, render_template, request, jsonify
+from flask import Flask, Response, abort, render_template, request, jsonify, send_file
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_cors import CORS
 from flask_limiter import Limiter
@@ -263,7 +264,8 @@ class FlaskApp:
         def page_links():
             """For templates/_nav.html: link to the arena only when it is on."""
             return {"nav_arena": self.config["ARENA_ENABLED"], "default_router": self.config.get("ROUTER") or "",
-                    "nav_review": os.path.isfile(self.config.get("REVIEW_ITEMS_FILE") or "")}
+                    "nav_review": os.path.isfile(self.config.get("REVIEW_ITEMS_FILE") or ""),
+                    "nav_topics": self._topic_map() is not None}
 
         @self.app.route("/")
         def home():
@@ -345,6 +347,22 @@ class FlaskApp:
             if items is None:
                 abort(404)
             return render_template("review.html", items=items, criteria=REVIEW_CRITERIA, decisions=REVIEW_DECISIONS)
+
+        @self.app.route("/topics")
+        def topics_page():
+            """The topic map of the index (PR #52, eval/topic_map/): the newest eval/results/topic_map_*.html,
+            shown under the site's header and links."""
+            path = self._topic_map()
+            if path is None:
+                abort(404)
+            return render_template("topics.html", run=os.path.basename(path)[len("topic_map_"):-len(".html")])
+
+        @self.app.route("/topics/map")
+        def topics_map():
+            path = self._topic_map()
+            if path is None:
+                abort(404)
+            return send_file(os.path.abspath(path), mimetype="text/html")
 
         @self.app.route("/review/save", methods=["POST"])
         @self.rate_limit_manager.limiter.limit(self.rate_limit_manager.get_chat_rate_limit)
@@ -544,6 +562,11 @@ class FlaskApp:
     def _save_ratings_to_file(self, rows: list[str]) -> None:
         """Append ratings to ARENA_RATINGS_FILE; Redis stays the source of the leaderboard."""
         self._append_jsonl(self.config.get("ARENA_RATINGS_FILE"), rows)
+
+    def _topic_map(self) -> Optional[str]:
+        """The newest topic map page (eval/topic_map/page.py), or None."""
+        maps = sorted(glob.glob(os.path.join(self.config.get("EVAL_RESULTS_DIR", "eval/results"), "topic_map_*.html")))
+        return maps[-1] if maps else None
 
     def _review_items(self) -> Optional[list]:
         """The review questions (eval/build_review.py), or None when the file is missing."""
