@@ -7,7 +7,7 @@ For each answered record of the answer store (eval/answers.py), one call scores 
 judges.criteria in config/criteria.json, on the shared scale, with the definitions people see on /review;
 the prompt is the file named there (config/prompts/criteria_judge.txt). Citation support
 has its own judge (eval/judge.py) and rubric items theirs (eval/rubric_judge.py). Writes score rows
-(eval/scores.py) to data/scores/scores_criteria-judge_<store file>.jsonl. Check about 20 results by
+(eval/scores.py) to data/scores/scores_criteria-judge_<store file>_<model>.jsonl. Check about 20 results by
 hand before you trust the numbers; people's scores on the same answers are the check (eval/scores.py).
 """
 
@@ -37,8 +37,16 @@ PROMPT = (Path(__file__).resolve().parent.parent / CONFIG["prompt"]).read_text(e
 
 
 def plain(text):
-    """The answer's text without HTML tags (the arena and the chat store HTML)."""
-    return unescape(re.sub(r"<[^>]+>", " ", text)).strip()
+    """The answer's text without HTML tags (the arena and the chat store HTML). Only tag-shaped text
+    goes, so "p < 0.05 and r > 0.3" stays."""
+    return unescape(re.sub(r"</?[A-Za-z][A-Za-z0-9]*(?:\s[^<>]*)?/?>", " ", text)).strip()
+
+
+def default_out(store, model):
+    """data/scores/scores_criteria-judge_<store>_<model>.jsonl: one file per judge model, so a second
+    model does not overwrite the first one's rows."""
+    stem = Path(store).stem.removeprefix("answers_")
+    return Path(f"data/scores/scores_criteria-judge_{stem}_{model.replace('/', '__')}.jsonl")
 
 
 def prompt(record, limit=800):
@@ -71,7 +79,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("store", help="data/answers/answers_X.jsonl")
     parser.add_argument("--model", default=CONFIG["model"], help="judge model (default from config/criteria.json)")
-    parser.add_argument("--out", help="default data/scores/scores_criteria-judge_<store>.jsonl")
+    parser.add_argument("--out", help="default data/scores/scores_criteria-judge_<store>_<model>.jsonl")
     args = parser.parse_args()
     records = [json.loads(line) for line in open(args.store, encoding="utf-8")]
     manager, cost, rows = OpenAIClientManager(get_config()), [0.0], []
@@ -84,8 +92,7 @@ def main():
             rows += [row(r["answer_id"], r["question_id"], k, v, SCALE, "llm", f"{SCORER} ({args.model})", now)
                      for k, v in scores.items()]
         print(f"{r['answer_id']:40} {scores}")
-    stem = Path(args.store).stem.removeprefix("answers_")
-    out = Path(args.out or f"data/scores/scores_criteria-judge_{stem}.jsonl")
+    out = Path(args.out) if args.out else default_out(args.store, args.model)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("".join(json.dumps(x, ensure_ascii=False) + "\n" for x in rows), encoding="utf-8")
     print(f"{len(rows)} score rows -> {out} (judge: {args.model}, cost ${cost[0]:.4f})")

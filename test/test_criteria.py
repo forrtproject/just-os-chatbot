@@ -69,3 +69,15 @@ def test_judges_take_criteria_levels_and_models_from_the_file():
     assert "1 wrong or very poor" in text and '"clarity": <1-5>' in text and "[1] T" in text
     assert rubric_judge.LEVELS == "1 not at all, 2 barely, 3 partly, 4 mostly, 5 fully"
     assert rubric_judge.coverage({"r1": 5, "r2": 1}, [{"id": "r1", "type": "core"}, {"id": "r2", "type": "detail"}]) == 0.5
+
+
+def test_criteria_judge_keeps_comparisons_and_names_its_file_after_the_model():
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eval"))
+    import criteria_judge
+    assert criteria_judge.plain("<p>Effect at p < 0.05 and r > 0.3</p>") == "Effect at p < 0.05 and r > 0.3"
+    assert criteria_judge.plain("<p>A <a href='x'>link</a>.</p><br/>") == "A  link ."
+    a = criteria_judge.default_out("data/answers/answers_x.jsonl", "google/gemini-3.8-flash")
+    b = criteria_judge.default_out("data/answers/answers_x.jsonl", "openai/gpt-oss-20b")
+    assert a != b and a.name == "scores_criteria-judge_x_google__gemini-3.8-flash.jsonl"
