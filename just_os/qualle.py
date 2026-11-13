@@ -51,6 +51,27 @@ CREATOR_KEY = "creators"
 TITLE_KEY = "title"
 LICENCE_KEY = "conditions_of_use"
 
+# Follow-up questions: the rewrite into a stand-alone question (CONTEXT_METHOD rephrase and hybrid).
+# Measured on eval/context_questions.jsonl (docs/evaluation.md 3.16): the earlier prompt lost the user's details,
+# returned off-topic-looking follow-ups unchanged ("something similar for neurodiversity?" was then refused)
+# and only looked at the last turn.
+REPHRASE_ANSWER_CHARS = 300
+REPHRASE_PROMPT = """Conversation so far (oldest first):
+{conversation}
+
+New message from the user: {question}
+
+Rewrite the new message as one question that can be understood without the conversation.
+- Replace every word that points back (it, that, this, they, there, "the first thing", "the same", "something similar")
+  with what it refers to. It may refer to any earlier turn, not only the last one.
+- Keep everything else the user wrote: every condition, field, number, name and detail, in the user's own terms.
+  Do not add details, do not answer, do not make the question broader or narrower.
+- If the new message does not point back to the conversation, return it unchanged.
+- Write in the language of the new message.
+Example: after "What is a data paper?", "where can I publish one in ecology?" becomes
+"Where can I publish a data paper in ecology?"
+"""
+
 # CONTEXT_METHOD=history: number of earlier messages passed to the answer model
 HISTORY_TURNS = 4
 INTENTS = ("open_science", "forrt_lookup", "off_topic")
@@ -309,17 +330,15 @@ Return your answer as a valid JSON object with a single string entry "category"
         # Get conversation history
         conversation_history = self.chat_manager.get_history(chat_id)
 
-        # Build prompt
-        prompt = "Given the following dialogue history:\n"
+        # Build prompt. Answers are cut short: the rewrite must take its words from the user, not from
+        # an answer ("single-blind" became "double-blind" from a list of review types, docs/evaluation.md)
+        lines = []
         for message in conversation_history:
-            prompt += f"Role: {message['role']}\nContent: {message['content']}\n"
-        prompt += f"""
-
-You should reformulate a new question by the user in such a way that it makes sense in isolation.
-As an example, if a user follows up a question about open science with a question like "Does it also have disadvantages?",
-a proper reformulation would be "Does Open Science also have disadvantages?"
-If the question is not related to open science, return the original question.
-Now reformulate the following question such that it makes sense in isolation:\n{query}"""
+            text = " ".join(str(message["content"]).split())
+            if message["role"] != "user" and len(text) > REPHRASE_ANSWER_CHARS:
+                text = text[:REPHRASE_ANSWER_CHARS] + " ..."
+            lines.append(f"{'User' if message['role'] == 'user' else 'Assistant'}: {text}")
+        prompt = REPHRASE_PROMPT.format(conversation="\n".join(lines), question=query)
 
         result = self._structured_output(prompt, "reformulated_query", "string")
         if not isinstance(result, str) or not result.strip():
@@ -1273,10 +1292,14 @@ class Qualle:
                     yield cached["response"]
                     return
 
-            # Follow-up questions: rephrase (default) or pass the history (CONTEXT_METHOD=history)
+            # Follow-up questions (CONTEXT_METHOD): "rephrase" (default), "history" or "hybrid":
+            # the rephrased question for the topic check and the search, and the chat as it happened
+            # (earlier turns + the question as typed) for the answer (docs/evaluation.md, context methods)
             history_for_answer = None
+            answer_query = None
+            method = self.config.get("CONTEXT_METHOD", "rephrase")
             if conversation_history:
-                if self.config.get("CONTEXT_METHOD", "rephrase") == "history":
+                if method == "history":
                     history_for_answer = conversation_history[-HISTORY_TURNS:]
                     last_user = [m["content"] for m in conversation_history if m["role"] == "user"][-1:]
                     query = " ".join(last_user + [query])  # retrieval sees the topic of the chat
@@ -1284,6 +1307,12 @@ class Qualle:
                     yield {"status": "in-progress", "message": "Reformulating question"}
                     query = self.query_processor.rephrase_query(query, chat_id)
                     logger.debug(f"Rephrased query: {query}")
+                    if method == "hybrid":
+                        # the answer sees the user's own words (the rewrite can lose a detail) and the
+                        # rewrite (a long chat can point back past the last HISTORY_TURNS messages)
+                        history_for_answer = conversation_history[-HISTORY_TURNS:]
+                        answer_query = user_query if query.strip() == user_query.strip() else f"{user_query}\n(Meaning: {query})"
+            answer_query = answer_query or query
 
             yield {"status": "in-progress", "message": "Classifying question"}
             step = time.time()
@@ -1354,7 +1383,7 @@ class Qualle:
                 # answer below still gets the citations, sources, cache and history
                 raw, shown = "", 0
                 for piece in self.response_generator.stream_response(
-                    query, context, model, history=history_for_answer
+                    answer_query, context, model, history=history_for_answer
                 ):
                     raw += piece
                     visible = visible_answer(raw, self.response_generator.marks_response)
@@ -1363,11 +1392,11 @@ class Qualle:
                         shown = len(visible)
                 # nothing streamed (provider error or an empty answer): the normal call, with its retries
                 response_text = raw or self.response_generator.generate_response(
-                    query, context, model, history=history_for_answer
+                    answer_query, context, model, history=history_for_answer
                 )
             else:
                 response_text = self.response_generator.generate_response(
-                    query, context, model, history=history_for_answer
+                    answer_query, context, model, history=history_for_answer
                 )
             logger.info(f"Timing: answer {time.time() - start:.1f}s ({model or self.config.get('CITATION_MODEL')})")
             timings["answer_s"] = time.time() - start
@@ -1381,7 +1410,7 @@ class Qualle:
             ):
                 logger.info("Answer has no [n] citation, asking again")
                 response_text = self.response_generator.generate_response(
-                    query, context, model, history=history_for_answer
+                    answer_query, context, model, history=history_for_answer
                 ) or response_text
                 timings["answer_s"] = time.time() - start  # with the retry
             if not response_text:

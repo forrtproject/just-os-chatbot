@@ -40,9 +40,11 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "RERANK_MODEL": "BAAI/bge-reranker-v2-m3",
     # CPU threads for the re-ranker and embedding (20 chunks: ~25 s with 1 thread, ~13 s with 6)
     "RERANK_THREADS": 6,
-    # Follow-up questions: "rephrase" (one LLM call makes a stand-alone question) or
-    # "history" (no rephrase; the earlier turns go into the answer prompt)
-    "CONTEXT_METHOD": "rephrase",
+    # Follow-up questions: "rephrase" (one LLM call makes a stand-alone question), "history" (no
+    # rephrase; the earlier turns go into the answer prompt) or "hybrid" (the rephrased question for
+    # the topic check and the search; the earlier turns, the question as typed and the rewrite for the
+    # answer). hybrid: 92% of follow-ups fully answered on held-out chats, rephrase 87% (docs/evaluation.md 3.16)
+    "CONTEXT_METHOD": "hybrid",
     # Check each cited sentence against its source with the re-ranker; mark weak ones
     "VERIFY_CITATIONS": False,
     "VERIFY_MIN_SCORE": 0.1,
