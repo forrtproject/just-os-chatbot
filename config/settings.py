@@ -86,6 +86,15 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "FORRT_DESCRIBE_MODEL": "openai/gpt-oss-20b",  # writes the page descriptions (build script)
     "FORRT_TOP_K": 12,  # candidate pages from the search
     "FORRT_MAX_PAGES": 4,  # pages read for one answer
+    # Papers answers also read forrt.org pages (follow-up of #53): the page index is searched while the
+    # papers are; pages with a search score >= FORRT_IN_PAPERS_MIN_SCORE that the decision model clearly
+    # picks (FORRT_DECISION_THRESHOLD, no fallback) join the paper chunks as sources. The `both` route
+    # skips the score floor. Measured in docs/evaluation.md 3.14.
+    "FORRT_IN_PAPERS": True,
+    "FORRT_IN_PAPERS_MIN_SCORE": 0.6,
+    "FORRT_IN_PAPERS_MAX_PAGES": 2,
+    "FORRT_IN_PAPERS_MAX_CHARS": 3000,  # per page, the parts that best match the question
+    "FORRT_IN_PAPERS_TIMEOUT": 10,  # seconds to wait after the paper search; then the papers alone
     "FORRT_DECISION_THRESHOLD": 0.7,  # keep pages with p >= this ...
     "FORRT_DECISION_FLOOR": 0.2,  # ... or, if none, the plausible ones above this; below = not found
     "FORRT_FETCH_TIMEOUT": 6,

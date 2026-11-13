@@ -282,3 +282,48 @@ def test_book_chapter_urls_keep_their_html_ending():
     assert norm_url("https://forrt.org/replication-handbook/planning.html") == "https://forrt.org/replication-handbook/planning.html"
     assert norm_url("https://forrt.org/replication-handbook/index.html") == "https://forrt.org/replication-handbook/"
     assert norm_url("/replication-hub#x") == "https://forrt.org/replication-hub/"
+
+
+# --- FORRT_IN_PAPERS: forrt.org pages next to the papers
+
+
+def test_extra_sources_need_a_close_page_and_a_clear_yes(tmp_path):
+    pages, _ = make_pages(tmp_path, [], [0.95, 0.1])
+    found = pages.extra_sources("Which teams can I join?", min_score=0.5)
+    assert [p["url"] for p in found] == ["https://forrt.org/about/teams/"] and "Team Credit" in found[0]["text"]
+    asked = []
+    pages.decisions = SimpleNamespace(decide=lambda *a: asked.append(a) or ({}, {}))
+    assert pages.extra_sources("Which teams can I join?", min_score=5.0) == [] and not asked  # no close page: no call
+    for answers in ({"page_1": {"noul": 0.5}, "page_2": {"noul": 0.3}}, None):  # unsure or failed: nothing added
+        pages.decisions = SimpleNamespace(decide=lambda *a, answers=answers: (answers, {}))
+        assert pages.extra_sources("Which teams can I join?", min_score=0.0) == []
+
+
+def forrt_in_papers_qualle(tmp_path, route, answer="Join a team [1] and read the paper [0]."):
+    from test_qualle import node
+    pages, _ = make_pages(tmp_path, [], [0.95, 0.1])
+    q = make_qualle(True, [node("Paper")], [node("Paper")], answer)
+    q.config = {**CONFIG, "DECISION_ROUTER": True, "FORRT_IN_PAPERS": True, "FORRT_IN_PAPERS_MIN_SCORE": 0.5}
+    q.decisions = SimpleNamespace(route=lambda model, query: (route, 0.9, {}))
+    q.forrt_pages = pages
+    return q
+
+
+def test_papers_route_reads_a_matching_forrt_page_next_to_the_papers(tmp_path):
+    q = forrt_in_papers_qualle(tmp_path, "open_science")
+    final = list(q.get_response("Which teams can I join?", "chat"))[-1]
+    prompt = q.response_generator.client_manager.calls[0]["messages"][-1]["content"]
+    assert "[0] Title: Paper" in prompt and "[1] Title: Teams" in prompt and "Team Credit" in prompt
+    urls = [r["url"] for r in final["metadata"]["references"]]
+    assert final["outcome"] == "answered" and "https://forrt.org/about/teams/" in urls and "https://x" in urls
+    q.config = {**q.config, "FORRT_IN_PAPERS": False}  # off: the papers alone
+    q.forrt_pages.extra_sources = lambda *a: (_ for _ in ()).throw(AssertionError("not asked"))
+    list(q.get_response("Which teams can I join?", "chat2"))
+
+
+def test_both_route_reads_the_forrt_page_instead_of_only_linking_it(tmp_path):
+    q = forrt_in_papers_qualle(tmp_path, "both")
+    final = list(q.get_response("Which teams can I join?", "chat"))[-1]
+    assert "Team Credit" in q.response_generator.client_manager.calls[0]["messages"][-1]["content"]  # the page was read
+    urls = [r["url"] for r in final["metadata"]["references"]]
+    assert urls.count("https://forrt.org/about/teams/") == 1  # and cited once, not linked again

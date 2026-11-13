@@ -417,3 +417,28 @@ Findings:
 5. **Similarity separates trivia, not near-topic questions** (133 single-turn questions of `eval/questions.jsonl`): at 0.55 on the closest paper chunk or FORRT page, every answerable question stays and 36% of the 28 to refuse fall below; career, grant and SPSS questions score 0.56 to 0.73, like open-science ones. This agrees with the banded topic check (3.11).
 
 Limits: the statuses rest on one probe per sub-cluster and thresholds set by eye on this index; the wrong files and titles were confirmed by hand from the lowest title-to-text similarities only.
+
+### 3.14 FORRT pages next to the papers (13 November 2026, 242 questions, `meta-llama/llama-3.1-8b-instruct`)
+
+**Problem:** the topic check sends general questions to the papers, so a forrt.org page that answers them is never read: 9 of the 10 Replication Handbook questions (`eval/forrt_handbook_questions.jsonl`, #53) and the 6 questions labelled `both` (clef-flash never picks `both`; 4 are "has effect X been replicated?", which FLoRA answers) went to the papers only. Section 3.11 found that similarity alone cannot decide papers vs FORRT pages, so `FORRT_IN_PAPERS` does not decide: a papers answer can also read the pages that clearly match (architecture.md, `forrt_pages.py`).
+
+**Threshold** (`FORRT_IN_PAPERS_MIN_SCORE` 0.60), set on the tuning files only (the 194 generated questions of `eval/forrt_sim_questions.jsonl` and the 474 of `eval/retrieval_questions.jsonl`): at 0.60 the strict selector adds a page to 74-85% of the FORRT questions and to 7% of the paper questions; at 0.55 to 23% of the paper questions; above 0.62 it loses FORRT questions with little gain.
+
+**Report:** `eval/run.py` on the four report sets with `FORRT_IN_PAPERS` false and true, run at the same time (default topic check clef-flash, Llama 3.1 8B on Groq; this run without the re-ranker and with bge-m3 through OpenRouter, the same for both). Added pages judged by `openai/gpt-oss-120b`: does the page help answer the question (yes / partly / no)?
+
+| Set | Measure | Off | On |
+|---|---|---|---|
+| `forrt_handbook_questions` (10) | expected chapter among the answer's sources | 1/10 | **9/10** |
+| `forrt_questions` (32) | expected page among the answer's sources | 23/32 | 25/32 |
+| `questions` (140) | correct (answered / refused as expected) | 0.89 | 0.87 |
+| | citation support (`eval/judge.py`) | 0.60 | 0.61 |
+| | rubric coverage (`eval/rubric_judge.py`, 25) | 0.68 | 0.68 |
+| | answers with a page added | 0 | 23 |
+| | mean s | 3.1 | 3.2 |
+| `refusal_questions` (60) | refused | 0.53 | 0.53 |
+| all | added pages judged yes / partly / no | – | 32 / 24 / 1 (57 pages, 41 cited) |
+
+Findings:
+1. **The handbook and FORRT pages reach general questions** (1/10 → 9/10) and the answers on the 140 questions keep their quality on average; refusals do not change (the topic check decides them before this step).
+2. **On the 23 answers that got a page, citation support fell from 0.59 to 0.53:** few answers and a noisy judge, but plausibly pages rated "partly" (24 of 57) cited for claims they only partly back. On by default for the handbook and FLoRA gains; worth a hand check of these answers, and `FORRT_IN_PAPERS_MIN_SCORE` can be raised if it holds.
+3. Time: +0.1 s on the 140 questions (most add no page and make no decision call); +3 s on the handbook questions (long chapters read live). In production the page search runs while the re-ranker does, which hides part of it. 2 of 242 questions hit `FORRT_IN_PAPERS_TIMEOUT` (10 s) and were answered from the papers alone.

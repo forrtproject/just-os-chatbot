@@ -24,6 +24,8 @@ from just_os.forrt_pages import ForrtPages
 from just_os.hybrid import vector_cosine
 from just_os import messages as msg
 from just_os.openscholar import generation_instance_prompts_w_references, system_prompt
+from llama_index.core.schema import TextNode
+
 from just_os.references import (
     best_snippet,
     document_key,
@@ -71,6 +73,13 @@ def page_references(pages: List[Dict[str, Any]], start: int = 1) -> List[Dict[st
     """forrt.org pages ({title, url}) as entries of metadata.references, for the Sources box."""
     return [{"number": n, "authors": "", "authors_short": "", "year": "", "title": p["title"], "url": p["url"],
              "unverified": False, "snippet": ""} for n, p in enumerate(pages, start=start)]
+
+
+def page_nodes(pages: List[Dict[str, Any]]) -> List[TextNode]:
+    """forrt.org pages read next to the papers (FORRT_IN_PAPERS) as source nodes after the paper chunks,
+    so they get [n] citations and a Sources entry like a paper. No licence: no quote under the source."""
+    return [TextNode(text=p["text"], metadata={TITLE_KEY: p["title"], CREATOR_KEY: "FORRT", "link_to_resource": p["url"],
+                                               "pub_year": (p.get("date") or "")[:4] or None}) for p in pages]
 
 
 def page_source_lines(refs: List[Dict[str, Any]]) -> str:
@@ -1237,7 +1246,10 @@ class Qualle:
                 return
 
             yield {"status": "in-progress", "message": "Finding relevant sources"}
+            pages_job = self.start_forrt_in_papers(query, intent)
             ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(query, timings)
+            page_sources = self.forrt_in_papers_result(pages_job, timings)
+            ranked_nodes = list(ranked_nodes) + page_sources
             if not ranked_nodes:
                 yield from self.no_relevant_nodes_handler(user_query, chat_id)
                 return
@@ -1311,7 +1323,7 @@ class Qualle:
                     ),
                 },
             }
-            if intent == "both" and self.forrt_pages is not None:
+            if intent == "both" and self.forrt_pages is not None and not page_sources:
                 # the question also concerns FORRT itself: add the best forrt.org pages to the
                 # Sources box, after the papers (no extra answer call)
                 links = self.forrt_pages.links(query)
@@ -1332,6 +1344,30 @@ class Qualle:
                 "message": markdown.markdown(msg.message("unexpected_error", user_query)),
                 "outcome": "error",
             }
+
+    def start_forrt_in_papers(self, query: str, intent: str):
+        """FORRT_IN_PAPERS: look for forrt.org pages that add to a papers answer while the papers are
+        searched (a future, or None when off). The `both` route skips the score floor."""
+        if getattr(self, "forrt_pages", None) is None or not self.config.get("FORRT_IN_PAPERS"):
+            return None
+        min_score = None if intent == "both" else self.config.get("FORRT_IN_PAPERS_MIN_SCORE", 0.6)
+        pool = ThreadPoolExecutor(1)
+        job = pool.submit(self.forrt_pages.extra_sources, query, min_score)
+        pool.shutdown(wait=False)
+        return job
+
+    def forrt_in_papers_result(self, job, timings: Dict[str, float]) -> List[TextNode]:
+        """The pages of start_forrt_in_papers as source nodes; none when off, slow or failed."""
+        if job is None:
+            return []
+        start = time.time()
+        try:
+            return page_nodes(job.result(timeout=self.config.get("FORRT_IN_PAPERS_TIMEOUT", 10)))
+        except Exception as e:
+            logger.warning(f"FORRT pages next to the papers skipped: {e.__class__.__name__}: {e}")
+            return []
+        finally:
+            timings["forrt_wait_s"] = time.time() - start
 
     def get_arena_response(
         self, query: str, models: List[str], router: Optional[str] = None
