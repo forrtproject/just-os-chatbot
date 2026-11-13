@@ -13,44 +13,206 @@
         <img src='/images/qualle.png' id="header-logo" alt="JUST-OS">
     </div>
     {% include "_nav.html" %}
+    {% macro num(v) %}{{ v if v is not none and v != "" else "–" }}{% endmacro %}
     <main id="eval-page">
         <h1>Evaluation</h1>
-        <p class="eval-note">One row per model or setting: its newest run. Every run is in the run history further down,
-            and <a href="#how">how the numbers are calculated</a> is at the end. Files: <code>eval/results/</code>;
+        <p class="eval-lead">The bot answers in three steps, and each table below tests one of them:
+            a <b>topic check</b> decides whether a question is about open science, about FORRT, both, or neither (then it
+            refuses); a <b>search</b> finds passages in the paper library (or the bot reads forrt.org pages); an
+            <b>answer model</b> writes the answer and cites its sources as [n]. Each section says what was tested, on
+            which questions, what the columns mean and how the best one is chosen. One row per model or setting: its
+            newest run; every run is in the <a href="#history">run history</a>. Files: <code>eval/results/</code>;
             background: <a href="https://github.com/forrtproject/just-os-chatbot/blob/dev/docs/evaluation.md">docs/evaluation.md</a>.</p>
 
         <nav class="eval-nav" aria-label="Sections">
-            <a href="#summary">Summary</a><a href="#pairs">Topic check × answer model</a><a href="#answer-models">Answer models</a>
-            <a href="#search">Search × re-ranker</a><a href="#full">Full pipeline runs</a><a href="#topic-check">Topic check</a>
-            <a href="#embeddings">Embeddings</a><a href="#arena">Arena</a><a href="#history">Run history</a><a href="#how">How it is calculated</a>
+            <a href="#summary">Summary</a><a href="#questions">The questions</a><a href="#answer-models">Answer models</a>
+            <a href="#topic-check">Topic check</a><a href="#pairs">Topic check × answer model</a><a href="#search">Search × re-ranker</a>
+            <a href="#full">Full pipeline runs</a><a href="#embeddings">Embeddings</a><a href="#arena">Arena</a><a href="#history">Run history</a>
         </nav>
 
         <section id="summary">
             <h2>Summary</h2>
+            <p class="eval-note">The bot's defaults for chat and arena follow these results ({{ "on" if config.AUTO_DEFAULTS else "off" }}:
+                <code>AUTO_DEFAULTS</code>); a new winner becomes the default when the bot restarts.</p>
             <div class="eval-cards">
-                {% if pairs %}{% set p = pairs.rows[0] %}
-                <div class="eval-card">Best pair<b>{{ p.topic_check }} + {{ p.answer_model }}</b>Correct {{ p.correct }}, judge {{ p.judge_support if p.judge_support is not none else "–" }}</div>
-                {% endif %}
                 {% if papers_models %}{% set m = papers_models[0] %}
-                <div class="eval-card">Best answers from the papers<b>{{ m.model }}</b>Judge {{ m.judge if m.judge is not none else "–" }}, citations valid {{ m.citations_valid if m.citations_valid is not none else "–" }}</div>
+                <div class="eval-card">Default answer model<b>{{ defaults.get("CITATION_MODEL", m.model) }}</b>
+                    Highest score = (2 × judge + rubric) / 3 among complete runs without errors.
+                    {% if m.score is not none %}Score {{ m.score }} (judge {{ num(m.judge) }}, rubric {{ num(m.rubric) }}).{% endif %}</div>
                 {% endif %}
-                {% if classifier_models %}{% set c = classifier_models[0] %}
-                <div class="eval-card">Best topic check<b>{{ c.model }}</b>Accuracy {{ c.accuracy }} on {{ c.n }} questions</div>
+                {% if defaults.get("ROUTER") %}
+                <div class="eval-card">Default topic check<b>{{ routers.get(defaults.ROUTER, defaults.ROUTER) }}</b>
+                    Most accurate in the newest topic-check run; a tie goes to the cheaper one.</div>
+                {% endif %}
+                {% if pairs %}{% set p = pairs.rows[0] %}
+                <div class="eval-card">Best pair (topic check + answer model)<b>{{ p.topic_check }} + {{ p.answer_model }}</b>
+                    Most questions handled correctly: {{ p.correct }}; judge {{ num(p.judge_support) }}.</div>
                 {% endif %}
                 {% if search_configs %}{% set s = search_configs[0] %}
-                <div class="eval-card">Best search<b>{{ s.model }}</b>hit@7 {{ s.hit if s.hit is not none else "–" }}, judge {{ s.judge if s.judge is not none else "–" }}</div>
+                <div class="eval-card">Best search setting<b>{{ s.model }}</b>
+                    Highest hit@7: {{ num(s.hit) }}; judge {{ num(s.judge) }}.</div>
                 {% endif %}
-                {% if not (pairs or papers_models or classifier_models or search_configs) %}<p class="eval-empty">No results yet.</p>{% endif %}
+                {% if not (pairs or papers_models or defaults or search_configs) %}<p class="eval-empty">No results yet.</p>{% endif %}
             </div>
+        </section>
+
+        <section id="questions">
+            <h2>The questions</h2>
+            {% if questions %}{% set q = questions.main %}
+            <p class="eval-note">Every answer eval uses the same question files, so models and settings are compared on the
+                same questions. Each question has a gold label: whether the bot should <b>answer</b> or <b>refuse</b>,
+                and which route it belongs to.</p>
+            <div class="eval-how">
+                <div>
+                    <h3><code>eval/questions.jsonl</code>: {{ q.n }} questions</h3>
+                    <ul>
+                        <li><b>Should:</b> {% for k, v in q.expect %}{{ k }} {{ v }}{% if not loop.last %}, {% endif %}{% endfor %}</li>
+                        <li><b>Route:</b> {% for k, v in q.routes %}{{ k|replace("_", " ") }} {{ v }}{% if not loop.last %}, {% endif %}{% endfor %}
+                            ("neither" = off topic, should be refused)</li>
+                        <li><b>Languages:</b> {% for k, v in q.languages %}{{ k }} {{ v }}{% if not loop.last %}, {% endif %}{% endfor %}</li>
+                        <li><b>Kinds:</b> {% for k, v in q.types %}{{ k }} {{ v }}{% if not loop.last %}, {% endif %}{% endfor %}</li>
+                        <li><b>Topics:</b> {{ q.clusters }} FORRT clusters</li>
+                        <li><b>Extra checks:</b> {{ q.with_dois }} name the papers a good answer cites (<code>expected_dois</code>),
+                            {{ q.with_urls }} the forrt.org pages (<code>expected_urls</code>), {{ q.with_rubric }} have a rubric
+                            (FORRT glossary items: the points a complete answer covers), {{ q.multi_turn }} are follow-ups in a conversation</li>
+                    </ul>
+                </div>
+                {% if questions.forrt.n %}
+                <div>
+                    <h3><code>eval/forrt_questions.jsonl</code>: {{ questions.forrt.n }} FORRT website questions</h3>
+                    <ul>
+                        <li>All should be answered from forrt.org; each names the expected pages (<code>expected_urls</code>)</li>
+                        <li><b>About:</b> {% for k, v in questions.forrt.kinds %}{{ k }} {{ v }}{% if not loop.last %}, {% endif %}{% endfor %}</li>
+                    </ul>
+                    <p class="eval-note">The answer-model runs use both files ({{ q.n + questions.forrt.n }} questions). The topic-check
+                        eval adds <code>eval/refusal_questions.jsonl</code> (generated questions it should refuse).</p>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}<p class="eval-empty">The question files are not on this server.</p>{% endif %}
+        </section>
+
+        <section id="answer-models">
+            <h2>Answer models</h2>
+            <div class="eval-how">
+                <div>
+                    <h3>What was tested</h3>
+                    <p>Every model answered every question twice, without a topic check: once <b>from the papers</b> (the
+                        same 7 passages for every model, found once by the search and re-ranker, so only the model differs)
+                        and once <b>from the forrt.org pages</b>. Two LLM judges then read each answer next to its sources:
+                        the <b>citation judge</b> (<code>eval/judge.py</code>, gpt-oss-20b) and, for the questions with a
+                        rubric, the <b>rubric judge</b> (<code>eval/rubric_judge.py</code>, gemini-3.8-flash).</p>
+                </div>
+                <div>
+                    <h3>How the score is calculated</h3>
+                    <p class="eval-formula">Score = (2 × Judge + Rubric coverage) / 3</p>
+                    <p>Both are 0 to 1. Citation support counts double: a cited sentence its source does not support misleads
+                        more than a missing point, and the judge covers about 160 answers per model where the rubric covers 25.
+                        The <b>default</b> answer model is the best score among runs that answered every question without errors.</p>
+                </div>
+            </div>
+            {% if papers_models %}
+            <div class="eval-table">
+                <table>
+                    <thead>
+                        <tr><th rowspan="2">Answer model</th><th rowspan="2">Score</th><th colspan="7">From the papers</th><th colspan="3">From the FORRT pages</th><th rowspan="2">Newest run</th></tr>
+                        <tr><th>Judge</th><th>Rubric coverage</th><th>Citations valid</th><th>hit@7</th><th>Errors</th><th>Mean s</th><th>USD / 1k q</th>
+                            <th>hit (page)</th><th>No sources</th><th>Mean s</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for r in papers_models %}{% set f = forrt_models.get(r.model) %}
+                        <tr><td>{{ r.model }}{% if r.model == defaults.get("CITATION_MODEL") %} <span class="eval-default">default</span>{% endif %}
+                                {% if r.n < papers_models|map(attribute="n")|max %} <span class="eval-flag">{{ r.n }} questions only</span>{% endif %}</td>
+                            <td><b>{{ num(r.score) }}</b></td><td>{{ num(r.judge) }}</td><td>{{ num(r.rubric) }}</td>
+                            <td>{{ num(r.citations_valid) }}</td><td>{{ num(r.hit) }}</td><td>{{ r.errors }}</td><td>{{ r.mean_s }}</td><td>{{ r.usd_per_1k }}</td>
+                            {% if f %}<td>{{ num(f.hit) }}</td><td>{{ f.no_sources }}</td><td>{{ f.mean_s }}</td>{% else %}<td>–</td><td>–</td><td>–</td>{% endif %}
+                            <td>{{ r.run }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <details open>
+                <summary>What the columns mean</summary>
+                <dl class="eval-defs">
+                    <dt>Score</dt><dd>(2 × Judge + Rubric coverage) / 3; "–" until both judges have scored the run. Rows are sorted by it.</dd>
+                    <dt>Judge</dt><dd>Citation judge: of the answer's sentences with a citation [n], the share whose cited passage supports them (0-1), averaged over the answers.</dd>
+                    <dt>Rubric coverage</dt><dd>Rubric judge: for the questions with a rubric, how much of each rubric point the answer covers (0 none to 4 fully, divided by 4), averaged.</dd>
+                    <dt>Citations valid</dt><dd>Share of answers in which every [n] points to a passage that exists (no invented numbers).</dd>
+                    <dt>hit@7</dt><dd>For questions with expected papers: share where one of them was among the 7 passages. The same for every model here, since the search is shared.</dd>
+                    <dt>Errors</dt><dd>Questions where the model failed or returned an empty answer.</dd>
+                    <dt>Mean s, USD / 1k q</dt><dd>Seconds per answer (the shared search not counted) and the cost of 1,000 questions as OpenRouter reports it.</dd>
+                    <dt>hit (page)</dt><dd>FORRT-page answers: share of the FORRT website questions whose answer used one of the expected forrt.org pages.</dd>
+                    <dt>No sources</dt><dd>FORRT-page answers where no page was relevant enough to answer from.</dd>
+                    <dt>default</dt><dd>The answer model chat and arena use. <span class="eval-flag">n questions only</span>: an unfinished run, which cannot become the default.</dd>
+                </dl>
+            </details>
+            {% else %}<p class="eval-empty">No answer-model runs yet: <code>python eval/run_batches.py --route open_science --since ... &lt;model&gt;</code>.</p>{% endif %}
+        </section>
+
+        <section id="topic-check">
+            <h2>Topic check</h2>
+            <div class="eval-how">
+                <div>
+                    <h3>What was tested</h3>
+                    <p>The topic check alone (<code>eval/classify.py</code>): for each question it picks one of four routes:
+                        <b>open science</b> (answer from the papers), <b>FORRT</b> (answer from forrt.org), <b>both</b>, or
+                        <b>neither</b> (refuse). The pick is compared with the question's gold route. Strategies:
+                        {% for k, v in routers.items() if k %}<i>{{ v }}</i>{% if not loop.last %}, {% endif %}{% endfor %}.</p>
+                </div>
+                <div>
+                    <h3>How the default is chosen</h3>
+                    <p>The most accurate strategy in the newest run that compared several on the same questions; on a tie, the
+                        cheaper one (fewer model calls), then the faster one. Rows from older runs may use other questions:
+                        compare rows with the same <b>n</b>.</p>
+                </div>
+            </div>
+            {% if classifier_models %}
+            <div class="eval-table">
+                <table>
+                    <thead>
+                        <tr><th>Topic check</th><th>Runs</th><th>Newest run</th><th>n</th><th>Accuracy</th><th>False refusals</th>
+                            <th>False answers</th><th>Errors</th><th>Mean s</th><th>USD / 1k q</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for r in classifier_models %}
+                        <tr><td>{{ r.model }}{% if r.model == "router: " ~ defaults.get("ROUTER") %} <span class="eval-default">default</span>{% endif %}</td>
+                            <td>{{ r.runs }}</td><td>{{ r.run }}</td><td>{{ r.n }}</td><td><b>{{ r.accuracy }}</b></td>
+                            <td>{{ r.false_refusals }}</td><td>{{ r.false_answers }}</td><td>{{ r.errors }}</td>
+                            <td>{{ r.mean_s }}</td><td>{{ r.usd_per_1k }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <details open>
+                <summary>What the columns mean</summary>
+                <dl class="eval-defs">
+                    <dt>n, Newest run</dt><dd>Questions in the newest run of this strategy, and its date (YYMMDD-HHMM).</dd>
+                    <dt>Accuracy</dt><dd>Share of questions where the picked route equals the gold route.</dd>
+                    <dt>False refusals</dt><dd>Questions the bot should answer (open science, FORRT or both) that the check turned away.</dd>
+                    <dt>False answers</dt><dd>Questions the bot should refuse that the check let through.</dd>
+                    <dt>Errors</dt><dd>No route at all (the call failed and nothing could fall back).</dd>
+                    <dt>Mean s, USD / 1k q</dt><dd>Time and cost of the topic check alone per question.</dd>
+                </dl>
+            </details>
+            {% else %}<p class="eval-empty">No runs yet: <code>python eval/classify.py --routers banded,jev,clef-flash,cosine</code>.</p>{% endif %}
         </section>
 
         <section id="pairs">
             <h2>Topic check × answer model</h2>
-            <p class="eval-note">Every pair of topic check and answer model on the same questions (<code>eval/pairs.py</code>):
-                each answer model answered every question once from the papers and once from the FORRT pages, and each
-                topic check's decision per question picks the answer that pair would have given (a refusal needs none).
-                Cells: share of questions handled correctly (answered when it should, refused when it should); greener is better.
-                Hover a cell for the judge score, hit rate and time.</p>
+            <div class="eval-how">
+                <div>
+                    <h3>What was tested</h3>
+                    <p>The whole bot for every pair of topic check and answer model, on the same questions
+                        (<code>eval/pairs.py</code>). The topic check only decides where a question goes, so for each question
+                        the pair's answer is the model's answer from the papers (open science or both), from the forrt.org
+                        pages (FORRT), or a refusal (neither): the runs of the two sections above, combined.</p>
+                </div>
+                <div>
+                    <h3>How the best pair is chosen</h3>
+                    <p>The share of questions handled correctly: answered when it should answer, refused when it should refuse
+                        (an error counts as wrong). Ties go to the higher judge score. Cells are greener the higher this is.</p>
+                </div>
+            </div>
             {% if pairs %}
             <div class="eval-table eval-grid">
                 <table>
@@ -76,70 +238,67 @@
                             {% for r in pairs.rows %}
                             <tr><td>{{ r.topic_check }}</td><td>{{ r.answer_model }}</td><td>{{ r.n }}</td><td><b>{{ r.correct }}</b></td>
                                 <td>{{ r.answered }}/{{ r.should_answer }}</td><td>{{ r.refused }}/{{ r.should_refuse }}</td>
-                                {% for k in ("hit", "citations_valid", "judge_support", "mean_s", "usd_per_1k") %}<td>{{ r[k] if r[k] is not none else "–" }}</td>{% endfor %}</tr>
+                                {% for k in ("hit", "citations_valid", "judge_support", "mean_s", "usd_per_1k") %}<td>{{ num(r[k]) }}</td>{% endfor %}</tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
+                <dl class="eval-defs">
+                    <dt>Correct</dt><dd>Share of questions the pair handled correctly (answered when it should, refused when it should).</dd>
+                    <dt>Answered, Refused</dt><dd>Questions that should be answered and were / all that should be answered; the same for refusals.</dd>
+                    <dt>hit, Citations valid, Judge</dt><dd>As for the answer models, over the answers this pair gives.</dd>
+                    <dt>Mean s, USD / 1k q</dt><dd>Topic check plus answer, per question.</dd>
+                </dl>
             </details>
-            {% else %}<p class="eval-empty">No pair table yet: run each answer model with <code>eval/run_batches.py --route open_science</code> and <code>--route forrt</code>, the topic checks with <code>eval/classify.py --routers ...</code> on the same questions, then <code>python eval/pairs.py</code>.</p>{% endif %}
-        </section>
-
-        <section id="answer-models">
-            <h2>Answer models</h2>
-            <p class="eval-note">Each model on every question, without a topic check: once from the papers (judge, citations,
-                rubric) and once from the FORRT pages (did it use an expected forrt.org page). Best judge score first.
-                Seconds are answer time: the search and re-ranking were cached and shared by all models.</p>
-            {% if papers_models %}
-            <div class="eval-table">
-                <table>
-                    <thead>
-                        <tr><th rowspan="2">Answer model</th><th colspan="7">From the papers</th><th colspan="3">From the FORRT pages</th><th rowspan="2">Newest run</th></tr>
-                        <tr><th>Judge</th><th>Citations valid</th><th>hit@7</th><th>Rubric coverage</th><th>Errors</th><th>Mean s</th><th>USD / 1k q</th>
-                            <th>hit (page)</th><th>No sources</th><th>Mean s</th></tr>
-                    </thead>
-                    <tbody>
-                        {% for r in papers_models %}{% set f = forrt_models.get(r.model) %}
-                        <tr><td>{{ r.model }}</td><td><b>{{ r.judge if r.judge is not none else "–" }}</b></td>
-                            <td>{{ r.citations_valid if r.citations_valid is not none else "–" }}</td><td>{{ r.hit if r.hit is not none else "–" }}</td>
-                            <td>{{ r.rubric if r.rubric is not none else "–" }}</td><td>{{ r.errors }}</td><td>{{ r.mean_s }}</td><td>{{ r.usd_per_1k }}</td>
-                            {% if f %}<td>{{ f.hit if f.hit is not none else "–" }}</td><td>{{ f.no_sources }}</td><td>{{ f.mean_s }}</td>
-                            {% else %}<td>–</td><td>–</td><td>–</td>{% endif %}
-                            <td>{{ r.run }}</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}<p class="eval-empty">No forced runs yet: <code>python eval/run_batches.py --route open_science --since ... &lt;model&gt;</code>.</p>{% endif %}
+            {% else %}<p class="eval-empty">No pair table yet: it needs both answer runs per model and a topic-check run on the same questions, then <code>python eval/pairs.py</code>.</p>{% endif %}
         </section>
 
         <section id="search">
             <h2>Search × re-ranker</h2>
-            <p class="eval-note">The six search settings (<code>SEARCH_MODE</code> vector, BM25 or hybrid; <code>RERANK</code> on or off)
-                with the default answer model, every question answered from the papers (<code>eval/scorecard.py --route open_science</code>).
-                Best hit@7 first.</p>
+            <div class="eval-how">
+                <div>
+                    <h3>What was tested</h3>
+                    <p>How the bot finds its passages: <b>vector</b> search (meaning, bge-m3), <b>BM25</b> (keywords) or
+                        <b>hybrid</b> (both), each with and without the <b>re-ranker</b> that re-orders the 20 found passages
+                        and keeps the best 7 (<code>SEARCH_MODE</code>, <code>RERANK</code>). The default answer model answered
+                        every question from the papers with each setting (<code>eval/scorecard.py --route open_science</code>).</p>
+                </div>
+                <div>
+                    <h3>How the best is chosen</h3>
+                    <p>The highest hit@7: how often the papers a good answer needs are among the passages. Judge and the
+                        search and re-rank times show what that costs in answer quality and speed.</p>
+                </div>
+            </div>
             {% if search_configs %}
             <div class="eval-table">
                 <table>
                     <thead><tr><th>Setting</th><th>hit@7</th><th>Judge</th><th>Citations valid</th><th>No sources</th><th>Search s</th><th>Re-rank s</th><th>Mean s</th><th>Newest run</th></tr></thead>
                     <tbody>
                         {% for r in search_configs %}
-                        <tr><td>{{ r.model }}</td><td><b>{{ r.hit if r.hit is not none else "–" }}</b></td><td>{{ r.judge if r.judge is not none else "–" }}</td>
-                            <td>{{ r.citations_valid if r.citations_valid is not none else "–" }}</td><td>{{ r.no_sources }}</td>
-                            <td>{{ r.search_s if r.search_s is not none else "–" }}</td><td>{{ r.rerank_s if r.rerank_s is not none else "–" }}</td>
-                            <td>{{ r.mean_s }}</td><td>{{ r.run }}</td></tr>
+                        <tr><td>{{ r.model }}</td><td><b>{{ num(r.hit) }}</b></td><td>{{ num(r.judge) }}</td>
+                            <td>{{ num(r.citations_valid) }}</td><td>{{ r.no_sources }}</td>
+                            <td>{{ num(r.search_s) }}</td><td>{{ num(r.rerank_s) }}</td><td>{{ r.mean_s }}</td><td>{{ r.run }}</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            <details open>
+                <summary>What the columns mean</summary>
+                <dl class="eval-defs">
+                    <dt>hit@7</dt><dd>For questions with expected papers: share where one of them was among the 7 passages the model saw.</dd>
+                    <dt>Judge, Citations valid</dt><dd>As for the answer models.</dd>
+                    <dt>No sources</dt><dd>Questions where no passage was relevant enough (below <code>MIN_RELEVANCE</code>), so the bot said it found nothing.</dd>
+                    <dt>Search s, Re-rank s, Mean s</dt><dd>Seconds for the search, for the re-ranker (on CPU), and for the whole answer.</dd>
+                </dl>
+            </details>
             {% else %}<p class="eval-empty">No search comparison yet: <code>python eval/scorecard.py --route open_science search-vector search-bm25 ...</code>.</p>{% endif %}
         </section>
 
         <section id="full">
             <h2>Full pipeline runs</h2>
-            <p class="eval-note">The whole bot (topic check, search, answer, citations) on the eval questions
-                (<code>eval/run.py</code>), best correct rate first. Compare models with the same <b>n</b>: a newer
-                run can use more questions. Times compare only between runs on the same machine.</p>
+            <p class="eval-note">Earlier runs of the whole bot in one go (<code>eval/run.py</code>: topic check, search, answer),
+                one row per answer model. They mix the topic check with the answer model; the sections above test each on
+                its own. Compare only rows with the same <b>n</b>.</p>
             {% if answer_models %}
             <div class="eval-table">
                 <table>
@@ -153,49 +312,33 @@
                         {% for r in answer_models %}
                         <tr><td>{{ r.model }}</td><td>{{ r.runs }}</td><td>{{ r.run }}</td><td>{{ r.n }}</td><td><b>{{ r.correct }}</b></td>
                             <td>{{ r.answered }}</td><td>{{ r.refused }}</td><td>{{ r.errors }}</td>
-                            <td>{{ r.hit if r.hit is not none else "–" }}</td>
-                            <td>{{ r.citations_valid if r.citations_valid is not none else "–" }}</td>
-                            <td>{{ r.judge if r.judge is not none else "–" }}</td>
-                            <td>{{ r.rubric if r.rubric is not none else "–" }}</td>
+                            <td>{{ num(r.hit) }}</td><td>{{ num(r.citations_valid) }}</td><td>{{ num(r.judge) }}</td><td>{{ num(r.rubric) }}</td>
                             <td>{{ r.mean_s }}</td><td>{{ r.p95_s }}</td>
-                            {% for k in ("classify_s", "search_s", "rerank_s", "answer_s") %}<td>{{ r[k] if r[k] is not none else "–" }}</td>{% endfor %}
+                            {% for k in ("classify_s", "search_s", "rerank_s", "answer_s") %}<td>{{ num(r[k]) }}</td>{% endfor %}
                             <td>{{ r.tokens }}</td><td>{{ r.usd_per_1k }}</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            {% else %}<p class="eval-empty">No runs yet: <code>python eval/run.py --model ...</code>.</p>{% endif %}
-        </section>
-
-        <section id="topic-check">
-            <h2>Topic check (classification)</h2>
-            <p class="eval-note">The topic check alone (<code>eval/classify.py</code>): the LLM classifier
-                (<code>--models</code>) or a whole router strategy (<code>--routers</code>: Clef-flash, Clef, Jev, LLM,
-                cosine similarity, no check), best accuracy first. Routers are scored on four labels
-                (open science, FORRT, both, neither).</p>
-            {% if classifier_models %}
-            <div class="eval-table">
-                <table>
-                    <thead>
-                        <tr><th>Classifier</th><th>Runs</th><th>Newest run</th><th>n</th><th>Accuracy</th><th>False refusals</th>
-                            <th>False answers</th><th>Errors</th><th>Mean s</th><th>USD / 1k q</th></tr>
-                    </thead>
-                    <tbody>
-                        {% for r in classifier_models %}
-                        <tr><td>{{ r.model }}</td><td>{{ r.runs }}</td><td>{{ r.run }}</td><td>{{ r.n }}</td><td><b>{{ r.accuracy }}</b></td>
-                            <td>{{ r.false_refusals }}</td><td>{{ r.false_answers }}</td><td>{{ r.errors }}</td>
-                            <td>{{ r.mean_s }}</td><td>{{ r.usd_per_1k }}</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}<p class="eval-empty">No runs yet: <code>python eval/classify.py --routers clef-flash,clef,jev,llm,cosine,none</code>.</p>{% endif %}
+            <details>
+                <summary>What the columns mean</summary>
+                <dl class="eval-defs">
+                    <dt>Correct</dt><dd>Share of questions where the bot did the right thing: answered a question marked "answer", or refused one marked "refuse". Errors count as wrong.</dd>
+                    <dt>Answered, Refused</dt><dd>Questions marked "answer" that got an answer / all of them; questions marked "refuse" that were refused / all of them.</dd>
+                    <dt>p95 s</dt><dd>The time 95% of questions stay under (target 15 s).</dd>
+                    <dt>Topic check s … LLM answer s</dt><dd>Mean seconds of each step inside the bot; refused questions stop after the topic check.</dd>
+                    <dt>Tokens / q</dt><dd>Prompt + answer tokens per question, all model calls together.</dd>
+                    <dt>Other columns</dt><dd>As for the answer models.</dd>
+                </dl>
+            </details>
+            {% else %}<p class="eval-empty">No full pipeline runs.</p>{% endif %}
         </section>
 
         <section id="embeddings">
             <h2>Embedding models (search only)</h2>
-            <p class="eval-note">Only the search step (<code>eval/compare_embeddings.py</code>, 474 questions of
-                <code>eval/retrieval_questions.jsonl</code>, all languages); the bot uses bge-m3.</p>
+            <p class="eval-note">Which model turns questions and passages into vectors for the search
+                (<code>eval/compare_embeddings.py</code>): 474 questions of <code>eval/retrieval_questions.jsonl</code>,
+                each written from one passage of the library, in several languages. The bot uses bge-m3.</p>
             {% if embeddings %}
             <div class="eval-table">
                 <table>
@@ -207,12 +350,22 @@
                     </tbody>
                 </table>
             </div>
+            <details>
+                <summary>What the columns mean</summary>
+                <dl class="eval-defs">
+                    <dt>hit@5, hit@20</dt><dd>Share of questions whose source document is in the first 5 / 20 search results.</dd>
+                    <dt>MRR@20</dt><dd>Mean of 1 / rank of the source document within the first 20 (0 when it is not there): rewards finding it near the top.</dd>
+                    <dt>ms / query, Dims</dt><dd>Time to embed one question; length of one vector.</dd>
+                </dl>
+            </details>
             {% else %}<p class="eval-empty">No embedding comparison yet.</p>{% endif %}
         </section>
 
         <section id="arena">
             <h2>Arena ratings</h2>
-            <p class="eval-note">People's ratings on <a href="/arena">/arena</a>, best overall first; few ratings give unstable numbers.</p>
+            <p class="eval-note">People's ratings on <a href="/arena">/arena</a>: several models answer the same question from
+                the same sources, and the tester rates each answer from 1 (bad) to 5 (very good) on correctness, references
+                and clarity. Best overall first; few ratings give unstable numbers.</p>
             {% if arena %}
             <div class="eval-table">
                 <table>
@@ -230,34 +383,36 @@
                     </tbody>
                 </table>
             </div>
+            <p class="eval-note">Overall is the mean of the three ratings; Mean s the time to the answer.</p>
             {% else %}<p class="eval-empty">No arena ratings yet.</p>{% endif %}
         </section>
 
         <section id="history">
             <h2>Run history</h2>
             <details>
-                <summary>Every answer-model run ({{ runs|length }}), newest first</summary>
+                <summary>Every answer run ({{ runs|length }}), newest first</summary>
                 {% if runs %}
                 <div class="eval-table">
                     <table>
                         <thead>
                             <tr><th>Run</th><th>Answer model / setting</th><th>Kind</th><th>n</th><th>Correct</th><th>Answered</th><th>Refused</th>
-                                <th>Errors</th><th>hit@7</th><th>Citations valid</th><th>Judge</th><th>Rubric coverage</th>
+                                <th>Errors</th><th>hit@7</th><th>Citations valid</th><th>Judge</th><th>Rubric coverage</th><th>Score</th>
                                 <th>Mean s</th><th>p95 s</th><th>Tokens / q</th><th>USD / 1k q</th></tr>
                         </thead>
                         <tbody>
                             {% for r in runs %}
                             <tr><td>{{ r.run }}</td><td>{{ r.model }}</td><td>{{ r.kind }}</td><td>{{ r.n }}</td><td>{{ r.correct }}</td>
                                 <td>{{ r.answered }}</td><td>{{ r.refused }}</td><td>{{ r.errors }}</td>
-                                <td>{{ r.hit if r.hit is not none else "–" }}</td>
-                                <td>{{ r.citations_valid if r.citations_valid is not none else "–" }}</td>
-                                <td>{{ r.judge if r.judge is not none else "–" }}</td>
-                                <td>{{ r.rubric if r.rubric is not none else "–" }}</td>
+                                <td>{{ num(r.hit) }}</td><td>{{ num(r.citations_valid) }}</td><td>{{ num(r.judge) }}</td>
+                                <td>{{ num(r.rubric) }}</td><td>{{ num(r.score) }}</td>
                                 <td>{{ r.mean_s }}</td><td>{{ r.p95_s }}</td><td>{{ r.tokens }}</td><td>{{ r.usd_per_1k }}</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
+                <p class="eval-note"><b>Kind:</b> <i>full pipeline</i> is the whole bot; <i>papers</i> and <i>FORRT pages</i>
+                    are the answer-model runs with every question sent one way (there Correct only means "answered", so
+                    compare them by judge, citations and hit).</p>
                 {% endif %}
             </details>
             <details>
@@ -266,7 +421,7 @@
                 <div class="eval-table">
                     <table>
                         <thead>
-                            <tr><th>Run</th><th>Classifier</th><th>n</th><th>Accuracy</th><th>False refusals</th>
+                            <tr><th>Run</th><th>Topic check</th><th>n</th><th>Accuracy</th><th>False refusals</th>
                                 <th>False answers</th><th>Errors</th><th>Mean s</th><th>USD / 1k q</th></tr>
                         </thead>
                         <tbody>
@@ -280,48 +435,6 @@
                 </div>
                 {% endif %}
             </details>
-        </section>
-
-        <section id="how">
-            <h2>How the numbers are calculated</h2>
-            <h3>Answer models (one row per question in <code>eval/results/run_*.csv</code>)</h3>
-            <dl class="eval-defs">
-                <dt>Runs, Newest run</dt><dd>How many times the model was evaluated, and the date and time (YYMMDD-HHMM) of the run shown.</dd>
-                <dt>n</dt><dd>Number of questions in that run.</dd>
-                <dt>Correct</dt><dd>Share of questions where the bot did the right thing: it answered a question marked "answer", or refused one marked "refuse". Errors count as wrong.</dd>
-                <dt>Answered</dt><dd>Questions marked "answer" that got an answer / all questions marked "answer". The rest were refused or got "no sources".</dd>
-                <dt>Refused</dt><dd>Questions marked "refuse" that the bot refused / all questions marked "refuse".</dd>
-                <dt>Errors</dt><dd>Questions where a model call failed (time-out, provider error).</dd>
-                <dt>Kind</dt><dd><i>full pipeline</i>: the whole bot, topic check included. <i>papers</i> / <i>FORRT pages</i>: every question sent that way without a topic check (<code>--route</code>), the input of the pair table. In those runs Correct only means "answered", so compare them by judge, citations and hit.</dd>
-                <dt>Pair table</dt><dd>For a topic check and an answer model: per question the topic check's decision from the classify run; "neither" counts as refused, "forrt" takes the model's FORRT-pages answer, "open_science" and "both" its papers answer. Correct, hit, judge and citations are then counted as for a full run; seconds and cost add the topic check's.</dd>
-                <dt>hit@7</dt><dd>For questions with known source papers (<code>expected_dois</code>): share where at least one of them was among the 7 sources the answer model saw. Only a few questions have them.</dd>
-                <dt>Citations valid</dt><dd>Share of answers whose every <code>[n]</code> points to a source that exists (no invented numbers).</dd>
-                <dt>Judge</dt><dd>Mean score of <code>eval/judge.py</code>: does the cited passage support the sentence? "–" when the run was not judged.</dd>
-                <dt>Rubric coverage</dt><dd>Mean score of <code>eval/rubric_judge.py</code> over the questions with a rubric (the FORRT glossary items): how much of the rubric the answer covers, from 0 to 1. "–" when the run was not judged.</dd>
-                <dt>Mean s, p95 s</dt><dd>Seconds from the question to the complete answer: the mean, and the time 95% of questions stay under.</dd>
-                <dt>Topic check s, Search s, Re-rank s, LLM answer s</dt><dd>Mean seconds of each step, measured inside the bot: the topic check (router or classifier), the vector and keyword search, the re-ranker that picks the best passages, and the answer model writing the answer (with its one retry). Refused questions stop after the topic check, so the later steps average over the questions that reached them. Questions answered from forrt.org instead of the papers record <code>forrt_pages_s</code> (page search, live fetch and answer) in the logs. "–" for runs from before 12 Nov. The chat log (<code>data/chats/chats.jsonl</code>) and the arena logs record the same steps for every real question.</dd>
-                <dt>Tokens / q</dt><dd>Mean prompt + completion tokens per question, all model calls together (topic check, answer, retry).</dd>
-                <dt>USD / 1k q</dt><dd>Mean cost per question as reported by OpenRouter, times 1,000.</dd>
-            </dl>
-            <h3>Topic check (<code>eval/results/classify_*.csv</code>)</h3>
-            <dl class="eval-defs">
-                <dt>Accuracy</dt><dd>Share of questions where the predicted label equals the gold label (<code>route</code> in <code>eval/questions.jsonl</code>; FORRT-only question files count as "forrt").</dd>
-                <dt>False refusals</dt><dd>In-scope questions (open science, FORRT or both) that the check turned away (predicted off topic / neither).</dd>
-                <dt>False answers</dt><dd>Off-topic questions that the check let through.</dd>
-                <dt>Errors</dt><dd>No label at all (the call failed and nothing could fall back).</dd>
-                <dt>Mean s, USD / 1k q</dt><dd>Time and cost of the topic check alone per question.</dd>
-            </dl>
-            <h3>Embedding models</h3>
-            <dl class="eval-defs">
-                <dt>hit@5, hit@20</dt><dd>Share of questions whose source document is in the first 5 / 20 search results.</dd>
-                <dt>MRR@20</dt><dd>Mean of 1 / rank of the source document within the first 20 (0 when it is not there): rewards finding it near the top.</dd>
-                <dt>ms / query, Dims</dt><dd>Time to embed one question; length of one vector.</dd>
-            </dl>
-            <h3>Arena</h3>
-            <dl class="eval-defs">
-                <dt>Correct, References, Clarity</dt><dd>Mean rating from 1 (bad) to 5 (very good) that people gave each answer.</dd>
-                <dt>Overall</dt><dd>Mean of the three criteria. Mean s: time to the answer.</dd>
-            </dl>
         </section>
     </main>
 </body>

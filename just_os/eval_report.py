@@ -11,7 +11,9 @@ A missing folder or file gives empty tables (the production image has no eval/ f
 """
 
 import csv
+import json
 import re
+from collections import Counter
 from pathlib import Path
 from statistics import mean
 from typing import Dict, Iterable, List, Optional
@@ -153,11 +155,42 @@ def pair_results(folder: str) -> Dict:
     return {"run": files[-1].stem.removeprefix("pairs_"), "rows": rows, "grid": grid, "checks": checks, "models": models}
 
 
+def score(run: Dict) -> Optional[float]:
+    """The answer-model score: (2 x judge + rubric coverage) / 3, both 0-1. Citation support counts
+    double: a cited sentence its source does not support misleads more than a missing point, and the
+    judge covers ~160 answers per model while the rubric covers the 25 glossary questions. None when
+    the run lacks either number."""
+    if run.get("judge") is None or run.get("rubric") is None:
+        return None
+    return round((2 * run["judge"] + run["rubric"]) / 3, 3)
+
+
+def question_spread(eval_dir: str) -> Dict:
+    """What the answer eval asks: counts per route, language, type and extra checks, from the question files."""
+    def load(name):
+        path = Path(eval_dir) / name
+        return [json.loads(line) for line in open(path, encoding="utf-8")] if path.is_file() else []
+
+    main, forrt = load("questions.jsonl"), load("forrt_questions.jsonl")
+    count = lambda items, key: sorted(Counter(q.get(key) or "–" for q in items).items(), key=lambda kv: -kv[1])  # noqa: E731
+    return {
+        "main": {"n": len(main), "routes": count(main, "route"), "expect": count(main, "expect"),
+                 "languages": count(main, "lang"), "types": count(main, "type"),
+                 "clusters": len({q.get("cluster") for q in main if q.get("cluster")}),
+                 "with_dois": sum(bool(q.get("expected_dois")) for q in main),
+                 "with_urls": sum(bool(q.get("expected_urls")) for q in main),
+                 "with_rubric": sum("rubric" in q for q in main),
+                 "multi_turn": sum(bool(q.get("history")) for q in main)},
+        "forrt": {"n": len(forrt), "kinds": count(forrt, "kind")},
+    } if main else {}
+
+
 def best_defaults(folder: str, routers: Iterable[str]) -> Dict[str, str]:
     """The eval winners as the bot's defaults (AUTO_DEFAULTS): {"CITATION_MODEL": ..., "ROUTER": ...}.
 
-    Answer model: the best judge score among the papers runs (eval/pairs.py input, the newest per model)
-    that cover the whole question set without errors, so a partial or failing run cannot win.
+    Answer model: the best score() among the papers runs (eval/pairs.py input, the newest per model)
+    that cover the whole question set without errors, so a partial or failing run cannot win; while no
+    run has a rubric score yet, the best judge score.
     Topic check: the most accurate router in the newest classify run with at least two routers (all
     scored on the same questions); a tie goes to the cheaper, then the faster one (banded and Jev tie at
     154 of 172; banded needs no model call for a third of the questions). A key is missing when nothing qualifies.
@@ -166,7 +199,10 @@ def best_defaults(folder: str, routers: Iterable[str]) -> Dict[str, str]:
     papers = by_model([r for r in answer_runs(folder) if r["kind"] == "papers" and not r["config"]], "judge")
     full = max((r["n"] for r in papers), default=0)
     qualified = [r for r in papers if r["n"] == full and r["errors"] == 0 and r["judge"] is not None]
-    if qualified:
+    scored = [r for r in qualified if score(r) is not None]
+    if scored:
+        out["CITATION_MODEL"] = max(scored, key=lambda r: (score(r), r["judge"]))["model"]
+    elif qualified:
         out["CITATION_MODEL"] = max(qualified, key=lambda r: r["judge"])["model"]
     known = set(routers) - {""}
     for path in sorted(Path(folder).glob("classify_*.csv"), reverse=True):

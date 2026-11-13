@@ -70,7 +70,7 @@ def test_eval_page_renders_the_tables(tmp_path):
     html = flask_app.app.test_client().get("/eval").get_data(as_text=True)
     assert "meta-llama/llama-3.1-8b-instruct" in html and "BAAI/bge-m3" in html
     assert "eval/classify.py --routers" in html and "No arena ratings yet" in html  # empty states
-    assert html.index("Answer models") < html.index("Run history") < html.index("How the numbers are calculated")
+    assert html.index("The questions") < html.index("Answer models") < html.index("Run history")
 
 
 def test_by_model_keeps_the_newest_run_and_counts_runs():
@@ -102,8 +102,8 @@ def test_eval_page_shows_pairs_answer_models_and_search(tmp_path):
     flask_app.chat_manager.redis = fakeredis.FakeRedis()
     flask_app.config.update(EVAL_RESULTS_DIR=str(tmp_path))
     html = flask_app.app.test_client().get("/eval").get_data(as_text=True)
-    assert "Best pair<b>jev + m/a</b>" in html and "hsl(120 65% 85%)" in html  # summary card and green cell
-    assert "Best search<b>search-bm25</b>" in html and "<td>m/a</td><td><b>0.7</b></td>" in html
+    assert "<b>jev + m/a</b>" in html and "hsl(120 65% 85%)" in html  # summary card and green cell
+    assert "<b>search-bm25</b>" in html and "Score = (2 × Judge + Rubric coverage) / 3" in html
 
 
 def test_best_defaults_take_only_complete_runs_and_the_newest_topic_check_run(tmp_path):
@@ -138,3 +138,28 @@ def test_auto_defaults_set_chat_and_arena_defaults(tmp_path, monkeypatch):
     assert flask_app.config["CITATION_MODEL"] == "m/best"
     html = flask_app.app.test_client().get("/arena").get_data(as_text=True)
     assert html.index("m/best (default)") < html.index("x/other")
+
+
+def test_score_weighs_the_citation_judge_twice_and_picks_the_default():
+    assert eval_report.score({"judge": 0.75, "rubric": 0.69}) == 0.73  # (2 x 0.75 + 0.69) / 3
+    assert eval_report.score({"judge": 0.75, "rubric": None}) is None
+
+
+def test_default_answer_model_uses_the_2_to_1_score(tmp_path):
+    def run(name, judge, rubric):
+        write(tmp_path / f"run_261113-0100_{name}__route-open_science.csv",
+              [{**run_row(str(i), "answer", "answered", 3), "judge_support": judge, "rubric_coverage": rubric} for i in range(2)])
+    run("m__cites", 0.75, 0.69)   # score 0.73
+    run("m__covers", 0.60, 0.95)  # score 0.717: better coverage, weaker citations
+    assert eval_report.best_defaults(str(tmp_path), [""])["CITATION_MODEL"] == "m/cites"
+
+
+def test_question_spread_counts_the_question_files(tmp_path):
+    import json
+    (tmp_path / "questions.jsonl").write_text("\n".join(json.dumps(q) for q in [
+        {"id": "a", "route": "open_science", "expect": "answer", "lang": "en", "type": "How-to", "expected_dois": ["10.1/a"]},
+        {"id": "b", "route": "neither", "expect": "refuse", "lang": "de", "type": "Out of scope", "rubric": []}]))
+    (tmp_path / "forrt_questions.jsonl").write_text(json.dumps({"id": "o1", "kind": "org"}))
+    spread = eval_report.question_spread(str(tmp_path))
+    assert spread["main"]["n"] == 2 and dict(spread["main"]["expect"]) == {"answer": 1, "refuse": 1}
+    assert (spread["main"]["with_dois"], spread["main"]["with_rubric"], spread["forrt"]["n"]) == (1, 1, 1)

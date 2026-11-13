@@ -681,6 +681,62 @@ button#send-button:disabled {
     text-decoration: none;
 }
 
+.eval-lead {
+    font-size: 0.95rem;
+    line-height: 1.55;
+    max-width: 85ch;
+    color: #313131;
+}
+
+/* /eval: "what was tested" and "how it is scored" side by side before each table */
+.eval-how {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 12px 24px;
+    margin: 8px 0 12px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #313131;
+}
+
+.eval-how h3 {
+    margin: 0 0 4px;
+}
+
+.eval-how p,
+.eval-how ul {
+    margin: 0 0 6px;
+}
+
+.eval-how ul {
+    padding-left: 18px;
+}
+
+.eval-formula {
+    font-weight: bold;
+    color: #004055;
+    font-size: 1rem;
+}
+
+.eval-default,
+.eval-flag {
+    font-size: x-small;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 4px;
+    white-space: nowrap;
+}
+
+.eval-default {
+    background: #e6f1f4;
+    color: #004055;
+}
+
+.eval-flag {
+    background: #fdf1e3;
+    color: #8a4b00;
+}
+
 .eval-cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

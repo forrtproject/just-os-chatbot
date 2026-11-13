@@ -383,3 +383,23 @@ Findings:
 4. The strict policy gained nothing over Jev yet: the 5 off-topic questions in the middle band are Jev's. A stricter middle band (refuse unless Jev is confident) is the next step.
 
 Limits: the report has only 28 questions to refuse, since the 60 of `eval/refusal_questions.jsonl` were used for tuning; the `route` labels are drafts; the default topic check is unchanged (`ROUTER` empty, `DECISION_ROUTER_MODEL` clef-flash).
+
+### 3.11 How the default answer model and topic check are chosen (13 November 2026)
+
+With `AUTO_DEFAULTS=true` the bot takes its defaults for chat and arena from the results at every start (`just_os/eval_report.best_defaults`); the `/eval` page explains each section and marks the defaults.
+
+- **Answer model:** Score = (2 × Judge + Rubric coverage) / 3, among the papers runs (every question answered from the same passages) that cover the whole question set without errors. The citation judge counts double: a cited sentence its source does not support misleads more than a missing point, and the judge covers ~160 answers per model where the rubric covers the 25 glossary questions. Until a run has a rubric score, the judge alone decides.
+- **Topic check:** the most accurate strategy in the newest topic-check run that compared several on the same questions; a tie goes to the cheaper one (fewer model calls), then the faster one. Banded and Jev tie at 154 of 172 (`classify_261112-1733`); banded makes no model call for a third of the questions.
+
+| Answer model | Judge | Rubric | Score |
+|---|---|---|---|
+| **google/gemma-3-12b-it** (default) | 0.75 | 0.688 | 0.729 |
+| google/gemma-3-27b-it | 0.74 | 0.683 | 0.721 |
+| mistralai/mistral-small-3.2-24b-instruct | 0.71 | 0.717 | 0.712 |
+| qwen/qwen3-14b | 0.66 | 0.722 | 0.681 |
+| openai/gpt-oss-20b | 0.60 | 0.754 | 0.651 |
+| openscholar-8b | 0.55 | 0.623 | 0.574 |
+| meta-llama/llama-3.1-8b-instruct | 0.51 | 0.594 | 0.538 |
+
+The weighting is to be checked against the human review (`/review`, #8): if people's citation-support scores agree with the judge better than their completeness scores agree with the rubric judge, 2:1 stands.
+

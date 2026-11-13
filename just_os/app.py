@@ -405,6 +405,8 @@ class FlaskApp:
                     logger.warning("Arena ratings unavailable for /eval: %s", error)
             runs = eval_report.answer_runs(folder)
             classifiers = eval_report.classifier_runs(folder)
+            for run in runs:
+                run["score"] = eval_report.score(run)
 
             def group(kind: str, search: bool, score: str) -> list:
                 """The newest run per model (or configuration) of one kind of run."""
@@ -415,7 +417,10 @@ class FlaskApp:
                 "eval.html",
                 pairs=eval_report.pair_results(folder),
                 answer_models=group("full pipeline", False, "correct"),
-                papers_models=group("papers", False, "judge"),
+                papers_models=sorted(group("papers", False, "judge"), key=lambda r: -(r["score"] or -1)),
+                defaults=eval_report.best_defaults(folder, ROUTERS),
+                questions=eval_report.question_spread(os.path.dirname(os.path.abspath(folder))),
+                routers=ROUTERS,
                 forrt_models={r["model"]: r for r in group("FORRT pages", False, "hit")},
                 search_configs=group("papers", True, "hit"),
                 classifier_models=eval_report.by_model(classifiers, "accuracy"),
