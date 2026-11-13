@@ -128,6 +128,8 @@ def main():
             if len(kept) == count:
                 break
         print(f"{kind}: {len(kept)} of {count}")
+        if len(kept) != count:  # before anything is written: an undersized set would replace the benchmark
+            raise SystemExit(f"Only {len(kept)} of {count} {kind} questions after 3 tries; {OUTPUT.name} is unchanged.")
         for q in kept:
             n += 1
             english.append({"id": f"rf{n:02d}", "cluster": "", "type": "Out of scope", "lang": "en",

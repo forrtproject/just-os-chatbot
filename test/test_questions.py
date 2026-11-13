@@ -50,3 +50,18 @@ def test_rubric_questions_carry_a_reference_answer_and_numbered_rubric_items():
         assert RUBRIC_KEYS <= set(q) and q["expect"] == "answer" and q["reference_answer"].strip(), q["id"]
         assert [r["id"] for r in q["rubric"]] == [f"r{i}" for i in range(1, len(q["rubric"]) + 1)], q["id"]
         assert 3 <= len(q["rubric"]) <= 5 and all(r["type"] in ("core", "detail") and r["criterion"] for r in q["rubric"]), q["id"]
+
+
+def test_refusal_generator_stops_before_writing_a_short_set(tmp_path, monkeypatch):
+    import sys
+    sys.path.insert(0, str(ROOT / "eval"))
+    import make_refusal_questions as gen
+    monkeypatch.setattr(gen, "OUTPUT", tmp_path / "refusal_questions.jsonl")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test")
+    monkeypatch.setattr(gen, "chat", lambda *a, **k: "")
+    monkeypatch.setattr(gen, "json_list", lambda text: ["Only one question this time?"])  # every try: one new question
+    monkeypatch.setattr(sys, "argv", ["make_refusal_questions.py"])
+    import pytest
+    with pytest.raises(SystemExit, match="unchanged"):
+        gen.main()
+    assert not (tmp_path / "refusal_questions.jsonl").exists()
