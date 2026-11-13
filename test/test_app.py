@@ -351,3 +351,17 @@ def test_widget_request_without_debug_is_unchanged(app):
     rag = app._rag_service = DebugRag()
     app.app.test_client().post("/chat", json={"message": "a question", "chat_id": "c"}).get_data()
     assert rag.options == {}
+
+
+def test_eval_page_shows_people_and_judges(app, tmp_path):
+    (tmp_path / "scores").mkdir()
+    rows = [{"answer_id": "r#a", "question_id": "a", "criterion": "clarity", "score": s, "scale": sc,
+             "scorer_kind": k, "scorer": n, "setting": "default", "time": "", "note": ""}
+            for s, sc, k, n in [(4, [1, 5], "person", "Ann"), (5, [1, 5], "person", "Bo"), (1.0, [0, 1], "llm", "judge")]]
+    (tmp_path / "scores" / "scores_r.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    app.config.update(EVAL_RESULTS_DIR=str(tmp_path / "none"), SCORES_DIR=str(tmp_path / "scores"),
+                      ANSWERS_DIR=str(tmp_path / "none"))
+    html = app.app.test_client().get("/eval").get_data(as_text=True)
+    assert 'id="people"' in html and "Ann / Bo" in html and "unknown model" in html
+    app.config["SCORES_DIR"] = str(tmp_path / "none")
+    assert "No score rows yet" in app.app.test_client().get("/eval").get_data(as_text=True)

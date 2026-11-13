@@ -426,6 +426,8 @@ class FlaskApp:
             return render_template(
                 "eval.html",
                 pairs=eval_report.pair_results(folder),
+                people=eval_report.people_and_judges(self.config.get("SCORES_DIR", "data/scores"),
+                                                     self.config.get("ANSWERS_DIR", "data/answers")),
                 answer_models=group("full pipeline", False, "correct"),
                 papers_models=sorted(group("papers", False, "judge"), key=lambda r: -(r["score"] or -1)),
                 defaults=eval_report.best_defaults(folder, ROUTERS),

@@ -8,6 +8,8 @@
     embeddings_<YYMMDD>.csv         eval/compare_embeddings.py: one row per model and language
 
 A missing folder or file gives empty tables (the production image has no eval/ folder).
+
+people_and_judges reads score rows (data/scores) and the answer store (data/answers) instead (#54).
 """
 
 import csv
@@ -216,3 +218,26 @@ def best_defaults(folder: str, routers: Iterable[str]) -> Dict[str, str]:
             out["ROUTER"] = best["model"].removeprefix("router: ")
             break
     return out
+
+
+def people_and_judges(scores_dir: str, answers_dir: str) -> Dict:
+    """People against each judge and metric, reviewers against each other, and each criterion per
+    configuration (just_os.scores), from the score rows and the answer store; empty without rows."""
+    from just_os import criteria, scores
+
+    rows = scores.load(scores_dir)
+    answers: Dict[str, Dict] = {}
+    for path in sorted(Path(answers_dir).glob("answers_*.jsonl")):
+        for line in open(path, encoding="utf-8"):
+            if line.strip():
+                record = json.loads(line)
+                answers[record["answer_id"]] = record
+    if not rows:
+        return {}
+    result = scores.agreement(rows)
+    configs = scores.by_config(rows, answers)
+    scorers = sorted({s for c in configs for by_s in c["scores"].values() for s in by_s}, key=lambda s: (s != scores.PEOPLE, s))
+    return {**result, "configs": configs, "scorers": scorers, "rows": len(rows),
+            "criteria": [c for c in criteria.CRITERIA if any(c in x["scores"] for x in configs)],
+            "labels": {"decision": "Decision", **{c: d["label"] for c, d in criteria.DEFINITIONS["criteria"].items()}}}
+

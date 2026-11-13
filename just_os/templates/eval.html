@@ -26,7 +26,7 @@
 
         <nav class="eval-nav" aria-label="Sections">
             <a href="#summary">Summary</a><a href="#questions">The questions</a><a href="#answer-models">Answer models</a>
-            <a href="#topic-check">Topic check</a><a href="#pairs">Topic check × answer model</a><a href="#search">Search × re-ranker</a>
+            <a href="#topic-check">Topic check</a><a href="#pairs">Topic check × answer model</a><a href="#search">Search × re-ranker</a><a href="#people">People and judges</a>
             <a href="#full">Full pipeline runs</a><a href="#embeddings">Embeddings</a><a href="#arena">Arena</a><a href="#history">Run history</a>
         </nav>
 
@@ -292,6 +292,73 @@
                 </dl>
             </details>
             {% else %}<p class="eval-empty">No search comparison yet: <code>python eval/scorecard.py --route open_science search-vector search-bm25 ...</code>.</p>{% endif %}
+        </section>
+
+        <section id="people">
+            <h2>People and judges</h2>
+            <div class="eval-how">
+                <div>
+                    <h3>What was tested</h3>
+                    <p>People on <code>/review</code> and LLM judges score the same stored answers on the same criteria and
+                        scale (<code>config/criteria.json</code>, #54): the answer store is <code>data/answers/</code>, the
+                        scores <code>data/scores/</code>. Gold metrics (the expected decision, hit@7) count as scorers too.</p>
+                </div>
+                <div>
+                    <h3>How to read it</h3>
+                    <p>A judge can stand in for people on a criterion when it ranks answers as they do (Spearman near 1)
+                        and its mean is close to theirs. Two reviewers who agree little on a criterion (weighted kappa near 0)
+                        mean its definition needs sharpening before it can check a judge. Few answers make every number rough.</p>
+                </div>
+            </div>
+            {% if people %}
+            <div class="eval-table">
+                <table>
+                    <thead><tr><th>Criterion</th><th>People against</th><th>Answers</th><th>Agreement</th><th>People (0-1)</th><th>Scorer (0-1)</th><th>Scorer − people</th></tr></thead>
+                    <tbody>
+                        {% for a in people.against %}
+                        <tr><td>{{ people.labels.get(a.criterion, a.criterion) }}</td><td>{{ a.scorer }}</td><td>{{ a.n }}</td>
+                            {% if a.criterion == "decision" %}<td><b>{{ "%.2f"|format(a.same) }}</b> same decision</td><td>–</td><td>–</td><td>–</td>
+                            {% else %}<td><b>{{ "%.2f"|format(a.spearman) if a.spearman is not none else "–" }}</b> Spearman</td>
+                            <td>{{ "%.2f"|format(a.people) }}</td><td>{{ "%.2f"|format(a.scorer_mean) }}</td><td>{{ "%+.2f"|format(a.difference) }}</td>{% endif %}</tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if people.reviewers %}
+            <div class="eval-table">
+                <table>
+                    <thead><tr><th>Criterion</th><th>Reviewers</th><th>Answers</th><th>Weighted kappa</th><th>Exact</th><th>Within 1</th></tr></thead>
+                    <tbody>
+                        {% for r in people.reviewers %}
+                        <tr><td>{{ people.labels.get(r.criterion, r.criterion) }}</td><td>{{ r.a }} / {{ r.b }}</td><td>{{ r.n }}</td>
+                            <td><b>{{ "%.2f"|format(r.kappa) if r.kappa is not none else "–" }}</b></td>
+                            <td>{{ "%.2f"|format(r.exact) }}</td><td>{{ "%.2f"|format(r.within_one) }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+            <div class="eval-table">
+                <table>
+                    <thead><tr><th>Configuration</th><th>Answers</th>{% for c in people.criteria %}<th>{{ people.labels.get(c, c) }}</th>{% endfor %}</tr></thead>
+                    <tbody>
+                        {% for g in people.configs %}
+                        <tr><td>{{ g.config }}</td><td>{{ g.answers }}</td>
+                            {% for c in people.criteria %}<td>{% for s, v in g.scores.get(c, {}).items() %}{{ s }} <b>{{ "%.2f"|format(v[0]) }}</b> ({{ v[1] }}){% if not loop.last %}<br>{% endif %}{% endfor %}</td>{% endfor %}</tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <details>
+                <summary>What the columns mean</summary>
+                <dl class="eval-defs">
+                    <dt>Agreement</dt><dd>For the decision (answer or refuse), the share of answers where people chose what the scorer did. Otherwise Spearman's rank correlation between people's mean score per answer and the scorer's: 1 when both put the answers in the same order, 0 when the orders are unrelated.</dd>
+                    <dt>People, Scorer (0-1)</dt><dd>Mean score on the answers both scored, with every scale turned into 0 (lowest) to 1 (highest).</dd>
+                    <dt>Weighted kappa</dt><dd>Agreement of two reviewers beyond chance, counting a 3 against a 4 as a smaller disagreement than a 1 against a 4: 1 full agreement, 0 what random scores give.</dd>
+                    <dt>Configuration table</dt><dd>Per answer model (and retrieval or forced route, when known) the mean of each criterion on 0-1 by people and by each judge or metric, with the number of answers in brackets.</dd>
+                </dl>
+            </details>
+            {% else %}<p class="eval-empty">No score rows yet: <code>python eval/answers.py eval/results/run_X.csv</code>, then the judges and <code>python eval/scores.py eval/results/run_X.csv</code>.</p>{% endif %}
         </section>
 
         <section id="full">

@@ -186,6 +186,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # are saved as one CSV per reviewer and save in REVIEW_DIR (in Git during the test phase, like the chats)
     "REVIEW_ITEMS_FILE": "eval/human_review_items.json",
     "REVIEW_DIR": "data/reviews",
+    # #54: answers people and judges score (eval/answers.py) and their score rows (eval/scores.py, the
+    # judges, /review), compared on /eval
+    "ANSWERS_DIR": "data/answers",
+    "SCORES_DIR": "data/scores",
     # Page /eval reads the result CSVs of eval/run.py, eval/classify.py and eval/compare_embeddings.py here
     "EVAL_RESULTS_DIR": "eval/results",
     # Chat page: every answered turn (question, answer, outcome: answered/off_topic/
