@@ -62,6 +62,10 @@ def test_tasks_to_decline_are_scored_apart_from_the_topic():
     results = [("open_science", "open_science", 1.0, 0.0), ("neither", "neither", 1.0, 0.0),
                ("decline_task", "open_science", 1.0, 0.0), ("decline_task", "neither", 1.0, 0.0)]
     assert classify.summarize("m", results) == "| m | 2 | 1.00 | 0 | 0 | 0 | 1/2 | 1.0 | 0.00 |"
+    # a failed call on a task is an error, not a decline; a run of tasks only has no accuracy
+    failed = results + [("decline_task", None, 1.0, 0.0)]
+    assert classify.summarize("m", failed) == "| m | 2 | 1.00 | 0 | 0 | 1 | 1/2 | 1.0 | 0.00 |"
+    assert classify.summarize("m", results[2:]) == "| m | 0 | n/a | 0 | 0 | 0 | 1/2 | 1.0 | 0.00 |"
 
 
 def test_router_gold_and_counting():

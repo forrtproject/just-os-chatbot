@@ -48,18 +48,19 @@ def summarize(model: str, results: list) -> str:
     """results: (gold, predicted or None, seconds, cost_usd) per question. Questions with gold TASK (an
     in-scope topic, a task the bot should not do) are left out of the accuracy and counted apart: how
     many of them the check let through, which the answer step has to decline."""
-    tasks = [p for g, p, _, _ in results if g == TASK]
-    let_through = f"{sum(p is not None and p not in REFUSE_LABELS for p in tasks)}/{len(tasks)}" if tasks else "–"
+    tasks = [p for g, p, _, _ in results if g == TASK and p is not None]  # a failed call is an error, not a decline
+    let_through = f"{sum(p not in REFUSE_LABELS for p in tasks)}/{len(tasks)}" if tasks else "–"
     timed, results = results, [r for r in results if r[0] != TASK]
     n = len(results)
-    errors = sum(p is None for _, p, _, _ in results)
+    errors = sum(p is None for _, p, _, _ in timed)
     correct = sum(g == p for g, p, _, _ in results)
     # same counting as the /eval page: refusing = off_topic (classifier) or neither (router)
     false_refusals = sum(g not in REFUSE_LABELS and p in REFUSE_LABELS for g, p, _, _ in results)
     false_answers = sum(g in REFUSE_LABELS and p is not None and p not in REFUSE_LABELS for g, p, _, _ in results)
     seconds = mean(s for _, _, s, _ in timed)
     cost = sum(c for *_, c in timed) / len(timed) * 1000
-    return (f"| {model} | {n} | {correct / n:.2f} | {false_refusals} | {false_answers} | {errors} | {let_through} "
+    accuracy = f"{correct / n:.2f}" if n else "n/a"  # a run of tasks to decline only has no topic accuracy
+    return (f"| {model} | {n} | {accuracy} | {false_refusals} | {false_answers} | {errors} | {let_through} "
             f"| {seconds:.1f} | {cost:.2f} |")
 
 
