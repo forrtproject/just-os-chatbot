@@ -29,11 +29,12 @@ from build_grading_page import shown_answer  # noqa: E402  same folder
 from glossary_items import parse_json  # noqa: E402  same folder
 
 from config.settings import get_config  # noqa: E402
+from just_os import criteria  # noqa: E402
 from just_os.qualle import OpenAIClientManager  # noqa: E402
 
 PROMPT = """You grade an answer against a rubric. For each rubric item, decide how fully the
 answer covers it, whatever the language of the answer:
-1 not at all, 2 barely, 3 partly, 4 mostly, 5 fully.
+{levels}.
 Judge only what the answer says; citation markers such as [2] do not matter.
 
 Question: {question}
@@ -44,7 +45,8 @@ Answer:
 Rubric:
 {rubric}
 
-Return a JSON object {{"scores": {{"<item id>": <1-5>, ...}}}} with one entry per item."""
+Return a JSON object {{"scores": {{"<item id>": <{low}-{high}>, ...}}}} with one entry per item."""
+LEVELS = ", ".join(f"{k} {v}" for k, v in criteria.RUBRIC_LEVELS.items())
 
 
 def judge(manager, model, question, answer, rubric, cost):
@@ -53,14 +55,15 @@ def judge(manager, model, question, answer, rubric, cost):
     try:
         response = manager.client.chat.completions.create(
             model=model,
-            messages=[{"role": "user", "content": PROMPT.format(question=question, answer=answer, rubric=items)}],
+            messages=[{"role": "user", "content": PROMPT.format(question=question, answer=answer, rubric=items, levels=LEVELS,
+                                                                    low=criteria.SCALE[0], high=criteria.SCALE[-1])}],
             temperature=0.0,
             response_format={"type": "json_object"},
             extra_body={"usage": {"include": True}},
         )
         cost[0] += getattr(response.usage, "cost", 0) or 0
         scores = parse_json(response.choices[0].message.content)["scores"]
-        return {r["id"]: min(max(int(scores[r["id"]]), 1), 5) for r in rubric}
+        return {r["id"]: min(max(int(scores[r["id"]]), criteria.SCALE[0]), criteria.SCALE[-1]) for r in rubric}
     except Exception as e:  # noqa: BLE001  a failed judgement leaves the row empty, the run goes on
         print(f"judge failed: {e}")
         return None
@@ -68,7 +71,7 @@ def judge(manager, model, question, answer, rubric, cost):
 
 def coverage(scores, rubric, kind=None):
     ids = [r["id"] for r in rubric if kind in (None, r["type"])]
-    return round(sum(scores[i] - 1 for i in ids) / (4 * len(ids)), 3) if ids else ""
+    return round(sum(scores[i] - criteria.SCALE[0] for i in ids) / ((criteria.SCALE[-1] - criteria.SCALE[0]) * len(ids)), 3) if ids else ""
 
 
 def doi_recall(row, item):
@@ -85,7 +88,7 @@ def main():
     parser.add_argument("run_csv")
     parser.add_argument("--items", default="eval/questions.jsonl", help="questions; only those with a rubric are judged")
     # A judge from a family that generated none of the items (gpt-4.1-mini, Claude, Qwen)
-    parser.add_argument("--model", default="google/gemini-3.8-flash", help="judge model (OpenRouter id)")
+    parser.add_argument("--model", default=criteria.JUDGES["rubric"]["model"], help="judge model (default from config/criteria.json)")
     parser.add_argument("--controls", action="store_true", help="also score reference answers")
     args = parser.parse_args()
 

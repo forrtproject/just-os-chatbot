@@ -98,6 +98,23 @@ Why the scores look low: many documents are on the same subject (for example, ma
 | **Mean s / p95 s** | Mean and 95th-percentile answer time in seconds (target p95 ≤ 15 s) |
 | **USD / 1k q** | OpenRouter cost for 1,000 questions (from the token counts) |
 
+### Changing the criteria, the scale or a judge (#54)
+
+Everything people and judges score lives in `config/criteria.json`, read by `just_os/criteria.py`; no code changes for these:
+
+| To change | Edit | Takes effect in |
+|---|---|---|
+| A criterion's name or definition | `criteria.<key>.label` / `definition` | `/review`, the criteria judge's prompt, reports |
+| Which criteria `/review` asks | `forms.review.criteria` (keys of `criteria`) | `/review`, saved review CSVs, `eval/scores.py` |
+| The arena's criteria and what they cover | `forms.arena.criteria.<key>` (`label`, `definition`, `maps_to`) | `/arena`, its leaderboard, `eval/scores.py` (`arena_<key>`) |
+| The scale and its labels | `scale.min`, `scale.max`, `scale.labels` | `/review`, `/arena`, every judge, `eval/scores.py` |
+| A judge's default model | `judges.support.model`, `judges.rubric.model`, `judges.criteria.model` (`--model` overrides one run) | `eval/judge.py`, `eval/rubric_judge.py`, `eval/criteria_judge.py` |
+| The rubric levels | `judges.rubric.levels` (one per point of the scale) | `eval/rubric_judge.py`, the expert grading page |
+| What the criteria judge scores, and how it asks | `judges.criteria.criteria`, and the prompt file `judges.criteria.prompt` (`config/prompts/criteria_judge.txt`; placeholders `{low}`, `{high}`, `{labels}`, `{criteria}`, `{question}`, `{answer}`, `{sources}`, `{keys}`) | `eval/criteria_judge.py` |
+| The review decisions | `decisions` | `/review` |
+
+`test/test_criteria.py` checks that the forms use only defined criteria and that pages and judges follow the file. Scores saved on an earlier scale are not converted by changing the file (see the commits of #56 for how the 0-5 reviews were moved).
+
 ### Topic check (`eval/classify.py`)
 
 Two modes, both writing `eval/results/classify_<YYMMDD-HHMM>.csv` (one row per strategy or model and question), shown on `/eval`:

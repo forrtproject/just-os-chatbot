@@ -3,6 +3,8 @@
 `criteria` holds the shared criteria and `scale` the one scale every page and judge scores them on;
 `decisions` is the review page's verdict on answering or refusing. `forms` lists what each page asks: the
 review page scores shared criteria, and the arena scores its own three, each mapped to the shared ones it covers.
+`judges` gives each LLM judge its default model, and the rubric judge its levels and the criteria judge its
+criteria and prompt file. docs/evaluation.md ("Changing the criteria, the scale or a judge") says what to edit.
 """
 
 import json
@@ -23,4 +25,6 @@ CRITERIA = {key: text(c) for key, c in DEFINITIONS["criteria"].items()}
 DECISIONS = dict(DEFINITIONS["decisions"])
 REVIEW = {key: CRITERIA[key] for key in DEFINITIONS["forms"]["review"]["criteria"]}
 ARENA = {key: text(c) for key, c in DEFINITIONS["forms"]["arena"]["criteria"].items()}
+JUDGES = DEFINITIONS["judges"]
+RUBRIC_LEVELS = {int(k): v for k, v in JUDGES["rubric"]["levels"].items()}
 ARENA_MAPS_TO = {key: c["maps_to"] for key, c in DEFINITIONS["forms"]["arena"]["criteria"].items()}

@@ -24,7 +24,11 @@ import csv
 import json
 import random
 import re
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from just_os import criteria  # noqa: E402
 
 MODES = ("library", "noretrieval")
 CITATION = re.compile(r"\s*\[\d+(?:\s*,\s*\d+)*\]")
@@ -109,6 +113,7 @@ def main():
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     template = (Path(__file__).parent / "grading_page.html").read_text(encoding="utf-8")
+    data["levels"] = [[k, v] for k, v in criteria.RUBRIC_LEVELS.items()]  # config/criteria.json
     payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     (out / "grading.html").write_text(template.replace("/*DATA*/null", payload), encoding="utf-8")
     with open(out / "grading_key.csv", "w", newline="", encoding="utf-8") as f:
