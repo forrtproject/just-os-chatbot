@@ -283,7 +283,7 @@ def main():
             answered_from, valid = answer_source(seen, refs)
             writer.writerow({
                 "id": q["id"],
-                "answer_model": config["CITATION_MODEL"],  # what answered, for the answer store (#54)
+                "answer_model": args.model or config["CITATION_MODEL"],  # what answered, with an @provider pin (#54)
                 "lang": q.get("lang", "en"),
                 "cluster": q.get("cluster", ""),
                 "type": q.get("type", ""),
