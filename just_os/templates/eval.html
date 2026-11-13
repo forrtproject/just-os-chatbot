@@ -176,7 +176,7 @@
                     <tbody>
                         {% for r in classifier_models %}
                         <tr><td>{{ r.model }}{% if r.model == "router: " ~ defaults.get("ROUTER") %} <span class="eval-default">default</span>{% endif %}</td>
-                            <td>{{ r.runs }}</td><td>{{ r.run }}</td><td>{{ r.n }}</td><td><b>{{ r.accuracy }}</b></td>
+                            <td>{{ r.runs }}</td><td>{{ r.run }}</td><td>{{ r.n }}</td><td><b>{{ r.accuracy if r.accuracy is not none else "" }}</b></td>
                             <td>{{ r.false_refusals }}</td><td>{{ r.false_answers }}</td><td>{{ r.errors }}</td><td>{{ r.tasks_let_through or "–" }}</td>
                             <td>{{ r.mean_s }}</td><td>{{ r.usd_per_1k }}</td></tr>
                         {% endfor %}
@@ -494,7 +494,7 @@
                         </thead>
                         <tbody>
                             {% for r in classifiers %}
-                            <tr><td>{{ r.run }}</td><td>{{ r.model }}</td><td>{{ r.n }}</td><td>{{ r.accuracy }}</td>
+                            <tr><td>{{ r.run }}</td><td>{{ r.model }}</td><td>{{ r.n }}</td><td>{{ r.accuracy if r.accuracy is not none else "" }}</td>
                                 <td>{{ r.false_refusals }}</td><td>{{ r.false_answers }}</td><td>{{ r.errors }}</td><td>{{ r.tasks_let_through or "–" }}</td>
                                 <td>{{ r.mean_s }}</td><td>{{ r.usd_per_1k }}</td></tr>
                             {% endfor %}

@@ -139,6 +139,14 @@ def test_best_defaults_take_only_complete_runs_and_the_newest_topic_check_run(tm
     assert eval_report.best_defaults(str(tmp_path / "none"), ["jev"]) == {}
 
 
+def test_a_run_of_tasks_to_decline_only_never_sets_the_topic_check(tmp_path):
+    rows = [{"model": m, "id": str(i), "gold": g, "predicted": p, "seconds": s, "usd": 0}
+            for m, g, p, s in [("router: jev", "forrt", "neither", 0.3), ("router: banded", "forrt", "neither", 0.5),
+                               ("router: cosine", "decline_task", "neither", 0.1)] for i in range(2)]
+    write(tmp_path / "classify_261113-1000.csv", rows)
+    assert eval_report.best_defaults(str(tmp_path), ["jev", "banded", "cosine"]) == {"ROUTER": "jev"}
+
+
 def test_auto_defaults_set_chat_and_arena_defaults(tmp_path, monkeypatch):
     import fakeredis
     from config import settings

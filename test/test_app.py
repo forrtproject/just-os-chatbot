@@ -360,6 +360,15 @@ def test_widget_request_without_debug_is_unchanged(app):
     assert rag.options == {}
 
 
+def test_eval_page_shows_no_accuracy_for_a_run_of_tasks_to_decline_only(app, tmp_path):
+    (tmp_path / "results").mkdir()
+    (tmp_path / "results" / "classify_261113-1000.csv").write_text(
+        "model,id,gold,predicted,seconds,usd\nrouter: jev,1,decline_task,neither,0.3,0\n", encoding="utf-8")
+    app.config.update(EVAL_RESULTS_DIR=str(tmp_path / "results"))
+    html = app.app.test_client().get("/eval").get_data(as_text=True)
+    assert "router: jev" in html and "None" not in html
+
+
 def test_eval_page_shows_people_and_judges(app, tmp_path):
     (tmp_path / "scores").mkdir()
     rows = [{"answer_id": "r#a", "question_id": "a", "criterion": "clarity", "score": s, "scale": sc,

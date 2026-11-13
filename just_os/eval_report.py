@@ -216,10 +216,10 @@ def best_defaults(folder: str, routers: Iterable[str]) -> Dict[str, str]:
     known = set(routers) - {""}
     for path in sorted(Path(folder).glob("classify_*.csv"), reverse=True):
         rows = [r for r in classifier_runs_of(path) if r["model"].removeprefix("router: ") in known
-                and r["model"].startswith("router: ") and not r["errors"]]
+                and r["model"].startswith("router: ") and not r["errors"] and r["accuracy"] is not None]
         if len(rows) >= 2:
             # a tie goes to the cheaper check (fewer model calls), then the faster one
-            best = min(rows, key=lambda r: (-(r["accuracy"] or 0), r["usd_per_1k"], r["mean_s"] or 0))
+            best = min(rows, key=lambda r: (-r["accuracy"], r["usd_per_1k"], r["mean_s"] or 0))
             out["ROUTER"] = best["model"].removeprefix("router: ")
             break
     return out
