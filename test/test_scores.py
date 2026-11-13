@@ -39,6 +39,16 @@ def test_run_rows_give_gold_decision_metrics_and_judges(tmp_path):
     assert ("run_x#b", "source_relevance", "hit@7") not in got  # an empty cell gives no row
 
 
+def test_run_rows_read_metrics_a_judge_wrote_back_as_floats(tmp_path):
+    """eval/judge.py rewrites the run with pandas, which turns hit 1 into 1.0."""
+    run = tmp_path / "run_x.csv"
+    write_csv(run, RUN_FIELDS, [{"id": "a", "expect": "answer", "outcome": "answered", "hit": "1.0",
+                                 "citations_valid": "0.0", "judge_support": "0.5"}])
+    got = {(r["criterion"], r["scorer"]): r["score"] for r in scores.run_rows(run)}
+    assert got[("source_relevance", "hit@7")] == 1
+    assert got[("citation_support", "citations valid")] == 0
+
+
 def test_review_rows_keep_each_reviewers_last_save_and_skip_na(tmp_path):
     reviews = tmp_path / "reviews"
     reviews.mkdir()

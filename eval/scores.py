@@ -49,9 +49,9 @@ def run_rows(run_csv):
         if r.get("outcome") in ("answered", "refused", "no_sources"):
             out.append(row(a, r["id"], "decision", gold_decision(r), None, "metric", "outcome vs expect"))
         if r.get("hit") not in (None, ""):
-            out.append(row(a, r["id"], "source_relevance", int(r["hit"]), UNIT, "metric", "hit@7"))
+            out.append(row(a, r["id"], "source_relevance", int(float(r["hit"])), UNIT, "metric", "hit@7"))
         if r.get("citations_valid") not in (None, ""):
-            out.append(row(a, r["id"], "citation_support", int(r["citations_valid"]), UNIT, "metric", "citations valid"))
+            out.append(row(a, r["id"], "citation_support", int(float(r["citations_valid"])), UNIT, "metric", "citations valid"))
         if r.get("judge_support") not in (None, ""):
             out.append(row(a, r["id"], "citation_support", float(r["judge_support"]), UNIT, "llm", "support judge"))
         if r.get("rubric_scores"):
