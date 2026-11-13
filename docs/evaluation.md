@@ -480,6 +480,8 @@ First comparison of people and automated scorers on the same answers (#54): the 
 | source relevance | criteria judge | 18 | 0.20 Spearman | 0.61 | 0.74 |
 | clarity | criteria judge | 18 | 0.17 Spearman | 0.66 | 0.81 |
 
+The citations valid row checks only that every `[n]` points to a source; `eval/scores.py` now files it as citation format, so `/eval` no longer compares it with people's citation support.
+
 | Criterion | Weighted kappa, Meltem / Mohit (14 answers) | Exact | Within 1 |
 |---|---|---|---|
 | correctness | 0.35 | 0.64 | 0.79 |
