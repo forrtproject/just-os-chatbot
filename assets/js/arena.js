@@ -54,7 +54,7 @@ function setBusy(busy) {
 function ratingScale(label, key, text) {
   const group = el("fieldset", "rating");
   group.appendChild(el("legend", null, text));
-  const scale = el("div", "rating-scale");
+  const track = el("div", "rating-scale");
   for (const value of scale) {
     const option = el("label");
     const input = el("input");
@@ -63,9 +63,9 @@ function ratingScale(label, key, text) {
     input.value = value;
     input.addEventListener("change", updateSubmit);
     option.append(input, el("span", null, String(value)));
-    scale.appendChild(option);
+    track.appendChild(option);
   }
-  group.appendChild(scale);
+  group.appendChild(track);
   return group;
 }
 
