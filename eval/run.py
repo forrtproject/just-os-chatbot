@@ -133,6 +133,26 @@ def answer_directly(qualle, config, question, seen):
     return {"message": seen["raw"]}
 
 
+def split_provider(model):
+    """"openai/gpt-oss-120b@deepinfra/bf16" -> ("openai/gpt-oss-120b", OpenRouter provider routing that
+    allows only that provider); a model without "@" -> (model, None)."""
+    base, _, provider = model.partition("@")
+    return base, ({"order": [provider], "allow_fallbacks": False} if provider else None)
+
+
+def pin_provider(qualle, model, provider):
+    """Send every call for `model` (answers and FORRT-page answers) to one OpenRouter provider only."""
+    completions = qualle.client_manager.client.chat.completions
+    create = completions.create
+
+    def pinned(*args, **kwargs):
+        if kwargs.get("model") == model:
+            kwargs["extra_body"] = {**(kwargs.get("extra_body") or {}), "provider": provider}
+        return create(*args, **kwargs)
+
+    completions.create = pinned
+
+
 def skip_classifier(qualle, route="open_science"):
     """Send every question one way (the papers, or with route="forrt" the FORRT pages), with no
     call to the decision model or the classifier. eval/pairs.py combines one run per way with each
@@ -178,10 +198,12 @@ def main():
 
     config = get_config()
     if args.model:
-        config["CITATION_MODEL"] = args.model
+        config["CITATION_MODEL"], provider = split_provider(args.model)
     if args.general_model:
         config["GENERAL_MODEL"] = args.general_model
     qualle = create_rag_service(config, ChatManager())
+    if args.model and provider:
+        pin_provider(qualle, config["CITATION_MODEL"], provider)
     if args.skip_classifier or args.route:
         skip_classifier(qualle, args.route or "open_science")
     if args.cache_retrieval:
@@ -230,7 +252,7 @@ def main():
     questions = questions[: args.limit] if args.limit else questions
 
     out = Path(args.out) if args.out else Path("eval/results") / (
-        f"run_{datetime.now():%y%m%d-%H%M}_{config['CITATION_MODEL'].replace('/', '__')}"
+        f"run_{datetime.now():%y%m%d-%H%M}_{(args.model or config['CITATION_MODEL']).replace('/', '__')}"
         f"{'_noretrieval' if args.no_retrieval else ''}.csv"
     )
     out.parent.mkdir(parents=True, exist_ok=True)

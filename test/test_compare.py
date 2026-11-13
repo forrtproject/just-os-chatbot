@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eval"))
 
 from compare import summarize  # noqa: E402
-from run import FIELDS, answer_source, hit_of, outcome_of  # noqa: E402
+from run import FIELDS, answer_source, hit_of, outcome_of, pin_provider, split_provider  # noqa: E402
 
 
 def test_summarize_counts_outcomes(tmp_path):
@@ -53,3 +53,18 @@ def test_an_answer_model_that_returned_nothing_is_an_error_not_an_answer():
     from just_os.messages import message
     assert outcome_of({"status": "complete", "message": f"<p>{message('generation_error')}</p>"}) == "error"
     assert outcome_of({"status": "complete", "message": "<p>Open data is [1].</p>"}) == "answered"
+
+
+def test_a_pinned_provider_goes_only_to_calls_for_that_model():
+    from types import SimpleNamespace
+    calls = []
+    completions = SimpleNamespace(create=lambda **kw: calls.append(kw))
+    qualle = SimpleNamespace(client_manager=SimpleNamespace(client=SimpleNamespace(chat=SimpleNamespace(completions=completions))))
+    model, provider = split_provider("openai/gpt-oss-120b@deepinfra/bf16")
+    assert (model, provider) == ("openai/gpt-oss-120b", {"order": ["deepinfra/bf16"], "allow_fallbacks": False})
+    assert split_provider("meta-llama/llama-3.1-8b-instruct") == ("meta-llama/llama-3.1-8b-instruct", None)
+    pin_provider(qualle, model, provider)
+    completions.create(model=model, extra_body={"reasoning": {"enabled": False}})
+    completions.create(model="other/model")
+    assert calls[0]["extra_body"] == {"reasoning": {"enabled": False}, "provider": provider}
+    assert "extra_body" not in calls[1]
