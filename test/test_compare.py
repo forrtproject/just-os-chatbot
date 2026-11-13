@@ -31,7 +31,7 @@ def test_summarize_counts_outcomes(tmp_path):
 
 
 def test_summarize_reads_counts_a_judge_wrote_back_as_floats(tmp_path):
-    """eval/run_batches.py merges its batches with pandas, which writes a count in a column with empty cells as 1.0."""
+    """Runs merged by eval/run_batches.py before it kept cells as text have counts such as 1.0; they must still read."""
     path = tmp_path / "run_x_model.csv"
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDS)
