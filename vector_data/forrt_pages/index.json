@@ -5664,5 +5664,356 @@
   ],
   "described_by": "openai/gpt-oss-20b",
   "date": null
+ },
+ {
+  "url": "https://forrt.org/replication-handbook/field_specific_mri.html",
+  "lastmod": "",
+  "title": "9  Field-Specific Replication Challenges: An example from MRI research – Handbook for Reproduction and Replication Studies",
+  "section": "replication-handbook",
+  "chars": 21301,
+  "summary": "This page is a preliminary chapter of the FORRT Replication Handbook that discusses the unique challenges of replicating MRI research. It outlines key takeaways, explains how researcher degrees of freedom and sample size issues affect neuroimaging studies, and offers strategies for improving reproducibility, while inviting feedback via email or GitHub.",
+  "use_when": "It answers questions about why MRI studies are hard to replicate, how preprocessing choices influence results, what sample size considerations are needed, and what open‑science practices can help.",
+  "example_questions": [
+   "What makes MRI research particularly vulnerable to false positives?",
+   "How do different preprocessing pipelines affect neuroimaging results?",
+   "Why is sample size justification difficult in MRI studies?",
+   "What open‑science practices are recommended for neuroimaging replication?",
+   "How can I provide feedback on this preliminary chapter?"
+  ],
+  "page_kind": "teaching_material",
+  "freshness": "changes_often",
+  "key_links": [
+   {
+    "url": "mailto:lukas.roeseler@uni-muenster.de",
+    "label": "Contact author"
+   },
+   {
+    "url": "https://github.com/forrtproject/replication-handbook/issues",
+    "label": "GitHub issues"
+   },
+   {
+    "url": "https://forrt.org/replication-handbook/references.html",
+    "label": "References"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
+ },
+ {
+  "url": "https://forrt.org/replication-handbook/publishing.html",
+  "lastmod": "",
+  "title": "8  Communicating and Publishing – Handbook for Reproduction and Replication Studies",
+  "section": "replication-handbook",
+  "chars": 9898,
+  "summary": "This page explains how to publish and communicate replication studies, outlining best practices, reporting standards, and options for manuscripts, preprints, and journals. It lists reporting and communication options in Table 8.1 and provides an overview of active replication journals in Table 8.2. The page also encourages transparency, open licensing, and respectful language when reporting replication outcomes.",
+  "use_when": "It answers questions about how to publish a replication, which journals accept replications, what reporting standards to follow, and how to share data and preregistrations.",
+  "example_questions": [
+   "What are the recommended ways to publish a replication study?",
+   "Which journals specialize in replication research?",
+   "How should I report my replication methods and results?",
+   "What open licenses should I use for my data?",
+   "How can I share my preregistration and analysis scripts with the community?"
+  ],
+  "page_kind": "teaching_material",
+  "freshness": "changes_often",
+  "key_links": [
+   {
+    "url": "mailto:lukas.roeseler@uni-muenster.de",
+    "label": "Contact"
+   },
+   {
+    "url": "https://github.com/forrtproject/replication-handbook/issues",
+    "label": "GitHub"
+   },
+   {
+    "url": "https://forrt.org/replication-handbook/references.html",
+    "label": "References"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
+ },
+ {
+  "url": "https://forrt.org/replication-handbook/appendix_templates.html",
+  "lastmod": "",
+  "title": "Appendix C — Email templates – Handbook for Reproduction and Replication Studies",
+  "section": "replication-handbook",
+  "chars": 2465,
+  "summary": "This page provides three email templates for researchers conducting replication studies: (1) requesting materials and data, (2) seeking feedback on a proposed experimental paradigm, and (3) inviting comments on replication results. It includes placeholders for study details, citations, and contact information, and encourages feedback via email or GitHub issues.",
+  "use_when": "When a researcher needs a ready‑made email to send to original authors for data, design feedback, or result commentary in a replication project.",
+  "example_questions": [
+   "How do I ask an author for the data used in their study?",
+   "What email template can I use to request feedback on my replication design?",
+   "How can I invite the original authors to comment on my replication results?",
+   "Where can I submit feedback on the replication handbook?",
+   "What contact information should I include when emailing authors about a replication?"
+  ],
+  "page_kind": "teaching_material",
+  "freshness": "changes_often",
+  "key_links": [
+   {
+    "url": "mailto:lukas.roeseler@uni-muenster.de",
+    "label": "Contact email"
+   },
+   {
+    "url": "https://github.com/forrtproject/replication-handbook/issues",
+    "label": "GitHub issues"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
+ },
+ {
+  "url": "https://forrt.org/replication-handbook/discussion.html",
+  "lastmod": "",
+  "title": "7  Discussion – Handbook for Reproduction and Replication Studies",
+  "section": "replication-handbook",
+  "chars": 29044,
+  "summary": "This page presents the seventh chapter of the Replication Handbook, outlining what constitutes replication success and how to evaluate replication findings. It includes key takeaways, a discussion of statistical and methodological considerations, and a detailed table of criteria (Bayes factors, significance tests, confidence and prediction intervals, meta‑analysis, equivalence testing) for assessing replication outcomes, with references to relevant literature.",
+  "use_when": "When a user wants to understand how to define and judge replication success, what statistical criteria to use, or how to interpret discrepancies between original and replication studies.",
+  "example_questions": [
+   "What does replication success really mean?",
+   "How can I evaluate whether a replication study was successful?",
+   "What statistical tests are recommended for comparing original and replication effect sizes?",
+   "What is a Bayes factor in the context of replication?",
+   "How should I interpret differences in effect sizes between studies?"
+  ],
+  "page_kind": "teaching_material",
+  "freshness": "static",
+  "key_links": [
+   {
+    "url": "https://github.com/forrtproject/replication-handbook/issues",
+    "label": "GitHub"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
+ },
+ {
+  "url": "https://forrt.org/replication-handbook/choosing_study.html",
+  "lastmod": "",
+  "title": "3  Choosing the Target Study – Handbook for Reproduction and Replication Studies",
+  "section": "replication-handbook",
+  "chars": 44108,
+  "summary": "This page explains how to choose a target study for reproduction or replication, outlining top‑down versus bottom‑up approaches, key factors such as value, uncertainty, feasibility, and post‑publication discussions, and offers guidance on justifying and documenting the selection process.",
+  "use_when": "It helps researchers decide which study to replicate or reproduce based on goals, relevance, and practical constraints, and explains the difference between large‑scale projects and individual efforts.",
+  "example_questions": [
+   "What is the difference between a top‑down and a bottom‑up approach to selecting a study for replication?",
+   "Which factors should I consider when judging if a study is worth reproducing?",
+   "How can post‑publication discussions influence my choice of a replication target?",
+   "What practical constraints might limit my ability to replicate a study?",
+   "Why is preregistration important when choosing a study to replicate?"
+  ],
+  "page_kind": "teaching_material",
+  "freshness": "changes_often",
+  "key_links": [
+   {
+    "url": "https://github.com/forrtproject/replication-handbook/issues",
+    "label": "GitHub Issues"
+   },
+   {
+    "url": "https://forrt.org/replication-handbook/references.html",
+    "label": "References"
+   },
+   {
+    "url": "mailto:lukas.roeseler@uni-muenster.de",
+    "label": "Contact"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
+ },
+ {
+  "url": "https://forrt.org/replication-handbook/execution_replications.html",
+  "lastmod": "",
+  "title": "6  Execution of Replications – Handbook for Reproduction and Replication Studies",
+  "section": "replication-handbook",
+  "chars": 40945,
+  "summary": "This chapter of the FORRT Handbook explains how to execute replication studies, covering preregistration, Registered Reports, handling deviations, sample‑size justification, and the small telescopes approach. It offers key takeaways, practical guidance on transparency, and links to templates and resources for planning robust replications.",
+  "use_when": "When a researcher wants to know how to preregister a replication, determine an appropriate sample size, handle deviations, or find resources for Registered Reports and preregistration templates.",
+  "example_questions": [
+   "How should I preregister a replication study?",
+   "What sample size should I use for a replication?",
+   "What is the small telescopes approach?",
+   "What should I do if I need to deviate from my preregistration?",
+   "Where can I find templates for preregistration of replications?"
+  ],
+  "page_kind": "teaching_material",
+  "freshness": "static",
+  "key_links": [],
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
+ },
+ {
+  "url": "https://forrt.org/replication-handbook/execution_reproductions.html",
+  "lastmod": "",
+  "title": "5  Execution of Reproductions – Handbook for Reproduction and Replication Studies",
+  "section": "replication-handbook",
+  "chars": 13672,
+  "summary": "This page offers practical guidance for executing reproduction studies, covering how to gather data and code, contact original authors, identify key claims to reproduce, and preregister the analysis plan. It includes key takeaways, recommended resources (e.g., Zenodo, OSF, GitHub, GitLab), links to guidelines such as ACRE, and templates for requesting materials.",
+  "use_when": "It answers questions about how to plan and conduct a reproduction study, including resource acquisition, author communication, claim selection, and preregistration practices.",
+  "example_questions": [
+   "How do I locate and download the data and code needed for a reproduction study?",
+   "What is the recommended approach for contacting the original authors to request missing materials?",
+   "Why should I preregister my analysis plan before reproducing a study?",
+   "Which claims should I focus on when reproducing a paper’s results?",
+   "Where can I find templates for asking authors for data and for reporting my reproduction findings?"
+  ],
+  "page_kind": "teaching_material",
+  "freshness": "changes_often",
+  "key_links": [
+   {
+    "url": "https://github.com/forrtproject/replication-handbook/issues",
+    "label": "GitHub"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
+ },
+ {
+  "url": "https://forrt.org/replication-handbook/background.html",
+  "lastmod": "",
+  "title": "1  Background – Handbook for Reproduction and Replication Studies",
+  "section": "replication-handbook",
+  "chars": 8625,
+  "summary": "This page provides the background section of the FORRT Handbook for Reproduction and Replication Studies. It explains the importance of repeatability, gives statistics on the growth of replication studies, cites key literature across multiple disciplines, and invites feedback via email or GitHub.",
+  "use_when": "It answers questions about why replication matters, how many replication studies exist, which fields have replication issues, and where to find guidance on conducting replication studies.",
+  "example_questions": [
+   "What is the role of repeatability in scientific research?",
+   "How many replication studies have been published each year?",
+   "Which disciplines have been most active in replication research?",
+   "Where can I find the original reference by Dunlap (1926)?",
+   "How can I provide feedback on this handbook?"
+  ],
+  "page_kind": "teaching_material",
+  "freshness": "changes_often",
+  "key_links": [
+   {
+    "url": "mailto:lukas.roeseler@uni-muenster.de",
+    "label": "Contact email"
+   },
+   {
+    "url": "https://github.com/forrtproject/replication-handbook/issues",
+    "label": "GitHub issues"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
+ },
+ {
+  "url": "https://forrt.org/replication-handbook/appendix_checklist.html",
+  "lastmod": "",
+  "title": "Appendix A — Reproduction and Replication Checklist – Handbook for Reproduction and Replication Studies",
+  "section": "replication-handbook",
+  "chars": 985,
+  "summary": "This page presents a preliminary checklist of core recommendations for planning, conducting, and reporting reproduction and replication studies, including justification of target study, choice of replication type, material review, preregistration, success criteria, balanced reporting, and comprehensive documentation. It also invites feedback via email or GitHub issues.",
+  "use_when": "When a researcher wants a concise guide to the essential steps and best practices for a replication or reproduction study, or when looking for a quick reference to ensure all key components are addressed.",
+  "example_questions": [
+   "What are the main steps to plan a replication study?",
+   "How should I preregister a replication?",
+   "What criteria should I set for success or failure in a replication?",
+   "What should I include when reporting a reproduction?",
+   "Where can I give feedback on the checklist?"
+  ],
+  "page_kind": "teaching_material",
+  "freshness": "static",
+  "key_links": [
+   {
+    "url": "https://github.com/forrtproject/replication-handbook/issues",
+    "label": "GitHub Issues"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
+ },
+ {
+  "url": "https://forrt.org/replication-handbook/conclusion.html",
+  "lastmod": "",
+  "title": "10  Conclusion – Handbook for Reproduction and Replication Studies",
+  "section": "replication-handbook",
+  "chars": 940,
+  "summary": "This page is the conclusion of the Replication Handbook, noting it is a preliminary version (0.1) and inviting feedback via email or GitHub. It summarizes the authors’ discussion of standards, best‑practices, and debates in replication research, highlights a special case of MRI data, and points to a checklist in Section A.1 for practical guidance.",
+  "use_when": "Users looking for a concise wrap‑up of the handbook’s recommendations, wanting to know where to find the checklist, or seeking contact information for feedback on the preliminary version.",
+  "example_questions": [
+   "What are the main takeaways from the Replication Handbook?",
+   "Where can I find the checklist summarizing the handbook’s recommendations?",
+   "How can I provide feedback on this preliminary version?",
+   "What special considerations are mentioned for MRI data replications?",
+   "Who authored the conclusion of the handbook?"
+  ],
+  "page_kind": "teaching_material",
+  "freshness": "changes_often",
+  "key_links": [
+   {
+    "url": "https://github.com/forrtproject/replication-handbook/issues",
+    "label": "GitHub"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
+ },
+ {
+  "url": "https://forrt.org/replication-handbook/planning.html",
+  "lastmod": "",
+  "title": "4  Planning and Conducting Reproductions and Replications – Handbook for Reproduction and Replication Studies",
+  "section": "replication-handbook",
+  "chars": 13566,
+  "summary": "This page is a preliminary chapter of the Replication Handbook that explains how to plan and conduct reproductions and replications. It outlines the importance of reproducing original results before attempting a replication, describes different types of repetitive research (computational, recoding, robustness, multiverse, internal, close, conceptual), and offers guidance on forming a replication team and selecting the appropriate replication strategy.",
+  "use_when": "When a researcher wants to understand whether to perform a reproduction or a replication, how to choose between close and conceptual approaches, or how to assemble a team for a replication study.",
+  "example_questions": [
+   "What is the difference between a reproduction and a replication?",
+   "When should I conduct a reproduction before a replication?",
+   "What types of repetitive research are described in the handbook?",
+   "How do I decide between a close and a conceptual replication?",
+   "What team composition is recommended for a replication study?"
+  ],
+  "page_kind": "teaching_material",
+  "freshness": "changes_often",
+  "key_links": [
+   {
+    "url": "mailto:lukas.roeseler@uni-muenster.de",
+    "label": "Contact Lukas Roeseler"
+   },
+   {
+    "url": "https://github.com/forrtproject/replication-handbook/issues",
+    "label": "GitHub Issues"
+   },
+   {
+    "url": "https://forrt.org/replication-handbook/references.html",
+    "label": "References"
+   },
+   {
+    "url": "https://doi.org/10.31234/osf.io/an3yb",
+    "label": "DOI: OSF"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
+ },
+ {
+  "url": "https://forrt.org/replication-handbook/understanding.html",
+  "lastmod": "",
+  "title": "2  Understanding Reproductions and Replications – Handbook for Reproduction and Replication Studies",
+  "section": "replication-handbook",
+  "chars": 24300,
+  "summary": "This handbook chapter explains the distinction between reproductions (using the same data) and replications (using new data), outlines how terminology varies across disciplines, and presents a table of possible outcomes (reproducible/replicable combinations). It advises that reproductions should precede replications as a cost‑efficient first step and discusses how minor differences between studies can affect results.",
+  "use_when": "Use this page when you need to understand the definitions of reproduction and replication, decide whether to conduct a reproduction before a replication, or interpret the possible outcomes of such studies.",
+  "example_questions": [
+   "What is the difference between a reproduction and a replication in research?",
+   "When should I perform a reproduction before attempting a replication?",
+   "What are the four possible outcome combinations for reproduction and replication?",
+   "How does terminology differ between psychology and other fields regarding replication?",
+   "Why might a study be reproducible but not replicable?"
+  ],
+  "page_kind": "teaching_material",
+  "freshness": "static",
+  "key_links": [
+   {
+    "url": "https://forrt.org/replication-handbook/references.html",
+    "label": "References"
+   }
+  ],
+  "described_by": "openai/gpt-oss-20b",
+  "date": null
  }
 ]

@@ -2,7 +2,8 @@
 # scripts/build_forrt_pages.py fetches and describes them on every run. Re-check with
 # `gh api orgs/forrtproject/repos` (repos with GitHub Pages) and the gh-pages tree vs the sitemap.
 
-# --- FORRT project sites: separate GitHub repos published at forrt.org/<repo>/ (not in the sitemap)
+# --- FORRT project sites: separate GitHub repos published at forrt.org/<repo>/ (not in the sitemap).
+# Book chapters (<repo>/<chapter>.html) are listed one by one: the references and author pages are left out
 https://forrt.org/re-searchterms/
 https://forrt.org/flora-zotero/
 https://forrt.org/fred/
@@ -23,6 +24,18 @@ https://forrt.org/open-social-psychology/
 https://forrt.org/replicate-this/
 https://forrt.org/replicatethis/
 https://forrt.org/replication-handbook/
+https://forrt.org/replication-handbook/background.html
+https://forrt.org/replication-handbook/understanding.html
+https://forrt.org/replication-handbook/choosing_study.html
+https://forrt.org/replication-handbook/planning.html
+https://forrt.org/replication-handbook/execution_reproductions.html
+https://forrt.org/replication-handbook/execution_replications.html
+https://forrt.org/replication-handbook/discussion.html
+https://forrt.org/replication-handbook/publishing.html
+https://forrt.org/replication-handbook/field_specific_mri.html
+https://forrt.org/replication-handbook/conclusion.html
+https://forrt.org/replication-handbook/appendix_checklist.html
+https://forrt.org/replication-handbook/appendix_templates.html
 https://forrt.org/reprocrowd/
 https://forrt.org/rjf/
 https://forrt.org/handbook/

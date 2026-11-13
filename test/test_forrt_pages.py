@@ -263,3 +263,12 @@ def test_what_is_forrt_is_not_answered_in_hungarian(tmp_path):
     pages.answer("what is forrt")
     prompt = client.calls[0]["messages"][0]["content"] + client.calls[0]["messages"][1]["content"]
     assert "Hungarian" not in prompt and "language of the question" in prompt
+
+
+def test_book_chapter_urls_keep_their_html_ending():
+    """forrt.org/replication-handbook/planning.html/ is a 404: the index must keep the file URL."""
+    from scripts.build_forrt_pages import norm_url
+
+    assert norm_url("https://forrt.org/replication-handbook/planning.html") == "https://forrt.org/replication-handbook/planning.html"
+    assert norm_url("https://forrt.org/replication-handbook/index.html") == "https://forrt.org/replication-handbook/"
+    assert norm_url("/replication-hub#x") == "https://forrt.org/replication-hub/"
