@@ -35,6 +35,12 @@
         .review-form select, .review-form textarea { padding: 4px 6px; border: 1px solid #b9c4c9; border-radius: 4px; font: inherit; }
         .review-form textarea { grid-column: 1 / -1; min-height: 60px; }
         .review-item.done { border-color: #2e8b57; }
+        .review-form fieldset { min-width: 0; }
+        .review-sources a, .review-answer, .review-sources details p, .review-item h2 { overflow-wrap: anywhere; }
+        @media (max-width: 640px) {
+            .review-form { grid-template-columns: 1fr; }
+            .review-bar input { min-width: 0; flex: 1 1 160px; }
+        }
     </style>
 </head>
 
