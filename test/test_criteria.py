@@ -68,4 +68,10 @@ def test_judges_take_criteria_levels_and_models_from_the_file():
     assert all(criteria.CRITERIA[k] in text for k in criteria_judge.JUDGED)
     assert "1 wrong or very poor" in text and '"clarity": <1-5>' in text and "[1] T" in text
     assert rubric_judge.LEVELS == "1 not at all, 2 barely, 3 partly, 4 mostly, 5 fully"
+    # each judge's --model default reads the model config/criteria.json names for it
+    import judge
+    assert criteria.JUDGES == judges and criteria_judge.CONFIG["model"] == judges["criteria"]["model"]
+    for module, default in ((judge, 'criteria.JUDGES["support"]["model"]'), (rubric_judge, 'criteria.JUDGES["rubric"]["model"]'),
+                            (criteria_judge, 'CONFIG["model"]')):
+        assert f'"--model", default={default}' in Path(module.__file__).read_text(encoding="utf-8"), module.__name__
     assert rubric_judge.coverage({"r1": 5, "r2": 1}, [{"id": "r1", "type": "core"}, {"id": "r2", "type": "detail"}]) == 0.5
