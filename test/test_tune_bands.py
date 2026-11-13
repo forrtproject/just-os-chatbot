@@ -34,10 +34,12 @@ def test_a_low_threshold_never_rounds_up_past_the_share_it_may_refuse():
 
 
 def test_max_refused_is_a_share_below_one():
+    import argparse
+
     import pytest
     assert tune_bands.share("0.02") == 0.02
     for bad in ("1", "-0.1", "2"):
-        with pytest.raises(Exception):
+        with pytest.raises(argparse.ArgumentTypeError):
             tune_bands.share(bad)
 
 def test_tuning_questions_leave_out_the_report_files():
@@ -47,3 +49,10 @@ def test_tuning_questions_leave_out_the_report_files():
     assert {q[2] for q in tuning} == {"papers", "pages", "off_topic"}
     with open(ROOT / "eval/refusal_questions.jsonl", encoding="utf-8") as f:
         assert sum(q[0] == "refusal" for q in tuning) == sum(1 for line in f if json.loads(line))
+
+
+def test_thresholds_use_full_precision_and_only_the_csv_is_rounded():
+    rows = [row("papers", v, 0.2) for v in (0.50004, 0.50006, 0.6, 0.7)]
+    assert tune_bands.rounded(rows)[0]["paper"] == 0.5 and rows[0]["paper"] == 0.50004  # rounding copies
+    t = tune_bands.thresholds(rows + [row("pages", 0.3, 0.5), row("off_topic", 0.4, 0.3)], 0.01, 0.25)
+    assert sum(r["paper"] < t["BAND_PAPER_LOW"] for r in rows) <= 1

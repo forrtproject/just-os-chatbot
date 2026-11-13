@@ -80,6 +80,12 @@ def low_threshold(values, max_refused):
     return round(rounded - 0.001, 3) if rounded > cut else rounded
 
 
+def rounded(rows):
+    """The rows as written to the CSV, similarities at 4 decimals; the thresholds are chosen from the
+    full-precision values, since two values that round alike could fall on either side of a cut."""
+    return [{**r, "paper": round(r["paper"], 4), "page": round(r["page"], 4)} for r in rows]
+
+
 def share(text):
     """--max-refused: a share from 0 up to, not including, 1."""
     value = float(text)
@@ -130,13 +136,12 @@ def main():
     for kind, questions in (("tune", tuning_questions()), ("report", report_questions())):
         for source, qid, label, question in questions:
             paper, page = qualle.similarities(question)
-            rows.append({"set": kind, "file": source, "id": qid, "label": label,
-                         "paper": round(paper, 4), "page": round(page, 4)})
+            rows.append({"set": kind, "file": source, "id": qid, "label": label, "paper": paper, "page": page})
     out = Path("eval/results") / f"bands_{datetime.now():%y%m%d}.csv"
     with open(out, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0]))
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(rounded(rows))
 
     tune = [r for r in rows if r["set"] == "tune"]
     t = thresholds(tune, args.margin, args.max_refused)
