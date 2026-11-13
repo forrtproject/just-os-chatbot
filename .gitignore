@@ -255,3 +255,5 @@ share/
 # eval/run_batches.py working file
 eval/tmp_batch*.jsonl
 eval/.retrieval_cache/
+# eval/topic_map/ working files (vectors, chunks): large
+eval/.topic_map/

@@ -37,6 +37,10 @@ dev = [
     "pytest>=8.3.0",
     "ruff>=0.7.0",
 ]
+# Topic map of the index (eval/topic_map/): uv sync --group analysis
+analysis = [
+    "umap-learn>=0.5.7",
+]
 ingest = [
     "google-api-python-client>=2.178.0",
     "google-auth>=2.40.3",
