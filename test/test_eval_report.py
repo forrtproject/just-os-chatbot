@@ -53,6 +53,16 @@ def test_classifier_summary_counts_both_refusal_labels(tmp_path):
     assert (jev["n"], jev["accuracy"], jev["false_refusals"], jev["false_answers"], jev["errors"], jev["mean_s"]) == (4, 0.25, 1, 1, 1, 2.8)
 
 
+
+def test_classifier_summary_scores_tasks_to_decline_apart(tmp_path):
+    rows = [{"model": "jev", "id": "1", "gold": "neither", "predicted": "neither", "seconds": 1, "usd": 0},
+            {"model": "jev", "id": "2", "gold": "decline_task", "predicted": "open_science", "seconds": 1, "usd": 0},
+            {"model": "jev", "id": "3", "gold": "decline_task", "predicted": "neither", "seconds": 1, "usd": 0}]
+    write(tmp_path / "classify_261113-1200.csv", rows)
+    (jev,) = eval_report.classifier_runs(str(tmp_path))
+    assert (jev["n"], jev["accuracy"], jev["false_answers"], jev["tasks_let_through"]) == (1, 1.0, 0, "1/2")
+
+
 def test_missing_folder_gives_empty_tables(tmp_path):
     folder = str(tmp_path / "nothing")
     assert eval_report.answer_runs(folder) == eval_report.classifier_runs(folder) == eval_report.embedding_runs(folder) == []

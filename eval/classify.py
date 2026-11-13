@@ -25,11 +25,13 @@ from statistics import mean
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config.settings import get_config  # noqa: E402
-from just_os.eval_report import REFUSE_LABELS  # noqa: E402
+from just_os.eval_report import REFUSE_LABELS, TASK  # noqa: E402
 from just_os.qualle import OpenAIClientManager, QueryProcessor  # noqa: E402
 
 
 def gold(question: dict, intent: bool) -> str:
+    if question.get("kind") == TASK:
+        return TASK
     if intent and question.get("intent"):
         return question["intent"]
     return "open_science" if question["expect"] == "answer" else "off_topic"
@@ -43,16 +45,22 @@ def predict(processor: QueryProcessor, text: str, intent: bool):
 
 
 def summarize(model: str, results: list) -> str:
-    """results: (gold, predicted or None, seconds, cost_usd) per question."""
+    """results: (gold, predicted or None, seconds, cost_usd) per question. Questions with gold TASK (an
+    in-scope topic, a task the bot should not do) are left out of the accuracy and counted apart: how
+    many of them the check let through, which the answer step has to decline."""
+    tasks = [p for g, p, _, _ in results if g == TASK]
+    let_through = f"{sum(p is not None and p not in REFUSE_LABELS for p in tasks)}/{len(tasks)}" if tasks else "–"
+    timed, results = results, [r for r in results if r[0] != TASK]
     n = len(results)
     errors = sum(p is None for _, p, _, _ in results)
     correct = sum(g == p for g, p, _, _ in results)
     # same counting as the /eval page: refusing = off_topic (classifier) or neither (router)
     false_refusals = sum(g not in REFUSE_LABELS and p in REFUSE_LABELS for g, p, _, _ in results)
     false_answers = sum(g in REFUSE_LABELS and p is not None and p not in REFUSE_LABELS for g, p, _, _ in results)
-    seconds = mean(s for _, _, s, _ in results)
-    cost = sum(c for *_, c in results) / n * 1000
-    return f"| {model} | {n} | {correct / n:.2f} | {false_refusals} | {false_answers} | {errors} | {seconds:.1f} | {cost:.2f} |"
+    seconds = mean(s for _, _, s, _ in timed)
+    cost = sum(c for *_, c in timed) / len(timed) * 1000
+    return (f"| {model} | {n} | {correct / n:.2f} | {false_refusals} | {false_answers} | {errors} | {let_through} "
+            f"| {seconds:.1f} | {cost:.2f} |")
 
 
 # Qualle.route answers off_topic (and forrt_lookup with FORRT_LOOKUP); the gold labels are the router's
@@ -61,7 +69,10 @@ _qualle = None
 
 
 def route_gold(question: dict) -> str:
-    """The route label; without one (eval/forrt_questions.jsonl) from expect, else forrt."""
+    """The route label; without one (eval/forrt_questions.jsonl) from expect, else forrt; TASK for a
+    task the bot should decline on an in-scope topic (kind decline_task)."""
+    if question.get("kind") == TASK:
+        return TASK
     return question.get("route") or {"answer": "open_science", "refuse": "neither"}.get(question.get("expect"), "forrt")
 
 
@@ -116,8 +127,8 @@ def main():
     f = open(out, "w", newline="", encoding="utf-8")
     writer = csv.writer(f)
     writer.writerow(["model", "id", "gold", "predicted", "seconds", "usd"])
-    print("| Classifier | n | Accuracy | False refusals | False answers | Errors | Mean s | USD / 1k q |")
-    print("|---|---|---|---|---|---|---|---|")
+    print("| Classifier | n | Accuracy | False refusals | False answers | Errors | Tasks let through | Mean s | USD / 1k q |")
+    print("|---|---|---|---|---|---|---|---|---|")
     for name in [r.strip() for r in (args.routers or "").split(",") if r.strip()]:
         results = run_router(name, questions)
         print(summarize(f"router: {name}", results), flush=True)

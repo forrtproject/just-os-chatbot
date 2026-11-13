@@ -134,6 +134,7 @@ Two modes, both writing `eval/results/classify_<YYMMDD-HHMM>.csv` (one row per s
 | **False refusals** | In-scope questions (open science, FORRT or both) that the check turned away |
 | **False answers** | Off-topic questions that the check let through |
 | **Errors** | No label at all (the call failed and nothing could fall back) |
+| **Tasks let through** | `decline_task` questions of `eval/refusal_questions.jsonl` (an in-scope topic, a task the bot should decline) that the check let through. A topic check cannot refuse them by design, so they are scored apart and are not in n, Accuracy or False answers; runs before 13 November counted them as `neither` |
 | **Mean s, USD / 1k q** | Time and cost of the topic check alone per question |
 
 A strategy tuned on these questions, such as the thresholds of `cosine`, scores too high on them; check it on questions it was not tuned on (section 3.7).

@@ -171,13 +171,13 @@
                 <table>
                     <thead>
                         <tr><th>Topic check</th><th>Runs</th><th>Newest run</th><th>n</th><th>Accuracy</th><th>False refusals</th>
-                            <th>False answers</th><th>Errors</th><th>Mean s</th><th>USD / 1k q</th></tr>
+                            <th>False answers</th><th>Errors</th><th>Tasks let through</th><th>Mean s</th><th>USD / 1k q</th></tr>
                     </thead>
                     <tbody>
                         {% for r in classifier_models %}
                         <tr><td>{{ r.model }}{% if r.model == "router: " ~ defaults.get("ROUTER") %} <span class="eval-default">default</span>{% endif %}</td>
                             <td>{{ r.runs }}</td><td>{{ r.run }}</td><td>{{ r.n }}</td><td><b>{{ r.accuracy }}</b></td>
-                            <td>{{ r.false_refusals }}</td><td>{{ r.false_answers }}</td><td>{{ r.errors }}</td>
+                            <td>{{ r.false_refusals }}</td><td>{{ r.false_answers }}</td><td>{{ r.errors }}</td><td>{{ r.tasks_let_through or "–" }}</td>
                             <td>{{ r.mean_s }}</td><td>{{ r.usd_per_1k }}</td></tr>
                         {% endfor %}
                     </tbody>
@@ -191,6 +191,7 @@
                     <dt>False refusals</dt><dd>Questions the bot should answer (open science, FORRT or both) that the check turned away.</dd>
                     <dt>False answers</dt><dd>Questions the bot should refuse that the check let through.</dd>
                     <dt>Errors</dt><dd>No route at all (the call failed and nothing could fall back).</dd>
+                    <dt>Tasks let through</dt><dd>Questions on an in-scope topic that ask for a task the bot should decline (writing the user's preregistration, ruling on their consent form; kind <code>decline_task</code>), and how many the check let through. A topic check cannot refuse them by design, so they are not in n, Accuracy or False answers; the answer step has to decline them.</dd>
                     <dt>Mean s, USD / 1k q</dt><dd>Time and cost of the topic check alone per question.</dd>
                 </dl>
             </details>
@@ -489,12 +490,12 @@
                     <table>
                         <thead>
                             <tr><th>Run</th><th>Topic check</th><th>n</th><th>Accuracy</th><th>False refusals</th>
-                                <th>False answers</th><th>Errors</th><th>Mean s</th><th>USD / 1k q</th></tr>
+                                <th>False answers</th><th>Errors</th><th>Tasks let through</th><th>Mean s</th><th>USD / 1k q</th></tr>
                         </thead>
                         <tbody>
                             {% for r in classifiers %}
                             <tr><td>{{ r.run }}</td><td>{{ r.model }}</td><td>{{ r.n }}</td><td>{{ r.accuracy }}</td>
-                                <td>{{ r.false_refusals }}</td><td>{{ r.false_answers }}</td><td>{{ r.errors }}</td>
+                                <td>{{ r.false_refusals }}</td><td>{{ r.false_answers }}</td><td>{{ r.errors }}</td><td>{{ r.tasks_let_through or "–" }}</td>
                                 <td>{{ r.mean_s }}</td><td>{{ r.usd_per_1k }}</td></tr>
                             {% endfor %}
                         </tbody>

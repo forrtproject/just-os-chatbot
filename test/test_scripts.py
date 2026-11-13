@@ -49,9 +49,19 @@ def test_judge_scores_answered_rows_only():
 def test_classifier_summary():
     results = [("open_science", "open_science", 1.0, 0.001), ("open_science", "off_topic", 1.0, 0.001),
                ("off_topic", "open_science", 1.0, 0.001), ("off_topic", None, 1.0, 0.0)]
-    assert classify.summarize("m", results) == "| m | 4 | 0.25 | 1 | 1 | 1 | 1.0 | 0.75 |"
+    assert classify.summarize("m", results) == "| m | 4 | 0.25 | 1 | 1 | 1 | – | 1.0 | 0.75 |"
     assert classify.gold({"expect": "refuse", "intent": "forrt_lookup"}, intent=True) == "forrt_lookup"
     assert classify.gold({"expect": "refuse", "intent": "forrt_lookup"}, intent=False) == "off_topic"
+
+
+def test_tasks_to_decline_are_scored_apart_from_the_topic():
+    """decline_task questions have an in-scope topic but a task the bot should not do: a topic check
+    cannot refuse them by design, so they leave the accuracy and are counted on their own."""
+    q = {"route": "neither", "expect": "refuse", "kind": "decline_task"}
+    assert classify.route_gold(q) == classify.gold(q, intent=False) == "decline_task"
+    results = [("open_science", "open_science", 1.0, 0.0), ("neither", "neither", 1.0, 0.0),
+               ("decline_task", "open_science", 1.0, 0.0), ("decline_task", "neither", 1.0, 0.0)]
+    assert classify.summarize("m", results) == "| m | 2 | 1.00 | 0 | 0 | 0 | 1/2 | 1.0 | 0.00 |"
 
 
 def test_router_gold_and_counting():
@@ -60,7 +70,7 @@ def test_router_gold_and_counting():
     assert classify.route_gold({"question": "Which FORRT teams can I join?"}) == "forrt"  # eval/forrt_questions.jsonl
     # refusing a forrt question is a false refusal; answering a neither question a false answer
     results = [("forrt", "neither", 1.0, 0.0), ("neither", "both", 1.0, 0.0), ("both", "both", 1.0, 0.0)]
-    assert classify.summarize("router: jev", results) == "| router: jev | 3 | 0.33 | 1 | 1 | 0 | 1.0 | 0.00 |"
+    assert classify.summarize("router: jev", results) == "| router: jev | 3 | 0.33 | 1 | 1 | 0 | – | 1.0 | 0.00 |"
 
 
 # --- #17 cluster PDF names
