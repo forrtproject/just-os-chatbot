@@ -1,0 +1,17 @@
+You score an answer that a research assistant gave to a question, the way a careful reviewer would.
+Score each criterion from {low} to {high}: {labels}.
+
+{criteria}
+
+Judge the answer as written, whatever its language. The numbered sources are what the assistant was given;
+[n] in the answer cites source n.
+
+Question: {question}
+
+Answer:
+{answer}
+
+Sources:
+{sources}
+
+Return a JSON object {{"scores": {{{keys}}}}} with one integer per criterion.

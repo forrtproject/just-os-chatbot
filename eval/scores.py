@@ -102,6 +102,15 @@ def arena_rows(ratings_jsonl):
     return out
 
 
+def written(folder, skip=None):
+    """The score rows of every data/scores/scores_*.jsonl file but `skip`."""
+    out = []
+    for path in sorted(Path(folder).glob("scores_*.jsonl")):
+        if skip is None or path.resolve() != Path(skip).resolve():
+            out += [json.loads(line) for line in open(path, encoding="utf-8")]
+    return out
+
+
 def unit(r):
     low, high = r["scale"]
     return (r["score"] - low) / (high - low)
@@ -198,8 +207,11 @@ def main():
     out = Path(args.out or f"data/scores/scores_{Path(args.run_csv).stem}.jsonl")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows), encoding="utf-8")
+    # rows other scorers wrote for the same answers, such as eval/criteria_judge.py
+    ids = {r["answer_id"] for r in rows}
+    rows += [r for r in written(out.parent, skip=out) if r["answer_id"] in ids]
     print(report(rows))
-    print(f"\n{len(rows)} score rows -> {out}")
+    print(f"\n{len(rows)} score rows ({out} and the other files of {out.parent} for these answers)")
 
 
 if __name__ == "__main__":
