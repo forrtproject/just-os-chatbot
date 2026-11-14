@@ -110,6 +110,9 @@ def test_shared_report_by_configuration_and_on_the_eval_page(tmp_path):
     (tmp_path / "answers" / "answers_x.jsonl").write_text(json.dumps({"answer_id": "r#a", **answers["r#a"]}) + "\n")
     page = eval_report.people_and_judges(str(tmp_path / "scores"), str(tmp_path / "answers"))
     assert page["rows"] == 3 and page["criteria"] == ["correctness"] and page["labels"]["correctness"] == "Correctness"
+    configs = {c["config"]: c for c in page["configs"]}
+    assert configs["m1, hybrid+rerank"]["scores"]["correctness"] == {"people": (0.75, 1), "judge": (0.5, 1)}
+    assert configs["unknown model"]["answers"] == 1 and page["scorers"] == ["people", "judge"]
     assert eval_report.people_and_judges(str(tmp_path / "none"), str(tmp_path / "none")) == {}
 
 

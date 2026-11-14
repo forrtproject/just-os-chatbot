@@ -379,5 +379,7 @@ def test_eval_page_shows_people_and_judges(app, tmp_path):
                       ANSWERS_DIR=str(tmp_path / "none"))
     html = app.app.test_client().get("/eval").get_data(as_text=True)
     assert 'id="people"' in html and "Ann / Bo" in html and "unknown model" in html
+    people = html[html.index('id="people"'):]
+    assert "<td>judge</td>" in people and "<td>1.00</td>" in people  # the LLM judge is shown with its score
     app.config["SCORES_DIR"] = str(tmp_path / "none")
     assert "No score rows yet" in app.app.test_client().get("/eval").get_data(as_text=True)

@@ -6,7 +6,7 @@ Rule: a change to prompts, models, retrieval or chunking needs an eval table bef
 The bot first checks the topic of a question (open science, FORRT, both or neither), then answers it from the papers or from the FORRT pages, or refuses it. Two evaluations follow these two steps:
 
 - **Topic check** (`eval/classify.py`): runs only the check, on each question of `eval/questions.jsonl`, and compares the label it gives with the question's gold label. No answer is written, so it is fast and cheap (section 2, Topic check).
-- **Answering** (`eval/run.py`): runs the whole bot, topic check included, and scores what comes out against `expect` (answer or refuse), the expected sources and, where a question has one, its rubric; `eval/judge.py` scores whether the cited passages support the answer (section 2, Full pipeline eval).
+- **Answering** (`eval/run.py`): runs the whole bot, topic check included, and scores what comes out against `expect` (answer or refuse) and the expected sources; `eval/judge.py` scores whether the cited passages support the answer, and `eval/rubric_judge.py` scores the rubric where a question has one (section 2, Full pipeline eval).
 
 A wrong refusal or a missing source in the answering eval can come from either step: the topic check turning a question away or sending a paper question to the FORRT pages, or the search finding nothing above the relevance threshold ("no sources"). Read a drop in the answering eval's Correct together with a topic check run on the same questions.
 
@@ -89,7 +89,7 @@ Why the scores look low: many documents are on the same subject (for example, ma
 
 | Column | Meaning |
 |---|---|
-| **outcome** | `answered` (from the papers or the FORRT pages), `refused` (the topic check said neither open science nor FORRT), `no_sources` (no passage passed the relevance threshold), `error` (API failure) |
+| **outcome** | `answered` (from the papers or the FORRT pages), `refused` (the topic check said neither open science nor FORRT), `no_sources` (no usable source: no paper passage passed the relevance threshold, or no FORRT page could be used), `error` (API failure) |
 | **expect** | Gold label in `questions.jsonl`: `answer` or `refuse` |
 | **Correct** | Share of questions where the outcome matches `expect` |
 | **Answered / Refused** | Counts against the gold label (22/27 = 22 of the 27 "answer" questions got an answer) |
@@ -109,7 +109,7 @@ Everything people and judges score lives in `config/criteria.json`, read by `jus
 | A criterion's name or definition | `criteria.<key>.label` / `definition` | `/review`, the criteria judge's prompt, reports |
 | Which criteria `/review` asks | `forms.review.criteria` (keys of `criteria`) | `/review`, saved review CSVs, `eval/scores.py` |
 | The arena's criteria and what they cover | `forms.arena.criteria.<key>` (`label`, `definition`, `maps_to`) | `/arena`, its leaderboard, `eval/scores.py` (`arena_<key>`) |
-| The scale and its labels | `scale.min`, `scale.max`, `scale.labels` | `/review`, `/arena`, every judge, `eval/scores.py` |
+| The scale and its labels | `scale.min`, `scale.max`, `scale.labels` | `/review`, `/arena`, the rubric and criteria judges, `eval/scores.py` (the support judge stays on 0-1) |
 | A judge's default model | `judges.support.model`, `judges.rubric.model`, `judges.criteria.model` (`--model` overrides one run) | `eval/judge.py`, `eval/rubric_judge.py`, `eval/criteria_judge.py` |
 | The rubric levels | `judges.rubric.levels` (one per point of the scale) | `eval/rubric_judge.py`, the expert grading page |
 | What the criteria judge scores, and how it asks | `judges.criteria.criteria`, and the prompt file `judges.criteria.prompt` (`config/prompts/criteria_judge.txt`; placeholders `{low}`, `{high}`, `{labels}`, `{criteria}`, `{question}`, `{answer}`, `{sources}`, `{keys}`) | `eval/criteria_judge.py` |
@@ -139,7 +139,7 @@ Two modes, both writing `eval/results/classify_<YYMMDD-HHMM>.csv` (one row per s
 
 A strategy tuned on these questions, such as the thresholds of `cosine`, scores too high on them; check it on questions it was not tuned on (section 3.7).
 
-**Question sets for the topic check.** A strategy with thresholds (`cosine`, `banded`) is tuned on one group of files and reported on the other, and no question is in both:
+**Question sets for the topic check.** `banded` is tuned on one group of files and reported on the other, and no question is in both, though four tuning questions paraphrase report questions (q037 and pr01, q078 and q156 and t02, q007 and g02); q007 is among the lowest page similarities of the tuning set, and without it `BAND_PAGE_LOW` would be 0.4891 where it is 0.4607 (`eval/results/bands_261112.csv`), while the other three move no threshold; `cosine` was tuned on the reporting files themselves (3.7), so its scores there are in-sample:
 
 | File | Questions | How it was built | Gold label | Checked by people | Used for |
 |---|---|---|---|---|---|
@@ -337,8 +337,8 @@ Generated refusals let through, by kind (translations included):
 
 Findings:
 1. **Jev stays the most accurate** and the only strategy that refuses every academic question outside open science; what it lets through is almost all `decline_task`.
-2. **`decline_task` questions pass every strategy**: their topic is open science, and the task (write my preregistration, rule on my consent form) is not what a topic check judges. They need the answer prompt to decline the task, or a check of its own.
-3. **Cosine lets academic questions through** (16 of 18): career, teaching and writing questions sit close to the papers about academic life in the index, above `COSINE_PAPER_MIN`. Its thresholds are still the in-sample ones of 3.7.
+2. **Most `decline_task` questions pass every strategy** (9 to 14 of 18): their topic is open science, and the task (write my preregistration, rule on my consent form) is not what a topic check judges. They need the answer prompt to decline the task, or a check of its own.
+3. **Cosine lets academic questions through** (16 of 18). A likely cause, not checked since the run does not record the similarities: career, teaching and writing questions sit close to the papers about academic life in the index, above `COSINE_PAPER_MIN`. Its thresholds are still the in-sample ones of 3.7.
 4. Clef-flash, the current default of `DECISION_ROUTER`, is behind Jev on both sets.
 
 ### 3.9 Glossary items with rubrics (12 November 2026, 25 terms, `meta-llama/llama-3.1-8b-instruct`)

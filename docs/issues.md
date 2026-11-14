@@ -57,6 +57,12 @@ Rules for every issue: [project-plan.md](project-plan.md) section 8 (small PR, a
 - **Approach:** a named configuration (answer model, embedding model, re-ranker, top-k rule, routing on/off, verification on/off) in a config file or as flags; one command runs the eval and the judge for it and the row appears in the `eval/compare.py` table with the configuration name.
 - **Done when:** five configurations have scorecard rows from the same question set (E1), each made with one command.
 
+
+### E5. Answer store: one format and complete records (#68)
+- **Now:** eval runs store answers as markdown with `[n]` markers, chat and arena answers as HTML; `/review` shows "no sources" for older runs without a `sources` column; stored arena answers have no status; chat answers routed to `both` get no `answered_from`. Also kept here: with `SEARCH_MODE=hybrid` and `RERANK=false`, "no sources" depends on the vector similarity alone, so "What is SIPS?" and "What is HiTOP?" get none although BM25 finds them.
+- **Files:** `eval/answers.py`, `just_os/scores.py`, `/review` in `just_os/app.py`; `search_order` in `just_os/qualle.py`.
+- **Done when:** each point is fixed with a test that fails before it, or closed with the reason (from the automated reviews of #48 and #60).
+
 ---
 
 ## track:models — models and speed
