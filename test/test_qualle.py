@@ -327,6 +327,7 @@ def test_banded_router_refuses_and_answers_without_a_model_call_and_asks_in_betw
         q = routed(decision=middle)
         q.config = {**q.config, **bands}
         q.similarities = lambda query: (paper, page)
+        q.forrt_pages = object()  # loaded, so the page similarity is measured
         return q
 
     q = banded(0.45, 0.35)
@@ -342,6 +343,28 @@ def test_banded_router_refuses_and_answers_without_a_model_call_and_asks_in_betw
     assert q.route("Write my preregistration", "banded") == "off_topic"  # middle band: Jev decides
     assert q.decisions.models == ["typesafe/jev-1.14"]
     assert banded(0.45, 0.50).route("q", "banded") == "forrt"  # one source above its low: not refused
+
+
+def test_banded_router_edges():
+    def banded(paper, page, config, middle="forrt"):
+        q = routed(decision=middle)
+        q.config = {**q.config, **config}
+        q.similarities = lambda query: (paper, page)
+        q.forrt_pages = object()
+        return q
+
+    # an empty BAND_MIDDLE_ROUTER means Jev, not ROUTER (which would be banded again, without end)
+    q = banded(0.60, 0.50, {"ROUTER": "banded", "BAND_MIDDLE_ROUTER": ""})
+    assert q.route("q") == "forrt" and q.decisions.models == ["typesafe/jev-1.14"]
+    # without FORRT pages the page similarity is not measured: no refusal by similarity
+    q = banded(0.40, -1.0, {"BAND_MIDDLE_ROUTER": "jev"})
+    q.forrt_pages = None
+    assert q.route("q", "banded") == "forrt" and q.decisions.models == ["typesafe/jev-1.14"]
+    # a config without the BAND_* keys uses the defaults of config/settings.py, not "always ask"
+    q = banded(0.50, 0.30, {})
+    for key in ("BAND_PAPER_LOW", "BAND_PAPER_HIGH", "BAND_PAGE_LOW", "BAND_PAGE_HIGH"):
+        q.config.pop(key, None)
+    assert q.route("pizza?", "banded") == "off_topic" and q.decisions.models == []
 
 
 def test_reasoning_is_switched_off_only_for_the_listed_models():

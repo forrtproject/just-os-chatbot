@@ -46,8 +46,9 @@ class BM25:
             scores[rows] += self.idf[j] * freq * (self.k1 + 1) / (freq + self.norm[rows])
         return scores
 
-    def top(self, query: str, k: int) -> List[int]:
-        scores = self.scores(query)
+    def top(self, query: str, k: int, scores=None) -> List[int]:
+        """The k best documents with a score above 0; `scores` reuses scores already computed."""
+        scores = self.scores(query) if scores is None else scores
         best = np.argsort(-scores)[:k]
         return [int(i) for i in best if scores[i] > 0]
 
@@ -96,7 +97,7 @@ class KeywordRetriever:
 
     def retrieve(self, query: str) -> List[NodeWithScore]:
         scores = self.bm25.scores(query)
-        return [NodeWithScore(node=self.nodes[i], score=float(scores[i])) for i in self.bm25.top(query, self.top_k)]
+        return [NodeWithScore(node=self.nodes[i], score=float(scores[i])) for i in self.bm25.top(query, self.top_k, scores)]
 
 
 SEARCH_MODES = ("vector", "bm25", "hybrid")

@@ -66,6 +66,15 @@ def test_keyword_retriever_returns_bm25_hits_best_first():
     assert hits[0].score > hits[1].score > 0
 
 
+
+def test_keyword_retriever_scores_the_documents_once_per_question():
+    nodes = [TextNode(text=t) for t in ("HARKing is hypothesising after results are known", "open data", "HARKing")]
+    retriever = KeywordRetriever(nodes, top_k=5)
+    calls = []
+    scores = retriever.bm25.scores
+    retriever.bm25.scores = lambda query: calls.append(query) or scores(query)
+    assert len(retriever.retrieve("HARKing")) == 2 and calls == ["HARKing"]
+
 def test_search_mode_picks_the_retriever():
     vector = object()
     nodes = [TextNode(id_="n0", text="open data")]

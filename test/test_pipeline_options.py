@@ -39,6 +39,17 @@ def test_answer_cache_is_per_model():
     assert cache.lookup("q", model="b")["response"]["message"] == "from b"
 
 
+
+def test_answer_cache_is_per_relevance_cut_reranker_and_search_depth():
+    """MIN_RELEVANCE, RERANK_MODEL and RETRIEVER_TOP_K decide which chunks reach the answer."""
+    base = {"ANSWER_CACHE_TTL": 60, "ANSWER_CACHE_MIN_SIMILARITY": 0.9, "ANSWER_CACHE_MAX_ITEMS": 5,
+            "MIN_RELEVANCE": 0.1, "RERANK_MODEL": "a", "RETRIEVER_TOP_K": 20}
+    embed = SimpleNamespace(get_query_embedding=lambda q: [1.0, 0.0])
+    key = AnswerCache(fakeredis.FakeRedis(), embed, base).key
+    for change in ({"MIN_RELEVANCE": 0.2}, {"RERANK_MODEL": "b"}, {"RETRIEVER_TOP_K": 40}):
+        assert AnswerCache(fakeredis.FakeRedis(), embed, {**base, **change}).key != key, change
+
+
 # --- #14: the history keeps the user's words; CONTEXT_METHOD=history
 
 
