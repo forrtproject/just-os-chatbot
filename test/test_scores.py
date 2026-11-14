@@ -131,3 +131,9 @@ def test_a_reviewers_later_save_replaces_the_earlier_one(tmp_path):
     got = sorted((r["scorer"], r["answer_id"], r["criterion"], r["score"]) for r in load(tmp_path))
     assert got == [("Ann", "a1", "clarity", 4), ("Ann", "a1", "decision", "right"), ("Ann", "a2", "clarity", 3),
                    ("Bo", "a1", "clarity", 5)]
+
+
+def test_a_configuration_names_its_topic_check():
+    from just_os.scores import config_label
+    assert config_label({"answer_model": "m", "router": "jev"}) != config_label({"answer_model": "m", "router": "banded"})
+    assert config_label({"answer_model": "m"}) == "m"

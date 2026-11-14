@@ -83,6 +83,8 @@ def review_rows(data: Dict[str, Any], items: Dict[str, Dict]) -> tuple:
             add(f"rubric:{rubric_id}", int(v), SCORE_SCALE, setting)
         if answer:
             answer[0]["note"] = s.get("note", "")
+        elif s.get("note", "").strip():
+            return f"The note on {item.get('id', item_key)} needs a decision or a score to be saved.", []
         rows += answer
     if not rows:
         return "Nothing scored yet.", []

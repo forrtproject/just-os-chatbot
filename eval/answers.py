@@ -134,8 +134,11 @@ def main():
     out = Path(args.out)
     for run in args.runs:
         write(from_run(run), out / f"answers_{Path(run).stem}.jsonl")
-    write(from_rounds(args.rounds), out / "answers_arena.jsonl")
-    write(from_chats(args.chats), out / "answers_chat.jsonl")
+    # a missing source file leaves the stored answers as they are
+    if os.path.exists(args.rounds):
+        write(from_rounds(args.rounds), out / "answers_arena.jsonl")
+    if os.path.exists(args.chats):
+        write(from_chats(args.chats), out / "answers_chat.jsonl")
 
 
 if __name__ == "__main__":

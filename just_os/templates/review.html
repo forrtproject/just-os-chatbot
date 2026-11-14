@@ -150,7 +150,7 @@
         const reviewer = document.getElementById("reviewer");
         const status = document.getElementById("review-status");
 
-        function collect() {
+        function collect(draft = false) {  // draft: keep every value, also those the setting hides
             const scores = {};
             for (const a of articles) {
                 const checked = a.querySelector("input[type=radio]:checked");
@@ -159,19 +159,19 @@
                 // the rubric setting: rubric items in place of completeness, for answers whose question has a rubric
                 const rubricShown = rubricOn() && a.classList.contains("has-rubric");
                 const asked = rubricShown ? CRITERIA.filter((k) => k !== "completeness") : CRITERIA;
-                if (rubricShown) {
-                    delete s.completeness;
-                    for (const el of a.querySelectorAll("[data-rubric]")) if (el.value) s.rubric[el.dataset.rubric] = el.value;
-                }
-                const items = rubricShown ? a.querySelectorAll("[data-rubric]").length : 0;
+                for (const el of a.querySelectorAll("[data-rubric]")) if (el.value) s.rubric[el.dataset.rubric] = el.value;
+                if (rubricShown && !draft) delete s.completeness;
+                if (!rubricShown && !draft) s.rubric = {};
                 if (s.decision || s.note || asked.some((k) => s[k]) || Object.keys(s.rubric).length) scores[a.dataset.id] = s;
-                a.classList.toggle("done", Boolean(s.decision) && asked.every((k) => s[k]) && Object.keys(s.rubric).length === items);
+                const rubricDone = !rubricShown || a.querySelectorAll("[data-rubric]").length ===
+                    [...a.querySelectorAll("[data-rubric]")].filter((el) => el.value).length;
+                a.classList.toggle("done", Boolean(s.decision) && asked.every((k) => s[k]) && rubricDone);
             }
             return scores;
         }
 
         function remember() {  // per-browser draft, so a closed tab loses nothing
-            const scores = collect();
+            const scores = collect(true);
             try { localStorage.setItem(STORE, JSON.stringify({ reviewer: reviewer.value, rubric: rubricOn(), scores })); } catch (e) {}
             const done = articles.filter((a) => a.classList.contains("done")).length;
             status.textContent = `${done} of ${articles.length} questions fully scored`;

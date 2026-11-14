@@ -141,7 +141,8 @@ def agreement(rows: List[Dict]) -> Dict[str, List[Dict]]:
 def config_label(config: Dict) -> str:
     """A short name for what produced an answer: answer model, retrieval and forced route when known."""
     parts = [config.get("answer_model") or "unknown model"]
-    parts += [v for v in (config.get("retrieval"), config.get("route") and f"route {config['route']}") if v]
+    parts += [v for v in (config.get("retrieval"), config.get("route") and f"route {config['route']}",
+                          config.get("router") and f"topic check {config['router']}") if v]
     return ", ".join(parts)
 
 

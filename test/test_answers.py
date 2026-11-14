@@ -48,3 +48,14 @@ def test_load_reads_every_store_file(tmp_path):
     answers.write([answers.record("x#1", "run", "Q", {}, "a")], tmp_path / "answers_x.jsonl")
     answers.write([answers.record("chat:t", "chat", "Q", {}, "b")], tmp_path / "answers_chat.jsonl")
     assert set(answers.load(tmp_path)) == {"x#1", "chat:t"}
+
+
+def test_a_missing_rounds_or_chat_file_leaves_the_stored_answers_alone(tmp_path, monkeypatch):
+    out = tmp_path / "answers"
+    out.mkdir()
+    (out / "answers_arena.jsonl").write_text('{"answer_id": "kept"}\n', encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["answers.py", "--rounds", str(tmp_path / "none.jsonl"),
+                                      "--chats", str(tmp_path / "none2.jsonl"), "--out", str(out)])
+    answers.main()
+    assert (out / "answers_arena.jsonl").read_text(encoding="utf-8") == '{"answer_id": "kept"}\n'
+    assert not (out / "answers_chat.jsonl").exists()

@@ -4,7 +4,7 @@
       ..._<model>__route-<route>.csv  every question forced to the papers or the FORRT pages (eval/pairs.py)
       ..._cfg-<name>[...].csv         a named configuration of eval/configs.json (eval/scorecard.py)
     pairs_<YYMMDD-HHMM>.csv         eval/pairs.py: one row per topic check x answer model
-    classify_<YYMMDD-HHMM>.csv      eval/classify.py: model, id, gold, predicted, seconds, usd
+    classify_<YYMMDD-HHMM>.csv      eval/classify.py: model, id, gold, predicted, seconds, usd (gold decline_task: scored apart)
     embeddings_<YYMMDD>.csv         eval/compare_embeddings.py: one row per model and language
 
 A missing folder or file gives empty tables (the production image has no eval/ folder).
@@ -22,6 +22,7 @@ from typing import Dict, Iterable, List, Optional
 
 # A classifier "refuses" with these labels (classify_query: off_topic; router: neither)
 REFUSE_LABELS = {"off_topic", "neither"}
+TASK = "decline_task"  # gold label of an in-scope topic with a task the bot should decline (eval/classify.py)
 
 
 def _rows(path: Path) -> List[Dict[str, str]]:
@@ -98,20 +99,24 @@ def classifier_runs_of(path: Path) -> List[Dict]:
     for row in _rows(path):
         by_model.setdefault(row["model"], []).append(row)
     rows = []
-    for model, items in by_model.items():
+    for model, timed in by_model.items():
+        # tasks to decline leave the accuracy: a topic check cannot refuse them by design
+        tasks = [r for r in timed if r["gold"] == TASK and r["predicted"]]  # a failed call is an error, not a decline
+        items = [r for r in timed if r["gold"] != TASK]
         done = [r for r in items if r["predicted"]]
         rows.append({
             "run": path.stem.removeprefix("classify_"),
             "model": model,
             "n": len(items),
-            "accuracy": round(sum(r["gold"] == r["predicted"] for r in items) / len(items), 2),
+            "accuracy": round(sum(r["gold"] == r["predicted"] for r in items) / len(items), 2) if items else None,
+            "tasks_let_through": f"{sum(r['predicted'] not in REFUSE_LABELS for r in tasks)}/{len(tasks)}" if tasks else "",
             "false_refusals": sum(r["gold"] not in REFUSE_LABELS and r["predicted"] in REFUSE_LABELS for r in done),
             "false_answers": sum(r["gold"] in REFUSE_LABELS and r["predicted"] not in REFUSE_LABELS for r in done),
-            "errors": len(items) - len(done),
-            "mean_s": _mean((r["seconds"] for r in items), 1),
-            "usd_per_1k": round(mean(float(r["usd"] or 0) for r in items) * 1000, 3),
+            "errors": sum(not r["predicted"] for r in timed),
+            "mean_s": _mean((r["seconds"] for r in timed), 1),
+            "usd_per_1k": round(mean(float(r["usd"] or 0) for r in timed) * 1000, 3),
         })
-    return sorted(rows, key=lambda r: -r["accuracy"])
+    return sorted(rows, key=lambda r: -(r["accuracy"] or 0))
 
 
 def by_model(runs: List[Dict], score: str) -> List[Dict]:
@@ -211,7 +216,7 @@ def best_defaults(folder: str, routers: Iterable[str]) -> Dict[str, str]:
     known = set(routers) - {""}
     for path in sorted(Path(folder).glob("classify_*.csv"), reverse=True):
         rows = [r for r in classifier_runs_of(path) if r["model"].removeprefix("router: ") in known
-                and r["model"].startswith("router: ") and not r["errors"]]
+                and r["model"].startswith("router: ") and not r["errors"] and r["accuracy"] is not None]
         if len(rows) >= 2:
             # a tie goes to the cheaper check (fewer model calls), then the faster one
             best = min(rows, key=lambda r: (-r["accuracy"], r["usd_per_1k"], r["mean_s"] or 0))

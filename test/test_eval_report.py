@@ -53,6 +53,21 @@ def test_classifier_summary_counts_both_refusal_labels(tmp_path):
     assert (jev["n"], jev["accuracy"], jev["false_refusals"], jev["false_answers"], jev["errors"], jev["mean_s"]) == (4, 0.25, 1, 1, 1, 2.8)
 
 
+def test_classifier_summary_scores_tasks_to_decline_apart(tmp_path):
+    rows = [{"model": "jev", "id": "1", "gold": "neither", "predicted": "neither", "seconds": 1, "usd": 0},
+            {"model": "jev", "id": "2", "gold": "decline_task", "predicted": "open_science", "seconds": 1, "usd": 0},
+            {"model": "jev", "id": "3", "gold": "decline_task", "predicted": "neither", "seconds": 1, "usd": 0}]
+    write(tmp_path / "classify_261113-1200.csv", rows)
+    (jev,) = eval_report.classifier_runs(str(tmp_path))
+    assert (jev["n"], jev["accuracy"], jev["false_answers"], jev["tasks_let_through"]) == (1, 1.0, 0, "1/2")
+    rows.append({"model": "jev", "id": "4", "gold": "decline_task", "predicted": "", "seconds": 1, "usd": 0})  # failed call
+    rows.append({"model": "llm", "id": "2", "gold": "decline_task", "predicted": "neither", "seconds": 1, "usd": 0})
+    write(tmp_path / "classify_261113-1200.csv", rows)
+    by = {r["model"]: r for r in eval_report.classifier_runs(str(tmp_path))}
+    assert (by["jev"]["errors"], by["jev"]["tasks_let_through"]) == (1, "1/2")  # an error, not a decline
+    assert (by["llm"]["n"], by["llm"]["accuracy"], by["llm"]["tasks_let_through"]) == (0, None, "0/1")
+
+
 def test_missing_folder_gives_empty_tables(tmp_path):
     folder = str(tmp_path / "nothing")
     assert eval_report.answer_runs(folder) == eval_report.classifier_runs(folder) == eval_report.embedding_runs(folder) == []
@@ -122,6 +137,14 @@ def test_best_defaults_take_only_complete_runs_and_the_newest_topic_check_run(tm
     chosen = eval_report.best_defaults(str(tmp_path), ["", "jev", "banded", "cosine"])
     assert chosen == {"CITATION_MODEL": "1a/good", "ROUTER": "banded"}  # tie on accuracy: the faster router
     assert eval_report.best_defaults(str(tmp_path / "none"), ["jev"]) == {}
+
+
+def test_a_run_of_tasks_to_decline_only_never_sets_the_topic_check(tmp_path):
+    rows = [{"model": m, "id": str(i), "gold": g, "predicted": p, "seconds": s, "usd": 0}
+            for m, g, p, s in [("router: jev", "forrt", "neither", 0.3), ("router: banded", "forrt", "neither", 0.5),
+                               ("router: cosine", "decline_task", "neither", 0.1)] for i in range(2)]
+    write(tmp_path / "classify_261113-1000.csv", rows)
+    assert eval_report.best_defaults(str(tmp_path), ["jev", "banded", "cosine"]) == {"ROUTER": "jev"}
 
 
 def test_auto_defaults_set_chat_and_arena_defaults(tmp_path, monkeypatch):
