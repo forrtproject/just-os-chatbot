@@ -11,7 +11,7 @@ from statistics import mean
 
 
 def rate(rows, key):
-    values = [int(r[key]) for r in rows if r[key] != ""]
+    values = [int(float(r[key])) for r in rows if r[key] != ""]  # older runs merged by run_batches.py have 1.0
     return f"{mean(values):.2f}" if values else "–"
 
 
@@ -34,7 +34,7 @@ def summarize(paths):
         answer = [r for r in rows if r["expect"] == "answer"]
         refuse = [r for r in rows if r["expect"] == "refuse"]
         seconds = sorted(float(r["seconds"]) for r in rows)
-        tokens = mean(int(r["prompt_tokens"]) + int(r["completion_tokens"]) for r in rows)
+        tokens = mean(float(r["prompt_tokens"]) + float(r["completion_tokens"]) for r in rows)
         cost = mean(float(r["cost_usd"]) for r in rows) * 1000
         lines.append(
             f"| {Path(path).stem.removeprefix('run_')} | {len(rows)} | {rate(rows, 'correct')} "

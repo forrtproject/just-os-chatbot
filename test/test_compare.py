@@ -30,6 +30,22 @@ def test_summarize_counts_outcomes(tmp_path):
     assert line.endswith("| 150 | 1.00 |")
 
 
+def test_summarize_reads_counts_a_judge_wrote_back_as_floats(tmp_path):
+    """Runs merged by eval/run_batches.py before it kept cells as text have counts such as 1.0; they must still read."""
+    path = tmp_path / "run_x_model.csv"
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDS)
+        writer.writeheader()
+        writer.writerow({**{k: "" for k in FIELDS}, "id": "a", "expect": "answer", "outcome": "answered",
+                         "correct": "1.0", "hit": "0.0", "citations_valid": "1.0", "seconds": "2.0",
+                         "prompt_tokens": "100.0", "completion_tokens": "50.0", "cost_usd": "0.001"})
+
+    line = summarize([path]).splitlines()[-1]
+
+    assert "| x_model | 1 | 1.00 | 1/1 | 0/0 | 0 | 0.00 | 1.00 |" in line
+    assert line.endswith("| 150 | 1.00 |")
+
+
 def test_answer_source_checks_citations_against_the_right_sources():
     papers = {"ranked": ["p0", "p1"], "forrt": None}
     assert answer_source(papers, [0, 1]) == ("papers", True)

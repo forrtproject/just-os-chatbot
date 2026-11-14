@@ -39,6 +39,18 @@ def test_run_rows_give_gold_decision_metrics_and_judges(tmp_path):
     assert ("run_x#b", "source_relevance", "hit@7") not in got  # an empty cell gives no row
 
 
+def test_run_rows_read_metrics_a_judge_wrote_back_as_floats(tmp_path):
+    """Runs merged by eval/run_batches.py before it kept cells as text have hit 1.0 in place of 1."""
+    run = tmp_path / "run_x.csv"
+    write_csv(run, RUN_FIELDS, [{"id": "a", "expect": "answer", "outcome": "answered", "hit": "1.0",
+                                 "citations_valid": "0.0", "judge_support": "0.5"}])
+    got = {(r["criterion"], r["scorer"]): r["score"] for r in scores.run_rows(run)}
+    assert got[("source_relevance", "hit@7")] == 1
+    assert got[("citation_format", "citations valid")] == 0
+    # a format check (every [n] points to a source) is not evidence of support: kept apart
+    assert ("citation_support", "citations valid") not in got
+
+
 def test_review_rows_keep_each_reviewers_last_save_and_skip_na(tmp_path):
     reviews = tmp_path / "reviews"
     reviews.mkdir()
