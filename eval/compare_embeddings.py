@@ -45,7 +45,16 @@ MODELS = {
     # model, and Snowflake's multilingual arctic-embed (custom code, "query: " on questions, CLS pooling)
     "E7": {"name": "OpenSciLM/OpenScholar_Retriever"},
     "E8": {"name": "J0nasW/sciembed-full"},
-    "E9": {"name": "Snowflake/snowflake-arctic-embed-m-v2.0", "query": "query: ", "trust_remote_code": True},
+    "E9": {"name": "Snowflake/snowflake-arctic-embed-m-v2.0", "query": "query: ", "trust_remote_code": True,
+           # its code asks for xformers (a GPU attention library) unless these config values are off
+           "config_kwargs": {"use_memory_efficient_attention": False}},
+    # Voyage 4 (#57): one embedding space for the series, so the library can be embedded once with the large
+    # API model and each question with the small local one. OpenRouter returns 1024 dimensions for -large;
+    # voyage-4-nano (Matryoshka) gives 2048, cut to the first 1024. "voyage": send input_type document/query
+    "E10": {"name": "mongodb/voyage-4-large", "api": True, "voyage": True, "query": ""},
+    "E11": {"name": "mongodb/voyage-4-large", "api": True, "voyage": True, "query": "",
+            "query_model": {"name": "MongoDB/voyage-4-nano", "trust_remote_code": True,
+                            "query": "Represent the query for retrieving supporting documents: "}},
 }
 
 
@@ -63,6 +72,8 @@ def normalize(x):
 
 
 def local_model(spec, device):
+    if "config_kwargs" in spec:
+        return SentenceTransformerModel(spec, device)
     kwargs = {"torch_dtype": torch.float16} if device == "cuda" else {}
     return HuggingFaceEmbedding(
         model_name=spec["name"], query_instruction=spec.get("query"),
@@ -71,16 +82,35 @@ def local_model(spec, device):
     )
 
 
+class SentenceTransformerModel:
+    """For a model that needs config values changed at load (E9); the llama-index wrapper has no such option."""
+
+    def __init__(self, spec, device):
+        from sentence_transformers import SentenceTransformer
+
+        self.spec = spec
+        self.model = SentenceTransformer(spec["name"], device=device, trust_remote_code=spec.get("trust_remote_code", False),
+                                         config_kwargs=spec["config_kwargs"])
+
+    def get_text_embedding_batch(self, texts, show_progress=False):
+        return self.model.encode([self.spec.get("text", "") + t for t in texts], batch_size=32,
+                                 show_progress_bar=show_progress).tolist()
+
+    def get_query_embedding(self, query):
+        return self.model.encode([self.spec.get("query", "") + query])[0].tolist()
+
+
 class ApiModel:
     def __init__(self, spec):
         self.spec = spec
         self.client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
         self.cost = 0.0
 
-    def _embed(self, texts):
+    def _embed(self, texts, input_type="document"):
+        extra = {"extra_body": {"input_type": input_type}} if self.spec.get("voyage") else {}
         for attempt in range(6):
             try:
-                r = self.client.embeddings.create(model=self.spec["name"], input=texts)
+                r = self.client.embeddings.create(model=self.spec["name"], input=texts, **extra)
                 self.cost += getattr(r.usage, "cost", 0) or 0
                 return [d.embedding for d in r.data]
             except Exception as e:
@@ -99,7 +129,7 @@ class ApiModel:
         return out
 
     def get_query_embedding(self, query):
-        return self._embed([self.spec["query"] + query])[0]
+        return self._embed([self.spec["query"] + query], "query")[0]
 
 
 def chunk_vectors(key, spec, ids, texts):
@@ -125,6 +155,8 @@ def chunk_vectors(key, spec, ids, texts):
 
 def query_model(spec):
     # The web server has no GPU: measure question time on the CPU
+    if "query_model" in spec:  # questions embedded by another model of the same vector space (E11)
+        return local_model(spec["query_model"], "cpu")
     return ApiModel(spec) if spec.get("api") else local_model(spec, "cpu")
 
 
@@ -140,7 +172,8 @@ if __name__ == "__main__":
         C = chunk_vectors(key, spec, ids, texts)
         model = query_model(spec)
         t = time.time()
-        Q = normalize([model.get_query_embedding(q["question"]) for q in questions])
+        Q = np.asarray([model.get_query_embedding(q["question"]) for q in questions], dtype=np.float32)
+        Q = normalize(Q[:, : C.shape[1]])  # a Matryoshka question model can give more dimensions than the chunks
         ms_per_query = (time.time() - t) / len(questions) * 1000
         top = np.argsort(-(Q @ C.T), axis=1)[:, :200]
         by_lang = defaultdict(list)
