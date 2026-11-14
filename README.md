@@ -53,7 +53,7 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 | `ARENA_MODELS` | models offered on `/arena`, comma separated (default: the 9 OpenRouter candidates + `openscholar-8b`) |
 | `OPENSCHOLAR_TIMEOUT` | seconds for one OpenScholar answer (default 600, no retry): the self-hosted CPU server needs minutes for the chatbot's long prompt |
 | `LLM_TIMEOUT` | seconds before an LLM call gives up (default 120); a slow model then shows an error instead of holding up the answer |
-| `ROUTER` | default topic check for every question: empty (= `DECISION_ROUTER` with `DECISION_ROUTER_MODEL`), or `clef-flash`, `clef`, `jev`, `llm`, `cosine`, `none`; the chat and arena pages can choose another per question |
+| `ROUTER` | default topic check for every question: `banded` (default; tied with `jev` for the best accuracy and cheaper, `docs/evaluation.md` 3.17-3.18), `clef-flash`, `clef`, `jev`, `llm`, `cosine`, `none`, or empty (= `DECISION_ROUTER` with `DECISION_ROUTER_MODEL`); the chat and arena pages can choose another per question |
 | `COSINE_PAPER_MIN`, `COSINE_PAGE_MIN` | thresholds of the `cosine` router (0.62, 0.51; docs/evaluation.md 3.7) |
 | `MAX_ANSWER_TOKENS` | longest answer in tokens (default 2000; `0` = no cap): stops answers that loop, seen in Kannada and Marathi |
 | `ARENA_MAX_MODELS` | most models per arena question (default 10) |
@@ -67,7 +67,7 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 | `VERIFY_CITATIONS` | `true`: check each cited sentence against its source and mark weak citations "not verified" |
 | `FORRT_LOOKUP` | `true`: "where on FORRT / how to contribute" questions get a list of FORRT links |
 | `SEARCH_MODE` | `vector` (default), `bm25` (keywords alone) or `hybrid` (vector + BM25, merged by reciprocal rank fusion); replaces `HYBRID_SEARCH=true`, which is now `SEARCH_MODE=hybrid` |
-| `RERANK` | `true` (default): re-rank the found chunks with `RERANK_MODEL` and drop those at or below `MIN_RELEVANCE`; `false`: keep the search order without loading the re-ranker |
+| `RERANK` | `false` (default since 14 Nov): keep the search order without loading the re-ranker, with the `MIN_VECTOR_SIMILARITY` check; `true`: re-rank the found chunks with `RERANK_MODEL` and drop those at or below `MIN_RELEVANCE` (15-38 s more per question on CPU) |
 | `MIN_VECTOR_SIMILARITY` | with `RERANK=false`: "no sources" when the best vector match of the question has a lower cosine (default 0.55; `0` = no check; not used with `SEARCH_MODE=bm25`) |
 | `AUTO_DEFAULTS` | `true`: at every start the answer model (`CITATION_MODEL`) and topic check (`ROUTER`) of chat and arena are the eval winners: the best judge score among complete papers runs without errors, and the most accurate router of the newest topic-check run (a tie goes to the cheaper one). `CITATION_MODEL` and `ROUTER` stay the fallback. Restart the bot after an eval to switch |
 | `LLM_RETRIES` | a failed model call (provider error, time-out, empty answer) is tried this many more times before the chat shows an error with **Try again** (default 3; not for OpenScholar). Keep (1 + `LLM_RETRIES`) × `LLM_TIMEOUT` under `WEB_TIMEOUT` |

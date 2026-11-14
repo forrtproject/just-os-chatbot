@@ -59,7 +59,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "DECISION_ROUTER": True,
     # Default topic check for every question (empty = DECISION_ROUTER as below); one of the keys
     # of ROUTERS in just_os/decisions.py. The chat and arena pages can choose another per question.
-    "ROUTER": "",
+    # banded: tied with Jev for the best accuracy and cheaper (docs/evaluation.md 3.17, 3.18)
+    "ROUTER": "banded",
     # Cosine router: nearest paper chunk / nearest FORRT page description (bge-m3 cosine);
     # calibrated on eval/questions.jsonl + eval/forrt_questions.jsonl, docs/evaluation.md 3.7
     "COSINE_PAPER_MIN": 0.62,
@@ -136,8 +137,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # rank fusion); just_os/hybrid.py. Replaces HYBRID_SEARCH=true, now SEARCH_MODE=hybrid
     "SEARCH_MODE": "vector",
     # Re-rank the found chunks with RERANK_MODEL and drop those at or below MIN_RELEVANCE;
-    # false keeps the search order and does not load the re-ranker (unless VERIFY_CITATIONS)
-    "RERANK": True,
+    # false keeps the search order and does not load the re-ranker (unless VERIFY_CITATIONS).
+    # Off since 14 Nov: plain vector search finds the expected papers more often and saves 15-38 s
+    # per question on CPU (docs/evaluation.md 3.17, 3.18)
+    "RERANK": False,
     # With RERANK=false: "no sources" when the best vector match of the question has a lower
     # cosine (vector and hybrid search; 0 = no check). 0.55 from docs/evaluation.md 3.4 (#21)
     "MIN_VECTOR_SIMILARITY": 0.55,

@@ -581,3 +581,18 @@ Findings:
 4. **Plain vector search matches or beats the default on hit@7 and rubric coverage** for all three models, without the 15-38 s the re-ranker added per question in this run. On judge support it is behind the default for Llama (0.53 against 0.56) and OpenScholar (0.56 against 0.61) and ahead for gpt-oss-20b (0.65 against 0.63). bm25 alone finds an expected paper far less often (0.41-0.44).
 
 Limits: `expected_dois` were picked by hand from bge-m3 vector search results and a title and full-text search of the index (section 1), so hit@7 may favour vector search; judge support and rubric coverage do not use them. One judge per measure, and rubric coverage on 25 questions. With 172 questions a difference in Correct below about 0.05 is within noise. Answer times are not comparable between runs: the runs shared one machine and some reused the ranked chunks of another run (`--cache-retrieval`). The runs predate #53, #55 and #59.
+
+### 3.18 Defaults after the 13 November batch (14 November 2026)
+
+From 3.17, the defaults in `config/settings.py` change to:
+
+| Setting | Was | Now | Why (3.17) |
+|---|---|---|---|
+| `ROUTER` (topic check) | empty, so `DECISION_ROUTER_MODEL` clef-flash (0.783) | `banded` | Tied with Jev for the best accuracy (0.891 and 0.895 on the 172 questions; runs vary by up to 0.009), at two thirds of Jev's cost: no model call for about a third of the questions |
+| `SEARCH_MODE` | `vector` in the code, `hybrid` in the production `.env` | `vector` (set the `.env` line to `vector` too) | Plain vector search finds an expected paper most often for all three models (hit@7 0.63-0.68 against 0.56-0.59 for hybrid + re-ranker) |
+| `RERANK` | `true` | `false` | The re-ranker lowered hit@7 by 0.04-0.07 with vector and hybrid search, did not raise rubric coverage, and took 15-38 s per question on CPU. It raised judge support for Llama (+0.03) and OpenScholar (+0.05) with hybrid search, the one cost of this change |
+
+`AUTO_DEFAULTS` (3.12) chooses the topic check the same way: it picks banded from the newest run that compared several (`classify_261113-0907`).
+
+The answer-model results so far were made with hybrid search and the re-ranker, so they are not comparable with runs on the new defaults: the model comparison is run again on the new defaults (`eval/run_batches.py --route ...` per model, then `eval/pairs.py`).
+
