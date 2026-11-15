@@ -619,9 +619,9 @@ Findings:
 3. The two scientific retrievers (E7 OpenScholar Retriever, E8 sciembed) are English-only and below bge-m3 even in English (hit@5 0.37 and 0.44 against 0.51). Not useful here.
 4. E9 Snowflake arctic-embed-m-v2.0 does not run with the installed transformers 5.22: its custom code first needs `xformers`, and with memory-efficient attention off it fails with an `IndexError` in its own model code. Left out.
 
-Options for the index (not changed yet):
+**Decision (15 Nov): keep bge-m3.** Options that were weighed:
 - **E10**: best retrieval; each user question is sent to OpenRouter/Voyage (about 254 ms and a small cost per question).
 - **E11**: most of the gain, questions stay on the server; needs voyage-4-nano (346 M parameters, custom code, `trust_remote_code`) in the image and a one-time 2 USD index build with the API.
 - **E3 bge-m3**: keeps the current setup.
 
-A switch means building a new vector store with voyage-4-large and running the answer-model comparison on it, so the answer-model runs should wait for this decision.
+The answer-model comparison goes on with the bge-m3 index.
