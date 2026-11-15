@@ -625,3 +625,35 @@ Findings:
 - **E3 bge-m3**: keeps the current setup.
 
 The answer-model comparison goes on with the bge-m3 index.
+
+### 3.20 Answer models (13-15 November 2026, 172 questions, `pairs_261115-1518.csv`)
+
+**Runs:** each model with `--route open_science` and `--route forrt` (`eval/run_batches.py`), the citation judge and the rubric judge on the papers route, then the topic check again (`classify_261115-1412.csv`) and `eval/pairs.py`. Search settings are **pinned to those of the earlier models** in 3.17 (`SEARCH_MODE=hybrid`, `RERANK=true`, `CONTEXT_METHOD=rephrase`, `FORRT_IN_PAPERS=false`), so all thirteen models are compared on the same retrieval; GPT-6 Luna ran with `FORRT_IN_PAPERS` on. Index bge-m3 (3.19). `@provider` pins the OpenRouter provider.
+
+Score = (2 x judge support + rubric coverage) / 3 (3.12). Correct is with the banded topic check in front. Time and cost are per question for the whole pipeline.
+
+| Answer model | Score | Judge support | Rubric coverage | Correct (banded) | Citations valid | Mean s | USD / 1k q |
+|---|---|---|---|---|---|---|---|
+| **DeepSeek V4 Flash** | **0.743** | **0.75** | 0.73 | 0.948 | 0.96 | 12.9 | 0.41 |
+| GPT-6 Luna | 0.723 | 0.72 | 0.73 | 0.948 | 0.90 | 10.4 | 0.87 |
+| Gemma 3 27B | 0.720 | 0.74 | 0.68 | 0.948 | 1.00 | 12.4 | 0.40 |
+| **Qwen 3.7 Flash** | 0.717 | 0.73 | 0.69 | 0.948 | 1.00 | **5.5** | **0.17** |
+| Mistral Small 3.2 24B | 0.713 | 0.71 | 0.72 | 0.948 | 0.99 | 7.5 | 0.42 |
+| gpt-oss-120b @ Groq | 0.697 | 0.67 | 0.75 | 0.948 | 1.00 | 3.2 | 1.16 |
+| gpt-oss-120b @ DeepInfra bf16 | 0.693 | 0.67 | 0.74 | 0.948 | 0.99 | 35.1 | 0.33 |
+| Gemma 3 12B (4 errors) | 0.683 | 0.69 | 0.67 | 0.930 | 0.99 | 11.0 | 0.29 |
+| Qwen3 14B | 0.680 | 0.66 | 0.72 | 0.948 | 0.99 | 13.4 | 0.61 |
+| gpt-oss-20b (1 error) | 0.680 | 0.63 | 0.78 | 0.890 | 1.00 | 7.3 | 0.23 |
+| OpenScholar 8B | 0.603 | 0.57 | 0.67 | 0.913 | 1.00 | 42.3 | 0.00 |
+| Llama 3.1 8B @ Groq | 0.587 | 0.58 | 0.60 | 0.948 | 0.96 | 1.5 | 0.21 |
+| Llama 3.1 8B (current default) | 0.567 | 0.52 | 0.66 | 0.948 | 0.96 | 45.3 | 0.12 |
+
+Findings:
+1. **DeepSeek V4 Flash has the best score** (0.743). The next four (GPT-6 Luna, Gemma 3 27B, Qwen 3.7 Flash, Mistral Small 3.2) are within 0.03 of it, inside the noise of one judge on ~160 answers and a rubric on 25 questions.
+2. **Qwen 3.7 Flash is the best value**: 0.717, the fastest of the top five (5.5 s per question) and the cheapest (0.17 USD per 1,000 questions, against 0.41 for DeepSeek). Its re-run with reasoning off (`NO_REASONING_MODELS`) has no empty answers.
+3. **The current default Llama 3.1 8B is last** (0.567): every model above it writes better-supported answers. On Groq it is the fastest (1.5 s) and a little better (0.587), but still behind.
+4. The provider changes speed, not quality: gpt-oss-120b scores the same on Groq and DeepInfra bf16 (0.697 and 0.693), 3.2 s against 35.1 s.
+5. GPT-6 Luna has the most invalid citations (0.90 valid) and costs twice as much as DeepSeek.
+6. The topic check gives the same Correct (0.948 with banded) for all models that answer when there are passages; it is set by the topic check and the search, not by the answer model. In this classify run Jev is one or two questions ahead of banded (accuracy 0.90 against 0.89), so `AUTO_DEFAULTS` now picks `jev` and `deepseek/deepseek-v4-flash`.
+
+Limits: retrieval is the 3.17 setting (hybrid + re-ranker), not today's default (vector, no re-ranker, 3.18), so the absolute numbers would change on the new defaults; the order of the models is what is compared. One judge model per measure.
