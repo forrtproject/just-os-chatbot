@@ -596,3 +596,32 @@ From 3.17, the defaults in `config/settings.py` change to:
 
 The answer-model results so far were made with hybrid search and the re-ranker, so they are not comparable with runs on the new defaults: the model comparison is run again on the new defaults (`eval/run_batches.py --route ...` per model, then `eval/pairs.py`).
 
+
+### 3.19 More embedding models: scientific retrievers and Voyage 4 (15 November 2026, `eval/results/embeddings_261115.csv`, #57)
+
+Same setup as 3.1: 474 questions (174 English, 100 each in Dutch, German and Spanish) against the same 59,473 chunks (`vs_261111_bge-small-en-v1.5_before_clusters`). E1-E6 were run again in the same run; their scores equal 3.1. Times per query are from this run (CPU in the eval container, or API).
+
+| ID | Model | Dims | hit@1 | hit@5 all | hit@5 en | hit@5 nl | hit@5 de | hit@5 es | hit@20 | MRR@20 | Time per query |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| E3 | `BAAI/bge-m3` (default) | 1024 | 0.31 | 0.50 | 0.51 | 0.51 | 0.50 | 0.49 | 0.70 | 0.40 | 65 ms (CPU) |
+| E6 | `qwen/qwen3-embedding-8b` (API) | 4096 | 0.35 | 0.53 | 0.57 | 0.50 | 0.51 | 0.48 | 0.70 | 0.43 | 2,972 ms (API) |
+| E7 | `OpenSciLM/OpenScholar_Retriever` | 768 | 0.09 | 0.20 | 0.37 | 0.13 | 0.08 | 0.07 | 0.38 | 0.15 | 28 ms (CPU) |
+| E8 | `J0nasW/sciembed-full` | 768 | 0.14 | 0.27 | 0.44 | 0.16 | 0.18 | 0.19 | 0.43 | 0.20 | 36 ms (CPU) |
+| **E10** | **`mongodb/voyage-4-large` (API, documents and questions)** | 1024 | **0.45** | **0.66** | **0.67** | **0.68** | **0.65** | **0.65** | **0.86** | **0.55** | 254 ms (API) |
+| E11 | `voyage-4-large` documents + `MongoDB/voyage-4-nano` questions (local) | 1024 | 0.38 | 0.58 | 0.61 | 0.58 | 0.57 | 0.56 | 0.79 | 0.48 | 173 ms (CPU) |
+| E9 | `Snowflake/snowflake-arctic-embed-m-v2.0` | — | — | — | — | — | — | — | — | — | does not load |
+
+How they ran: E7, E8 and voyage-4-nano are open weights, downloaded from Hugging Face and run on CPU. Voyage-4-large runs through OpenRouter (`input_type` document or query); embedding all chunks once cost **2.25 USD** and took 4 minutes. E11 uses the same document vectors as E10 and embeds only the questions with voyage-4-nano (Voyage 4 models share one vector space; nano gives 2048 dims, cut to the first 1024, Matryoshka).
+
+Findings:
+1. **Voyage-4-large is clearly the best model so far**: hit@5 0.66 against 0.50 for bge-m3 (+0.16, well outside the uncertainty of about ±0.045 at 474 questions), hit@20 0.86 against 0.70, and the same score in all four languages.
+2. **The pairing works**: large documents + local nano questions (E11) keep about half of that gain (hit@5 0.58, +0.08 over bge-m3) while no user question goes to a provider. Only the index build (once, about 2 USD) needs the API. Nano on CPU takes 173 ms per question against 65 ms for bge-m3.
+3. The two scientific retrievers (E7 OpenScholar Retriever, E8 sciembed) are English-only and below bge-m3 even in English (hit@5 0.37 and 0.44 against 0.51). Not useful here.
+4. E9 Snowflake arctic-embed-m-v2.0 does not run with the installed transformers 5.22: its custom code first needs `xformers`, and with memory-efficient attention off it fails with an `IndexError` in its own model code. Left out.
+
+Options for the index (not changed yet):
+- **E10**: best retrieval; each user question is sent to OpenRouter/Voyage (about 254 ms and a small cost per question).
+- **E11**: most of the gain, questions stay on the server; needs voyage-4-nano (346 M parameters, custom code, `trust_remote_code`) in the image and a one-time 2 USD index build with the API.
+- **E3 bge-m3**: keeps the current setup.
+
+A switch means building a new vector store with voyage-4-large and running the answer-model comparison on it, so the answer-model runs should wait for this decision.
