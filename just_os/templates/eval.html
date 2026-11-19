@@ -115,7 +115,7 @@
             <div class="eval-table">
                 <table>
                     <thead>
-                        <tr><th rowspan="2">Answer model</th><th rowspan="2">Score</th><th colspan="7">From the papers</th><th colspan="3">From the FORRT pages</th><th rowspan="2">Newest run</th></tr>
+                        <tr><th rowspan="2">Answer model</th><th rowspan="2">Score</th><th colspan="7">From the papers</th><th colspan="3">From the FORRT pages</th><th rowspan="2">Uni Münster credits / 1M tok (in / out)</th><th rowspan="2">Newest run</th></tr>
                         <tr><th>Judge</th><th>Rubric coverage</th><th>Citations valid</th><th>hit@7</th><th>Errors</th><th>Mean s</th><th>USD / 1k q</th>
                             <th>hit (page)</th><th>No sources</th><th>Mean s</th></tr>
                     </thead>
@@ -126,7 +126,7 @@
                             <td><b>{{ num(r.score) }}</b></td><td>{{ num(r.judge) }}</td><td>{{ num(r.rubric) }}</td>
                             <td>{{ num(r.citations_valid) }}</td><td>{{ num(r.hit) }}</td><td>{{ r.errors }}</td><td>{{ r.mean_s }}</td><td>{{ r.usd_per_1k }}</td>
                             {% if f %}<td>{{ num(f.hit) }}</td><td>{{ f.no_sources }}</td><td>{{ f.mean_s }}</td>{% else %}<td>–</td><td>–</td><td>–</td>{% endif %}
-                            <td>{{ r.run }}</td></tr>
+                            <td>{{ uni_price(r.model) }}</td><td>{{ r.run }}</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -143,6 +143,9 @@
                     <dt>Mean s, USD / 1k q</dt><dd>Seconds per answer (the shared search not counted) and the cost of 1,000 questions as OpenRouter reports it.</dd>
                     <dt>hit (page)</dt><dd>FORRT-page answers: share of the FORRT website questions whose answer used one of the expected forrt.org pages.</dd>
                     <dt>No sources</dt><dd>FORRT-page answers where no page was relevant enough to answer from.</dd>
+                    <dt>Uni Münster credits</dt><dd>Price on <a href="https://gpt.uni-muenster.de/docs/available-models/">uniGPT Münster</a>
+                        (credits per 1M input / output tokens, checked 19 Nov 2026). NA: the university does not offer this model.
+                        GPT-6 Luna is an external model there (OpenAI cloud); the others run on university servers.</dd>
                     <dt>default</dt><dd>The answer model chat and arena use. <span class="eval-flag">n questions only</span>: an unfinished run, which cannot become the default.</dd>
                 </dl>
             </details>
@@ -410,10 +413,12 @@
             {% if embeddings %}
             <div class="eval-table">
                 <table>
-                    <thead><tr><th>Embedding model</th><th>Dims</th><th>hit@5</th><th>hit@20</th><th>MRR@20</th><th>ms / query</th></tr></thead>
+                    <thead><tr><th>Embedding model</th><th>Dims</th><th>hit@5</th><th>hit@20</th><th>MRR@20</th><th>ms / query</th><th>Multilingual</th><th>USD / 1M tokens</th></tr></thead>
                     <tbody>
                         {% for r in embeddings %}
-                        <tr><td>{{ r.model }}</td><td>{{ r.dim }}</td><td><b>{{ r.hit5 }}</b></td><td>{{ r.hit20 }}</td><td>{{ r.mrr20 }}</td><td>{{ r.ms }}</td></tr>
+                        <tr><td>{{ r.model }}</td><td>{{ r.dim }}</td><td><b>{{ r.hit5 }}</b></td><td>{{ r.hit20 }}</td><td>{{ r.mrr20 }}</td><td>{{ r.ms }}</td>
+                            <td>{{ {True: "yes", False: "no"}.get(r.multilingual, "–") }}</td>
+                            <td>{{ r.usd_per_1m if r.usd_per_1m is not none else "local (0)" }}</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -424,6 +429,10 @@
                     <dt>hit@5, hit@20</dt><dd>Share of questions whose source document is in the first 5 / 20 search results.</dd>
                     <dt>MRR@20</dt><dd>Mean of 1 / rank of the source document within the first 20 (0 when it is not there): rewards finding it near the top.</dd>
                     <dt>ms / query, Dims</dt><dd>Time to embed one question; length of one vector.</dd>
+                    <dt>Multilingual</dt><dd>Trained for many languages (not English only). For Voyage-4-large the German, Spanish and Dutch
+                        questions score about as well as English ones (hit@5 0.65–0.68).</dd>
+                    <dt>USD / 1M tokens</dt><dd>OpenRouter price for the API models (checked 19 Nov 2026), paid once for the library and then
+                        per question. "local (0)": runs on our own machine with no API cost. uniGPT Münster offers no embedding models.</dd>
                 </dl>
             </details>
             {% else %}<p class="eval-empty">No embedding comparison yet.</p>{% endif %}

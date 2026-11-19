@@ -132,6 +132,28 @@ def by_model(runs: List[Dict], score: str) -> List[Dict]:
     return sorted(latest.values(), key=lambda r: -(r[score] or 0))
 
 
+# Credits per 1M tokens (input / output) on uniGPT Münster, https://gpt.uni-muenster.de/docs/available-models/
+# (checked 2026-11-19). Keyed by the OpenRouter id without "@provider"; a model not listed there shows NA.
+UNI_PRICES = {
+    "deepseek/deepseek-v4-flash": "0.14 / 0.28",
+    "openai/gpt-oss-120b": "0.15 / 0.6",
+    "openai/gpt-6-luna": "0.1 / 0.5",  # external model (OpenAI cloud), not on university servers
+}
+
+# Embedding id in eval/compare_embeddings.py -> (several languages?, USD per 1M tokens on OpenRouter;
+# None = runs locally, no API cost). Prices from openrouter.ai/api/v1/embeddings/models, 2026-11-19.
+EMBEDDING_INFO = {
+    "E1": (False, None), "E2": (True, None), "E3": (True, None), "E4": (True, None),
+    "E5": (True, 0.02), "E6": (True, 0.01), "E7": (False, None), "E8": (False, None), "E9": (True, None),
+    "E10": (True, 0.12), "E11": (True, 0.12),  # E11: library with -large, questions with local voyage-4-nano
+}
+
+
+def uni_price(model: str) -> str:
+    """uniGPT Münster credits per 1M tokens (input / output), or NA when the university does not offer it."""
+    return UNI_PRICES.get(model.split("@")[0], "NA")
+
+
 def embedding_runs(folder: str) -> List[Dict]:
     """The "all languages" row of each model in the newest embeddings_*.csv."""
     files = sorted(Path(folder).glob("embeddings_*.csv"))
@@ -139,7 +161,9 @@ def embedding_runs(folder: str) -> List[Dict]:
         return []
     return [
         {"model": r["name"], "dim": r["dim"], "hit5": float(r["hit@5"]), "hit20": float(r["hit@20"]),
-         "mrr20": float(r["mrr@20"]), "ms": round(float(r["ms_per_query"]))}
+         "mrr20": float(r["mrr@20"]), "ms": round(float(r["ms_per_query"])),
+         "multilingual": EMBEDDING_INFO.get(r["model"], (None, None))[0],
+         "usd_per_1m": EMBEDDING_INFO.get(r["model"], (None, None))[1]}
         for r in _rows(files[-1]) if r["lang"] == "all"
     ]
 

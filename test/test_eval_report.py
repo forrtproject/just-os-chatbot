@@ -86,6 +86,12 @@ def test_eval_page_renders_the_tables(tmp_path):
     assert "meta-llama/llama-3.1-8b-instruct" in html and "BAAI/bge-m3" in html
     assert "eval/classify.py --routers" in html and "No arena ratings yet" in html  # empty states
     assert html.index("The questions") < html.index("Answer models") < html.index("Run history")
+    assert "<td>yes</td>" in html and "local (0)" in html  # bge-m3: multilingual, no API cost
+
+
+def test_uni_price_ignores_the_provider_and_says_na_for_missing_models():
+    assert eval_report.uni_price("openai/gpt-oss-120b@groq") == "0.15 / 0.6"
+    assert eval_report.uni_price("qwen/qwen3.7-flash") == "NA"
 
 
 def test_by_model_keeps_the_newest_run_and_counts_runs():

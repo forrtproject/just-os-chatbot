@@ -461,6 +461,7 @@ class FlaskApp:
                 arena=arena,
                 criteria=ARENA_CRITERIA,
                 scale=criteria.SCALE_LABELS,
+                uni_price=eval_report.uni_price,
             )
 
         @self.app.route("/up")
