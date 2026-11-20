@@ -1,7 +1,9 @@
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 
 from llama_index.core import StorageContext, load_index_from_storage
+from llama_index.core.base.embeddings.base import BaseEmbedding
+from llama_index.core.bridge.pydantic import PrivateAttr
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.faiss import FaissVectorStore
 
@@ -9,8 +11,29 @@ from config.settings import get_config
 from just_os.chat_manager import ChatManager
 from just_os.hybrid import search_retriever
 from just_os.qualle import Qualle
+from just_os.voyage import Voyage, is_voyage
 
 logger = logging.getLogger(__name__)
+
+
+class VoyageEmbedding(BaseEmbedding):
+    """llama-index wrapper of just_os.voyage: questions as "query", passages as "document"."""
+
+    _voyage: Voyage = PrivateAttr()
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._voyage = Voyage(self.model_name)
+
+    def _get_query_embedding(self, query: str) -> List[float]:
+        return self._voyage.query(query)
+
+    def _get_text_embedding(self, text: str) -> List[float]:
+        return self._voyage.embed([text], "document")[0].tolist()
+
+    async def _aget_query_embedding(self, query: str) -> List[float]:
+        return self._get_query_embedding(query)
+
 
 # Singleton instance for the RAG service
 _rag_service_instance: Optional[Qualle] = None
@@ -27,6 +50,8 @@ def create_embedding_model(config: Dict[str, Any]):
         The initialized embedding model
     """
     try:
+        if is_voyage(config["EMBEDDING_MODEL"]):
+            return VoyageEmbedding(model_name=config["EMBEDDING_MODEL"])
         return HuggingFaceEmbedding(model_name=config["EMBEDDING_MODEL"])
     except Exception as e:
         logger.error(f"Failed to initialize embedding model: {str(e)}")

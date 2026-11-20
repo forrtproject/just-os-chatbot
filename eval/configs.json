@@ -11,5 +11,10 @@
   "search-bm25+rerank": {"SEARCH_MODE": "bm25", "RERANK": true},
   "search-bm25": {"SEARCH_MODE": "bm25", "RERANK": false},
   "search-hybrid+rerank": {"SEARCH_MODE": "hybrid", "RERANK": true},
-  "search-hybrid": {"SEARCH_MODE": "hybrid", "RERANK": false}
+  "search-hybrid": {"SEARCH_MODE": "hybrid", "RERANK": false},
+  "voyage+muse-glimmer-30b": {"EMBEDDING_MODEL": "mongodb/voyage-4-large", "VECTOR_STORE": "data/processed/vs_latest_voyage-4-large", "FORRT_PAGES_DIR": "vector_data/forrt_pages_voyage-4-large", "MIN_VECTOR_SIMILARITY": 0.397, "FORRT_IN_PAPERS_MIN_SCORE": 0.453, "CITATION_MODEL": "meta/muse-glimmer-30b"},
+  "voyage+gemma-4-31b-it": {"EMBEDDING_MODEL": "mongodb/voyage-4-large", "VECTOR_STORE": "data/processed/vs_latest_voyage-4-large", "FORRT_PAGES_DIR": "vector_data/forrt_pages_voyage-4-large", "MIN_VECTOR_SIMILARITY": 0.397, "FORRT_IN_PAPERS_MIN_SCORE": 0.453, "CITATION_MODEL": "google/gemma-4-31b-it"},
+  "voyage+gpt-6-luna": {"EMBEDDING_MODEL": "mongodb/voyage-4-large", "VECTOR_STORE": "data/processed/vs_latest_voyage-4-large", "FORRT_PAGES_DIR": "vector_data/forrt_pages_voyage-4-large", "MIN_VECTOR_SIMILARITY": 0.397, "FORRT_IN_PAPERS_MIN_SCORE": 0.453, "CITATION_MODEL": "openai/gpt-6-luna"},
+  "voyage+deepseek-v4-flash": {"EMBEDDING_MODEL": "mongodb/voyage-4-large", "VECTOR_STORE": "data/processed/vs_latest_voyage-4-large", "FORRT_PAGES_DIR": "vector_data/forrt_pages_voyage-4-large", "MIN_VECTOR_SIMILARITY": 0.397, "FORRT_IN_PAPERS_MIN_SCORE": 0.453, "CITATION_MODEL": "deepseek/deepseek-v4-flash"},
+  "voyage+qwen3.7-flash": {"EMBEDDING_MODEL": "mongodb/voyage-4-large", "VECTOR_STORE": "data/processed/vs_latest_voyage-4-large", "FORRT_PAGES_DIR": "vector_data/forrt_pages_voyage-4-large", "MIN_VECTOR_SIMILARITY": 0.397, "FORRT_IN_PAPERS_MIN_SCORE": 0.453, "CITATION_MODEL": "qwen/qwen3.7-flash"}
 }

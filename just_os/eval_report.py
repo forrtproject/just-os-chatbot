@@ -138,6 +138,10 @@ UNI_PRICES = {
     "deepseek/deepseek-v4-flash": "0.14 / 0.28",
     "openai/gpt-oss-120b": "0.15 / 0.6",
     "openai/gpt-6-luna": "0.1 / 0.5",  # external model (OpenAI cloud), not on university servers
+    "google/gemma-4-31b-it": "0.09 / 0.16",
+    "mistralai/mistral-small-2603": "0.15 / 0.2",  # uniGPT calls it mistral-small-4
+    "qwen/qwen3.8-27b": "2 / 6",
+    "meta/muse-glimmer-30b": "offered, no cost listed",
 }
 
 # Embedding id in eval/compare_embeddings.py -> (several languages?, USD per 1M tokens on OpenRouter;

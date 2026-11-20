@@ -658,4 +658,42 @@ Findings:
 
 Limits: retrieval is the 3.17 setting (hybrid + re-ranker), not today's default (vector, no re-ranker, 3.18), so the absolute numbers would change on the new defaults; the order of the models is what is compared. One judge model per measure.
 
-**University of Münster prices** (`/eval`, column "Uni Münster credits", from [uniGPT available models](https://gpt.uni-muenster.de/docs/available-models/), 19 November 2026; credits per 1M input / output tokens, kept in `UNI_PRICES` in `just_os/eval_report.py`). Of the models compared here, only three are offered: DeepSeek V4 Flash 0.14 / 0.28 and gpt-oss-120b 0.15 / 0.6 (both on university servers), and GPT-6 Luna 0.1 / 0.5 (external, OpenAI cloud). The others show NA. Gemma 3, Mistral Small 3.2, Llama 3.1 8B, Qwen 3.7 Flash, Qwen3 14B, gpt-oss-20b and OpenScholar 8B are not offered; the university offers their successors instead (gemma-4-31B-it, mistral-small-4, Qwen3.8-27B, Muse-Glimmer-30B), which have not been run yet. uniGPT offers no embedding models; the embedding table on `/eval` shows whether each model is multilingual and its OpenRouter price per 1M tokens (`EMBEDDING_INFO`), or "local (0)" when it runs on our own machine.
+**University of Münster prices** (`/eval`, column "Uni Münster credits", from [uniGPT available models](https://gpt.uni-muenster.de/docs/available-models/), 19 November 2026; credits per 1M input / output tokens, kept in `UNI_PRICES` in `just_os/eval_report.py`). Of the models compared here, only three are offered: DeepSeek V4 Flash 0.14 / 0.28 and gpt-oss-120b 0.15 / 0.6 (both on university servers), and GPT-6 Luna 0.1 / 0.5 (external, OpenAI cloud). The others show NA. Gemma 3, Mistral Small 3.2, Llama 3.1 8B, Qwen 3.7 Flash, Qwen3 14B, gpt-oss-20b and OpenScholar 8B are not offered; the university offers their successors instead: gemma-4-31B-it 0.09 / 0.16, mistral-small-4 (`mistralai/mistral-small-2603`) 0.15 / 0.2, Qwen3.8-27B 2 / 6, and Muse-Glimmer-30B (offered, no cost listed); they are compared in 3.21. uniGPT offers no embedding models; the embedding table on `/eval` shows whether each model is multilingual and its OpenRouter price per 1M tokens (`EMBEDDING_INFO`), or "local (0)" when it runs on our own machine.
+
+### 3.21 Answer models on today's defaults, bge-m3 and Voyage-4-large (19-20 November 2026, 172 questions)
+
+**Runs:** ten answer models, the four University of Münster models (Gemma 4 31B, Mistral Small 4, Qwen 3.8 27B, Muse Glimmer 30B) and six from 3.20 again, each with `--route open_science` and `--route forrt` (`eval/run_batches.py --since 261119-1900`), on **today's default search** (`SEARCH_MODE=vector`, `RERANK=false`, `CONTEXT_METHOD=hybrid`, `FORRT_IN_PAPERS=true`; 3.18) and the bge-m3 index. Citation judge (`openai/gpt-oss-20b`) and rubric judge (`google/gemini-3.8-flash`) on the papers route. Score = (2 x judge support + rubric coverage) / 3.
+
+| Answer model | Score | Judge support | Rubric coverage | Uni Münster credits / 1M (in / out) |
+|---|---|---|---|---|
+| **Muse Glimmer 30B** (1 error) | **0.755** | **0.76** | 0.74 | offered, no cost listed |
+| Gemma 4 31B | 0.729 | 0.73 | 0.72 | 0.09 / 0.16 |
+| GPT-6 Luna | 0.713 | 0.71 | 0.72 | 0.1 / 0.5 (external) |
+| DeepSeek V4 Flash | 0.705 | 0.67 | 0.77 | 0.14 / 0.28 |
+| Qwen 3.7 Flash | 0.691 | 0.67 | 0.73 | NA |
+| Qwen 3.8 27B | 0.687 | 0.68 | 0.70 | 2 / 6 |
+| Gemma 3 27B | 0.687 | 0.68 | 0.69 | NA |
+| Mistral Small 3.2 24B | 0.677 | 0.66 | 0.72 | NA |
+| Mistral Small 4 | 0.675 | 0.65 | 0.73 | 0.15 / 0.2 |
+| gpt-oss-120b @ Groq | 0.671 | 0.62 | 0.77 | 0.15 / 0.6 |
+
+**Voyage-4-large** for the top five: the same chunks and FORRT pages with Voyage vectors (`scripts/build_voyage_index.py`: `data/processed/vs_latest_voyage-4-large`, `vector_data/forrt_pages_voyage-4-large`; 59,485 chunk vectors reused from `emb_cache`, 87,320 chunks and 177 pages embedded, 3.31 USD), `EMBEDDING_MODEL=mongodb/voyage-4-large` (`just_os/voyage.py`). Voyage cosines are lower than bge-m3's, so the two thresholds are matched by quantile over the 172 questions (`eval/calibrate_embedding.py`): `MIN_VECTOR_SIMILARITY` 0.55 -> **0.397** (8.7% of questions below), `FORRT_IN_PAPERS_MIN_SCORE` 0.6 -> **0.453** (60.5% below). Configurations `voyage+<model>` in `eval/configs.json`, run with `eval/scorecard.py --route ...` (labels `cfg-voyage+<model>__route-...`).
+
+| Answer model | Score bge-m3 | Score Voyage | Judge bge-m3 / Voyage | Rubric bge-m3 / Voyage | No sources bge-m3 / Voyage |
+|---|---|---|---|---|---|
+| Muse Glimmer 30B | **0.755** | 0.704 | 0.76 / 0.70 | 0.74 / 0.72 | 11 / 10 |
+| Gemma 4 31B | 0.729 | 0.702 | 0.73 / 0.70 | 0.72 / 0.71 | 11 / 10 |
+| GPT-6 Luna | 0.713 | **0.719** | 0.71 / 0.69 | 0.72 / 0.78 | 11 / 10 |
+| DeepSeek V4 Flash | 0.705 | 0.668 | 0.67 / 0.66 | 0.77 / 0.69 | 11 / 10 |
+| Qwen 3.7 Flash | 0.691 | 0.653 | 0.67 / 0.62 | 0.73 / 0.72 | 11 / 10 |
+| **Mean** | **0.719** | 0.689 | | | |
+
+hit@7 (an expected DOI among the passages, 140 questions) is 0.53 with bge-m3 and 0.44 with Voyage for every model.
+
+Findings:
+1. **Two university models lead on bge-m3**: Muse Glimmer 30B (0.755) and Gemma 4 31B (0.729), ahead of DeepSeek V4 Flash, the 3.20 winner (0.705 on today's defaults). Gemma 4 31B is also cheap (0.09 / 0.16 credits, 0.66 USD per 1,000 questions on OpenRouter) and fast (7 s); Muse Glimmer is the slowest (18.5 s) and on OpenRouter the most expensive (2.7 USD per 1,000 questions).
+2. **The two university successors of the 3.20 models are not better**: Mistral Small 4 (0.675) is level with Mistral Small 3.2 (0.677), and Qwen 3.8 27B (0.687) is level with Qwen 3.7 Flash (0.691) at many times the price.
+3. **Voyage-4-large does not help the bot**: the score is lower for four of five models (mean 0.689 against 0.719), and fewer questions find an expected paper (hit@7 0.44 against 0.53), although Voyage was the best retriever in the embedding comparison (3.19). That comparison was on the 59,473-chunk index before the cluster PDFs, with numpy search and no thresholds; here it is the full pipeline on 146,899 chunks. The reason is not examined.
+4. **The answer-model order hardly depends on the embedding**: the same three lead in both (Muse, Gemma 4, GPT-6 Luna, within 0.02 on Voyage), DeepSeek and Qwen 3.7 Flash are last in both. So the 3.20/3.21 comparison on bge-m3 stands.
+
+Limits: one judge model per measure; places within ~0.03 are inside the noise (~157 judged answers, 25 rubric questions). The topic check (pairs) is not re-run here.
