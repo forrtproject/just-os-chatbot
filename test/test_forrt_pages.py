@@ -327,3 +327,8 @@ def test_both_route_reads_the_forrt_page_instead_of_only_linking_it(tmp_path):
     assert "Team Credit" in q.response_generator.client_manager.calls[0]["messages"][-1]["content"]  # the page was read
     urls = [r["url"] for r in final["metadata"]["references"]]
     assert urls.count("https://forrt.org/about/teams/") == 1  # and cited once, not linked again
+
+
+def test_decision_models_keep_their_own_key_when_answers_go_elsewhere():
+    assert decisions.DecisionClient({"LLM_API_KEY": "unigpt", "DECISION_API_KEY": "openrouter"}).api_key == "openrouter"
+    assert decisions.DecisionClient({"LLM_API_KEY": "openrouter", "DECISION_API_KEY": ""}).api_key == "openrouter"

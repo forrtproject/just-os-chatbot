@@ -6,12 +6,15 @@ computed once and cached in data/processed/emb_cache/.
 
     python eval/compare_embeddings.py            # all models
     python eval/compare_embeddings.py E2 E4      # some models
-Output: eval/results/embeddings_<YYMMDD>.csv (one row per model and language)
+    python eval/compare_embeddings.py --real     # the bot's questions with an expected DOI instead
+Output: eval/results/embeddings_<YYMMDD>.csv (one row per model and language, with the query prefix used,
+95% bootstrap intervals of hit@5 and the paired difference to E3 bge-m3) and embeddings-ranks_<YYMMDD>.csv
+(the rank of the expected document per model and question); --real writes embeddings-real_*.csv instead
 """
 
+import argparse
 import json
 import os
-import sys
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -29,6 +32,7 @@ from openai import OpenAI
 # Frozen copies from before the cluster PDFs (#17): the emb_cache vectors are for these 59,473 chunks
 SOURCE_INDEX = "data/processed/vs_261111_bge-small-en-v1.5_before_clusters"
 QUESTIONS = "eval/retrieval_questions.jsonl"
+REAL_QUESTIONS = "eval/questions.jsonl"
 CACHE = Path("data/processed/emb_cache")
 QWEN_QUERY = "Instruct: Given a question, retrieve passages that answer the question\nQuery: "
 TOP_K = 20
@@ -160,12 +164,68 @@ def query_model(spec):
     return ApiModel(spec) if spec.get("api") else local_model(spec, "cpu")
 
 
+def real_questions(docstore_path=f"{SOURCE_INDEX}/docstore.json", path=REAL_QUESTIONS):
+    """The bot's eval questions with an expected DOI that is in SOURCE_INDEX; a hit is any document with that DOI.
+    Caveat: expected_dois were picked partly from bge-m3 search results, which can favour bge-m3."""
+    from just_os.references import normalize_doi
+
+    by_doi = defaultdict(set)
+    for node in json.load(open(docstore_path, encoding="utf-8"))["docstore/data"].values():
+        doi = node["__data__"]["metadata"].get("doi")
+        if isinstance(doi, dict):  # a few documents store it as a one-item dict
+            doi = next(iter(doi.values()), None)
+        if doi := normalize_doi(doi):
+            by_doi[doi].add(node["__data__"]["relationships"]["1"]["node_id"])
+    out = []
+    for line in open(path, encoding="utf-8"):
+        q = json.loads(line)
+        targets = set().union(*(by_doi.get(normalize_doi(d), set()) for d in q.get("expected_dois") or []))
+        if targets:
+            out.append({"id": q["id"], "lang": q.get("lang", "en"), "question": q["question"], "targets": targets})
+    return out
+
+
+def query_prefix(spec):
+    """The prefix the question really got (llama-index adds its own BGE instruction when none is given)."""
+    if "query_model" in spec:
+        return spec["query_model"].get("query", "")
+    if spec.get("voyage"):
+        return "input_type=query"
+    if spec.get("api") or "config_kwargs" in spec or "query" in spec:
+        return spec.get("query") or ""
+    from llama_index.embeddings.huggingface.utils import get_query_instruct_for_model_name
+    return get_query_instruct_for_model_name(spec["name"])
+
+
+def bootstrap(hits, base=None, n=2000, seed=0):
+    """95% interval of the mean of 0/1 hits, and of the paired difference to base (same questions)."""
+    rng = np.random.default_rng(seed)
+    idx = rng.integers(0, len(hits), (n, len(hits)))
+    lo, hi = np.percentile(hits[idx].mean(1), [2.5, 97.5])
+    if base is None:
+        return lo, hi, None, None, None
+    diff = hits - base
+    dlo, dhi = np.percentile(diff[idx].mean(1), [2.5, 97.5])
+    return lo, hi, diff.mean(), dlo, dhi
+
+
 if __name__ == "__main__":
     load_dotenv()
-    keys = sys.argv[1:] or list(MODELS)
-    questions = [json.loads(line) for line in open(QUESTIONS, encoding="utf-8")]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("keys", nargs="*", help=f"models: {', '.join(MODELS)} (default all)")
+    parser.add_argument("--real", action="store_true",
+                        help="the bot's eval questions with an expected DOI (eval/questions.jsonl) instead of "
+                             "eval/retrieval_questions.jsonl; results go to embeddings-real_<date>.csv")
+    args = parser.parse_args()
+    keys = args.keys or list(MODELS)
+    if args.real:
+        questions = real_questions()
+    else:
+        questions = [json.loads(line) for line in open(QUESTIONS, encoding="utf-8")]
+        for q in questions:
+            q["targets"] = {q["doc_id"]}
     ids, texts, docs = load_chunks()
-    rows = []
+    rows, ranks_out = [], []
     for key in keys:
         spec = MODELS[key]
         print(f"{key} {spec['name']}")
@@ -179,9 +239,12 @@ if __name__ == "__main__":
         by_lang = defaultdict(list)
         for q, row in zip(questions, top):
             ranked = list(dict.fromkeys(docs[ids[i]] for i in row))[:TOP_K]  # document level
-            rank = ranked.index(q["doc_id"]) + 1 if q["doc_id"] in ranked else None
+            rank = next((n + 1 for n, d in enumerate(ranked) if d in q["targets"]), None)
             by_lang[q["lang"]].append(rank)
             by_lang["all"].append(rank)
+            if q["lang"] != "en":
+                by_lang["non-en"].append(rank)
+            ranks_out.append({"model": key, "id": q["id"], "lang": q["lang"], "rank": rank})
         for lang, ranks in by_lang.items():
             rows.append({
                 "model": key, "name": spec["name"], "lang": lang, "n": len(ranks),
@@ -189,15 +252,33 @@ if __name__ == "__main__":
                 "hit@5": np.mean([r is not None and r <= 5 for r in ranks]),
                 "hit@20": np.mean([r is not None for r in ranks]),
                 "mrr@20": np.mean([1 / r if r else 0 for r in ranks]),
-                "ms_per_query": ms_per_query, "dim": C.shape[1],
+                "ms_per_query": ms_per_query, "dim": C.shape[1], "query_prefix": query_prefix(spec),
             })
         print(pd.DataFrame([r for r in rows if r["model"] == key]).round(3).to_string(index=False))
 
-    out = Path(f"eval/results/embeddings_{datetime.now():%y%m%d}.csv")
+    stem = "embeddings-real" if args.real else "embeddings"  # /eval reads only embeddings_*.csv
+    out = Path(f"eval/results/{stem}_{datetime.now():%y%m%d}.csv")
+    ranks_file = out.with_name(f"{stem}-ranks_{datetime.now():%y%m%d}.csv")
     out.parent.mkdir(parents=True, exist_ok=True)
+    ranks = pd.DataFrame(ranks_out)
+    if ranks_file.exists():
+        old = pd.read_csv(ranks_file)
+        ranks = pd.concat([old[~old.model.isin(keys)], ranks])
+    ranks.to_csv(ranks_file, index=False)
     df = pd.DataFrame(rows)
     if out.exists():  # keep results of models not run this time
         old = pd.read_csv(out)
         df = pd.concat([old[~old.model.isin(keys)], df])
+    # 95% bootstrap intervals for hit@5, and the paired difference to bge-m3 (E3) on the same questions
+    hit5 = {m: g.set_index("id")["rank"].le(5).astype(float) for m, g in ranks.groupby("model")}
+    for i, r in df.iterrows():
+        if r["model"] not in hit5:
+            continue
+        h = hit5[r["model"]]
+        sel = h.index if r["lang"] == "all" else ranks[(ranks.model == r["model"]) & (
+            (ranks.lang != "en") if r["lang"] == "non-en" else (ranks.lang == r["lang"]))]["id"]
+        base = hit5["E3"].reindex(sel).to_numpy() if "E3" in hit5 and r["model"] != "E3" else None
+        lo, hi, diff, dlo, dhi = bootstrap(h.reindex(sel).to_numpy(), base)
+        df.loc[i, ["hit@5_lo", "hit@5_hi", "hit@5_vs_E3", "vs_E3_lo", "vs_E3_hi"]] = [lo, hi, diff, dlo, dhi]
     df.sort_values(["lang", "model"]).round(4).to_csv(out, index=False)
-    print(f"wrote {out}")
+    print(f"wrote {out} and {ranks_file}")

@@ -327,3 +327,27 @@ def test_pairs_pick_the_answer_the_topic_check_would_have_sent(tmp_path):
                  "run_261112-1800_c__route-forrt.csv"]:
         (tmp_path / name).write_text("id" + chr(10))
     assert list(pairs.routed_runs(tmp_path)) == ["a/b"]  # c has no papers run
+
+
+def test_glossary_documents_link_each_language_and_keep_keys_apart():
+    from just_os.references import document_key
+    from scripts import build_glossary
+
+    glossary = [{"english": [{"title": "Abstract Bias", "en_title": "Abstract Bias", "definition": "Only significant results.",
+                              "related_terms": "['Selective reporting']", "drafted_by": "['A. B.']",
+                              "references": "['Duyx, B. (2019). Bias. https://doi.org/10.1016/j.jclinepi.2019.03.008']"},
+                             {"title": "Empty", "en_title": "Empty", "definition": ""}]},
+                {"turkish": [{"title": "Özet Yanlılığı [Abstract Bias]", "en_title": "Abstract Bias", "definition": "Tanım."}]},
+                {"chinese": [{"title": "摘要偏倚 [Abstract Bias]", "en_title": "Abstract Bias", "definition": "定义。"}]}]
+    sitemap = {"https://forrt.org/glossary/english/abstract_bias/": "",
+               "https://forrt.org/glossary/turkish/%C3%B6zet_yanl%C4%B1l%C4%B1%C4%9F%C4%B1/": "",  # Hugo's own spelling
+               "https://forrt.org/glossary/": ""}
+    docs = build_glossary.documents(glossary, build_glossary.page_urls(sitemap))
+    assert len(docs) == 3  # no document without a definition
+    (_, text, en, own), (_, _, tr, _), (_, _, zh, zh_own) = docs
+    assert en["link_to_resource"] == "https://forrt.org/glossary/english/abstract_bias/" and own
+    assert tr["link_to_resource"].startswith("https://forrt.org/glossary/turkish/%C3%B6zet")
+    assert zh["link_to_resource"] == "https://forrt.org/glossary/chinese/" and not zh_own  # not in the sitemap
+    assert "Related terms: Selective reporting" in text and "Duyx" not in text
+    assert en["reference_dois"] == "10.1016/j.jclinepi.2019.03.008" and en["material_type"] == "FORRT Glossary"
+    assert len({document_key(d[2]) for d in docs}) == 3  # same term, three languages, three documents

@@ -91,6 +91,21 @@ def test_rerank_off_without_the_setting_uses_the_default_vector_similarity(monke
     far = scored([1.0, 1.2])  # best cosine 0.50, below the default 0.55 of config/settings.py
     assert make_retriever(monkeypatch, far, None, RERANK=False).retrieve_and_rerank("q")[0] == []
 
+def test_adaptive_top_k_without_reranker_cuts_on_cosine_after_the_paper_cap(monkeypatch):
+    # cosines 0.80, 0.75, 0.70, 0.60, 0.50; the first two chunks are one paper
+    hits = scored([0.4, 0.5, 0.6, 0.8, 1.0])
+    for i, hit in enumerate(hits):
+        hit.metadata = {"title": "same" if i < 2 else f"t{i}"}
+    settings = dict(RERANK=False, MIN_VECTOR_SIMILARITY=0, MAX_CHUNKS=10, ADAPTIVE_TOP_K=True,
+                    ADAPTIVE_TOP_K_RATIO=0.85, ADAPTIVE_TOP_K_MIN=2)
+    kept = make_retriever(monkeypatch, hits, None, **settings).retrieve_and_rerank("q")[0]
+    assert kept == hits[:3]  # cut-off 0.68: 0.60 and 0.50 go
+    capped = make_retriever(monkeypatch, hits, None, MAX_CHUNKS_PER_DOC=1, **settings).retrieve_and_rerank("q")[0]
+    assert capped == [hits[0], hits[2]]  # one chunk of "same"; 0.60 < 0.68 and the minimum of 2 is met
+    floor = make_retriever(monkeypatch, hits, None, **{**settings, "ADAPTIVE_TOP_K_MIN": 4}).retrieve_and_rerank("q")[0]
+    assert floor == hits[:4]
+
+
 def test_bm25_search_has_no_vector_similarity_check(monkeypatch):
     hits = scored([3.5, 1.2])  # BM25 scores, on no fixed scale
     retriever = make_retriever(monkeypatch, hits, None, RERANK=False, SEARCH_MODE="bm25", MIN_VECTOR_SIMILARITY=0.55)

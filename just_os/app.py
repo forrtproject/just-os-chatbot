@@ -8,7 +8,7 @@ import threading
 import re
 import uuid
 from datetime import datetime, timezone
-from typing import Dict, Any, Generator, Optional
+from typing import Dict, Any, Generator, Optional, Tuple
 
 from flask import Flask, Response, abort, render_template, request, jsonify, send_file
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -25,6 +25,7 @@ from just_os.scores import SCALE as SCORE_SCALE, row as scores_row
 from just_os.decisions import ROUTERS
 from just_os.extensions import flask_static_digest
 from just_os import messages as msg
+from just_os.references import normalize_doi
 
 # INFO shows the "Timing:" lines of each answer in `docker compose logs web`
 logging.basicConfig(
@@ -39,6 +40,29 @@ ARENA_CRITERIA = criteria.ARENA
 ARENA_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 APPEND_LOCK = threading.Lock()  # chat, feedback and arena logs (_append_jsonl)
+# 404 in PROD_MODE (with /chat/feedback: nothing to rate, nowhere to save)
+TEAM_PAGES = ("/eval", "/review", "/topics", "/arena", "/chat/feedback", "/recommend")
+MAX_RECOMMENDATIONS = 20  # DOIs or links per /recommend form
+
+
+def recommendation_rows(data: dict) -> Tuple[Optional[str], list]:
+    """(problem, rows) for one /recommend form: each line a DOI or an http(s) link; rows for
+    RECOMMENDATIONS_FILE, read by `./run curate --recommendations`."""
+    lines = [line.strip() for line in str(data.get("items") or "").splitlines() if line.strip()]
+    note, name = str(data.get("note") or "").strip(), str(data.get("name") or "").strip()
+    if not lines:
+        return "Paste at least one DOI or link.", []
+    if len(lines) > MAX_RECOMMENDATIONS or len(note) > 1000 or len(name) > 100 or any(len(x) > 500 for x in lines):
+        return f"At most {MAX_RECOMMENDATIONS} lines of 500 characters, a note of 1000 and a name of 100.", []
+    rows = []
+    for line in lines:
+        doi = normalize_doi(line)
+        link = line if re.match(r"https?://\S+$", line) else ""
+        if not (doi or link):
+            return f"Not a DOI or link: {line[:80]}", []
+        rows.append({"time": datetime.now(timezone.utc).isoformat(timespec="seconds"), "doi": doi or "",
+                     "link_to_resource": link, "note": note, "name": name})
+    return None, rows
 
 # Review page (#8): per question one decision and scores on shared criteria and the same scale as the arena
 # (config/criteria.json, #54), "n/a" when the bot gave no answer
@@ -195,10 +219,9 @@ class FlaskApp:
         self.config = get_config()
         if self.config.get("AUTO_DEFAULTS"):
             # the eval winners become the defaults of chat and arena (read again at every start)
-            chosen = eval_report.best_defaults(self.config.get("EVAL_RESULTS_DIR", "eval/results"), ROUTERS)
-            logger.info("AUTO_DEFAULTS: %s (fallback: %s, %s)", chosen or "no eval results",
-                        self.config["CITATION_MODEL"], self.config.get("ROUTER") or "DECISION_ROUTER")
-            self.config.update(chosen)
+            fallback = (self.config["CITATION_MODEL"], self.config.get("ROUTER") or "DECISION_ROUTER")
+            chosen = eval_report.apply_auto_defaults(self.config, ROUTERS)
+            logger.info("AUTO_DEFAULTS: %s (fallback: %s, %s)", chosen or "no eval results", *fallback)
 
         # Initialize Flask app
         self.app = Flask(__name__, static_folder="../public", static_url_path="")
@@ -267,12 +290,20 @@ class FlaskApp:
     def setup_routes(self):
         """Set up all application routes."""
 
+        @self.app.before_request
+        def hide_team_pages():
+            """PROD_MODE: the team pages do not exist for the public."""
+            if self.config.get("PROD_MODE") and request.path.startswith(TEAM_PAGES):
+                abort(404)
+
         @self.app.context_processor
         def page_links():
             """For templates/_nav.html: link to the arena only when it is on."""
-            return {"nav_arena": self.config["ARENA_ENABLED"], "default_router": self.config.get("ROUTER") or "",
+            return {"prod_mode": bool(self.config.get("PROD_MODE")),
+                    "nav_arena": self.config["ARENA_ENABLED"], "default_router": self.config.get("ROUTER") or "",
                     "nav_review": os.path.isfile(self.config.get("REVIEW_ITEMS_FILE") or ""),
-                    "nav_topics": self._topic_map() is not None}
+                    "nav_topics": self._topic_map() is not None,
+                    "nav_recommend": bool(self.config.get("RECOMMENDATIONS_FILE"))}
 
         @self.app.route("/")
         def home():
@@ -296,7 +327,7 @@ class FlaskApp:
                 models=self.chat_models(),
                 default_model=self.config["CITATION_MODEL"],
                 routers=ROUTERS,
-                debug_panel=bool(self.config.get("DEBUG_PANEL", True)),
+                debug_panel=self._debug_panel(),
             )
 
         @self.app.route("/chat", methods=["POST"])
@@ -319,7 +350,7 @@ class FlaskApp:
                 # Optional topic check for this question (the page's dropdown; see ROUTERS)
                 router = request.json.get("router") or None
                 # Optional: the page's debug panel (?debug=1) asks for the trace of the turn
-                debug = request.json.get("debug") is True and bool(self.config.get("DEBUG_PANEL", True))
+                debug = request.json.get("debug") is True and self._debug_panel()
             except (KeyError, TypeError) as e:
                 logger.error(f"Invalid request data: {str(e)}")
                 return jsonify(
@@ -396,6 +427,31 @@ class FlaskApp:
                 return jsonify({"status": "error", "message": "Could not save on the server; use Export CSV."}), 500
             return jsonify({"status": "ok", "file": os.path.basename(path), "rows": len({r["answer_id"] for r in rows})})
 
+        @self.app.route("/recommend")
+        def recommend_page():
+            """Recommend studies for the library (a form for people who do not use the command line)."""
+            if not self.config.get("RECOMMENDATIONS_FILE"):
+                abort(404)
+            return render_template("recommend.html", max_items=MAX_RECOMMENDATIONS)
+
+        @self.app.route("/recommend/save", methods=["POST"])
+        @self.rate_limit_manager.limiter.limit(self.rate_limit_manager.get_chat_rate_limit)
+        def recommend_save():
+            path = self.config.get("RECOMMENDATIONS_FILE")
+            if not path:
+                abort(404)
+            problem, rows = recommendation_rows(request.get_json(silent=True) or {})
+            if problem:
+                return jsonify({"status": "error", "message": problem}), 400
+            try:
+                os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+                with APPEND_LOCK, open(path, "a", encoding="utf-8") as f:
+                    f.write("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows))
+            except OSError as error:  # unlike a chat log line, a recommendation must not vanish silently
+                logger.error("Could not save recommendations to %s: %s", path, error)
+                return jsonify({"status": "error", "message": "Could not save on the server. Please tell the team."}), 500
+            return jsonify({"status": "ok", "message": f"Thank you: {len(rows)} recommendation(s) saved for the team to check."})
+
         @self.app.route("/chat/feedback", methods=["POST"])
         @self.rate_limit_manager.limiter.limit(
             self.rate_limit_manager.get_chat_rate_limit
@@ -442,8 +498,14 @@ class FlaskApp:
                 return eval_report.by_model([r for r in runs if r["kind"] == kind and
                                              r["config"].startswith("search-") == search], score)
 
+            answer_today, answer_other = eval_report.answer_model_rows(runs)
             return render_template(
                 "eval.html",
+                answer_today=answer_today,
+                answer_other=answer_other,
+                pair_choice=eval_report.best_pair(eval_report.pair_results(folder), answer_today),
+                pair_margins={"correct": eval_report.PAIR_CORRECT_MARGIN, "score": eval_report.PAIR_SCORE_MARGIN,
+                              "p95": eval_report.PAIR_P95_TARGET},
                 pairs=eval_report.pair_results(folder),
                 people=eval_report.people_and_judges(self.config.get("SCORES_DIR", "data/scores"),
                                                      self.config.get("ANSWERS_DIR", "data/answers")),
@@ -611,7 +673,10 @@ class FlaskApp:
         router: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Append a final chat message to CHAT_LOG_FILE and keep it one day in Redis, so
-        feedback can refer to it by turn_id. Returns the message with its turn_id."""
+        feedback can refer to it by turn_id. Returns the message with its turn_id.
+        PROD_MODE: nothing is kept and there is no turn_id, so the page shows no feedback buttons."""
+        if self.config.get("PROD_MODE"):
+            return response
         turn_id = str(uuid.uuid4())
         default = "answered" if response.get("status") == "complete" else "error"
         lang = msg.confident_language(question)
@@ -647,8 +712,13 @@ class FlaskApp:
         return [json.loads(r) for r in self.chat_manager.redis.lrange("arena:ratings", 0, -1)]
 
     def chat_models(self) -> list[str]:
-        """Models the chat page offers: CITATION_MODEL first, then the arena models."""
+        """Models the chat page offers: CITATION_MODEL first, then the arena models (PROD_MODE: only it)."""
+        if self.config.get("PROD_MODE"):
+            return [self.config["CITATION_MODEL"]]
         return list(dict.fromkeys([self.config["CITATION_MODEL"], *self.arena_models()]))
+
+    def _debug_panel(self) -> bool:
+        return bool(self.config.get("DEBUG_PANEL", True)) and not self.config.get("PROD_MODE")
 
     def arena_models(self) -> list[str]:
         """ARENA_MODELS, without OpenScholar when its server is not configured."""

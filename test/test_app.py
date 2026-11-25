@@ -1,4 +1,5 @@
 import json
+import os
 
 import fakeredis
 import pytest
@@ -228,6 +229,24 @@ def test_feedback_is_stored_once_with_the_question_and_answer(app):
     assert (row["rating"], row["comment"], row["question"], row["answer"]) == ("bad", "Wrong source.", "What is open data?", "<p>answer</p>")
 
 
+def test_prod_mode_saves_nothing_and_hides_team_pages(app):
+    app.config.update(PROD_MODE=True, CITATION_MODEL="m2", ARENA_MODELS="m1,m2")
+    app._rag_service = ChatRag({"status": "complete", "message": "<p>answer</p>", "outcome": "answered"})
+    client = app.app.test_client()
+    final = chat(client)
+    assert final["message"] == "<p>answer</p>" and "turn_id" not in final  # no turn_id: no feedback buttons
+    assert not app.chat_manager.redis.keys("chat:turn:*")
+    assert not (os.path.exists(app.config["CHAT_LOG_FILE"]) or os.path.exists(app.config["CHAT_FEEDBACK_FILE"]))
+    for path in ("/eval", "/review", "/topics", "/topics/map", "/arena", "/arena/leaderboard"):
+        assert client.get(path).status_code == 404, path
+    assert client.post("/chat/feedback", json={"turn_id": "x", "rating": "good"}).status_code == 404
+    assert client.post("/chat", json={"message": "What is open data?", "chat_id": "c", "model": "m1"}).status_code == 400
+    html = client.get("/").get_data(as_text=True)
+    assert 'id="model-select"' not in html and "top-nav" not in html and "are not saved" in html
+    assert "JUSTOS_DEBUG_PANEL = false" in html
+    assert client.get("/up").status_code == 200
+
+
 class StreamingRag:
     def __init__(self):
         self.options = []
@@ -383,3 +402,20 @@ def test_eval_page_shows_people_and_judges(app, tmp_path):
     assert "<td>judge</td>" in people and "<td>1.00</td>" in people  # the LLM judge is shown with its score
     app.config["SCORES_DIR"] = str(tmp_path / "none")
     assert "No score rows yet" in app.app.test_client().get("/eval").get_data(as_text=True)
+
+
+def test_recommend_saves_each_doi_or_link_and_rejects_the_rest(app, tmp_path):
+    app.config["RECOMMENDATIONS_FILE"] = str(tmp_path / "curation" / "recommendations.jsonl")
+    client = app.app.test_client()
+    assert client.get("/recommend").status_code == 200
+    sent = client.post("/recommend/save", json={"items": "https://doi.org/10.1177/2515245917747646\n\nhttps://osf.io/abcd1/",
+                                                 "note": "Registered reports", "name": "Ana"})
+    assert sent.status_code == 200
+    rows = read_jsonl(app.config["RECOMMENDATIONS_FILE"])
+    assert [(r["doi"], r["link_to_resource"]) for r in rows] == [
+        ("10.1177/2515245917747646", "https://doi.org/10.1177/2515245917747646"), ("", "https://osf.io/abcd1/")]
+    assert rows[0]["note"] == "Registered reports" and rows[1]["name"] == "Ana"
+    assert client.post("/recommend/save", json={"items": "just some words"}).status_code == 400
+    assert client.post("/recommend/save", json={"items": "\n".join(["10.1/a"] * 21)}).status_code == 400
+    app.config["PROD_MODE"] = True
+    assert client.get("/recommend").status_code == 404  # a team page

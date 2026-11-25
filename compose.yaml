@@ -79,12 +79,57 @@ services:
       - "./data/arena:/app/data/arena"
       # Writable: chat turns and feedback are appended here (CHAT_LOG_FILE, CHAT_FEEDBACK_FILE)
       - "./data/chats:/app/data/chats"
+      # Writable: studies recommended on /recommend (RECOMMENDATIONS_FILE), read by ./run curate
+      - "./data/curation:/app/data/curation"
       # Writable: score rows saved from /review, one file per save (SCORES_DIR, #54)
       - "./data/scores:/app/data/scores"
       # Keep downloaded embedding/re-ranker models when the container is recreated
       - "hf-cache:/home/python/.cache/huggingface"
     networks:
       - default
+  # The public bot next to web (dev): same image, PROD_MODE (no chat saved, no team pages),
+  # its own port and Redis database, nothing writable under data/. Starts with --profile prod
+  # (or COMPOSE_PROFILES=prod). Not covered by compose.dev.yaml: it runs the code baked into the image.
+  web-prod:
+    <<: *default-app
+    profiles: ["prod"]
+    environment:
+      OMP_NUM_THREADS: 1
+      LLAMA_INDEX_CACHE_DIR: /home/python/.cache/huggingface/hub
+      PROD_MODE: "true"
+      REDIS_DB: 1
+      # Answers on uniGPT Münster (on university hardware; docs/deployment-checklist.md task 2): the best
+      # pair of docs/evaluation.md 3.21 within ~0.06 that Münster runs, fastest and best outside English.
+      # UNIGPT_API_KEY in .env (a research-project key from the uniGPT team). The topic check (banded, Jev in
+      # its middle band) and FORRT page choice (Clef) are decision models only OpenRouter offers: own key.
+      BASE_URL: "https://gpt.uni-muenster.de/v1"
+      # a placeholder when unset: an empty value would fall back to the OpenRouter key and send it to uniGPT
+      LLM_API_KEY: "${UNIGPT_API_KEY:-missing-UNIGPT_API_KEY}"
+      CITATION_MODEL: "gemma-4-31B-it"
+      GENERAL_MODEL: "gemma-4-31B-it"
+      DECISION_API_KEY: "${OPENROUTER_API_KEY:-}"
+      ROUTER: "banded"
+      FLASK_DEBUG: "false"
+      WEB_RELOAD: "false"
+    deploy:
+      resources:
+        limits:
+          cpus: "${DOCKER_WEB_CPUS:-0}"
+          memory: "${DOCKER_WEB_MEMORY:-0}"
+    healthcheck:
+      test: "curl localhost:${PORT:-8000}/up"
+      interval: "60s"
+      timeout: "3s"
+      start_period: "5s"
+      retries: 3
+    ports:
+      - "${DOCKER_WEB_PROD_PORT_FORWARD:-127.0.0.1:8001}:${PORT:-8000}"
+    volumes:
+      - "./data:/app/data:ro"
+      - "hf-cache:/home/python/.cache/huggingface"
+    networks:
+      - default
+
   js:
     <<: *default-assets
     command: "../run yarn:build:js"

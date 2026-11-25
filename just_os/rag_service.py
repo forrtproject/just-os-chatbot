@@ -112,8 +112,12 @@ def create_rag_service(
     logger.debug("Initializing RAG components")
 
     # Use default config if not provided
-    if config is None:
+    if config is None:  # the gunicorn preload (config/gunicorn.py): the same AUTO_DEFAULTS as the app
+        from just_os import eval_report
+        from just_os.decisions import ROUTERS
+
         config = get_config()
+        eval_report.apply_auto_defaults(config, ROUTERS)
 
     # Create chat manager if not provided
     if chat_manager is None:

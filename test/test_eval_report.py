@@ -123,7 +123,8 @@ def test_eval_page_shows_pairs_answer_models_and_search(tmp_path):
     flask_app.chat_manager.redis = fakeredis.FakeRedis()
     flask_app.config.update(EVAL_RESULTS_DIR=str(tmp_path))
     html = flask_app.app.test_client().get("/eval").get_data(as_text=True)
-    assert "<b>jev + m/a</b>" in html and "hsl(120 65% 85%)" in html  # summary card and green cell
+    assert "hsl(120 65% 85%)" in html  # green cell
+    assert "<b>jev + m/a</b>" not in html  # no best-pair card: m/a has no rubric score and is not on uniGPT's API
     assert "<b>search-bm25</b>" in html and "Score = (2 × Judge + Rubric coverage) / 3" in html
 
 
@@ -213,3 +214,66 @@ def test_topics_page_shows_the_newest_topic_map(tmp_path):
 def test_an_empty_pair_table_counts_as_none(tmp_path):
     (tmp_path / "pairs_261113-1235.csv").write_text("topic_check,answer_model,n,correct\n", encoding="utf-8")
     assert eval_report.pair_results(str(tmp_path)) == {}
+
+
+def test_every_answer_run_names_its_setting_and_today_comes_first():
+    configs = {"voyage+gemma": {"EMBEDDING_MODEL": "mongodb/voyage-4-large", "CITATION_MODEL": "google/gemma-4-31b-it"},
+               "gemma4+cap2": {"CITATION_MODEL": "google/gemma-4-31b-it", "MAX_CHUNKS_PER_DOC": 2}}
+    old = {"run": "261113-1200", "model": "openai/gpt-oss-20b", "config": ""}
+    assert eval_report.setting(old, configs) == {"answer_model": "openai/gpt-oss-20b", "setting": "bge-m3 · hybrid + re-ranker"}
+    voyage = {"run": "261120-0343", "model": "voyage+gemma", "config": "voyage+gemma"}
+    assert eval_report.setting(voyage, configs) == {"answer_model": "google/gemma-4-31b-it", "setting": "Voyage-4-large · vector"}
+    cap = {"run": "261125-1347", "model": "gemma4+cap2", "config": "gemma4+cap2"}
+    assert eval_report.setting(cap, configs)["setting"] == "bge-m3 · vector · ≤ 2 chunks per paper"
+    glossary = {"run": "261125-1800", "model": "g", "config": "g"}
+    assert eval_report.setting(glossary, {"g": {"VECTOR_STORE": "data/processed/vs_latest_bge-m3_glossary"}})["setting"] ==         "bge-m3 + FORRT glossary · vector"
+    runs = [{"run": "261119-1900", "model": "google/gemma-4-31b-it", "config": "", "kind": "papers", "score": 0.73},
+            {"run": "261113-1200", "model": "google/gemma-4-31b-it", "config": "", "kind": "papers", "score": 0.70},
+            {"run": "261113-1200", "model": "x", "config": "search-bm25", "kind": "papers", "score": 0.9},  # search table
+            {"run": "261119-1900", "model": "m", "config": "", "kind": "FORRT pages", "score": None}]
+    today, other = eval_report.answer_model_rows(runs)
+    assert [(r["answer_model"], r["score"]) for r in today] == [("google/gemma-4-31b-it", 0.73)]
+    assert [r["setting"] for r in other] == ["bge-m3 · hybrid + re-ranker"] and today[0]["why"].startswith("Production")
+
+
+def test_unigpt_cost_uses_the_api_flat_rate_and_only_models_the_api_offers():
+    gemma = {"answer_model": "google/gemma-4-31b-it", "tok_in": 4000, "tok_out": 500}
+    assert eval_report.unigpt_credits_per_1k(gemma) == 2.5  # (4000 x 0.5 + 500 x 1) / 1M x 1000
+    assert eval_report.unigpt_credits_per_1k({"answer_model": "openai/gpt-oss-120b@groq", "tok_in": 0, "tok_out": 1000}) == 1.0
+    assert eval_report.unigpt_credits_per_1k({"answer_model": "openai/gpt-6-luna", "tok_in": 1, "tok_out": 1}) is None
+
+
+def test_best_pair_weighs_quality_speed_cost_and_language_not_one_number():
+    def pair(check, model, correct, usd):
+        return {"topic_check": check, "answer_model": model, "correct": correct, "usd_per_1k": usd}
+
+    def model(name, score, p95, credits, non_en, errors=0):
+        return {"answer_model": name, "score": score, "p95_s": p95, "uni_credits": credits, "judge_non_en": non_en,
+                "errors": errors, "n": 172}
+
+    today = [model("meta/muse-glimmer-30b", 0.755, 35.0, 3.6, 0.90),      # best score, too slow
+             model("google/gemma-4-31b-it", 0.729, 14.1, 2.7, 0.92),       # near the best, fast, cheap
+             model("openai/gpt-oss-120b@groq", 0.671, 5.2, 3.6, 0.82),     # fastest, weaker
+             model("qwen/qwen3.7-flash", 0.75, 6.0, 1.0, 0.95),            # not on uniGPT's API
+             model("deepseek/deepseek-v4-flash", 0.74, 12.0, 3.1, 0.80, errors=1)]
+    rows = [pair("jev", "google/gemma-4-31b-it", 0.959, 0.64), pair("banded", "google/gemma-4-31b-it", 0.953, 0.63),
+            pair("jev", "meta/muse-glimmer-30b", 0.959, 2.5), pair("jev", "openai/gpt-oss-120b@groq", 0.959, 1.2),
+            pair("jev", "qwen/qwen3.7-flash", 0.97, 0.2), pair("jev", "deepseek/deepseek-v4-flash", 0.97, 0.4),
+            pair("cosine", "google/gemma-4-31b-it", 0.87, 0.6), pair("none", "google/gemma-4-31b-it", 0.04, 0.6)]
+    choice = eval_report.best_pair({"rows": rows}, today)
+    assert (choice["best"]["topic_check"], choice["best"]["answer_model"]) == ("banded", "google/gemma-4-31b-it")
+    # the same model and score: the cheaper topic check first; gpt-oss is more than 0.06 below Muse's 0.755
+    assert [p["topic_check"] + "+" + p["answer_model"] for p in choice["shortlist"]] == [
+        "banded+google/gemma-4-31b-it", "jev+google/gemma-4-31b-it"]
+    assert choice["excluded"] == {"answer model not on uniGPT's API": 1, "errors or an unfinished run": 1, "no topic check": 1,
+                                  "quality not near the best": 2, "95% of answers slower than 15 s": 1}
+    assert choice["shortlist"][0]["balance"] == round(2 * 0.729 / 0.755 + 1 + 1, 3)
+
+
+def test_auto_defaults_reach_every_config_that_asks(tmp_path, monkeypatch):
+    off = {"AUTO_DEFAULTS": False, "CITATION_MODEL": "old"}
+    assert eval_report.apply_auto_defaults(off, ["jev"]) == {} and off["CITATION_MODEL"] == "old"
+    monkeypatch.setattr(eval_report, "best_defaults", lambda folder, routers: {"CITATION_MODEL": "new", "ROUTER": "banded"})
+    on = {"AUTO_DEFAULTS": True, "CITATION_MODEL": "old", "EVAL_RESULTS_DIR": str(tmp_path)}
+    assert eval_report.apply_auto_defaults(on, ["banded"]) == {"CITATION_MODEL": "new", "ROUTER": "banded"}
+    assert on["CITATION_MODEL"] == "new"  # in place: the preloaded RAG service (config/gunicorn.py) gets it too

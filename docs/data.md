@@ -50,13 +50,15 @@ Licence (field `conditions_of_use`, free text from the form; "Not open access (U
 
 | Path | What | Size | Status |
 |---|---|---|---|
-| `data/processed/vs_latest_bge-m3/` | **Default index** (FAISS, 1024 dims), 1,354 documents | 1.3 GB | Used by the app (`VECTOR_STORE`) |
+| `data/processed/vs_latest_bge-m3_glossary/` | **Default index since 25 Nov 2026** (`VECTOR_STORE`): `vs_latest_bge-m3` plus the 1,298 FORRT glossary entries (`scripts/build_glossary.py` + `add_to_index`; `docs/evaluation.md` 3.23) | 1.3 GB | Used by the app |
+| `data/processed/vs_latest_bge-m3/` | The paper index (FAISS, 1024 dims), 1,354 documents; the glossary copy is built from it | 1.3 GB | Used by the app (`VECTOR_STORE`) |
 | `data/processed/vs_latest_bge-m3.zip` | Zipped index for `scripts/get_index.py` | 173 MB | **Out of date**: still the 513-document index |
 | `data/processed/vs_latest_bge-small-en-v1.5/` | Old production model (FAISS, 384 dims), 1,354 documents | 897 MB | English-only option for the app |
 | `data/processed/vs_261111_bge-m3_646_documents/`, `vs_261111_bge-small-en-v1.5_646_documents/` | The indexes of 11 Nov (513 JUST-OS documents + 133 cluster papers) | 679 / 486 MB | The eval runs of 11 Nov used this state |
 | `data/processed/vs_261111_bge-m3_before_clusters/` | bge-m3 index before the cluster papers (513 documents, 59,473 chunks) | 531 MB | E3 in `compare_embeddings.py`; before/after comparisons |
 | `data/processed/vs_261111_bge-small-en-v1.5_before_clusters/` | bge-small index before the cluster papers | 387 MB | E1 + chunk texts for `compare_embeddings.py` and `make_retrieval_set.py` (the `emb_cache` rows are these chunks) |
 | `data/processed/cluster_markdown/` | Markdown of the 753 cluster papers (GROBID; 20 by pymupdf4llm), `metadata.csv` (with `oa_status`, `licence`, `source_file`), `rejected.csv` | 49 MB | Input of `add_to_index.py` (#17) |
+| `data/processed/glossary_markdown/` | The FORRT glossary, one Markdown file per term and language (1,298: English 260, German 262, Chinese 262, Arabic 261, Turkish 253), and `metadata.csv`; made by `scripts/build_glossary.py` (25 Nov 2026), CC BY-NC-SA 4.0 | ~2 MB | Input of `add_to_index` |
 | `data/processed/cluster_markdown_pymupdf4llm/` | The pymupdf4llm Markdown of the first 153 cluster papers (11 Nov) | | Kept for comparison |
 | `data/interim/grobid_tei/`, `data/interim/openalex_works.json` | Cache of `convert_cluster_pdfs.py`: GROBID XML per PDF, OpenAlex record per DOI | | A second run needs no server calls |
 | `data/interim/justos_markdown_metadata.csv` | Metadata of the JUST-OS Markdown files (`justos_markdown_metadata.py`) | | Input of `add_to_index.py` |

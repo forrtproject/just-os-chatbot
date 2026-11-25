@@ -14,21 +14,23 @@ The bot answers open-science questions from an index of papers and web pages. Ne
 ## Adding resources
 
 1. **Choose what to add.**
+   - Studies people recommended on the bot's **Recommend a study** page (`/recommend`, dev only): anyone pastes DOIs or links there, with a note; run the command with `--recommendations` (below).
    - New rows in the FORRT sheets: nothing to prepare; the command reads both sheets.
    - Or a short list: make a spreadsheet with the columns `title` and `link_to_resource` (optional: `doi`, `creators`, `conditions_of_use`, `material_type`) and save it as CSV in the repository folder, for example `new_rows.csv`.
 2. **Run the command** in the repository folder (a terminal; on Windows Git Bash):
    ```
    ./run curate --csv new_rows.csv
    ```
-   Leave out `--csv new_rows.csv` to use the FORRT sheets. Add `--limit 10` for a first try, or `--no-index` to only download and convert.
+   Use `./run curate --recommendations` for what people sent on `/recommend`. Leave out `--csv new_rows.csv` to use the FORRT sheets. Add `--limit 10` for a first try, or `--no-index` to only download and convert.
 3. **Read the report**: `data/curation/<YYMMDD>/report.csv` (opens in Excel). One row per resource, with an `outcome` and what it means:
 
    | outcome | What it means | What to do |
    |---|---|---|
    | `converted` | Text extracted and added | Nothing |
    | `already_indexed` | The bot has it already | Nothing |
-   | `no_open_access_pdf` | It has a DOI, but no free PDF was found | If you have a PDF you may share, give it to the team; else nothing |
-   | `pdf_download_failed` | The free link did not give a PDF | Check the link in a browser |
+   | `no_open_access_pdf` | It has a DOI, but no free copy was found (Unpaywall, OpenAlex, Semantic Scholar, Europe PMC, arXiv, OSF, the publisher page) | If you have a PDF you may share, give it to the team; else nothing |
+   | `pdf_download_failed` | Free links were found, but none gave a PDF (blocked or gone) | Check the link in a browser |
+   | `wrong_document` | A PDF was found, but its title is another paper's | Check the link; add the right PDF by hand |
    | `pdf_not_converted` | GROBID read no text (a scan, or GROBID is not running) | Start GROBID (above) and run again |
    | `web_page_failed` | The page could not be opened (blocked, paywall, gone) | Check the link |
    | `web_page_too_short` | The page has almost no text (a menu, an OSF project page) | Link the document itself instead of its landing page |

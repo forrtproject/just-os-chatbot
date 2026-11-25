@@ -32,6 +32,26 @@ def test_no_cap_by_default():
     assert len(retriever(0).limit_per_document(nodes)) == 7
 
 
+def test_one_glossary_entry_per_answer():
+    def entry(lang):
+        return SimpleNamespace(text="t", metadata={"title": f"Preregistration (FORRT Glossary, {lang})",
+                                                     "material_type": "FORRT Glossary"})
+    en, de, tr = entry("English"), entry("German"), entry("Turkish")
+    nodes = [en, chunk("10.1234/a"), de, chunk("10.1234/b"), tr]
+    assert retriever(0).limit_per_document(nodes) == [en, nodes[1], nodes[3]]  # the best entry, then papers
+    for e, lang in ((en, "english"), (de, "german"), (tr, "turkish")):
+        e.metadata["language"] = lang
+    turkish_first = [tr, chunk("10.1234/a"), en, de]
+
+    def kept(query):
+        (entry,) = [n for n in retriever(0).limit_per_document(turkish_first, query) if n in (en, de, tr)]
+        return entry
+
+    assert kept("What is HARKing?") is en  # too short to tell the language: English
+    assert kept("Was ist HARKing und warum ist es ein Problem?") is de
+    assert kept("Wat is HARKing precies?") is en  # no Dutch glossary: English
+
+
 # --- N1 (#19): BM25 + vector search
 
 

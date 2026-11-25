@@ -30,6 +30,7 @@ from just_os.openscholar import generation_instance_prompts_w_references, system
 from llama_index.core.schema import TextNode
 
 from just_os.references import (
+    GLOSSARY_TYPE,
     best_snippet,
     document_key,
     paper_key,
@@ -49,6 +50,8 @@ logger = logging.getLogger(__name__)
 
 # Constants for metadata keys
 CREATOR_KEY = "creators"
+# question language (messages.confident_language) -> language of the FORRT glossary entry to keep
+GLOSSARY_LANGUAGES = {"en": "english", "de": "german", "tr": "turkish", "zh": "chinese", "ar": "arabic"}
 TITLE_KEY = "title"
 LICENCE_KEY = "conditions_of_use"
 
@@ -407,8 +410,17 @@ class DocumentRetriever:
             best[ref] = max(best.get(ref, 0.0), float(score))
         return {ref for ref, score in best.items() if score < self.verify_min_score}
 
-    def limit_per_document(self, nodes: List[Any]) -> List[Any]:
-        """Keep at most MAX_CHUNKS_PER_DOC chunks of one paper (0 = no limit), then MAX_CHUNKS."""
+    def limit_per_document(self, nodes: List[Any], query: str = "") -> List[Any]:
+        """Keep at most MAX_CHUNKS_PER_DOC chunks of one paper (0 = no limit), then MAX_CHUNKS.
+        At most one FORRT glossary entry: the same term in five languages would otherwise fill the slots the
+        papers need (scripts/build_glossary.py). It is the best-ranked entry in the question's language, else in
+        English (a term such as "HARKing" is spelled alike everywhere, so the best match can be any language)."""
+        glossary = [n for n in nodes if plain_metadata(n.metadata).get("material_type") == GLOSSARY_TYPE]
+        if len(glossary) > 1:
+            wanted = GLOSSARY_LANGUAGES.get(msg.confident_language(query) if query else None, "english")
+            keep = next((n for lang in (wanted, "english") for n in glossary
+                         if plain_metadata(n.metadata).get("language") == lang), glossary[0])
+            nodes = [n for n in nodes if n is keep or n not in glossary]
         if self.max_per_doc > 0:
             counts: Dict[str, int] = {}
             kept = []
@@ -429,7 +441,13 @@ class DocumentRetriever:
             if cosine is not None and cosine < self.min_vector_similarity:
                 logger.info(f"No sources: best vector match {cosine:.3f} < MIN_VECTOR_SIMILARITY for {query[:60]!r}")
                 return []
-        return self.limit_per_document(nodes)
+        nodes = self.limit_per_document(nodes, query)
+        if self.adaptive_top_k and self.search_mode == "vector" and nodes and nodes[0].score is not None:
+            # ADAPTIVE_TOP_K without the re-ranker: keep chunks whose cosine (1 - L2 distance / 2) is at least
+            # ADAPTIVE_TOP_K_RATIO of the best one's, at least ADAPTIVE_TOP_K_MIN; hybrid/bm25 scores have no such scale
+            cutoff = (1 - nodes[0].score / 2) * self.adaptive_ratio
+            nodes = [n for i, n in enumerate(nodes) if i < self.adaptive_min or 1 - (n.score or 2) / 2 >= cutoff]
+        return nodes
 
     def node_to_text(self, node) -> str:
         """
@@ -506,7 +524,7 @@ class DocumentRetriever:
         except Exception as e:
             # Fall back to vector order so a reranker failure never empties the answer
             logger.error(f"Reranking failed, using vector order: {str(e)}")
-            return self.limit_per_document(nodes), nodes
+            return self.limit_per_document(nodes, query), nodes
 
         ranked = sorted(zip(scores, nodes), key=lambda pair: pair[0], reverse=True)
 
@@ -516,7 +534,7 @@ class DocumentRetriever:
             # a targeted question keeps only its few strong chunks, a broad one up to MAX_CHUNKS
             cutoff = float(kept[0][0]) * self.adaptive_ratio
             kept = [pair for i, pair in enumerate(kept) if i < self.adaptive_min or pair[0] >= cutoff]
-        ranked_nodes = self.limit_per_document([node for _, node in kept])
+        ranked_nodes = self.limit_per_document([node for _, node in kept], query)
         if trace.active():
             self.trace_sources(ranked, ranked_nodes, cutoff, "rerank")
 

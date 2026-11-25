@@ -75,6 +75,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "BAND_PAGE_LOW": 0.461,
     "BAND_PAGE_HIGH": 0.606,
     "BAND_MIDDLE_ROUTER": "jev",
+    # Key for the decision models (Jev, Clef; OpenRouter's decisions API); empty = LLM_API_KEY. Set it to the
+    # OpenRouter key when BASE_URL / LLM_API_KEY point elsewhere (web-prod: uniGPT Münster)
+    "DECISION_API_KEY": os.getenv("OPENROUTER_API_KEY") or "",
     "DECISION_ROUTER_MODEL": "cloudflare/clef-flash",  # best of Jev/Clef/Clef-flash in docs/evaluation.md 3.6
     "DECISION_ROUTER_MIN_CONFIDENCE": 0.5,
     "DECISION_URL": "https://openrouter.ai/api/alpha/decisions",
@@ -120,7 +123,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "TEMPERATURE": 0.3,
     "TEMPERATURE_GENERAL": 0.15,
     # Vector store settings
-    "VECTOR_STORE": "data/processed/vs_latest_bge-m3",
+    # The paper index plus the 1,298 FORRT glossary entries (scripts/build_glossary.py; docs/evaluation.md 3.23,
+    # since 25 Nov 2026); the paper-only index stays at data/processed/vs_latest_bge-m3
+    "VECTOR_STORE": "data/processed/vs_latest_bge-m3_glossary",
     "RETRIEVER_TOP_K": 20,
     # RANKING SETTINGS
     "MIN_RELEVANCE": 0.1,
@@ -132,7 +137,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "ADAPTIVE_TOP_K_RATIO": 0.5,
     "ADAPTIVE_TOP_K_MIN": 3,
     # At most this many chunks of one paper in the context (0 = no limit), for variety
-    "MAX_CHUNKS_PER_DOC": 0,
+    "MAX_CHUNKS_PER_DOC": 2,  # 2 since 25 Nov 2026: 4.6 instead of 4.1 papers per answer, same score (evaluation.md 3.23)
     # Search: "vector" (FAISS), "bm25" (keywords) or "hybrid" (both, merged by reciprocal
     # rank fusion); just_os/hybrid.py. Replaces HYBRID_SEARCH=true, now SEARCH_MODE=hybrid
     "SEARCH_MODE": "vector",
@@ -166,6 +171,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # Debug panel on the built-in chat page: per turn the rewritten question, topic check scores,
     # source scores, step times and model costs. False: no panel, and /chat ignores "debug" requests
     "DEBUG_PANEL": True,
+    # Public deployment (service web-prod in compose.yaml): no chat turn, feedback or arena round is
+    # saved (file or Redis), no Good/Bad buttons, no debug panel, only CITATION_MODEL on the chat page,
+    # and the team pages (/eval, /review, /topics, /arena) answer 404, whatever the settings above say
+    "PROD_MODE": False,
     # Arena (page /arena): the user picks models, each answers the same question from the
     # same sources, and the user rates each answer 1-5. Off by default: one LLM call per model.
     # The candidates of docs/evaluation.md 3.3 (all on OpenRouter) + the self-hosted
@@ -189,6 +198,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "AUTO_DEFAULTS": False,
     # Page /review (#8): the questions, answers and sources people score (eval/build_review.py); scores
     # were saved as one CSV per reviewer and save in REVIEW_DIR until #54; since then as score rows in SCORES_DIR
+    # Page /recommend: anyone on the team pastes DOIs or links of studies to add; one JSON line per study
+    # here (time, doi, link_to_resource, note, name); `./run curate --recommendations` looks for an open copy
+    # and adds it. Empty = no page. Off in PROD_MODE (a team page)
+    "RECOMMENDATIONS_FILE": "data/curation/recommendations.jsonl",
     "REVIEW_ITEMS_FILE": "eval/human_review_items.json",
     "REVIEW_DIR": "data/reviews",
     # #54: answers people and judges score (eval/answers.py) and their score rows (eval/scores.py, the

@@ -6,6 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JUST-OS Evaluation</title>
     <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+    <style>
+        /* about 10 rows, then scroll inside the table; "Show all" lifts the cap (script at the end) */
+        #eval-page .eval-table { max-height: 26.5rem; overflow: auto; }
+        #eval-page .eval-table.eval-all { max-height: none; }
+        #eval-page .eval-table thead th { position: sticky; top: 0; z-index: 1; }
+        #eval-page .eval-table thead tr + tr th { top: 2.1rem; }
+        #eval-page .eval-why { white-space: normal; min-width: 34ch; max-width: 56ch; color: #444; line-height: 1.4; }
+        #eval-page .eval-sub { font-size: 0.95rem; color: #004055; margin: 14px 0 6px; }
+        #eval-page .eval-more { margin: 6px 0 0; font: inherit; font-size: small; color: #004055; background: none;
+            border: 1px solid #b9c8cf; border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+        #eval-page .eval-more:focus-visible { outline: 2px solid #004055; outline-offset: 2px; }
+        #eval-page details > summary { font-size: 0.85rem; }
+    </style>
 </head>
 
 <body>
@@ -16,13 +29,11 @@
     {% macro num(v) %}{{ v if v is not none and v != "" else "–" }}{% endmacro %}
     <main id="eval-page">
         <h1>Evaluation</h1>
-        <p class="eval-lead">The bot answers in three steps, and each table below tests one of them:
-            a <b>topic check</b> decides whether a question is about open science, about FORRT, both, or neither (then it
-            refuses); a <b>search</b> finds passages in the paper library (or the bot reads forrt.org pages); an
-            <b>answer model</b> writes the answer and cites its sources as [n]. Each section says what was tested, on
-            which questions, what the columns mean and how the best one is chosen. One row per model or setting: its
-            newest run; every run is in the <a href="#history">run history</a>. Files: <code>eval/results/</code>;
-            background: <a href="https://github.com/forrtproject/just-os-chatbot/blob/dev/docs/evaluation.md">docs/evaluation.md</a>.</p>
+        <p class="eval-lead">The bot works in three steps: a <b>topic check</b> (answer or refuse), a <b>search</b> in the
+            paper library, and an <b>answer model</b> that writes the answer with [n] citations. Each table tests one step.
+            Every score names the <b>setting</b> that produced it (embedding · search); today's setting is
+            <b>bge-m3 · vector search, no re-ranker</b>. Long tables show 10 rows: scroll, or <i>Show all</i>.
+            Details and older runs are folded. Background: <a href="https://github.com/forrtproject/just-os-chatbot/blob/dev/docs/evaluation.md">docs/evaluation.md</a>.</p>
 
         <nav class="eval-nav" aria-label="Sections">
             <a href="#summary">Summary</a><a href="#questions">The questions</a><a href="#answer-models">Answer models</a>
@@ -42,11 +53,13 @@
                 {% endif %}
                 {% if defaults.get("ROUTER") %}
                 <div class="eval-card">Default topic check<b>{{ routers.get(defaults.ROUTER, defaults.ROUTER) }}</b>
-                    Most accurate in the newest topic-check run; a tie goes to the cheaper one.</div>
+                    From the best pair below (with a pair table); else the most accurate in the newest topic-check run.</div>
                 {% endif %}
-                {% if pairs %}{% set p = pairs.rows[0] %}
+                {% if pair_choice.best %}{% set p = pair_choice.best %}
                 <div class="eval-card">Best pair (topic check + answer model)<b>{{ p.topic_check }} + {{ p.answer_model }}</b>
-                    Most questions handled correctly: {{ p.correct }}; judge {{ num(p.judge_support) }}.</div>
+                    On uniGPT's API, near the best on quality, within the 15 s target, then the best balance of
+                    quality, answers outside English and cost: Correct {{ p.correct }}, score {{ p.score }},
+                    p95 {{ p.p95_s }} s, {{ p.uni_credits }} uniGPT credits / 1k q. <a href="#pairs">How it is chosen</a></div>
                 {% endif %}
                 {% if search_configs %}{% set s = search_configs[0] %}
                 <div class="eval-card">Best search setting<b>{{ s.model }}</b>
@@ -111,7 +124,38 @@
                         The <b>default</b> answer model is the best score among runs that answered every question without errors.</p>
                 </div>
             </div>
-            {% if papers_models %}
+            {% if papers_models or answer_today %}
+            {% macro answer_table(rows, show_run) %}
+            <div class="eval-table">
+                <table>
+                    <thead><tr><th>Answer model</th><th>Setting</th><th>Score</th><th>Judge</th><th>Rubric</th><th>Errors</th>
+                        <th>Mean s</th><th>p95 s</th><th>OpenRouter USD / 1k q</th><th>uniGPT credits / 1k q</th>{% if show_run %}<th>Run</th>{% endif %}<th>Why</th></tr></thead>
+                    <tbody>
+                        {% for r in rows %}
+                        <tr><td>{{ r.answer_model }}{% if r.answer_model == defaults.get("CITATION_MODEL") %} <span class="eval-default">default</span>{% endif %}
+                                {% if r.n < rows|map(attribute="n")|max %} <span class="eval-flag">{{ r.n }} questions</span>{% endif %}</td>
+                            <td>{{ r.setting }}</td><td><b>{{ num(r.score) }}</b></td><td>{{ num(r.judge) }}</td><td>{{ num(r.rubric) }}</td>
+                            <td>{{ r.errors }}</td><td>{{ r.mean_s }}</td><td>{{ r.p95_s }}</td>
+                            <td>{{ r.usd_per_1k }}</td>
+                            <td>{% if r.uni_credits is not none %}{{ r.uni_credits }}{% elif "gpt-6-luna" in r.answer_model %}web chat only{% else %}not offered{% endif %}</td>{% if show_run %}<td>{{ r.run }}</td>{% endif %}
+                            <td class="eval-why">{{ r.why or "–" }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endmacro %}
+            {% if answer_today %}
+            <h3 class="eval-sub">On today's setting (bge-m3 · vector search, no re-ranker)</h3>
+            {{ answer_table(answer_today, False) }}
+            {% else %}<p class="eval-empty">No answer-model run on today's setting yet.</p>{% endif %}
+            {% if answer_other %}
+            <details>
+                <summary>Other settings and older runs ({{ answer_other|length }}): Voyage-4-large index, paper cap, runs before 14 Nov (hybrid search + re-ranker)</summary>
+                {{ answer_table(answer_other, True) }}
+            </details>
+            {% endif %}
+            <details>
+                <summary>Every number of the newest run per model (papers and FORRT pages, costs)</summary>
             <div class="eval-table">
                 <table>
                     <thead>
@@ -131,9 +175,14 @@
                     </tbody>
                 </table>
             </div>
-            <details open>
+            </details>
+            <details>
                 <summary>What the columns mean</summary>
                 <dl class="eval-defs">
+                    <dt>Setting</dt><dd>What the answers were written from: the embedding of the library (bge-m3 or Voyage-4-large) and the search (vector, or hybrid = vector + keywords), with or without the re-ranker; "≤ 2 chunks per paper" and "4-10 chunks (adaptive)" are the per-paper cap and adaptive top-k. Runs before 14 Nov 2026 used hybrid search + re-ranker. Compare scores only within one setting.</dd>
+                    <dt>Why</dt><dd>One line from docs/evaluation.md on why the model is or is not used.</dd>
+                    <dt>OpenRouter USD / 1k q</dt><dd>What 1,000 answers cost on OpenRouter, as OpenRouter reported it for this run (answer model only; the shared search is free).</dd>
+                    <dt>uniGPT credits / 1k q</dt><dd>The same 1,000 answers on uniGPT Münster's API, which charges one flat rate for its six on-premises models (0.5 credits per 1M input tokens, 1 per 1M output), from this run's mean tokens per answer. The prompt (question + 7 passages) is about the same for every model, so differences come from answer length. "not offered": uniGPT's API does not run the model; "web chat only": GPT-6 Luna (external, not in the API). Production must be a model with a number here.</dd>
                     <dt>Score</dt><dd>(2 × Judge + Rubric coverage) / 3; "–" until both judges have scored the run. Rows are sorted by it.</dd>
                     <dt>Judge</dt><dd>Citation judge: of the answer's sentences with a citation [n], the share whose cited passage supports them (0-1), averaged over the answers.</dd>
                     <dt>Rubric coverage</dt><dd>Rubric judge: for the questions with a rubric, how much of each rubric point the answer covers (1 none to 5 fully, minus 1, divided by 4), averaged.</dd>
@@ -186,7 +235,7 @@
                     </tbody>
                 </table>
             </div>
-            <details open>
+            <details>
                 <summary>What the columns mean</summary>
                 <dl class="eval-defs">
                     <dt>n, Newest run</dt><dd>Questions in the newest run of this strategy, and its date (YYMMDD-HHMM).</dd>
@@ -213,10 +262,34 @@
                 </div>
                 <div>
                     <h3>How the best pair is chosen</h3>
-                    <p>The share of questions handled correctly: answered when it should answer, refused when it should refuse
-                        (an error counts as wrong). Ties go to the higher judge score. Cells are greener the higher this is.</p>
+                    <p>Not on one number. <b>1. Eligible:</b> uniGPT Münster's API runs the answer model, and its run had no
+                        errors. <b>2. Good enough:</b> Correct (answered when it should, refused when it should) within
+                        {{ pair_margins.correct }} of the best eligible pair, answer score within {{ pair_margins.score }} of the best,
+                        and 95% of answers within {{ pair_margins.p95 }} s (faster than that is not better). <b>3. Balance:</b>
+                        2 × quality + answers outside English + cost, each against the best. <b>4.</b> The same answer model with two
+                        topic checks: the cheaper topic check (fewer questions sent to OpenRouter's decision model).
+                        The grid's cells show Correct alone, greener the higher.</p>
                 </div>
             </div>
+            {% if pair_choice.shortlist %}
+            <h3 class="eval-sub">The pairs that are good enough, best first</h3>
+            <div class="eval-table">
+                <table>
+                    <thead><tr><th>Topic check + answer model</th><th>Correct</th><th>Answer score</th><th>p95 s</th>
+                        <th>Judge outside English</th><th>uniGPT credits / 1k q</th><th>OpenRouter USD / 1k q</th><th>Balance</th></tr></thead>
+                    <tbody>
+                        {% for r in pair_choice.shortlist %}
+                        <tr><td>{{ r.topic_check }} + {{ r.answer_model }}{% if loop.first %} <span class="eval-default">best</span>{% endif %}</td>
+                            <td>{{ r.correct }}</td><td>{{ r.score }}</td><td>{{ r.p95_s }}</td><td>{{ num(r.judge_non_en) }}</td>
+                            <td>{{ num(r.uni_credits) }}</td><td>{{ num(r.usd_per_1k) }}</td><td><b>{{ r.balance }}</b></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="eval-note">Left out: {% for reason, n in pair_choice.excluded.items() %}{{ n }} {{ reason }}{% if not loop.last %}; {% endif %}{% endfor %}.
+                Balance = 2 × score / best score + judge outside English / best + lowest credits / credits (4 is the top).
+                Times are from OpenRouter; the uniGPT run is still to come.</p>
+            {% endif %}
             {% if pairs %}
             <div class="eval-table eval-grid">
                 <table>
@@ -286,7 +359,7 @@
                     </tbody>
                 </table>
             </div>
-            <details open>
+            <details>
                 <summary>What the columns mean</summary>
                 <dl class="eval-defs">
                     <dt>hit@7</dt><dd>For questions with expected papers: share where one of them was among the 7 passages the model saw.</dd>
@@ -371,6 +444,8 @@
                 one row per answer model. They mix the topic check with the answer model; the sections above test each on
                 its own. Compare only rows with the same <b>n</b>.</p>
             {% if answer_models %}
+            <details>
+            <summary>Show the {{ answer_models|length }} earlier full-pipeline runs</summary>
             <div class="eval-table">
                 <table>
                     <thead>
@@ -402,6 +477,7 @@
                     <dt>Other columns</dt><dd>As for the answer models.</dd>
                 </dl>
             </details>
+            </details>
             {% else %}<p class="eval-empty">No full pipeline runs.</p>{% endif %}
         </section>
 
@@ -413,12 +489,13 @@
             {% if embeddings %}
             <div class="eval-table">
                 <table>
-                    <thead><tr><th>Embedding model</th><th>Dims</th><th>hit@5</th><th>hit@20</th><th>MRR@20</th><th>ms / query</th><th>Multilingual</th><th>USD / 1M tokens</th></tr></thead>
+                    <thead><tr><th>Embedding model</th><th>hit@5</th><th>95% interval</th><th>hit@5 English</th><th>hit@20</th><th>ms / query</th><th>Multilingual</th><th>USD / 1M tokens</th><th>Why</th></tr></thead>
                     <tbody>
                         {% for r in embeddings %}
-                        <tr><td>{{ r.model }}</td><td>{{ r.dim }}</td><td><b>{{ r.hit5 }}</b></td><td>{{ r.hit20 }}</td><td>{{ r.mrr20 }}</td><td>{{ r.ms }}</td>
+                        <tr><td>{{ r.model }}{% if r.id == "E3" %} <span class="eval-default">in use</span>{% endif %}</td><td><b>{{ r.hit5 }}</b></td><td>{{ r.ci or "–" }}</td>
+                            <td>{{ num(r.hit5_en) }}</td><td>{{ r.hit20 }}</td><td>{{ r.ms }}</td>
                             <td>{{ {True: "yes", False: "no"}.get(r.multilingual, "–") }}</td>
-                            <td>{{ r.usd_per_1m if r.usd_per_1m is not none else "local (0)" }}</td></tr>
+                            <td>{{ r.usd_per_1m if r.usd_per_1m is not none else "local (0)" }}</td><td class="eval-why">{{ r.why or "–" }}</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -427,12 +504,14 @@
                 <summary>What the columns mean</summary>
                 <dl class="eval-defs">
                     <dt>hit@5, hit@20</dt><dd>Share of questions whose source document is in the first 5 / 20 search results.</dd>
+                    <dt>95% interval</dt><dd>Where hit@5 would land on another sample of questions like these (bootstrap); two models whose intervals overlap may not differ.</dd>
+                    <dt>hit@5 English</dt><dd>The English questions only: the scientific retrievers (OpenScholar, sciembed) are English-only, and are below bge-m3 even here.</dd>
                     <dt>MRR@20</dt><dd>Mean of 1 / rank of the source document within the first 20 (0 when it is not there): rewards finding it near the top.</dd>
                     <dt>ms / query, Dims</dt><dd>Time to embed one question; length of one vector.</dd>
                     <dt>Multilingual</dt><dd>Trained for many languages (not English only). For Voyage-4-large the German, Spanish and Dutch
                         questions score about as well as English ones (hit@5 0.65–0.68).</dd>
                     <dt>USD / 1M tokens</dt><dd>OpenRouter price for the API models (checked 19 Nov 2026), paid once for the library and then
-                        per question. "local (0)": runs on our own machine with no API cost. uniGPT Münster offers no embedding models.</dd>
+                        per question. "local (0)": runs on our own machine with no API cost. uniGPT Münster offers one embedding model, Qwen3-Embedding-4B, on request (the OpenRouter E5 row is the same model).</dd>
                 </dl>
             </details>
             {% else %}<p class="eval-empty">No embedding comparison yet.</p>{% endif %}
@@ -514,6 +593,23 @@
             </details>
         </section>
     </main>
+    <script>
+        document.querySelectorAll("#eval-page .eval-table").forEach((box) => {
+            const rows = box.querySelectorAll("tbody tr").length;
+            if (rows <= 10) { box.classList.add("eval-all"); return; }
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "eval-more";
+            button.setAttribute("aria-expanded", "false");
+            button.textContent = `Show all ${rows} rows`;
+            button.addEventListener("click", () => {
+                const all = box.classList.toggle("eval-all");
+                button.setAttribute("aria-expanded", String(all));
+                button.textContent = all ? "Show 10 rows" : `Show all ${rows} rows`;
+            });
+            box.after(button);
+        });
+    </script>
 </body>
 
 </html>

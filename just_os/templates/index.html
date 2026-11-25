@@ -31,6 +31,7 @@
 <div id="container">
     <div id="chat-messages">{{ message_history | safe }}</div>
     <div id="status-message"></div>
+    {% if not prod_mode %}
     <div id="model-choice">
         <label for="model-select">Answer model</label>
         <select id="model-select">
@@ -45,6 +46,7 @@
             {% endfor %}
         </select>
     </div>
+    {% endif %}
     <div id="user-input-box">
         <div id="user-input-container">
             <textarea id="user-input" placeholder="Ask anything related to Open Science."></textarea>
@@ -55,7 +57,11 @@
             </div>
         </div>
     </div>
+    {% if prod_mode %}
+    <div id="chat-notice">Questions and answers are not saved. Each question is sent to the answer model's provider, and the conversation is kept in memory for one hour so follow-up questions work. Do not enter personal data.</div>
+    {% else %}
     <div id="chat-notice">Test version: questions, answers and feedback are saved and shared publicly in the project's GitHub repository. Do not enter personal data.</div>
+    {% endif %}
 </div>
 
 <!-- Info Modal -->

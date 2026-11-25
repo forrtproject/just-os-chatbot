@@ -3,6 +3,12 @@ services:
     container_name: just-os-container
     networks:
       - proxy-network
+  # The public bot: point the reverse proxy at just-os-prod:8000
+  web-prod:
+    container_name: just-os-prod
+    networks:
+      - default
+      - proxy-network
 
 networks:
   proxy-network:

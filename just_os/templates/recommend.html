@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JUST-OS: recommend a study</title>
+    <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+    <style>
+        #recommend-page { max-width: 760px; margin: 0 auto; padding: 0 16px 32px; font-family: "Helvetica", sans-serif; color: #313131; }
+        #recommend-page h1 { color: #004055; font-size: 2rem; margin: 16px 0 8px; }
+        #recommend-page p, #recommend-page li { font-size: 0.95rem; line-height: 1.55; }
+        #recommend-page label { display: block; font-weight: 600; margin: 18px 0 6px; }
+        #recommend-page .hint { font-weight: 400; color: #5a5a5a; font-size: 0.85rem; }
+        #recommend-page textarea, #recommend-page input { width: 100%; box-sizing: border-box; font: inherit; padding: 8px 10px;
+            border: 1px solid #b9c2c8; border-radius: 4px; background: white; }
+        #recommend-page textarea:focus, #recommend-page input:focus { outline: 2px solid #004055; outline-offset: 1px; }
+        #recommend-page button { margin-top: 20px; padding: 10px 18px; font: inherit; font-weight: 600; color: white;
+            background: #004055; border: 0; border-radius: 4px; cursor: pointer; }
+        #recommend-page button:disabled { opacity: 0.6; cursor: wait; }
+        #recommend-result { margin-top: 16px; padding: 12px 14px; border-radius: 4px; display: none; }
+        #recommend-result.ok { display: block; background: #e8f4ec; border: 1px solid #9ccdaa; }
+        #recommend-result.error { display: block; background: #fbecec; border: 1px solid #e3a3a3; }
+    </style>
+</head>
+
+<body>
+    <div id="header-bar">
+        <img src='/images/qualle.png' id="header-logo" alt="JUST-OS">
+    </div>
+    {% include "_nav.html" %}
+    <main id="recommend-page">
+        <h1>Recommend a study for the bot</h1>
+        <p>Know a paper, preprint or resource the bot should be able to cite? Paste it here. The team checks each
+            recommendation, looks for an open-access copy and adds it to the library. Nothing is added automatically.</p>
+        <form id="recommend-form" novalidate>
+            <label for="recommend-items">DOIs or links <span class="hint">one per line, up to {{ max_items }}; for
+                example 10.1177/2515245917747646 or https://osf.io/abcd1/</span></label>
+            <textarea id="recommend-items" rows="6" required aria-describedby="recommend-result"></textarea>
+            <label for="recommend-note">Why should the bot know it? <span class="hint">optional: the topic, or the
+                question it answers</span></label>
+            <textarea id="recommend-note" rows="3" maxlength="1000"></textarea>
+            <label for="recommend-name">Your name <span class="hint">optional, so the team can ask you about it</span></label>
+            <input id="recommend-name" type="text" maxlength="100" autocomplete="name">
+            <button type="submit" id="recommend-send">Send recommendation</button>
+        </form>
+        <div id="recommend-result" role="status" aria-live="polite"></div>
+    </main>
+    <script>
+        document.getElementById("recommend-form").addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const send = document.getElementById("recommend-send");
+            const result = document.getElementById("recommend-result");
+            send.disabled = true;
+            try {
+                const response = await fetch("/recommend/save", {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        items: document.getElementById("recommend-items").value,
+                        note: document.getElementById("recommend-note").value,
+                        name: document.getElementById("recommend-name").value,
+                    }),
+                });
+                const data = await response.json();
+                result.className = response.ok ? "ok" : "error";
+                result.textContent = data.message;
+                if (response.ok) document.getElementById("recommend-items").value = "";
+            } catch (error) {
+                result.className = "error";
+                result.textContent = "Could not send. Please try again.";
+            } finally {
+                send.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>

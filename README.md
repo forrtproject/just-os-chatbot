@@ -29,6 +29,7 @@ You need Docker (Docker Desktop with WSL2 on Windows), Git and Python 3. About 8
    ```
    All settings are in `config/settings.py`; any of them can be overridden with a line in `.env`.
    `.env.example` already selects the development setup (`COMPOSE_FILE=compose.yaml:compose.dev.yaml`): code changes restart the server. For production use `compose.yaml:compose.prod.yaml`.
+   **Dev and prod side by side:** `docker compose --profile prod up -d --build web-prod` starts the public bot next to `web`, from the same image, on port 8001 (`DOCKER_WEB_PROD_PORT_FORWARD`), with `PROD_MODE=true` (nothing saved, no `/eval`, `/review`, `/topics`, `/arena`, only `CITATION_MODEL`), Redis database 1 and `data/` read-only. `web` (port 8000) keeps logging chats for analysis. `web-prod` runs the code baked into the image: rebuild it to update. Each loads its own index and models (about 3 GB RAM each).
 3. Get the data that is not in Git: unzip the team bundle (`just-os-team-bundle.zip`, from the project lead) in the repository root. It has the index, the embedding vectors and a `.env`; see `TEAM_SETUP.md` inside. The project lead makes it with `python scripts/make_share_bundle.py`. Without the bundle: `python scripts/get_index.py <index-zip-url>`.
 4. Start the containers. The first build takes 10–20 minutes:
    ```bash
@@ -49,7 +50,7 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 |---|---|
 | `CITATION_MODEL` | writes the answer (default `meta-llama/llama-3.1-8b-instruct`); the chat page can pick another model per question |
 | `GENERAL_MODEL` | classifies and rephrases the question |
-| `EMBEDDING_MODEL` + `VECTOR_STORE` | search; the two must match (default `BAAI/bge-m3`) |
+| `EMBEDDING_MODEL` + `VECTOR_STORE` | search; the two must match (default `BAAI/bge-m3` and `data/processed/vs_latest_bge-m3_glossary`: the papers plus the FORRT glossary) |
 | `ARENA_MODELS` | models offered on `/arena`, comma separated (default: the 9 OpenRouter candidates + `openscholar-8b`) |
 | `OPENSCHOLAR_TIMEOUT` | seconds for one OpenScholar answer (default 600, no retry): the self-hosted CPU server needs minutes for the chatbot's long prompt |
 | `LLM_TIMEOUT` | seconds before an LLM call gives up (default 120); a slow model then shows an error instead of holding up the answer |
@@ -57,7 +58,9 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 | `COSINE_PAPER_MIN`, `COSINE_PAGE_MIN` | thresholds of the `cosine` router (0.62, 0.51; docs/evaluation.md 3.7) |
 | `MAX_ANSWER_TOKENS` | longest answer in tokens (default 2000; `0` = no cap): stops answers that loop, seen in Kannada and Marathi |
 | `ARENA_MAX_MODELS` | most models per arena question (default 10) |
-| `CHAT_LOG_FILE`, `CHAT_FEEDBACK_FILE` | every chat turn and every Good/Bad feedback are appended here (default `data/chats/chats.jsonl`, `data/chats/feedback.jsonl`; in Git during the test phase); empty = not saved. Writes from parallel requests are serialised, so long lines never interleave |
+| `RECOMMENDATIONS_FILE` | page `/recommend`: studies people recommend are appended here (default `data/curation/recommendations.jsonl`); `./run curate --recommendations` reads it; off in `PROD_MODE` |
+| `PROD_MODE` | `true` for the public bot (service `web-prod`): no chat, feedback or arena round saved, no team pages, no debug panel, only `CITATION_MODEL` (default `false`) |
+| `CHAT_LOG_FILE`, `CHAT_FEEDBACK_FILE` | every chat turn and every Good/Bad feedback are appended here (default `data/chats/chats.jsonl`, `data/chats/feedback.jsonl`; in Git during the test phase); empty in `config/settings.py` = not saved (an empty line in `.env` keeps the default: use `PROD_MODE`). Writes from parallel requests are serialised, so long lines never interleave |
 | `REVIEW_ITEMS_FILE`, `SCORES_DIR`, `ANSWERS_DIR`, `REVIEW_DIR` | the human review page `/review` (#8, #54): its answers (`eval/human_review_items.json`, built by `eval/build_review.py` from the answer store `data/answers/`), where saved scores go (`data/scores/`, writable mount in `compose.yaml`), and the reviews saved as CSV before #54 (`data/reviews/`) |
 | `PROMPT_STYLE` | `openscholar` (default) or `short` (model-neutral answer prompt) |
 | `ANSWER_CACHE_TTL` | seconds to reuse answers to near-identical first questions; `0` = off (default) |
@@ -69,10 +72,11 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 | `SEARCH_MODE` | `vector` (default), `bm25` (keywords alone) or `hybrid` (vector + BM25, merged by reciprocal rank fusion); replaces `HYBRID_SEARCH=true`, which is now `SEARCH_MODE=hybrid` |
 | `RERANK` | `false` (default since 14 Nov): keep the search order without loading the re-ranker, with the `MIN_VECTOR_SIMILARITY` check; `true`: re-rank the found chunks with `RERANK_MODEL` and drop those at or below `MIN_RELEVANCE` (15-38 s more per question on CPU) |
 | `MIN_VECTOR_SIMILARITY` | with `RERANK=false`: "no sources" when the best vector match of the question has a lower cosine (default 0.55; `0` = no check; not used with `SEARCH_MODE=bm25`) |
-| `AUTO_DEFAULTS` | `true`: at every start the answer model (`CITATION_MODEL`) and topic check (`ROUTER`) of chat and arena are the eval winners: the best judge score among complete papers runs without errors, and the most accurate router of the newest topic-check run (a tie goes to the cheaper one). `CITATION_MODEL` and `ROUTER` stay the fallback. Restart the bot after an eval to switch |
+| `AUTO_DEFAULTS` | `true`: at every start the answer model (`CITATION_MODEL`) and topic check (`ROUTER`) of chat and arena are the eval's best pair (`eval_report.best_pair`): eligible on uniGPT's API without errors, Correct and answer score near the best, p95 ≤ 15 s, then the best balance of quality (counted double), answers outside English and uniGPT cost; between two topic checks with the same model the cheaper one. Without a pair table: the best score and the most accurate topic check. Rule and numbers: `docs/deployment-checklist.md` task 2 |
 | `LLM_RETRIES` | a failed model call (provider error, time-out, empty answer) is tried this many more times before the chat shows an error with **Try again** (default 3; not for OpenScholar). Keep (1 + `LLM_RETRIES`) × `LLM_TIMEOUT` under `WEB_TIMEOUT` |
-| `MAX_CHUNKS_PER_DOC` | at most this many chunks of one paper in the context; `0` = no limit (default) |
-| `ADAPTIVE_TOP_K`, `ADAPTIVE_TOP_K_RATIO`, `ADAPTIVE_TOP_K_MIN` | adaptive top-k (#33), off by default: keep the re-ranked chunks scoring at least `RATIO` (0.5) of the best one, at least `MIN` (3), at most `MAX_CHUNKS` |
+| `MAX_CHUNKS_PER_DOC` | at most this many chunks of one paper in the context (default 2 since 25 Nov 2026: more papers per answer at the same score, `docs/evaluation.md` 3.23); `0` = no limit. Independent of it, at most one FORRT glossary entry per answer |
+| `ADAPTIVE_TOP_K`, `ADAPTIVE_TOP_K_RATIO`, `ADAPTIVE_TOP_K_MIN` | adaptive top-k (#33), off by default: keep the re-ranked chunks scoring at least `RATIO` (0.5) of the best one, at least `MIN` (3), at most `MAX_CHUNKS`; with `RERANK=false` and vector search the same on the cosine, after `MAX_CHUNKS_PER_DOC` (cosines are close together: a ratio near 0.95) |
+| `DECISION_API_KEY` | key for the decision models (Jev, Clef) on OpenRouter's decisions API; default the OpenRouter key, else `LLM_API_KEY`. Needed when `BASE_URL` points elsewhere (`web-prod`: uniGPT) |
 
 | `OPENSCHOLAR_BASE_URL` + `OPENSCHOLAR_API_KEY` | self-hosted OpenScholar server; calls for `OPENSCHOLAR_MODEL` (`openscholar-8b`) go there, all other models stay on OpenRouter |
 

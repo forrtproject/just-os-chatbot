@@ -20,6 +20,7 @@ OPEN_LICENCE = re.compile(
     r"\bcc[\s-]?0\b|\bcc[\s-]?zero\b|public domain|\bcc[\s-]?by\b|creative commons attribution|forrt cluster pdf",
     re.I,
 )
+GLOSSARY_TYPE = "FORRT Glossary"  # material_type of the glossary documents (scripts/build_glossary.py)
 RESTRICTED = re.compile(r"\bnc\b|\bnd\b|non-?commercial|no-?deriv", re.I)
 
 

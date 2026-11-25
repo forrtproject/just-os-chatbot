@@ -1,0 +1,187 @@
+# JUST-OS public bot on Kubernetes: the compose.yaml service web-prod as manifests (docs/deployment-checklist.md task 3).
+#
+#   kubectl create namespace just-os
+#   kubectl -n just-os create secret generic just-os-keys \
+#       --from-literal=UNIGPT_API_KEY=... --from-literal=OPENROUTER_API_KEY=...
+#   kubectl -n just-os apply -f deploy/kubernetes/just-os.yaml
+#   # once: copy the data and the model cache into the two PVCs (deploy/kubernetes/README.md)
+#
+# Replace before applying: IMAGE, HOST, and a storageClassName on the PVCs if the cluster needs one.
+# Sizes are measured: one web worker holds bge-m3 (~2.3 GB) and the index (1.3 GB on disk) = 4.3 GB RSS.
+# ALLOWED_ORIGINS stays at its default, https://forrt.org (config/settings.py).
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: just-os-config
+  labels: {app: just-os}
+data:
+  PROD_MODE: "true"            # nothing saved, no team pages, only CITATION_MODEL (just_os/app.py)
+  BASE_URL: "https://gpt.uni-muenster.de/v1"
+  CITATION_MODEL: "gemma-4-31B-it"
+  GENERAL_MODEL: "gemma-4-31B-it"
+  ROUTER: "banded"
+  SEARCH_MODE: "vector"
+  RERANK: "false"
+  REDIS_HOST: "just-os-redis"
+  PROXY_FIX_X_FOR: "1"         # one proxy (the ingress) in front: the rate limit sees the client IP
+  WEB_CONCURRENCY: "1"         # one worker per pod: each worker loads its own ~4 GB
+  WEB_RELOAD: "false"
+  WEB_TIMEOUT: "300"
+  OMP_NUM_THREADS: "2"
+  LLAMA_INDEX_CACHE_DIR: "/home/python/.cache/huggingface/hub"
+  HF_HUB_OFFLINE: "1"          # bge-m3 is in the models PVC: no download at start
+---
+# data/ is not in the image (.dockerignore): this volume holds the index (processed/vs_latest_bge-m3_glossary: papers + FORRT glossary) and the two
+# files the bot reads from data/raw (pub_years.csv, forrt_sheet1_261028.csv); the second PVC holds bge-m3. Copied in once.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: just-os-data
+  labels: {app: just-os}
+spec:
+  accessModes: [ReadOnlyMany]
+  resources: {requests: {storage: 3Gi}}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: just-os-models
+  labels: {app: just-os}
+spec:
+  accessModes: [ReadOnlyMany]
+  resources: {requests: {storage: 5Gi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: just-os-web
+  labels: {app: just-os, component: web}
+spec:
+  replicas: 2                  # a restart or node drain keeps the bot up
+  selector:
+    matchLabels: {app: just-os, component: web}
+  strategy:
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
+  template:
+    metadata:
+      labels: {app: just-os, component: web}
+    spec:
+      securityContext: {runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000, runAsNonRoot: true}
+      containers:
+        - name: web
+          image: IMAGE                 # e.g. <registry>/just-os/web:<git sha>, built from the Dockerfile's "app" target
+          ports: [{name: http, containerPort: 8000}]
+          envFrom:
+            - configMapRef: {name: just-os-config}
+          env:
+            - name: LLM_API_KEY        # uniGPT Münster (answers, rephrasing)
+              valueFrom: {secretKeyRef: {name: just-os-keys, key: UNIGPT_API_KEY}}
+            - name: DECISION_API_KEY   # Jev and Clef: OpenRouter's decisions API (uniGPT has no decision models)
+              valueFrom: {secretKeyRef: {name: just-os-keys, key: OPENROUTER_API_KEY}}
+            - name: OPENROUTER_API_KEY
+              valueFrom: {secretKeyRef: {name: just-os-keys, key: OPENROUTER_API_KEY}}
+          resources:
+            requests: {cpu: "1", memory: 5Gi}
+            limits: {cpu: "4", memory: 6Gi}
+          startupProbe:                # the model and index load for about a minute
+            httpGet: {path: /up, port: http}
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: {path: /up, port: http}
+            periodSeconds: 15
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet: {path: /up, port: http}
+            periodSeconds: 60
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext: {allowPrivilegeEscalation: false}
+          volumeMounts:
+            - {name: data, mountPath: /app/data, readOnly: true}
+            - {name: models, mountPath: /home/python/.cache/huggingface, readOnly: true}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: just-os-data, readOnly: true}
+        - name: models
+          persistentVolumeClaim: {claimName: just-os-models, readOnly: true}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: just-os-web
+  labels: {app: just-os, component: web}
+spec:
+  selector: {app: just-os, component: web}
+  ports: [{name: http, port: 80, targetPort: http}]
+---
+# Chat memory (1 hour) and rate-limit counters, shared by both web pods; nothing to persist.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: just-os-redis
+  labels: {app: just-os, component: redis}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: just-os, component: redis}
+  template:
+    metadata:
+      labels: {app: just-os, component: redis}
+    spec:
+      containers:
+        - name: redis
+          image: redis:8.0.2-bookworm
+          args: ["--save", "", "--appendonly", "no", "--maxmemory", "200mb", "--maxmemory-policy", "volatile-lru"]
+          ports: [{name: redis, containerPort: 6379}]
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: 500m, memory: 300Mi}
+          readinessProbe:
+            exec: {command: [redis-cli, ping]}
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: just-os-redis
+  labels: {app: just-os, component: redis}
+spec:
+  selector: {app: just-os, component: redis}
+  ports: [{name: redis, port: 6379, targetPort: redis}]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: just-os
+  labels: {app: just-os}
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"   # answers stream for up to WEB_TIMEOUT
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"      # stream the answer as it is written
+spec:
+  tls:
+    - hosts: [HOST]
+      secretName: just-os-tls
+  rules:
+    - host: HOST                       # the forrt.org widget then calls https://HOST/chat
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: {name: just-os-web, port: {name: http}}
+---
+# Optional: more pods under load (memory per pod stays fixed).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: just-os-web
+  labels: {app: just-os}
+spec:
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: just-os-web}
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}

@@ -1,8 +1,11 @@
 {# Shared page links (index, arena, eval). nav_arena comes from the context processor in app.py #}
+{% if not prod_mode %}
 <nav class="top-nav" aria-label="Pages">
     <a href="/" {% if request.path == '/' %}aria-current="page"{% endif %}>Chat</a>
     {% if nav_arena %}<a href="/arena" {% if request.path == '/arena' %}aria-current="page"{% endif %}>Arena</a>{% endif %}
     <a href="/eval" {% if request.path == '/eval' %}aria-current="page"{% endif %}>Evaluation</a>
     {% if nav_review %}<a href="/review" {% if request.path == '/review' %}aria-current="page"{% endif %}>Review</a>{% endif %}
+    {% if nav_recommend %}<a href="/recommend" {% if request.path == '/recommend' %}aria-current="page"{% endif %}>Recommend a study</a>{% endif %}
     {% if nav_topics %}<a href="/topics" {% if request.path == '/topics' %}aria-current="page"{% endif %}>Topics</a>{% endif %}
 </nav>
+{% endif %}

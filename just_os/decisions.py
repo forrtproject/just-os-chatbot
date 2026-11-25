@@ -49,7 +49,8 @@ ROUTES = {
 class DecisionClient:
     def __init__(self, config: Dict[str, Any]):
         self.url = config.get("DECISION_URL", "https://openrouter.ai/api/alpha/decisions")
-        self.api_key = config.get("LLM_API_KEY", "")
+        # its own key: with BASE_URL on another provider (uniGPT), the decision models stay on OpenRouter
+        self.api_key = config.get("DECISION_API_KEY") or config.get("LLM_API_KEY", "")
         self.timeout = config.get("DECISION_TIMEOUT", 8)
 
     def decide(self, model: str, state: str, questions: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:

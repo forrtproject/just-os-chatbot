@@ -167,7 +167,8 @@ def cache_retrieval(qualle, config, folder=Path("eval/.retrieval_cache")):
     retrieve = qualle.document_retriever.retrieve_and_rerank
     settings = json.dumps([retrieval_label(config), config.get("VECTOR_STORE"), config.get("RETRIEVER_TOP_K"),
                            config.get("MAX_CHUNKS"), config.get("MIN_RELEVANCE"), config.get("MAX_CHUNKS_PER_DOC"),
-                           config.get("ADAPTIVE_TOP_K"), config.get("EMBEDDING_MODEL")])
+                           config.get("ADAPTIVE_TOP_K"), config.get("EMBEDDING_MODEL"),
+                           config.get("ADAPTIVE_TOP_K_RATIO"), config.get("ADAPTIVE_TOP_K_MIN")])
     folder.mkdir(parents=True, exist_ok=True)
 
     def cached(query, *args, **kwargs):
