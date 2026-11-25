@@ -67,13 +67,22 @@ Left out: Muse Glimmer 30B (1 error, and p95 35 s), DeepSeek V4 Flash and Qwen 3
 
 ### 3. Server: Kubernetes specs and settings
 
-Measured: one web worker holds bge-m3 (~2.3 GB), the bge-m3 index (1.3 GB on disk: 600 MB vectors, 700 MB chunk text) and the FORRT page index (1 MB): **4.3 GB RSS** in the dev container. The re-ranker is off (`RERANK=false`), so no second model. A question costs ~0.1 s of CPU for search; the answer time is the LLM's (uniGPT).
+**The embedding model runs inside each web pod, on its CPU; the spec below is sized for it.** Nothing about embedding goes to an API: bge-m3 (568 M parameters) embeds every question locally, and the index and the FORRT page index were embedded with it once, ahead of time. Measured in the dev container (one worker): **4.3 GB RSS** in total:
+
+| Part | Memory | CPU per question |
+|---|---|---|
+| bge-m3 on CPU (float32) | ~2.3 GB | one forward pass of the question: ~65 ms (eval/compare_embeddings.py, 3.19); up to `OMP_NUM_THREADS` cores |
+| Paper index + FORRT glossary (`vs_latest_bge-m3_glossary`): 148,197 vectors of 1,024 dims (~600 MB) + chunk text (~700 MB) | ~1.3 GB | FAISS search over all vectors: ~0.1 s |
+| FORRT page index (`vector_data/forrt_pages`) | 1 MB | negligible |
+| Python, Flask, gunicorn threads | ~0.5 GB | |
+
+So one pod answers the embedding and search part of a question in about 0.2 s of CPU; at 1 vCPU that is ~5 questions per second, far above the expected traffic, and the answer time is the LLM's on uniGPT (7 s mean, p95 14 s for Gemma 4 31B). No GPU is needed. The re-ranker is off (`RERANK=false`); switching it on would add a second model (~1.1 GB) and 4-15 s of CPU per question, so the limits below would need about 1.5 GB more memory and 4+ dedicated cores.
 
 **Recommended (per environment):**
 
 | Object | Spec | Why |
 |---|---|---|
-| Deployment `just-os-web` | **2 replicas**, each `requests: cpu 1, memory 5Gi`, `limits: cpu 4, memory 6Gi`; `WEB_CONCURRENCY=1` (one worker; 8 gthreads); `OMP_NUM_THREADS=2` | 4.3 GB measured + headroom; two replicas so a restart or node drain keeps the bot up; one worker per pod, since each worker loads its own copy (~4 GB) |
+| Deployment `just-os-web` | **2 replicas**, each `requests: cpu 1, memory 5Gi`, `limits: cpu 4, memory 6Gi`; `WEB_CONCURRENCY=1` (one worker; 8 gthreads); `OMP_NUM_THREADS=2` (bge-m3's threads per question) | 4.3 GB measured, bge-m3 included, + headroom; two replicas so a restart or node drain keeps the bot up; one worker per pod, since each worker loads its own copy (~4 GB) |
 | Probes | `readinessProbe` and `livenessProbe`: HTTP `GET /up`; `startupProbe` with `failureThreshold × periodSeconds` ≥ 180 s | the models and index load for about a minute; without a startup probe the pod is killed while loading |
 | Deployment `redis` | 1 replica, `requests: cpu 100m, memory 256Mi`, no persistence needed | holds 1-hour chat memory and rate-limit counters, shared by both web replicas (that is why it must be one Redis, not one per pod) |
 | Volumes | index + FORRT page index: a **ReadOnlyMany PVC** (~2 GB) or baked into the image; Hugging Face cache (bge-m3, ~2.3 GB): baked into the image or a PVC | no download at start; read-only, as in `compose.yaml` |
@@ -170,6 +179,11 @@ Today 7 chunks come from 4.6 papers on average; only 42 of 542 cached questions 
 - [x] **Result (evaluation.md 3.23):** cap 2 → 4.6 papers per answer instead of 4.1, at most 1.9 chunks of one paper instead of 2.6, score level (0.727 vs 0.729); cap + adaptive 4-10: score 0.721, rubric lower, no gain.
 - [x] Cap switched on (25 Nov): `MAX_CHUNKS_PER_DOC=2` is the default in `config/settings.py` (dev, `web-prod` and Kubernetes); adaptive top-k stays off.
 - [ ] Close #33 with 3.23 (adaptive top-k: no gain).
+
+### 6b. Questions about one specific paper (reference lookup)
+
+- [x] (25 Nov) `just_os/reference_lookup.py`, on by default (`REFERENCE_LOOKUP`): a question naming a paper of the library by DOI, title, short title ("the false positive psychology paper") or two of its authors' surnames (or one + the year) is answered from that paper's chunks only, without the per-paper cap; the index stores full text, but titles and authors were never searched. Checked live: "Why did Simmons, Nelson and Simonsohn kick off the crisis in psychology?" now answers from their papers; fires on 1 of the 596 eval questions (correctly). Memory: a table of 1,354 papers and their FAISS row numbers, a few MB.
+- [ ] Add 10-20 reference questions (by author, title, DOI) with expected DOIs to `eval/questions.jsonl` and measure.
 
 ### 7. FORRT Glossary as sources
 

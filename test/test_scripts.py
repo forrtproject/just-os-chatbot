@@ -351,3 +351,21 @@ def test_glossary_documents_link_each_language_and_keep_keys_apart():
     assert "Related terms: Selective reporting" in text and "Duyx" not in text
     assert en["reference_dois"] == "10.1016/j.jclinepi.2019.03.008" and en["material_type"] == "FORRT Glossary"
     assert len({document_key(d[2]) for d in docs}) == 3  # same term, three languages, three documents
+
+
+def test_forrt_article_list_merges_one_resource_across_lists_and_sorts_its_kind():
+    from scripts import forrt_article_list as fal
+
+    rows = [("Publications", 2, {"title": "Open Data in Psychology: A Guide", "doi": "10.31234/osf.io/ab12c_v2", "type": "Paper"}),
+            ("FORRT DB 2.0", 7, {"title": "Open data in psychology - a guide", "doi": "", "url": "https://osf.io/x"}),  # same title
+            ("clusters_panos", 3, {"title": "Something else", "doi": "https://doi.org/10.31234/OSF.IO/AB12C", "clusters": "C1; C2"}),
+            ("ORxD", 9, {"title": "A seminar page", "url": "https://example.org/seminar/", "type": ""}),
+            ("JUSTOS-URL-Org", 4, {"title": "Seminar", "url": "http://www.example.org/seminar", "type": "Website"})]
+    items = fal.merge(rows)
+    assert sorted(items) == ["doi:10.31234/osf.io/ab12c", "url:example.org/seminar"]
+    paper = items["doi:10.31234/osf.io/ab12c"]
+    assert dict(paper["found"]) == {"Publications": [2], "FORRT DB 2.0": [7], "clusters_panos": [3]}
+    assert paper["clusters"] == ["C1", "C2"] and fal.category(paper) == "Article"
+    assert fal.category({"type": "Reading", "url": "https://www.linkedin.com/pulse/x"}) == "Website / web resource"
+    assert fal.category({"type": "Reading", "url": "https://x.org/paper.pdf"}) == "Article"
+    assert fal.category({"type": "Textbook"}) == "Book"

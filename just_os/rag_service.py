@@ -8,6 +8,7 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.faiss import FaissVectorStore
 
 from config.settings import get_config
+from just_os.reference_lookup import ReferenceLookup
 from just_os.chat_manager import ChatManager
 from just_os.hybrid import search_retriever
 from just_os.qualle import Qualle
@@ -58,7 +59,14 @@ def create_embedding_model(config: Dict[str, Any]):
         raise
 
 
-def create_retriever(config: Dict[str, Any], embed_model):
+def load_index(config: Dict[str, Any], embed_model):
+    persist_dir = config["VECTOR_STORE"]
+    vector_store = FaissVectorStore.from_persist_dir(persist_dir)
+    storage_context = StorageContext.from_defaults(vector_store=vector_store, persist_dir=persist_dir)
+    return load_index_from_storage(storage_context=storage_context, embed_model=embed_model)
+
+
+def create_retriever(config: Dict[str, Any], embed_model, index=None):
     """
     Create and initialize the retriever component.
 
@@ -70,16 +78,7 @@ def create_retriever(config: Dict[str, Any], embed_model):
         The initialized retriever
     """
     try:
-        persist_dir = config["VECTOR_STORE"]
-        vector_store = FaissVectorStore.from_persist_dir(persist_dir)
-        storage_context = StorageContext.from_defaults(
-            vector_store=vector_store, persist_dir=persist_dir
-        )
-
-        index = load_index_from_storage(
-            storage_context=storage_context, embed_model=embed_model
-        )
-
+        index = index if index is not None else load_index(config, embed_model)
         retriever = index.as_retriever(similarity_top_k=config["RETRIEVER_TOP_K"])
         mode = config.get("SEARCH_MODE", "vector")
         nodes = list(index.docstore.docs.values()) if mode != "vector" else []
@@ -128,10 +127,14 @@ def create_rag_service(
         embed_model = create_embedding_model(config)
 
         # Initialize retriever
-        retriever = create_retriever(config, embed_model)
+        index = load_index(config, embed_model)
+        retriever = create_retriever(config, embed_model, index)
+        # Questions about one specific paper (by DOI, title or authors) are answered from it alone
+        references = (ReferenceLookup.from_index(index, embed_model, config.get("PUB_YEARS_FILE"))
+                      if config.get("REFERENCE_LOOKUP", True) else None)
 
         # Create and store the Qualle instance
-        _rag_service_instance = Qualle(config, chat_manager, embed_model, retriever)
+        _rag_service_instance = Qualle(config, chat_manager, embed_model, retriever, references)
         logger.debug("Created new Qualle instance")
 
         return _rag_service_instance

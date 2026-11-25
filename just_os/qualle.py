@@ -1068,9 +1068,10 @@ class Qualle:
     # set in __init__ when DECISION_ROUTER / FORRT_PAGES are on (class defaults keep test doubles working)
     decisions: Optional[DecisionClient] = None
     forrt_pages: Optional[ForrtPages] = None
+    references = None  # just_os/reference_lookup.py, when REFERENCE_LOOKUP is on
 
     def __init__(
-        self, config: Dict[str, Any], chat_manager: ChatManager, embed_model, retriever
+        self, config: Dict[str, Any], chat_manager: ChatManager, embed_model, retriever, references=None
     ):
         """
         Initialize the Qualle RAG service.
@@ -1085,6 +1086,7 @@ class Qualle:
         self.chat_manager = chat_manager
         self._embed_model = embed_model
         self._retriever = retriever
+        self.references = references
 
         # Initialize OpenAI client manager
         self.client_manager = OpenAIClientManager(config)
@@ -1334,10 +1336,22 @@ class Qualle:
                         answer_query = user_query if query.strip() == user_query.strip() else f"{user_query}\n(Meaning: {query})"
             answer_query = answer_query or query
 
-            yield {"status": "in-progress", "message": "Classifying question"}
-            step = time.time()
-            intent = self.route(query, router)
-            timings["classify_s"] = time.time() - step
+            # A question that names one paper of the library is about that paper: no topic check, its chunks only
+            found, matched_by = self.references.match(user_query, query) if self.references else ([], "")
+            if found:
+                logger.info(f"Reference lookup ({matched_by}): {[p.title[:60] for p in found]}")
+                trace.note(reference_lookup={"matched_by": matched_by, "papers": [p.title for p in found]})
+            if found and matched_by != "authors":
+                intent = "open_science"
+            else:
+                yield {"status": "in-progress", "message": "Classifying question"}
+                step = time.time()
+                intent = self.route(query, router)
+                timings["classify_s"] = time.time() - step
+                if found and intent in ("forrt", "forrt_lookup", "both"):
+                    found = []  # a person or a FORRT project with authors' names: FORRT's pages answer
+                elif found and intent == "off_topic":
+                    intent = "open_science"  # two of a library paper's authors were named
             logger.debug(f"Query intent: {intent}")
 
             if intent is None:
@@ -1387,10 +1401,15 @@ class Qualle:
                 return
 
             yield {"status": "in-progress", "message": "Finding relevant sources"}
-            pages_job = self.start_forrt_in_papers(query, intent)
-            ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(query, timings)
-            page_sources = self.forrt_in_papers_result(pages_job, timings)
-            ranked_nodes = list(ranked_nodes) + page_sources
+            if found:  # the named paper(s) only, any number of chunks each; no FORRT pages next to them
+                step = time.time()
+                ranked_nodes = self.references.chunks(query, found, self.document_retriever.n_context_items)
+                timings["search_s"] = time.time() - step
+            else:
+                pages_job = self.start_forrt_in_papers(query, intent)
+                ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(query, timings)
+                page_sources = self.forrt_in_papers_result(pages_job, timings)
+                ranked_nodes = list(ranked_nodes) + page_sources
             if not ranked_nodes:
                 yield from self.no_relevant_nodes_handler(user_query, chat_id)
                 return
