@@ -60,6 +60,10 @@ LICENCE_KEY = "conditions_of_use"
 # returned off-topic-looking follow-ups unchanged ("something similar for neurodiversity?" was then refused)
 # and only looked at the last turn.
 REPHRASE_ANSWER_CHARS = 300
+# A rewrite only names what the follow-up points back to; one far longer than the question has pulled text in (Llama
+# 3.1 8B pasted the previous answer's findings into it, and the topic check then refused the question): the question
+# as typed is used instead, which the answer model still reads with the chat (CONTEXT_METHOD hybrid)
+REWRITE_MAX_ADDED_WORDS = 15
 REPHRASE_PROMPT = """Conversation so far (oldest first):
 {conversation}
 
@@ -70,6 +74,7 @@ Rewrite the new message as one question that can be understood without the conve
   with what it refers to. It may refer to any earlier turn, not only the last one.
 - Keep everything else the user wrote: every condition, field, number, name and detail, in the user's own terms.
   Do not add details, do not answer, do not make the question broader or narrower.
+- Take from the assistant's answers only the name of what a word points back to, never their sentences or findings.
 - If the new message does not point back to the conversation, return it unchanged.
 - Write in the language of the new message.
 Example: after "What is a data paper?", "where can I publish one in ecology?" becomes
@@ -347,6 +352,10 @@ Return your answer as a valid JSON object with a single string entry "category"
         result = self._structured_output(prompt, "reformulated_query", "string")
         if not isinstance(result, str) or not result.strip():
             logger.warning("Failed to rephrase query, using original")
+            return query
+        typed, rewritten = len(query.split()), len(result.split())
+        if rewritten > max(2 * typed, typed + REWRITE_MAX_ADDED_WORDS):
+            logger.warning(f"Rewrite of {typed} words grew to {rewritten}, using the question as typed: {result[:120]!r}")
             return query
         return result
 

@@ -12,7 +12,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "BASE_URL": "https://openrouter.ai/api/v1",
     "LLM_API_KEY": os.getenv("OPENROUTER_API_KEY"),
     "CITATION_MODEL": "meta-llama/llama-3.1-8b-instruct",
-    "GENERAL_MODEL": "meta-llama/llama-3.1-8b-instruct",
+    # Rewrites follow-ups and is the topic check's fallback. Gemma 4 31B since 25 Nov 2026: Llama 3.1 8B copied the
+    # previous answer into rewrites (docs/evaluation.md 3.25); web-prod uses the same model on uniGPT
+    "GENERAL_MODEL": "google/gemma-4-31b-it",
     # Models that reason by default and must not (their reasoning used up MAX_ANSWER_TOKENS, so the
     # answer came back empty): OpenRouter's reasoning is switched off for these only
     "NO_REASONING_MODELS": "qwen/qwen3.7-flash",

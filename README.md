@@ -49,7 +49,7 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 | Setting | Use |
 |---|---|
 | `CITATION_MODEL` | writes the answer (default `meta-llama/llama-3.1-8b-instruct`); the chat page can pick another model per question |
-| `GENERAL_MODEL` | classifies and rephrases the question |
+| `GENERAL_MODEL` | rewrites follow-up questions into stand-alone ones, and is the topic check's fallback (default `google/gemma-4-31b-it` since 25 Nov 2026; Llama 3.1 8B copied the previous answer into rewrites) |
 | `EMBEDDING_MODEL` + `VECTOR_STORE` | search; the two must match (default `BAAI/bge-m3` and `data/processed/vs_latest_bge-m3_glossary`: the papers plus the FORRT glossary) |
 | `ARENA_MODELS` | models offered on `/arena`, comma separated (default: the 9 OpenRouter candidates + `openscholar-8b`) |
 | `OPENSCHOLAR_TIMEOUT` | seconds for one OpenScholar answer (default 600, no retry): the self-hosted CPU server needs minutes for the chatbot's long prompt |
@@ -67,7 +67,7 @@ The LLM provider is any OpenAI-compatible API, by default [OpenRouter](https://o
 | `ANSWER_CACHE_TTL` | seconds to reuse answers to near-identical first questions; `0` = off (default) |
 | `PROXY_FIX_X_FOR` | number of trusted reverse proxies (prod: `1`), so the rate limit uses the client IP; `0` = none (default) |
 | `RERANK_THREADS` | CPU threads for the re-ranker (default 6; 1 thread is ~2x slower) |
-| `CONTEXT_METHOD` | follow-ups: `rephrase` (default) or `history` (earlier turns in the answer prompt) |
+| `CONTEXT_METHOD` | follow-ups (only when the chat has earlier turns; a first question is never rewritten): `hybrid` (default: one `GENERAL_MODEL` call rewrites the follow-up for the topic check and the search; the answer model reads the question as typed, the rewrite and the last 4 messages), `rephrase` (the rewrite everywhere) or `history` (no rewrite). A rewrite more than twice as long as the question and 15+ words longer is dropped for the question as typed. Nothing is cached (`ANSWER_CACHE_TTL=0`) |
 | `VERIFY_CITATIONS` | `true`: check each cited sentence against its source and mark weak citations "not verified" |
 | `FORRT_LOOKUP` | `true`: "where on FORRT / how to contribute" questions get a list of FORRT links |
 | `SEARCH_MODE` | `vector` (default), `bm25` (keywords alone) or `hybrid` (vector + BM25, merged by reciprocal rank fusion); replaces `HYBRID_SEARCH=true`, which is now `SEARCH_MODE=hybrid` |

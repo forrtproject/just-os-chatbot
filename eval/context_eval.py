@@ -12,7 +12,7 @@ asked first in the same chat). A judge model (--judge-model) scores each answer 
 chat's must-keep details: 2 answers what was meant, 1 partly, 0 not (a different or the earlier
 question, generic, refused); for off-topic follow-ups 2 = refused. Also per answer: route as labelled,
 and the share of the oracle's sources (papers or forrt.org pages) the method used.
-Output: eval/results/context_<YYMMDD-HHMM>.csv and the tables below it.
+Output: eval/results/context_<YYMMDD-HHMM>.csv (with the rewrite of each follow-up) and the tables below it.
 """
 
 import argparse
@@ -148,6 +148,8 @@ def main():
     qualle.route = lambda query, router=None: seen.update(route=route(query, router)) or seen["route"]
     qualle.document_retriever.retrieve_and_rerank = lambda query, *a: seen.update(ranked=retrieve(query, *a)[0]) or (seen["ranked"], [])
     qualle.response_generator.generate_response = lambda *a, **kw: seen.update(raw=generate(*a, **kw)) or seen["raw"]
+    rephrase = qualle.query_processor.rephrase_query
+    qualle.query_processor.rephrase_query = lambda *a, **kw: seen.update(rewrite=rephrase(*a, **kw)) or seen["rewrite"]
 
     def counted(**kw):
         response = complete(**kw)
@@ -173,6 +175,7 @@ def main():
                 final = list(qualle.get_response(q["gold"] if method == "oracle" else q["question"], chat_id))[-1]
                 pages = [s["url"] for s in (seen.get("forrt") or {}).get("sources", [])]
                 rows.append({"run": run, "method": method, "id": q["id"], "group": q["group"], "route": seen.get("route") or "",
+                             "rewrite": seen.get("rewrite", ""),
                              "route_ok": int(seen.get("route") in q["route"]), "outcome": outcome_of(final),
                              "sources": " ".join(pages + [doi_of(n) for n in seen.get("ranked", [])]),
                              "answer": seen.get("raw") or re.sub(r"<[^>]+>", " ", final.get("message", "")).strip(),

@@ -84,6 +84,18 @@ def test_rephrase_keeps_query_on_failure():
     assert processor(FakeClient(None, None)).rephrase_query("my question", "chat") == "my question"
 
 
+def test_rephrase_names_the_referent_but_drops_a_rewrite_that_pulls_in_the_answer():
+    named = '{"reformulated_query": "Where can I publish a data paper in ecology?"}'
+    assert processor(FakeClient(completion(tool_arguments=named))).rephrase_query(
+        "where can I publish one in ecology?", "chat") == "Where can I publish a data paper in ecology?"
+    # Llama 3.1 8B, 25 Nov 2026: the previous answer's findings copied into the rewrite
+    pasted = ('{"reformulated_query": "Why did Simmons, Nelson and Simonsohn kick off the crisis in psychology because '
+              'undisclosed flexibility in data collection and analysis allows researchers to present almost any result as '
+              'statistically significant and the authors demonstrated that the practice found allows it?"}')
+    question = "Why did Simmons, Nelson and Simonsohn kick off the crisis in psychology?"
+    assert processor(FakeClient(completion(tool_arguments=pasted))).rephrase_query(question, "chat") == question
+
+
 # --- P9 and P10: get_response
 
 

@@ -185,6 +185,10 @@ Today 7 chunks come from 4.6 papers on average; only 42 of 542 cached questions 
 - [x] (25 Nov) `just_os/reference_lookup.py`, on by default (`REFERENCE_LOOKUP`): a question naming a paper of the library by DOI, title, short title ("the false positive psychology paper") or two of its authors' surnames (or one + the year) is answered from that paper's chunks only, without the per-paper cap; the index stores full text, but titles and authors were never searched. Checked live: "Why did Simmons, Nelson and Simonsohn kick off the crisis in psychology?" now answers from their papers; fires on 1 of the 596 eval questions (correctly). Memory: a table of 1,354 papers and their FAISS row numbers, a few MB.
 - [ ] Add 10-20 reference questions (by author, title, DOI) with expected DOIs to `eval/questions.jsonl` and measure.
 
+### 6c. Rewriting follow-up questions
+
+- [x] (25 Nov) Follow-ups are rewritten by Gemma 4 31B (`GENERAL_MODEL`) instead of Llama 3.1 8B, which copied the previous answer into the rewrite (so the topic check refused or misrouted the follow-up); an over-long rewrite falls back to the question as typed. On the 138 follow-up chats: 1.86 → **1.91** of 2, 91% → 93% fully answered, routed as labelled 92% → 96% (evaluation.md 3.25). Production already used Gemma 4 for this.
+
 ### 7. FORRT Glossary as sources
 
 **Decided:** one document per term per language, all available languages.
