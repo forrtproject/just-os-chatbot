@@ -65,9 +65,13 @@ def read_rows(csv_path, limit=None, recommendations=None):
 
 
 def indexed_keys(index_dir):
-    """document_key of every document in the index (DOI, else title), as scripts/add_to_index.py checks."""
+    """document_key of every document in the index (DOI, else title) except abstract cards, as
+    scripts/add_to_index.py checks: a resource with only its card is looked for again."""
+    from scripts.build_abstract_cards import CARD_TYPE
+
     nodes = json.loads((Path(index_dir) / "docstore.json").read_text(encoding="utf-8"))["docstore/data"]
-    return {document_key(plain_metadata(n["__data__"].get("metadata", {}))) for n in nodes.values()}
+    metas = (plain_metadata(n["__data__"].get("metadata", {})) for n in nodes.values())
+    return {document_key(m) for m in metas if not str(m.get("material_type", "")).startswith(CARD_TYPE)}
 
 
 def pdf_markdown(row, work, http=None):
@@ -164,12 +168,14 @@ def main():
     parser.add_argument("--limit", type=int)
     parser.add_argument("--in-place", action="store_true", help="add to VECTOR_STORE itself, not to a copy")
     parser.add_argument("--no-index", action="store_true", help="only download and convert")
+    parser.add_argument("--work", help="folder for this run (default data/curation/<YYMMDD>; a second run on one day "
+                                       "would otherwise overwrite that day's report.csv and metadata.csv)")
     args = parser.parse_args()
 
     from config import settings
 
     day = f"{date.today():%y%m%d}"
-    work = Path("data/curation") / day
+    work = Path(args.work) if args.work else Path("data/curation") / day
     rows = read_rows(args.csv, args.limit, settings.RECOMMENDATIONS_FILE if args.recommendations else None)
     report, metadata = curate(rows, indexed_keys(settings.VECTOR_STORE), work)
     pd.DataFrame(report).to_csv(work / "report.csv", index=False)

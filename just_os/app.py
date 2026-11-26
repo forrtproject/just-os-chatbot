@@ -20,7 +20,7 @@ from werkzeug.exceptions import TooManyRequests
 from config.settings import get_config
 from just_os.clusters import SUGGESTED_QUESTIONS
 from just_os.chat_manager import ChatManager
-from just_os import criteria
+from just_os import article_list, criteria
 from just_os import eval_report
 from just_os.scores import SCALE as SCORE_SCALE, row as scores_row
 from just_os.decisions import ROUTERS
@@ -42,7 +42,7 @@ ARENA_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 APPEND_LOCK = threading.Lock()  # chat, feedback and arena logs (_append_jsonl)
 # 404 in PROD_MODE (with /chat/feedback: nothing to rate, nowhere to save)
-TEAM_PAGES = ("/eval", "/review", "/topics", "/arena", "/chat/feedback", "/recommend")
+TEAM_PAGES = ("/eval", "/review", "/topics", "/arena", "/chat/feedback", "/recommend", "/articles")
 MAX_RECOMMENDATIONS = 20  # DOIs or links per /recommend form
 
 
@@ -304,6 +304,7 @@ class FlaskApp:
                     "nav_arena": self.config["ARENA_ENABLED"], "default_router": self.config.get("ROUTER") or "",
                     "nav_review": os.path.isfile(self.config.get("REVIEW_ITEMS_FILE") or ""),
                     "nav_topics": self._topic_map() is not None,
+                    "nav_articles": os.path.isfile(self.config.get("CLUSTERS_FILE") or ""),
                     "nav_recommend": bool(self.config.get("RECOMMENDATIONS_FILE"))}
 
         @self.app.route("/")
@@ -428,6 +429,25 @@ class FlaskApp:
                 logger.error("Could not save review %s: %s", path, error)
                 return jsonify({"status": "error", "message": "Could not save on the server; use Export CSV."}), 500
             return jsonify({"status": "ok", "file": os.path.basename(path), "rows": len({r["answer_id"] for r in rows})})
+
+        @self.app.route("/articles")
+        def articles_page():
+            """The FORRT article list: every resource FORRT wants in the bot and whether the index has it."""
+            rows = article_list.load(self.config.get("CLUSTERS_FILE") or "")
+            if not rows:
+                abort(404)
+            path = self.config["CLUSTERS_FILE"]
+            return render_template("articles.html", rows=rows, summary=article_list.summary(rows),
+                                   built=datetime.fromtimestamp(os.path.getmtime(path)).strftime("%d %b %Y %H:%M"))
+
+        @self.app.route("/articles.csv")
+        def articles_csv():
+            """The whole article list as the CSV (all columns, with abstracts and where each row was found)."""
+            path = self.config.get("CLUSTERS_FILE") or ""
+            if not os.path.isfile(path):
+                abort(404)
+            return send_file(os.path.abspath(path), mimetype="text/csv", as_attachment=True,
+                             download_name="forrt_article_list.csv")
 
         @self.app.route("/recommend")
         def recommend_page():

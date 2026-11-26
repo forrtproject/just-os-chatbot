@@ -13,12 +13,15 @@ The Clusters / Sub-Clusters sheets are lookup tables (sub-cluster -> cluster), n
 
 One row per resource: the same DOI, else the same title as a row with a DOI, else the same link, else the same
 title. found_in lists every list and row (spreadsheet row numbers) where it appears. Open access from Unpaywall
-(DOIs only; cached in data/curation/unpaywall_oa.json; OpenAlex's keyless daily budget is shared per IP and ran out); in_index and pdf_on_disk by DOI, else title, against the bge-m3 index, the cluster
-PDFs (data/interim/cluster_pdf_metadata.csv, and file names in data/FORRT Clusters pdfs) and the JUST-OS PDFs
-(docs/indexed_documents.csv).
+(DOIs only; cached in data/curation/unpaywall_oa.json; OpenAlex's keyless daily budget is shared per IP and ran out); in_index and pdf_on_disk by DOI, else title, else link, against the bot's index
+(VECTOR_STORE), the cluster PDFs (data/interim/cluster_pdf_metadata.csv, and file names in data/FORRT Clusters
+pdfs) and the JUST-OS PDFs (docs/indexed_documents.csv). in_index_as: full text, abstract card or web page (a page
+of a `./run curate` web run). last_try: the newest `./run curate` outcome for the resource (data/curation/*/report.csv).
 
 Output: data/curation/forrt_article_list.csv (all resources) and data/curation/forrt_article_list.xlsx, 7 sheets:
-All resources, With DOI, Without DOI, Books, Websites, In index not in lists, Need a PDF.
+All resources, With DOI, Without DOI, Books, Websites, In index not in lists, Need a PDF; and
+data/curation/forrt_need_pdf.csv: the "Need a PDF" rows in the columns `./run curate --csv` reads, with the last try,
+to share with someone who has better access to the PDFs. The dev app's /articles page shows the CSV.
 """
 
 import csv
@@ -40,7 +43,8 @@ from just_os.references import normalize_doi
 BASE = Path("data/FORRT Clusters")
 PDF_DIR = Path("data/FORRT Clusters pdfs")
 OUT = Path("data/curation/forrt_article_list")
-INDEX = Path("data/processed/vs_latest_bge-m3/docstore.json")  # the papers (the glossary copy adds no articles)
+CURATION = Path("data/curation")
+INDEX_KINDS = ("full text", "web page", "abstract card")  # one resource in the index several ways: the first wins
 SOURCES = {  # list name -> the files that hold it (the first is read)
     "Publications": ["FORRT Clusters - Website Source - Publications.csv",
                      "List/FORRT Clusters - Website Source - Publications.csv",
@@ -61,7 +65,8 @@ DOCUMENT = re.compile(r"paper|article|preprint|editorial|letter|review|report|po
 OSF_VERSION = re.compile(r"(osf\.io/[a-z0-9]+)_v\d+$")
 FIELDS = ["title", "authors", "year", "doi", "url", "category", "type", "clusters", "sub_clusters", "language",
           "licence", "open_access", "oa_status", "oa_url", "in_index", "pdf_on_disk", "pdf_file", "found_in",
-          "times_listed", "lists", "excluded_in_source", "abstract", "summary", "apa_reference"]
+          "times_listed", "lists", "excluded_in_source", "in_index_as", "last_try", "last_try_run", "what_it_means",
+          "abstract", "summary", "apa_reference"]
 
 
 def title_key(title) -> str:
@@ -200,14 +205,42 @@ def open_access(dois, cache=Path("data/curation/unpaywall_oa.json")):
     return {d: tuple(v) for d, v in known.items()}
 
 
+def index_kind(m, web_links) -> str:
+    """How a document is in the index: its FORRT abstract card, a web page (curate web run), else full text."""
+    if str(m.get("material_type", "")).startswith("FORRT abstract card"):
+        return "abstract card"
+    return "web page" if url_key(m.get("link_to_resource")) in web_links else "full text"
+
+
+def last_tries():
+    """key (DOI, link or title) -> (outcome, run folder, what it means) of the newest `./run curate` report."""
+    out = {}
+    for report in sorted(CURATION.glob("*/report.csv")):  # folder names start with YYMMDD: oldest first
+        for r in csv.DictReader(open(report, encoding="utf-8")):
+            for key in (normalize_doi(r.get("doi")), url_key(r.get("link_to_resource")), title_key(r.get("title"))):
+                if key:
+                    out[key] = (r["outcome"], report.parent.name, r.get("what_it_means", ""))
+    return out
+
+
 def have():
-    """Index documents (by DOI and title) and PDFs on disk (by DOI, title and file name)."""
-    nodes = json.loads(INDEX.read_text(encoding="utf-8"))["docstore/data"]
-    index = {}
+    """Index documents (by DOI, title and link, with how they are indexed) and PDFs on disk (by DOI, title, file)."""
+    from config import settings
+
+    web_links = {url_key(r["link_to_resource"]) for m in CURATION.glob("*/metadata.csv")
+                 for r in csv.DictReader(open(m, encoding="utf-8")) if not r.get("doi")}
+    nodes = json.loads((Path(settings.VECTOR_STORE) / "docstore.json").read_text(encoding="utf-8"))["docstore/data"]
+    index, kinds = {}, {}
     for v in nodes.values():
         m = {k: (next(iter(x.values()), "") if isinstance(x, dict) else x) for k, x in v["__data__"]["metadata"].items()}
+        if m.get("material_type") == "FORRT Glossary":
+            continue
         key = normalize_doi(m.get("doi")) or normalize_doi(m.get("link_to_resource")) or title_key(m.get("title"))
         index.setdefault(key, m)
+        kind = index_kind(m, web_links)
+        for k in (key, url_key(m.get("link_to_resource"))):
+            if k and (k not in kinds or INDEX_KINDS.index(kind) < INDEX_KINDS.index(kinds[k])):
+                kinds[k] = kind
     index_titles = {title_key(m.get("title")): k for k, m in index.items() if len(title_key(m.get("title"))) >= 20}
     pdfs = {}
     for r in csv.DictReader(open("data/interim/cluster_pdf_metadata.csv", encoding="utf-8")):
@@ -220,17 +253,21 @@ def have():
                 if k:
                     pdfs.setdefault(k, r["pdf_path"])
     files = {f.lower(): os.path.join(d, f) for d, _, fs in os.walk(PDF_DIR) for f in fs}
-    return index, index_titles, pdfs, files
+    return index, index_titles, kinds, pdfs, files
 
 
 def build():
     items = merge(records())
-    index, index_titles, pdfs, files = have()
+    index, index_titles, kinds, pdfs, files = have()
+    tries = last_tries()
     oa = open_access({i["doi"] for i in items.values() if i.get("doi")})
     listed, rows = set(), []
     for it in items.values():
         doi, tk = it.get("doi", ""), title_key(it.get("title"))
-        in_index = doi in index or tk in index_titles
+        uk = url_key(it.get("url"))
+        in_index = doi in index or tk in index_titles or uk in kinds
+        kind = kinds.get(doi) or kinds.get(index_titles.get(tk)) or kinds.get(uk) or ("full text" if in_index else "")
+        tried = tries.get(doi) or tries.get(uk) or tries.get(tk) or ("", "", "")
         listed.update({doi or tk, index_titles.get(tk)})
         pdf = pdfs.get(doi) or pdfs.get(tk) or files.get(str(it.get("pdf_file", "")).lower(), "")
         is_oa, status, oa_url, oa_licence, year = oa.get(doi, (None, "", "", "", ""))
@@ -249,7 +286,8 @@ def build():
             "found_in": "; ".join(f"{src} (row{'s' if len(n) > 1 else ''} {', '.join(map(str, n))})"
                                   for src, n in it["found"].items()),
             "times_listed": sum(len(n) for n in it["found"].values()), "lists": len(it["found"]),
-            "excluded_in_source": "yes" if it.get("excluded") else "", "abstract": it.get("abstract", ""),
+            "excluded_in_source": "yes" if it.get("excluded") else "", "in_index_as": kind,
+            "last_try": tried[0], "last_try_run": tried[1], "what_it_means": tried[2], "abstract": it.get("abstract", ""),
             "summary": it.get("summary", ""), "apa_reference": it.get("apa_reference", "")})
     df = pd.DataFrame(rows, columns=FIELDS).sort_values(["category", "title"], key=lambda s: s.str.lower())
     extra = pd.DataFrame([{"title": m.get("title", ""), "authors": m.get("creators", ""),
@@ -257,7 +295,8 @@ def build():
                            "type": m.get("material_type", ""), "licence": m.get("licence") or m.get("conditions_of_use", ""),
                            "oa_status": m.get("oa_status", ""), "clusters": m.get("FORRT_clusters", "")}
                           for k, m in index.items() if k not in listed]).sort_values("title", key=lambda s: s.str.lower())
-    need = df[(df.in_index == "no") & (df.pdf_on_disk == "no") & df.category.isin(["Article", "Book"])
+    # an article or book with no full text yet: missing, or only its abstract card in the index
+    need = df[df.in_index_as.isin(["", "abstract card"]) & (df.pdf_on_disk == "no") & df.category.isin(["Article", "Book"])
               & (df.excluded_in_source != "yes")]
     return {"All resources": df, "With DOI": df[df.doi != ""], "Without DOI": df[df.doi == ""],
             "Books": df[df.category == "Book"], "Websites": df[df.category == "Website / web resource"],
@@ -267,6 +306,10 @@ def build():
 def save(sheets):
     OUT.parent.mkdir(parents=True, exist_ok=True)
     sheets["All resources"].to_csv(OUT.with_suffix(".csv"), index=False, encoding="utf-8-sig")
+    need = sheets["Need a PDF"].rename(columns={"url": "link_to_resource", "authors": "creators",
+                                                "licence": "conditions_of_use", "type": "material_type"})
+    need[["title", "doi", "link_to_resource", "creators", "conditions_of_use", "material_type", "year", "oa_url",
+          "last_try", "what_it_means", "clusters"]].to_csv(CURATION / "forrt_need_pdf.csv", index=False, encoding="utf-8-sig")
     with pd.ExcelWriter(OUT.with_suffix(".xlsx"), engine="openpyxl") as xl:
         for name, frame in sheets.items():
             frame.to_excel(xl, sheet_name=name, index=False)

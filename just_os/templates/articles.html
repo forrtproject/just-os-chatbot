@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JUST-OS FORRT Article List</title>
+    <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+    <style>
+        #articles-page { max-width: 1400px; margin: 0 auto; padding: 0 16px 32px; font-family: "Helvetica", sans-serif; color: #313131; }
+        #articles-page h1 { color: #004055; font-size: 2rem; margin: 16px 0 8px; }
+        #articles-page h2 { color: #004055; font-size: 1.2rem; margin: 24px 0 8px; }
+        #articles-page p { font-size: 0.95rem; line-height: 1.55; max-width: 95ch; }
+        .art-cards { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
+        .art-card { background: white; border: 1px solid #e1e4e8; border-radius: 4px; padding: 10px 14px; min-width: 150px; }
+        .art-card b { display: block; font-size: 1.6rem; color: #004055; font-variant-numeric: tabular-nums; }
+        .art-card span { font-size: 0.85rem; }
+        .art-small { border-collapse: collapse; font-size: 0.9rem; background: white; }
+        .art-small th, .art-small td { border: 1px solid #e1e4e8; padding: 4px 10px; text-align: right; font-variant-numeric: tabular-nums; }
+        .art-small th:first-child, .art-small td:first-child { text-align: left; }
+        .art-small button { background: none; border: 0; color: #004055; text-decoration: underline; cursor: pointer; font: inherit; padding: 0; }
+        .art-grid { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+        #art-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0 8px; position: sticky; top: 0; background: #fefdf6; padding: 8px 0; z-index: 1; }
+        #art-filters input, #art-filters select { font: inherit; font-size: 0.9rem; padding: 4px 6px; border: 1px solid #c8cdd2; border-radius: 4px; }
+        #art-search { min-width: 280px; }
+        #art-count { font-size: 0.9rem; margin-left: auto; }
+        #art-table { border-collapse: collapse; width: 100%; font-size: 0.85rem; background: white; }
+        #art-table th { background: #004055; color: white; text-align: left; padding: 6px 8px; cursor: pointer; white-space: nowrap; }
+        #art-table th[aria-sort="ascending"]::after { content: " ▲"; }
+        #art-table th[aria-sort="descending"]::after { content: " ▼"; }
+        #art-table td { border-bottom: 1px solid #e1e4e8; padding: 5px 8px; vertical-align: top; }
+        #art-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+        .art-status { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 0.8rem; white-space: nowrap; }
+        .st-full-text { background: #d9efe2; } .st-web-page { background: #dbe9f6; }
+        .st-abstract-card { background: #f6ecd2; } .st-missing { background: #f6d9d9; }
+        .art-why { color: #5a6270; font-size: 0.8rem; }
+    </style>
+</head>
+
+<body>
+    <div id="header-bar">
+        <img src='/images/qualle.png' id="header-logo" alt="JUST-OS">
+    </div>
+    {% include "_nav.html" %}
+    <main id="articles-page">
+        <h1>FORRT article list</h1>
+        <p>Every resource FORRT wants in the bot, merged from all FORRT lists (Publications, FORRT DB 2.0, clusters_panos,
+            ORxD, JUSTOS-URL-Org), and whether the bot's index has it: as <b>full text</b> (a PDF converted by GROBID),
+            a <b>web page</b> (its main text), an <b>abstract card</b> (title, FORRT summary and abstract only), or
+            <b>missing</b>. For a missing one, <i>last try</i> says what happened when <code>./run curate</code> last
+            looked for it. Built {{ built }} by <code>python -m scripts.forrt_article_list</code>
+            (<code>data/curation/forrt_article_list.csv</code> and <code>.xlsx</code>; the rows to find PDFs for are in
+            <code>data/curation/forrt_need_pdf.csv</code>). <a href="/articles.csv">Download the whole list (CSV)</a>.</p>
+
+        <div class="art-cards">
+            <div class="art-card"><b>{{ "{:,}".format(summary.wanted) }}</b><span>resources FORRT wants{% if summary.excluded %} ({{ summary.excluded }} more excluded in FORRT's sheet){% endif %}</span></div>
+            <div class="art-card"><b>{{ "{:,}".format(summary.in_index) }}</b><span>in the index ({{ "%.0f"|format(100 * summary.in_index / (summary.wanted or 1)) }}%)</span></div>
+            {% for s in ["full text", "web page", "abstract card"] %}
+            <div class="art-card"><b>{{ "{:,}".format(summary.by_status.get(s, 0)) }}</b><span>as {{ s }}</span></div>
+            {% endfor %}
+            <div class="art-card"><b>{{ "{:,}".format(summary.missing) }}</b><span>missing ({{ summary.missing_web }} of them web resources)</span></div>
+        </div>
+
+        <div class="art-grid">
+            <div>
+                <h2>By kind of resource</h2>
+                <table class="art-small">
+                    <tr><th>Category</th><th>Full text</th><th>Web page</th><th>Abstract card</th><th>Missing</th><th>All</th></tr>
+                    {% for category, n in summary.by_category.items() %}
+                    <tr><td><button type="button" data-filter="category" data-value="{{ category }}">{{ category }}</button></td>
+                        {% for s in ["full text", "web page", "abstract card", "missing"] %}<td>{{ n.get(s, 0) }}</td>{% endfor %}
+                        <td>{{ n.values()|sum }}</td></tr>
+                    {% endfor %}
+                </table>
+            </div>
+            <div>
+                <h2>Why the missing ones are missing</h2>
+                <table class="art-small">
+                    <tr><th>Last try</th><th>Missing</th></tr>
+                    {% for outcome, n in summary.missing_by_try.items() %}
+                    <tr><td><button type="button" data-filter="try" data-value="{{ outcome }}">{{ outcome }}</button></td><td>{{ n }}</td></tr>
+                    {% endfor %}
+                </table>
+            </div>
+        </div>
+
+        <h2>All resources</h2>
+        <div id="art-filters">
+            <input id="art-search" type="search" placeholder="Search title, authors, DOI, link…" aria-label="Search">
+            <select id="art-category" aria-label="Category"><option value="">Every category</option></select>
+            <select id="art-status" aria-label="In the index">
+                <option value="">In the index or not</option><option>full text</option><option>web page</option>
+                <option>abstract card</option><option>missing</option>
+            </select>
+            <select id="art-try" aria-label="Last try"><option value="">Any last try</option></select>
+            <select id="art-cluster" aria-label="Cluster"><option value="">Every cluster</option></select>
+            <label><input id="art-excluded" type="checkbox"> show rows FORRT excluded</label>
+            <button type="button" id="art-reset">Reset</button>
+            <span id="art-count" aria-live="polite"></span>
+        </div>
+        <table id="art-table">
+            <thead><tr>
+                <th data-key="title">Title</th><th data-key="authors">Authors</th><th data-key="year">Year</th>
+                <th data-key="category">Category</th><th data-key="clusters">Clusters</th>
+                <th data-key="status">In the index</th><th data-key="try">Last try</th>
+                <th data-key="open_access">Open access</th><th data-key="lists" title="In how many FORRT lists">Lists</th>
+            </tr></thead>
+            <tbody></tbody>
+        </table>
+    </main>
+    <script>
+        const ROWS = {{ rows|tojson }};
+        ROWS.forEach(r => {
+            r.status = r.in_index_as || (r.in_index === "yes" ? "full text" : "missing");
+            r.try = r.status === "missing" ? (r.last_try || "not tried yet") : r.last_try;
+            r.haystack = [r.title, r.authors, r.doi, r.url, r.sub_clusters].join(" ").toLowerCase();
+        });
+        const $ = id => document.getElementById(id);
+        const esc = s => String(s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+        const safeUrl = u => /^https?:\/\//i.test(u) ? u : (u && /^10\.\d+\//.test(u) ? "https://doi.org/" + u : "");
+        function fill(select, values) {
+            [...new Set(values)].filter(Boolean).sort().forEach(v => select.add(new Option(v, v)));
+        }
+        fill($("art-category"), ROWS.map(r => r.category));
+        fill($("art-try"), ROWS.map(r => r.try));
+        fill($("art-cluster"), ROWS.flatMap(r => r.clusters.split(";").map(c => c.trim())));
+
+        let sortKey = "title", sortDir = 1;
+        function render() {
+            const q = $("art-search").value.trim().toLowerCase(), cat = $("art-category").value,
+                  st = $("art-status").value, tr = $("art-try").value, cl = $("art-cluster").value,
+                  excluded = $("art-excluded").checked;
+            const shown = ROWS.filter(r => (excluded || r.excluded_in_source !== "yes") && (!q || r.haystack.includes(q))
+                && (!cat || r.category === cat) && (!st || r.status === st) && (!tr || r.try === tr)
+                && (!cl || r.clusters.split(";").some(c => c.trim() === cl)));
+            const num = sortKey === "year" || sortKey === "lists";
+            shown.sort((a, b) => {
+                const x = a[sortKey] || "", y = b[sortKey] || "";
+                return sortDir * (num ? (parseFloat(x) || 0) - (parseFloat(y) || 0)
+                                      : String(x).localeCompare(String(y), undefined, {sensitivity: "base"}));
+            });
+            $("art-count").textContent = `${shown.length.toLocaleString()} of ${ROWS.length.toLocaleString()} resources`;
+            $("art-table").tBodies[0].innerHTML = shown.map(r => {
+                const link = safeUrl(r.url) || safeUrl(r.doi);
+                const title = link ? `<a href="${esc(link)}" target="_blank" rel="noopener">${esc(r.title || r.url)}</a>` : esc(r.title);
+                const why = r.status === "missing" && r.what_it_means ? `<div class="art-why">${esc(r.what_it_means)}</div>` : "";
+                return `<tr><td>${title}${r.doi ? `<div class="art-why">${esc(r.doi)}</div>` : ""}</td>
+                    <td>${esc(r.authors.length > 80 ? r.authors.slice(0, 80) + "…" : r.authors)}</td><td class="num">${esc(r.year)}</td>
+                    <td>${esc(r.category)}<div class="art-why">${esc(r.type)}</div></td><td>${esc(r.clusters)}</td>
+                    <td><span class="art-status st-${r.status.replace(" ", "-")}">${esc(r.status)}</span></td>
+                    <td>${esc(r.try || "")}${why}</td><td>${esc(r.open_access)}</td><td class="num">${esc(r.lists)}</td></tr>`;
+            }).join("");
+            document.querySelectorAll("#art-table th").forEach(th =>
+                th.setAttribute("aria-sort", th.dataset.key === sortKey ? (sortDir > 0 ? "ascending" : "descending") : "none"));
+        }
+        document.querySelectorAll("#art-table th").forEach(th => th.addEventListener("click", () => {
+            sortDir = th.dataset.key === sortKey ? -sortDir : 1;
+            sortKey = th.dataset.key;
+            render();
+        }));
+        ["art-search", "art-category", "art-status", "art-try", "art-cluster", "art-excluded"].forEach(id =>
+            $(id).addEventListener("input", render));
+        $("art-reset").addEventListener("click", () => {
+            ["art-search", "art-category", "art-status", "art-try", "art-cluster"].forEach(id => $(id).value = "");
+            $("art-excluded").checked = false;
+            render();
+        });
+        document.querySelectorAll("button[data-filter]").forEach(b => b.addEventListener("click", () => {
+            $("art-reset").click();
+            if (b.dataset.filter === "category") $("art-category").value = b.dataset.value;
+            else { $("art-status").value = "missing"; $("art-try").value = b.dataset.value; }
+            render();
+            $("art-filters").scrollIntoView({behavior: "smooth"});
+        }));
+        render();
+    </script>
+</body>
+
+</html>

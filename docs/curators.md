@@ -21,7 +21,7 @@ The bot answers open-science questions from an index of papers and web pages. Ne
    ```
    ./run curate --csv new_rows.csv
    ```
-   Use `./run curate --recommendations` for what people sent on `/recommend`. Leave out `--csv new_rows.csv` to use the FORRT sheets. Add `--limit 10` for a first try, or `--no-index` to only download and convert.
+   Use `./run curate --recommendations` for what people sent on `/recommend`. Leave out `--csv new_rows.csv` to use the FORRT sheets. Add `--limit 10` for a first try, or `--no-index` to only download and convert. A second run on the same day needs its own folder (`--work data/curation/<name>`), else it overwrites that day's report. A resource the bot has only as an abstract card is looked for again, and its full text is added next to the card.
 3. **Read the report**: `data/curation/<YYMMDD>/report.csv` (opens in Excel). One row per resource, with an `outcome` and what it means:
 
    | outcome | What it means | What to do |

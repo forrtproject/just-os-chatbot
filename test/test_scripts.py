@@ -436,3 +436,31 @@ def test_citation_check_pairs_and_table():
     assert bad == 2
     by_t = {t: (n, right) for t, n, right, _, _ in rows}
     assert by_t[0.01] == (1, 1) and by_t[0.05] == (2, 1) and by_t[0.5] == (3, 2)
+
+
+def test_article_list_says_how_a_resource_is_indexed_and_its_last_try(tmp_path, monkeypatch):
+    from scripts import forrt_article_list as fal
+
+    web = {fal.url_key("https://example.org/page/")}
+    assert fal.index_kind({"material_type": "FORRT abstract card: Reading"}, web) == "abstract card"
+    assert fal.index_kind({"link_to_resource": "http://www.example.org/page"}, web) == "web page"
+    assert fal.index_kind({"doi": "10.1234/x"}, web) == "full text"
+
+    for day, outcome in (("261125", "pdf_download_failed"), ("261126_need_pdf_retry", "converted")):
+        (tmp_path / day).mkdir()
+        (tmp_path / day / "report.csv").write_text(
+            f"title,doi,link_to_resource,outcome,what_it_means\nA paper,10.1234/x,,{outcome},why\n", encoding="utf-8")
+    monkeypatch.setattr(fal, "CURATION", tmp_path)
+    assert fal.last_tries()["10.1234/x"] == ("converted", "261126_need_pdf_retry", "why")  # the newest run wins
+
+
+def test_a_full_text_can_join_its_abstract_card():
+    from types import SimpleNamespace
+    from scripts import add_to_index
+
+    node = lambda **m: SimpleNamespace(metadata=m)  # noqa: E731
+    index = SimpleNamespace(docstore=SimpleNamespace(docs={
+        "a": node(doi="10.1234/paper", material_type="Reading"),
+        "b": node(doi="10.1234/carded", material_type="FORRT abstract card: Reading")}))
+    keys = add_to_index.indexed_keys(index)
+    assert any("paper" in k for k in keys) and not any("carded" in k for k in keys)

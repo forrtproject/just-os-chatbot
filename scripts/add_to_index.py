@@ -19,6 +19,7 @@ from llama_index.vector_stores.faiss import FaissVectorStore
 
 from config import settings as justos_settings
 from just_os.references import document_key, plain_metadata
+from scripts.build_abstract_cards import CARD_TYPE
 from scripts.embed import cleanup_markdown, unique_metadata
 
 
@@ -29,7 +30,11 @@ def load_index(index_dir: str, embed_model):
 
 
 def indexed_keys(index) -> set:
-    return {document_key(plain_metadata(node.metadata)) for node in index.docstore.docs.values()}
+    """document_key of every document in the index except abstract cards, so a full text can join its card.
+    shortcut: the card stays in the index (FAISS here cannot delete vectors; the per-paper cap counts both as one
+    paper); drop cards when the index is next built from scratch."""
+    return {document_key(meta) for node in index.docstore.docs.values()
+            if not str((meta := plain_metadata(node.metadata)).get("material_type", "")).startswith(CARD_TYPE)}
 
 
 def new_documents(markdown_dir: Path, metadata: pd.DataFrame, known: set) -> list:

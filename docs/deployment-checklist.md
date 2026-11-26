@@ -73,7 +73,7 @@ Left out: Muse Glimmer 30B (1 error, and p95 35 s), DeepSeek V4 Flash and Qwen 3
 | Part | Memory | CPU per question |
 |---|---|---|
 | bge-m3 on CPU (float32) | ~2.3 GB | one forward pass of the question: ~65 ms (eval/compare_embeddings.py, 3.19); up to `OMP_NUM_THREADS` cores |
-| Paper index + FORRT glossary (`vs_latest_bge-m3_glossary`): 166,393 vectors of 1,024 dims (~650 MB) + chunk text (~750 MB), with the 26 Nov full texts, abstract cards and web pages | ~1.4 GB | FAISS search over all vectors: ~0.1 s |
+| Paper index + FORRT glossary (`vs_latest_bge-m3_glossary`): 166,449 vectors of 1,024 dims (~650 MB) + chunk text (~750 MB), with the 26 Nov full texts, abstract cards and web pages | ~1.4 GB | FAISS search over all vectors: ~0.1 s |
 | FORRT page index (`vector_data/forrt_pages`) | 1 MB | negligible |
 | Python, Flask, gunicorn threads | ~0.5 GB | |
 
@@ -166,7 +166,8 @@ Counted on 25 November against `data/processed/vs_latest_bge-m3`:
 - [x] **Downloaded (25–26 Nov):** `./run curate --csv data/curation/forrt_need_pdf.csv --no-index` on the 573 articles and books of the article list's "Need a PDF" sheet: 141 converted, 138 without an open copy, 190 downloads failed, 83 web pages failed or too short, 14 wrong document, 4 already indexed (`data/curation/261125/report.csv`). The 141 were added to `vs_latest_bge-m3_glossary` (26 Nov; the index before: `vs_latest_bge-m3_glossary_before_261125_additions`).
 - [x] **Abstract cards** built (25 Nov, `scripts/build_abstract_cards.py`): 908 resources not in the index whose FORRT summary + abstract has ≥100 characters (525 web resources, 314 articles, 69 books) → `data/processed/abstract_cards/`. Added to the index after the downloads, so full texts win: 818 cards added on 26 Nov (the other 90 had a document already). Decided: all of them, quotes hidden unless openly licensed. The other ~940 (mostly ORxD and JUSTOS rows) have only a title and a link: they need their page fetched (#18).
 - [x] Websites (#18, 26 Nov): 737 FORRT web resources fetched, 318 with enough running text indexed (`data/curation/261126/`; 316 too short, 88 failed, 102 menu and landing pages dropped by the new 200-word rule). Backup: `vs_latest_bge-m3_glossary_before_261126_web`.
-- [ ] Later, full text for the 66 with an open-access link (`./run curate --csv <rows>`: DOI → Unpaywall PDF → GROBID → index, [curators.md](curators.md)), replacing their cards.
+- [x] Retried (26 Nov) every "Need a PDF" row that had no full text, including those with only an abstract card (curate and `add_to_index` used to count a card as indexed): 1 more full text of 428 (QuOCCA, added). The rest: 179 downloads failed, 148 without an open copy, 72 web pages failed, 14 wrong document, 11 web pages too short, 3 not converted (`data/curation/261126_need_pdf_retry/report.csv`).
+- [ ] **Someone with library access:** the 427 articles and books still without a full text are in `data/curation/forrt_need_pdf.csv` (and the "Need a PDF" sheet of `forrt_article_list.xlsx`), with the last try and its reason. PDFs they find go through `./run curate --csv` like any other rows.
 - [x] Re-run hit@7 (26 Nov, evaluation.md 3.26): 0.694 → 0.648 on the larger index, mostly new documents taking slots from expected DOIs picked on the old index; with the cluster boost (task 12) 0.704. Correct 0.871, judge 0.812.
 
 Other files in `data/FORRT Clusters/`: `Clusters.csv` (13) and `Sub-Clusters.csv` (95) hold the explanation of each cluster and sub-cluster (useful as chunk metadata and topic-map labels; the `annotations` column is editors' notes); `Publications.csv` also has `Focus`, `Specificity`, `Summary`, `Language`, `License`; `Website Source.xlsx` is the same three tables plus a `tags` sheet of allowed values.

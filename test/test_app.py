@@ -422,3 +422,35 @@ def test_recommend_saves_each_doi_or_link_and_rejects_the_rest(app, tmp_path):
     assert client.post("/recommend/save", json={"items": "\n".join(["10.1/a"] * 21)}).status_code == 400
     app.config["PROD_MODE"] = True
     assert client.get("/recommend").status_code == 404  # a team page
+
+
+def test_articles_page_counts_the_list_and_why_resources_are_missing(app, tmp_path):
+    import csv
+    from just_os import article_list
+
+    path = tmp_path / "forrt_article_list.csv"
+    rows = [{"title": "Indexed paper", "category": "Article", "in_index": "yes", "in_index_as": "full text"},
+            {"title": "A card", "category": "Article", "in_index": "yes", "in_index_as": "abstract card"},
+            {"title": "<script>x</script>", "category": "Website / web resource", "in_index": "no",
+             "last_try": "web_page_too_short"},
+            {"title": "Closed paper", "category": "Article", "in_index": "no", "last_try": "no_open_access_pdf"},
+            {"title": "Excluded", "category": "Article", "in_index": "no", "excluded_in_source": "yes"}]
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=article_list.COLUMNS)
+        writer.writeheader()
+        writer.writerows(rows)
+    s = article_list.summary(article_list.load(str(path)))
+    assert (s["wanted"], s["in_index"], s["missing"], s["missing_web"], s["excluded"]) == (4, 2, 2, 1, 1)
+    assert s["by_category"]["Article"] == {"full text": 1, "abstract card": 1, "missing": 1}
+    assert s["missing_by_try"] == {"web_page_too_short": 1, "no_open_access_pdf": 1}
+
+    app.config["CLUSTERS_FILE"] = str(path)
+    client = app.app.test_client()
+    html = client.get("/articles").get_data(as_text=True)
+    assert "Articles</a>" in html and "no_open_access_pdf" in html
+    assert "<script>x</script>" not in html  # the rows go to the page as escaped JSON
+    assert client.get("/articles.csv").status_code == 200
+    app.config["CLUSTERS_FILE"] = str(tmp_path / "missing.csv")
+    assert client.get("/articles").status_code == 404
+    app.config["PROD_MODE"] = True
+    assert client.get("/articles.csv").status_code == 404
