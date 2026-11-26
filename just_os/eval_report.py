@@ -405,9 +405,23 @@ def apply_auto_defaults(config: Dict, routers: Iterable[str]) -> Dict[str, str]:
     The one place both the app and the preloaded RAG service (config/gunicorn.py) take them from."""
     if not config.get("AUTO_DEFAULTS"):
         return {}
-    chosen = best_defaults(config.get("EVAL_RESULTS_DIR", "eval/results"), routers)
+    folder = config.get("EVAL_RESULTS_DIR", "eval/results")
+    chosen = best_defaults(folder, routers)
+    top = top_answer_models(folder)
+    if top:  # the chat and arena model lists follow the eval too, instead of the fixed ARENA_MODELS
+        chosen["ARENA_MODELS"] = ",".join(top)
     config.update(chosen)
     return chosen
+
+
+TOP_ANSWER_MODELS = 10
+
+
+def top_answer_models(folder: str, n: int = TOP_ANSWER_MODELS) -> List[str]:
+    """The n best-scored answer models on today's setting (the /eval table's order), without provider pins
+    such as "@groq", which the chat client does not understand."""
+    rows = answer_model_rows(answer_runs(folder))[0]
+    return list(dict.fromkeys(r["answer_model"].split("@")[0] for r in rows if r.get("score") is not None))[:n]
 
 
 def best_defaults(folder: str, routers: Iterable[str]) -> Dict[str, str]:

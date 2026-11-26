@@ -278,3 +278,19 @@ def test_auto_defaults_reach_every_config_that_asks(tmp_path, monkeypatch):
     on = {"AUTO_DEFAULTS": True, "CITATION_MODEL": "old", "EVAL_RESULTS_DIR": str(tmp_path)}
     assert eval_report.apply_auto_defaults(on, ["banded"]) == {"CITATION_MODEL": "new", "ROUTER": "banded"}
     assert on["CITATION_MODEL"] == "new"  # in place: the preloaded RAG service (config/gunicorn.py) gets it too
+
+
+def test_chat_and_arena_offer_the_top_answer_models_of_the_eval(tmp_path, monkeypatch):
+    def run(name, judge, rubric):
+        write(tmp_path / f"run_261120-0100_{name}__route-open_science.csv",
+              [{**run_row(str(i), "answer", "answered", 3), "judge_support": judge, "rubric_coverage": rubric} for i in range(2)])
+    run("a__good", 0.8, 0.8)
+    run("b__ok@groq", 0.7, 0.7)   # provider pin dropped
+    run("b__ok", 0.6, 0.6)        # the same model again: listed once
+    run("c__unscored", 0.9, "")   # no rubric score: not listed
+    monkeypatch.setattr(eval_report, "TOP_ANSWER_MODELS", 10)
+    assert eval_report.top_answer_models(str(tmp_path)) == ["a/good", "b/ok"]
+    assert eval_report.top_answer_models(str(tmp_path), n=1) == ["a/good"]
+    config = {"AUTO_DEFAULTS": True, "EVAL_RESULTS_DIR": str(tmp_path), "ARENA_MODELS": "x/fixed"}
+    eval_report.apply_auto_defaults(config, [""])
+    assert config["ARENA_MODELS"] == "a/good,b/ok"
