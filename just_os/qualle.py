@@ -191,9 +191,13 @@ LANGUAGE_RULE = (
     "Always answer in the language of the question, even though the sources are in English. "
     "In every language, cite only with the source number in square brackets, for example [0], "
     "never with author names and years. "
-    "Keep these terms in English in every language: " + ", ".join(GLOSSARY_TERMS) + ". "
-    "In a non-English answer, add the usual local word in brackets after the first use of "
-    "such a term, if the language has one."
+    "Keep these terms in English in every language: " + ", ".join(GLOSSARY_TERMS) + "."
+)
+# Only for a question detected as non-English: Gemma 4 31B applied it to English answers too (Korean words in
+# brackets in 8 of 36 English answers, 26 Nov)
+LOCAL_WORD_RULE = (
+    "In your answer, add the usual local word in brackets after the first use of such a term, "
+    "if the language has one."
 )
 SHORT_PROMPT_TEMPLATE = (
     "Sources:\n{context_items}\n\nQuestion: {query}\n\n"
@@ -625,8 +629,10 @@ class ResponseGenerator:
 
     def _messages(self, query: str, context: str, history: Optional[List[Dict[str, str]]]) -> List[Dict[str, str]]:
         prompt = self.prompt_template.format(context_items=context, query=query)
+        lang = checks.question_language(query)
+        system = self.system_prompt + (" " + LOCAL_WORD_RULE if lang and lang != "en" else "")
         return [
-            {"role": "system", "content": self.system_prompt},
+            {"role": "system", "content": system},
             # CONTEXT_METHOD=history: the earlier turns of the chat
             *[{"role": m["role"], "content": m["content"]} for m in history or []],
             {"role": "user", "content": prompt},

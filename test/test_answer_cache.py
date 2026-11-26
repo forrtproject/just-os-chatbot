@@ -84,6 +84,16 @@ def test_short_prompt_style():
     assert "Question: question" in messages[1]["content"]
 
 
+def test_local_words_in_brackets_only_for_non_english_questions():
+    client = FakeClient(completion(content="x"), completion(content="x"))
+    generator = qualle.ResponseGenerator(client, {**CONFIG, "PROMPT_STYLE": "short"}, None)
+    generator.generate_response("Why did Simmons, Nelson and Simonsohn kick off the crisis in psychology?", "[0] T")
+    generator.generate_response("Was ist eine Präregistrierung und warum ist sie in der Psychologie wichtig?", "[0] T")
+    english, german = (call["messages"][0]["content"] for call in client.calls)
+    assert qualle.LOCAL_WORD_RULE not in english
+    assert german.endswith(qualle.LOCAL_WORD_RULE)
+
+
 def test_openscholar_prompt_is_default():
     generator = qualle.ResponseGenerator(FakeClient(), CONFIG, None)
     assert not generator.system_prompt.startswith(qualle.SHORT_SYSTEM_PROMPT)
