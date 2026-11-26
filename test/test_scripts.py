@@ -369,3 +369,33 @@ def test_forrt_article_list_merges_one_resource_across_lists_and_sorts_its_kind(
     assert fal.category({"type": "Reading", "url": "https://www.linkedin.com/pulse/x"}) == "Website / web resource"
     assert fal.category({"type": "Reading", "url": "https://x.org/paper.pdf"}) == "Article"
     assert fal.category({"type": "Textbook"}) == "Book"
+
+
+def test_abstract_cards_only_for_resources_without_text_in_the_index():
+    import pandas as pd
+    from scripts import build_abstract_cards as bac
+
+    base = dict(authors="A. Author", year="2020", doi="", url="https://x.org", type="Paper", category="Article",
+                clusters="C", sub_clusters="S", licence="", excluded_in_source="", in_index="no", title="T")
+    table = pd.DataFrame([{**base, "title": "Indexed", "in_index": "yes", "summary": "s" * 200, "abstract": ""},
+                          {**base, "title": "Excluded", "excluded_in_source": "yes", "summary": "s" * 200, "abstract": ""},
+                          {**base, "title": "Title only", "summary": "", "abstract": ""},
+                          {**base, "title": "Paywalled paper", "summary": "", "abstract": "a" * 150}])
+    rows = bac.cards(table)
+    assert rows.title.tolist() == ["Paywalled paper"]
+    text = bac.card(next(rows.itertuples()))
+    assert text.startswith("# Paywalled paper") and "A. Author (2020)" in text and "Abstract: aaa" in text
+
+
+def test_fix_index_titles_retitles_every_chunk_of_a_mistitled_document():
+    from scripts import fix_index_titles
+
+    def chunk(title):
+        return {"__data__": {"metadata": {"title": title, "doi": "", "link_to_resource": "", "creators": "x"}}}
+    nodes = {"a": chunk("Munich Personal RePEc Archive"), "b": chunk("Munich Personal RePEc Archive"), "c": chunk("Fine")}
+    titles = {"Munich Personal RePEc Archive": {"title": "Evaluating replicability of laboratory experiments in economics",
+                                                "doi": "10.1126/science.aaf0918"}}
+    assert fix_index_titles.fix(nodes, titles) == 2 and fix_index_titles.fix(nodes, titles) == 0  # once
+    meta = nodes["a"]["__data__"]["metadata"]
+    assert meta["title"].startswith("Evaluating") and meta["link_to_resource"] == "https://doi.org/10.1126/science.aaf0918"
+    assert nodes["c"]["__data__"]["metadata"]["title"] == "Fine" and meta["creators"] == "x"

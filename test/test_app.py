@@ -138,8 +138,10 @@ def test_proxy_fix_uses_forwarded_ip(monkeypatch):
     assert client_ip(FlaskApp()) == "203.0.113.7"
 
 
-def test_no_proxy_fix_by_default(app):
-    assert client_ip(app) != "203.0.113.7"  # a client cannot fake its IP
+def test_no_proxy_fix_by_default(monkeypatch):
+    # set here, not read from .env: a server behind a proxy sets PROXY_FIX_X_FOR=1 there
+    monkeypatch.setitem(settings.DEFAULT_CONFIG, "PROXY_FIX_X_FOR", 0)
+    assert client_ip(FlaskApp()) != "203.0.113.7"  # a client cannot fake its IP
 
 
 def test_arena_page_keeps_criteria_order(app):

@@ -5,7 +5,8 @@ Only the chunk text is embedded and searched; titles, authors and DOIs are metad
 cite them, not their paper. This lookup runs before the search (REFERENCE_LOOKUP), on the question as typed and on
 its rewrite, and matches:
   1. a DOI in the question;
-  2. a title: at least TITLE_COVERAGE of its content words (titles of at least MIN_TITLE_WORDS) are in the question,
+  2. a title: all of its content words (titles of at least MIN_TITLE_WORDS), or TITLE_COVERAGE of them when the
+     question refers to a work (paper, article, et al., a year, quotes), are in the question,
      or its short title (before the colon, at least two uncommon words) as a phrase ("the False-Positive Psychology
      paper");
   3. authors: the surnames of two of the same paper's authors, or one surname and the paper's publication year (a
@@ -42,6 +43,10 @@ good less fair free well hall bell page center centre university institute psych
 association society foundation conference european american international journal network team project committee
 group department school college science sciences council office forrt training framework teaching education
 reproducible reproducibility replication replicability slack community initiative lab laboratory""".split())
+# function words, left out of titles (COMMON is for author names: "science" or "reproducible" are real title words)
+STOP = set("""the and for with from that this what which when where who why how does are was were has have had about
+into over under after before between their there these those than then them they your you our not but all any can
+its via why""".split())
 # a short title is often a topic term too ("Registered report: a survey ..."): it names a paper only when the question
 # refers to a work (or names one of its authors, or quotes)
 WORK = re.compile(r"\b(paper|papers|article|study|publication|preprint|book|chapter|titled|entitled|et al)\b|[\"“”]",
@@ -71,9 +76,11 @@ def name_words(creators: str) -> set:
 
 
 def short_title(title: str) -> str:
-    """The title before its colon as lower-case words, when that has two or more uncommon words ("" otherwise)."""
+    """The title before its colon as lower-case words, when that has two uncommon or three content words ("" otherwise:
+    "Open Science: a primer" names no paper)."""
     head = WORD.findall(re.split(r"[:?]", title or "", maxsplit=1)[0].lower())
-    return " ".join(head) if len([w for w in head if w not in COMMON]) >= 2 and len(head) <= 8 else ""
+    distinct = len([w for w in head if w not in COMMON]) >= 2 or len([w for w in head if w not in STOP]) >= 3
+    return " ".join(head) if distinct and len(head) <= 8 else ""
 
 
 @dataclass
@@ -97,16 +104,18 @@ def match(question: str, papers: Iterable[Paper]) -> Tuple[List[Paper], str]:
         if hit:
             return hit[:MAX_MATCHES], "DOI"
     asked = words(question)
+    years = set(YEAR.findall(question or ""))
+    cue = bool(WORK.search(question or "")) or bool(years)
     scored = [(len(p.title_words & asked) / len(p.title_words), p) for p in papers
               if len(p.title_words) >= MIN_TITLE_WORDS]
     best = max((s for s, _ in scored), default=0)
-    if best >= TITLE_COVERAGE:
+    # all of a title's words, or most of them in a question that refers to a work: titles of generic words
+    # ("Is it time to share qualitative research data?") would otherwise catch topic questions
+    if best == 1 or (best >= TITLE_COVERAGE and cue):
         hit = [p for s, p in scored if s == best]
         if len(hit) <= MAX_MATCHES:
             return hit, "title"
     phrase = " " + " ".join(WORD.findall((question or "").lower())) + " "
-    years = set(YEAR.findall(question or ""))
-    cue = bool(WORK.search(question or "")) or bool(years)
     hit = [p for p in papers if p.short_title and f" {p.short_title} " in phrase and (cue or p.names & asked)]
     if hit and len(hit) <= MAX_MATCHES:
         return hit, "title"
@@ -131,7 +140,7 @@ class ReferenceLookup:
         self.papers, self._chunks, self._rows, self._faiss, self._embed = papers, chunks, rows, faiss_index, embed_model
 
     @classmethod
-    def from_index(cls, index, embed_model, pub_years_file: Optional[str] = None) -> "ReferenceLookup":
+    def from_index(cls, index, embed_model, pub_years_file: Optional[str] = None, excluded=()) -> "ReferenceLookup":
         years = {}
         if pub_years_file:
             try:
@@ -147,13 +156,15 @@ class ReferenceLookup:
             meta = plain_metadata(node.metadata)
             if meta.get("material_type") == GLOSSARY_TYPE or node_id not in row_of:
                 continue
+            if (normalize_doi(meta.get("doi")) or normalize_doi(meta.get("link_to_resource")) or "") in excluded:
+                continue  # text of another work (config/index_corrections.json)
             key = node.ref_doc_id or node_id
             if key not in papers:
                 doi = normalize_doi(meta.get("doi")) or normalize_doi(meta.get("link_to_resource")) or ""
                 title = str(meta.get("title") or "")
                 creators = str(meta.get("creators") or "")
                 papers[key] = Paper(key, title, doi, str(years.get(doi, "")), names=name_words(creators),
-                                    authors=authors(creators), title_words=words(title) - COMMON,
+                                    authors=authors(creators), title_words=words(title) - STOP,
                                     short_title=short_title(title))
             chunks.setdefault(key, []).append(node)
         rows = {key: [row_of[n.node_id] for n in nodes] for key, nodes in chunks.items()}

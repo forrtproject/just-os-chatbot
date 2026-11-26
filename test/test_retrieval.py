@@ -111,3 +111,10 @@ def test_vector_cosine_from_faiss_l2_distance():
             NodeWithScore(node=TextNode(text="c"), score=0.6)]
     assert vector_cosine(hits) == pytest.approx(0.7)  # best match: squared distance 0.6
     assert vector_cosine(hits[1:2]) is None  # keyword hits only
+
+
+def test_documents_of_another_work_are_never_returned():
+    r = retriever(0)
+    r.excluded = {"10.1503/cjs.016712"}
+    nodes = [chunk("10.1503/cjs.016712"), chunk("10.1234/a")]
+    assert [n.metadata["doi"] for n in r.limit_per_document(nodes)] == ["10.1234/a"]

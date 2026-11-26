@@ -11,7 +11,7 @@ from config.settings import get_config
 from just_os.reference_lookup import ReferenceLookup
 from just_os.chat_manager import ChatManager
 from just_os.hybrid import search_retriever
-from just_os.qualle import Qualle
+from just_os.qualle import Qualle, excluded_documents
 from just_os.voyage import Voyage, is_voyage
 
 logger = logging.getLogger(__name__)
@@ -130,7 +130,8 @@ def create_rag_service(
         index = load_index(config, embed_model)
         retriever = create_retriever(config, embed_model, index)
         # Questions about one specific paper (by DOI, title or authors) are answered from it alone
-        references = (ReferenceLookup.from_index(index, embed_model, config.get("PUB_YEARS_FILE"))
+        references = (ReferenceLookup.from_index(index, embed_model, config.get("PUB_YEARS_FILE"),
+                                                 excluded_documents(config.get("INDEX_CORRECTIONS_FILE")))
                       if config.get("REFERENCE_LOOKUP", True) else None)
 
         # Create and store the Qualle instance

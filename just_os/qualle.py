@@ -50,6 +50,15 @@ logger = logging.getLogger(__name__)
 
 # Constants for metadata keys
 CREATOR_KEY = "creators"
+def excluded_documents(path: Optional[str]) -> set:
+    """The DOIs of config/index_corrections.json's "exclude": documents whose text is another work."""
+    try:
+        with open(path or "", encoding="utf-8") as f:
+            return {d.lower() for d in json.load(f).get("exclude", {})}
+    except (OSError, ValueError):
+        return set()
+
+
 # question language (messages.confident_language) -> language of the FORRT glossary entry to keep
 GLOSSARY_LANGUAGES = {"en": "english", "de": "german", "tr": "turkish", "zh": "chinese", "ar": "arabic"}
 TITLE_KEY = "title"
@@ -64,6 +73,9 @@ REPHRASE_ANSWER_CHARS = 300
 # 3.1 8B pasted the previous answer's findings into it, and the topic check then refused the question): the question
 # as typed is used instead, which the answer model still reads with the chat (CONTEXT_METHOD hybrid)
 REWRITE_MAX_ADDED_WORDS = 15
+# HTTP errors no retry can fix (401 wrong or missing key, 403 no access to the model, 404 no such model, 400 bad
+# request); time-outs, 429 and 5xx are retried (LLM_RETRIES)
+NO_RETRY_STATUS = {400, 401, 403, 404}
 REPHRASE_PROMPT = """Conversation so far (oldest first):
 {conversation}
 
@@ -387,6 +399,7 @@ class DocumentRetriever:
         self.n_context_items = config["MAX_CHUNKS"]
         self.min_relevance = config["MIN_RELEVANCE"]
         self.max_per_doc = config.get("MAX_CHUNKS_PER_DOC", 0)
+        self.excluded = excluded_documents(config.get("INDEX_CORRECTIONS_FILE"))
         self.adaptive_top_k = config.get("ADAPTIVE_TOP_K", False)
         self.adaptive_ratio = config.get("ADAPTIVE_TOP_K_RATIO", 0.5)
         self.adaptive_min = config.get("ADAPTIVE_TOP_K_MIN", 3)
@@ -424,6 +437,9 @@ class DocumentRetriever:
         At most one FORRT glossary entry: the same term in five languages would otherwise fill the slots the
         papers need (scripts/build_glossary.py). It is the best-ranked entry in the question's language, else in
         English (a term such as "HARKing" is spelled alike everywhere, so the best match can be any language)."""
+        excluded = getattr(self, "excluded", ())
+        if excluded:  # documents whose text is another work (config/index_corrections.json)
+            nodes = [n for n in nodes if document_key(plain_metadata(n.metadata)) not in excluded]
         glossary = [n for n in nodes if plain_metadata(n.metadata).get("material_type") == GLOSSARY_TYPE]
         if len(glossary) > 1:
             wanted = GLOSSARY_LANGUAGES.get(msg.confident_language(query) if query else None, "english")
@@ -821,6 +837,8 @@ class OpenAIClientManager:
             except Exception as e:
                 logger.error(f"OpenAI API error ({model}, try {attempt + 1} of {retries + 1}): {str(e)}")
                 response = None
+                if getattr(e, "status_code", None) in NO_RETRY_STATUS:
+                    break  # a wrong key, a missing model or a bad request: the same answer every time
                 continue
             choice = response.choices[0] if response and response.choices else None
             if tools or (choice and (choice.message.content or "").strip()):

@@ -24,6 +24,7 @@ import json
 import shutil
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
 
@@ -32,6 +33,7 @@ import pandas as pd
 from just_os.references import document_key, normalize_doi, plain_metadata
 
 MAX_TRIES = 6  # PDF copies tried per resource (each one may go through GROBID)
+WORKERS = 6  # resources at a time
 OUTCOMES = {
     "already_indexed": "The index already has this DOI or title",
     "no_open_access_pdf": "No open copy found (Unpaywall, OpenAlex, Semantic Scholar, Europe PMC, arXiv, OSF, "
@@ -118,26 +120,33 @@ def web_markdown(row):
     return "converted", f"# {row['title']}\n\nSource: {row['link_to_resource']}\n\n{text}\n"
 
 
-def curate(rows, known, work):
-    """Convert the new rows into work/markdown; returns (report rows, metadata rows)."""
+def curate(rows, known, work, workers=WORKERS):
+    """Convert the new rows into work/markdown; returns (report rows, metadata rows). `workers` resources at a time
+    (most of the time is waiting for publishers' servers); a resource whose Markdown this run's folder already has is
+    taken from there (a stopped run resumes)."""
     markdown_dir = work / "markdown"
     markdown_dir.mkdir(parents=True, exist_ok=True)
-    report, metadata = [], []
-    for row in rows:
+
+    def one(row):
+        key = hashlib.md5((row["doi"] or row["link_to_resource"]).encode("utf-8")).hexdigest()
+        done = markdown_dir / f"{key}.md"
         if document_key(row) in known:
-            outcome, markdown = "already_indexed", ""
-        elif row["doi"]:
-            outcome, markdown = pdf_markdown(row, work)
-        else:
-            outcome, markdown = web_markdown(row)
-        if markdown:
-            key = hashlib.md5((row["doi"] or row["link_to_resource"]).encode("utf-8")).hexdigest()
-            (markdown_dir / f"{key}.md").write_text(markdown, encoding="utf-8")
-            metadata.append({"doi_hash": key, **{k: row[k] for k in
-                             ("title", "creators", "doi", "link_to_resource", "material_type", "conditions_of_use")}})
-        report.append({"title": row["title"], "doi": row["doi"], "link_to_resource": row["link_to_resource"],
-                       "outcome": outcome, "what_it_means": OUTCOMES[outcome]})
-        print(f"{outcome:20} {str(row['title'])[:70]}", flush=True)
+            return row, key, "already_indexed", ""
+        if done.exists():
+            return row, key, "converted", done.read_text(encoding="utf-8")
+        outcome, markdown = pdf_markdown(row, work) if row["doi"] else web_markdown(row)
+        return row, key, outcome, markdown
+
+    report, metadata = [], []
+    with ThreadPoolExecutor(workers) as pool:
+        for row, key, outcome, markdown in pool.map(one, rows):  # in the order of the rows
+            if markdown:
+                (markdown_dir / f"{key}.md").write_text(markdown, encoding="utf-8")
+                metadata.append({"doi_hash": key, **{k: row[k] for k in
+                                 ("title", "creators", "doi", "link_to_resource", "material_type", "conditions_of_use")}})
+            report.append({"title": row["title"], "doi": row["doi"], "link_to_resource": row["link_to_resource"],
+                           "outcome": outcome, "what_it_means": OUTCOMES[outcome]})
+            print(f"{outcome:20} {str(row['title'])[:70]}", flush=True)
     return report, metadata
 
 

@@ -52,6 +52,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # A question naming one paper of the library (its DOI, most of its title, or two of its authors / one author and
     # the year) is answered from that paper's chunks only, without the topic check (just_os/reference_lookup.py)
     "REFERENCE_LOOKUP": True,
+    # Documents whose text is another work ("exclude", never returned by the search) and wrong titles (fixed in the
+    # index by scripts/fix_index_titles.py), from the topic map's checks
+    "INDEX_CORRECTIONS_FILE": "config/index_corrections.json",
     "VERIFY_MIN_SCORE": 0.1,
     # FORRT lookup mode: route "where/how on FORRT" questions to a search of the FORRT sheet
     "FORRT_LOOKUP": False,

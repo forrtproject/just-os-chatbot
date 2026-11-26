@@ -4,13 +4,13 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from just_os.reference_lookup import COMMON, Paper, ReferenceLookup, authors, match, name_words, short_title, words
+from just_os.reference_lookup import STOP, Paper, ReferenceLookup, authors, match, name_words, short_title, words
 from test_qualle import make_qualle, node
 
 
 def paper(key, title, doi="", year="", creators=""):
     return Paper(key, title, doi, year, names=name_words(creators), authors=authors(creators),
-                 title_words=words(title) - COMMON, short_title=short_title(title))
+                 title_words=words(title) - STOP, short_title=short_title(title))
 
 
 PAPERS = [
@@ -39,6 +39,9 @@ def test_most_of_a_title_names_its_paper():
     assert keys("What is a registered report?") == ([], "")  # two title words are not the title
     assert keys("What did the false positive psychology paper find?") == (["fpp"], "title")  # the short title
     assert short_title("Open Science: a primer") == ""  # common words are no short title
+    assert short_title("A manifesto for reproducible science") == "manifesto for reproducible science"
+    generic = [paper("q", "Is it time to share qualitative research data?")]
+    assert match("How do I ethically share and anonymize interview data for qualitative research?", generic) == ([], "")
     rr_survey = [paper("rs", "Registered report: Survey on attitudes and experiences")]
     assert match("What is a registered report?", rr_survey) == ([], "")  # a topic term, not a reference
     assert [p.key for p in match("What did the registered report survey paper find?", rr_survey)[0]] == ["rs"]

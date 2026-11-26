@@ -1,0 +1,20 @@
+{
+  "_about": "Fixes for documents of the index, found by the topic map (eval/topic_map/wrong_files.json, wrong_titles.json; docs/deployment-checklist.md task 12). exclude: documents whose text is another work; the search never returns them (EXCLUDED_DOCUMENTS, read by just_os/qualle.py). titles: documents whose text is right but whose title is a page header, a licence line or another work's; scripts/fix_index_titles.py writes the title (and DOI) into the index's metadata. Keys of titles are the start of the wrong title.",
+  "exclude": {
+    "10.1503/cjs.016712": "Canadian Journal of Surgery supplement: colorectal and bariatric surgery abstracts",
+    "10.1503/cjs.012621": "Canadian Spine Society conference abstracts",
+    "10.1503/cjs.014121": "Trauma Association of Canada conference abstracts",
+    "10.3389/fphys.2014.00177": "Frontiers in Physiology paper on heart rate variability",
+    "10.47205/jdss.2021(2-iv)74": "Paper on water governance and law in Pakistan",
+    "10.5962/p.351332": "Historical address to the Royal Society of Queensland"
+  },
+  "titles": {
+    "The content I just read": {"title": "Getting involved in research as an undergraduate: Nuts and bolts", "creators": "John C. Norcross"},
+    "Hogrefe OpenMind License": {"title": "Registered Reports: A Method to Increase the Credibility of Published Results", "doi": "10.1027/1864-9335/a000192", "creators": "Brian A. Nosek, Daniël Lakens"},
+    "HOW TO SUBMIT CORRESPONDENCE": {"title": "Preserve cultural diversity in author names", "doi": "10.1038/d41586-023-01852-x"},
+    "Munich Personal RePEc Archive": {"title": "Evaluating replicability of laboratory experiments in economics", "doi": "10.1126/science.aaf0918"},
+    "Alfalfa : the king of all fodder plants": {"title": "Building better theories", "doi": "10.1016/j.cub.2021.11.027", "creators": "Clare Press, Daniel Yon, Cecilia Heyes"},
+    "DANISH CENTRE FOR STUDIES IN RESEARCH AND RESEARCH POLICY": {"title": "Using Generative Artificial Intelligence (GenAI) across different Research Phases – Cases, Potential and Risks"},
+    "GEOLOGY Deep-drilling pioneers": {"title": "Reproducibility: A tragedy of errors"}
+  }
+}

@@ -237,6 +237,16 @@ def main():
     qualle.response_generator.generate_response = record_generate
     qualle.client_manager.create_chat_completion = record_complete
 
+    # A question naming a paper is answered from the reference lookup's chunks, not from the search
+    if qualle.references is not None:
+        lookup = qualle.references.chunks
+
+        def record_lookup(*a, **kw):
+            seen["ranked"] = lookup(*a, **kw)
+            return seen["ranked"]
+
+        qualle.references.chunks = record_lookup
+
     # A question the topic check sends to forrt.org is answered by ForrtPages, not by the
     # answer step above: record its text and sources too
     if qualle.forrt_pages is not None:

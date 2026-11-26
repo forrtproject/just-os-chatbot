@@ -7,6 +7,7 @@
 | [data-inventory.md](data-inventory.md) | How many PDFs, `.docx` and sheet rows there are, how many became Markdown and went into the index, and why the rest did not |
 | [indexed_documents.csv](indexed_documents.csv) | The 513 JUST-OS documents in the index (the 133 cluster papers are in `data/processed/cluster_markdown/metadata.csv`) (JUST-OS ID, title, DOI, source PDF, chunks, licence) |
 | [evaluation.md](evaluation.md) | How we measure (metric definitions), the embedding and answer-model results, model candidates |
+| [runbook.md](runbook.md) | How to deploy a new version, update the index, roll back, rotate a key, and what to check when the public bot misbehaves |
 | [deployment-checklist.md](deployment-checklist.md) | What must be done before the bot goes live on the University of Münster servers, by priority (P0/P1/P2), and the open questions |
 | [project-plan.md](project-plan.md) | Purpose, decisions, requirements, bug status, designs, roadmap, risks |
 | [hackathon.md](hackathon.md) | Hackathon 11–13 Nov: setup check, rules, tracks, schedule, demo |

@@ -437,6 +437,17 @@ def test_a_failing_model_is_tried_three_more_times_before_the_error(monkeypatch)
     calls.clear()
     assert fake_manager(down).create_chat_completion("openscholar-8b", q) is None and len(calls) == 1  # minutes per answer
 
+    calls.clear()
+    class Unauthorized(Exception):
+        status_code = 401
+
+    def wrong_key(**kwargs):
+        calls.append(kwargs)
+        raise Unauthorized("LiteLLM Virtual Key expected")
+
+    assert fake_manager(wrong_key, LLM_RETRIES=3).create_chat_completion("m/x", q) is None
+    assert len(calls) == 1  # a wrong key stays wrong: the user gets the error at once, not after 4 tries
+
 
 def test_an_empty_streamed_answer_falls_back_to_the_call_with_retries():
     q = make_qualle(True, [node("Paper")], [node("Paper")], "Answer [0].")

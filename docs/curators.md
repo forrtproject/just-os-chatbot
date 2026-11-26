@@ -40,6 +40,7 @@ The bot answers open-science questions from an index of papers and web pages. Ne
 ## Good to know
 
 - A resource is recognised by its DOI, else by its title: running the command twice does not add anything twice.
+- The command works on 6 resources at a time, and a stopped run picks up where it stopped (the same day's folder keeps what was converted). For a paper with a DOI it looks for a free copy in several places (Unpaywall, OpenAlex, Semantic Scholar, Europe PMC, arXiv, OSF, the publisher's page) and keeps it only when its title matches.
 - Licences: a page or paper without a known open licence is cited by the bot, but its text is not shown in the source pop-up.
 - Web pages keep only their main text (no menus). Check a few new files in `data/curation/<YYMMDD>/markdown/` after a large run; [web-resources.md](web-resources.md) lists the kinds of pages that go wrong.
 - Before the new index goes live, the team runs the eval on it (`python eval/scorecard.py baseline <config>`, [evaluation.md](evaluation.md)).

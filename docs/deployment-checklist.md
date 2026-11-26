@@ -17,7 +17,8 @@ Order of work: all P0 → P1 → P2. Inside a priority, top to bottom. Decisions
 - [x] One switch `PROD_MODE=true`: no chat turn, feedback or arena round saved (file or Redis), no Good/Bad buttons, no debug panel, only the production answer model, a "not saved" notice; `/eval`, `/review`, `/topics`, `/arena`, `/chat/feedback` answer 404. An empty `CHAT_LOG_FILE=` line in `.env` would not have done it (an empty value is ignored and keeps the default path). Test `test_prod_mode_saves_nothing_and_hides_team_pages`.
 - [x] Dev and prod side by side from one image: `web` (dev, port 8000, saves chats to `data/chats/`) and `web-prod` (`compose.yaml`, profile `prod`, port 8001, `PROD_MODE=true`, Redis database 1, `data/` read-only). On the server `compose.prod.yaml` names it `just-os-prod` on `proxy-network`. Start: `docker compose --profile prod up -d --build web-prod`.
 - [x] Test-phase chats stay in Git (decided).
-- [ ] Start `web-prod` once and check it by hand (needs ~3 GB RAM next to `web`; not done yet). Point the reverse proxy (or the Kubernetes ingress, task 3) at it.
+- [x] `web-prod` started and checked by hand (25 Nov, image built from the Dockerfile's `app` target): `/up` ok; `/eval`, `/review`, `/topics`, `/arena`, `/recommend`, `/chat/feedback` 404; "not saved" notice, no model menu, no nav, no debug panel; `PROD_MODE`, uniGPT, Gemma 4, banded, Redis database 1; `data/` read-only. A question left the dev chat log unchanged and no feedback turn in Redis (only the 1-hour chat memory). Without a uniGPT key the user gets "I'm sorry, I encountered an error…", no stack trace; the placeholder key, not the OpenRouter key, went to uniGPT.
+- [ ] Point the reverse proxy (or the Kubernetes ingress, task 3) at it.
 - [ ] Privacy notice text checked with the university data-protection officer: the question goes to uniGPT (on university hardware) and, for about two thirds of questions, to OpenRouter's decision model Jev (task 2); the conversation is kept 1 hour in Redis for follow-ups.
 
 ### 2. Production answer model and topic check
@@ -72,7 +73,7 @@ Left out: Muse Glimmer 30B (1 error, and p95 35 s), DeepSeek V4 Flash and Qwen 3
 | Part | Memory | CPU per question |
 |---|---|---|
 | bge-m3 on CPU (float32) | ~2.3 GB | one forward pass of the question: ~65 ms (eval/compare_embeddings.py, 3.19); up to `OMP_NUM_THREADS` cores |
-| Paper index + FORRT glossary (`vs_latest_bge-m3_glossary`): 148,197 vectors of 1,024 dims (~600 MB) + chunk text (~700 MB) | ~1.3 GB | FAISS search over all vectors: ~0.1 s |
+| Paper index + FORRT glossary (`vs_latest_bge-m3_glossary`): 160,316 vectors of 1,024 dims (~630 MB) + chunk text (~730 MB), with the 26 Nov full texts and abstract cards | ~1.4 GB | FAISS search over all vectors: ~0.1 s |
 | FORRT page index (`vector_data/forrt_pages`) | 1 MB | negligible |
 | Python, Flask, gunicorn threads | ~0.5 GB | |
 
@@ -97,7 +98,7 @@ So one pod answers the embedding and search part of a question in about 0.2 s of
 - [x] Build, key, copy and check steps: [deploy/kubernetes/README.md](../deploy/kubernetes/README.md). `data/` is not in the image, so the data volume holds the index and the two files the bot reads from `data/raw` (`pub_years.csv`, `forrt_sheet1_261028.csv`).
 - [ ] **You / cluster team:** registry for the image, host name, storage class; then apply and run the checks in the README.
 - [ ] Rotate the keys that were in team bundles (`scripts/make_share_bundle.py`).
-- [ ] Unit tests green on the deploy commit. (25 Nov: `test_no_proxy_fix_by_default` fails only because the local `.env` sets `PROXY_FIX_X_FOR=1`.)
+- [ ] Unit tests green on the deploy commit. (25 Nov: all green; `test_no_proxy_fix_by_default` no longer reads `PROXY_FIX_X_FOR` from `.env`.)
 
 ### 4. Open issues and PRs
 
@@ -157,12 +158,13 @@ Counted on 25 November against `data/processed/vs_latest_bge-m3`:
 
 **No full rebuild is needed:** `scripts/add_to_index.py` adds documents to the existing index. **Every one of these rows has an `Abstract` or FORRT `Summary`** in the CSV (161/161 and 161/161), so the fastest complete step is:
 
-- [ ] Write the DOI into the metadata of the 68 found by title (no re-embedding).
-- [ ] Convert and add the 9 PDFs on disk (`scripts/convert_cluster_pdfs.py`, then `add_to_index`).
+- [x] ~~Write the DOI into the metadata of the 68 found by title~~: not needed. They are in the index as the **published version** (journal DOI) while FORRT's list cites the preprint DOI; both are valid, so nothing was overwritten.
+- [x] The 9 PDFs on disk are part of the download run below (in `data/curation/forrt_need_pdf.csv`).
 - [ ] **Abstract cards** for everything still missing (161 papers without a copy + 130 rows without a DOI): one document per row with title, FORRT summary, abstract, sub-cluster and link (DOI, or the URL from the APA reference), added with `add_to_index`. Abstracts and FORRT's own summaries can be indexed without full-text rights; the card links to the full work.
 - [x] **Downloader** (25 Nov): `./run curate` now looks for an open copy in several places, modelled on FLoRA's `shared/pdf_sources.py` ([ingest/pdf_sources.py](../ingest/pdf_sources.py)): the row's link, arXiv/OSF preprints, Unpaywall (all locations), OpenAlex, Semantic Scholar, Europe PMC, the publisher page's `citation_pdf_url`; only real PDFs are kept and GROBID's title must match the row's (else `wrong_document`, the next copy is tried). Input ready: `data/curation/forrt_cluster_missing.csv` (the 9 on disk + 161 without a copy) and `data/curation/forrt_cluster_doi_fixes.csv` (the 68 to fix).
 - [x] **Recommend a study** (25 Nov): page `/recommend` (dev, team page) where anyone pastes DOIs or links with a note; `./run curate --recommendations` processes them like any other list ([curators.md](curators.md)).
-- [ ] Run `./run curate --csv data/curation/forrt_cluster_missing.csv` (needs GROBID, ~6 GB RAM: not while the evals run).
+- [x] **Downloaded (25–26 Nov):** `./run curate --csv data/curation/forrt_need_pdf.csv --no-index` on the 573 articles and books of the article list's "Need a PDF" sheet: 141 converted, 138 without an open copy, 190 downloads failed, 83 web pages failed or too short, 14 wrong document, 4 already indexed (`data/curation/261125/report.csv`). The 141 were added to `vs_latest_bge-m3_glossary` (26 Nov; the index before: `vs_latest_bge-m3_glossary_before_261125_additions`).
+- [x] **Abstract cards** built (25 Nov, `scripts/build_abstract_cards.py`): 908 resources not in the index whose FORRT summary + abstract has ≥100 characters (525 web resources, 314 articles, 69 books) → `data/processed/abstract_cards/`. Added to the index after the downloads, so full texts win: 818 cards added on 26 Nov (the other 90 had a document already). Decided: all of them, quotes hidden unless openly licensed. The other ~940 (mostly ORxD and JUSTOS rows) have only a title and a link: they need their page fetched (#18).
 - [ ] Later, full text for the 66 with an open-access link (`./run curate --csv <rows>`: DOI → Unpaywall PDF → GROBID → index, [curators.md](curators.md)) and the websites (`scripts/fetch_web_resources.py`, #18), replacing their cards.
 - [ ] Re-run hit@7 to check nothing dropped.
 
@@ -178,12 +180,13 @@ Today 7 chunks come from 4.6 papers on average; only 42 of 542 cached questions 
 - [x] Simulated on 542 cached retrievals: cap 2 → 5.5 papers in 7 chunks; cap 2 + ratio 0.95, min 4, max 10 → 7.1 chunks from 5.4 papers on average (4 to 10).
 - [x] **Result (evaluation.md 3.23):** cap 2 → 4.6 papers per answer instead of 4.1, at most 1.9 chunks of one paper instead of 2.6, score level (0.727 vs 0.729); cap + adaptive 4-10: score 0.721, rubric lower, no gain.
 - [x] Cap switched on (25 Nov): `MAX_CHUNKS_PER_DOC=2` is the default in `config/settings.py` (dev, `web-prod` and Kubernetes); adaptive top-k stays off.
-- [ ] Close #33 with 3.23 (adaptive top-k: no gain).
+- [x] #33 closed with 3.23 (25 Nov).
 
 ### 6b. Questions about one specific paper (reference lookup)
 
 - [x] (25 Nov) `just_os/reference_lookup.py`, on by default (`REFERENCE_LOOKUP`): a question naming a paper of the library by DOI, title, short title ("the false positive psychology paper") or two of its authors' surnames (or one + the year) is answered from that paper's chunks only, without the per-paper cap; the index stores full text, but titles and authors were never searched. Checked live: "Why did Simmons, Nelson and Simonsohn kick off the crisis in psychology?" now answers from their papers; fires on 1 of the 596 eval questions (correctly). Memory: a table of 1,354 papers and their FAISS row numbers, a few MB.
-- [ ] Add 10-20 reference questions (by author, title, DOI) with expected DOIs to `eval/questions.jsonl` and measure.
+- [x] 13 reference questions in `eval/reference_questions.jsonl` (DOI, title, short title, two authors, author + year, organisation + year): the lookup finds the expected paper for **13 of 13**; on the 596 other eval questions it fires twice, both rightly (Open Science Collaboration 2015; "qualitative research reporting standards" → SRQR). Titles now use function words only as stop words ("A manifesto for reproducible science" had lost its words), and a title match needs all its words or a cue that a work is meant.
+- [x] Answered the 13 with the bot (26 Nov, `eval/run.py --questions eval/reference_questions.jsonl`, Llama 3.1 8B as answer model in both runs): with the lookup the named paper is among the sources for **13 of 13** (all answered, judge 1.00); without it **4 of 13**, and "What does Cumming (2013) recommend in The New Statistics?" is refused. Results: `eval/results/reference_lookup_{true,false}.csv`. (`eval/run.py` now also records the lookup's chunks; before, it saw only the search.)
 
 ### 6c. Rewriting follow-up questions
 
@@ -224,8 +227,8 @@ Checked on 25 November:
 ### 11. Speed and reliability
 
 - [ ] p95 with Gemma 4 31B on uniGPT (task 2), target ≤ 15 s.
-- [ ] Behaviour when uniGPT or OpenRouter is down: clear message, no stack trace (Jev falls back to the LLM classifier already).
-- [ ] Short load test (10 parallel users) on the server; mind uniGPT's parallel-request limit.
+- [x] Behaviour when uniGPT or OpenRouter is down (25 Nov): the user gets a clear error message and **Try again**, no stack trace; Jev falls back to the LLM classifier. Errors no retry can fix (400, 401 wrong key, 403, 404 unknown model) are no longer retried 4 times (`NO_RETRY_STATUS`): the error shows at once; time-outs, 429 and 5xx are still retried.
+- [ ] Short load test (10 parallel users) on the server; mind uniGPT's parallel-request limit. Dev (26 Nov, one container, OpenRouter models, the larger index): 10 questions at once all answered, median 12.9 s, slowest 21.9 s, 3.8 GB memory; repeat on the server with uniGPT.
 
 ---
 
@@ -235,7 +238,7 @@ Checked on 25 November:
 
 `eval/topic_map/` maps the index by FORRT cluster / sub-cluster with keywords and citation density, and lists wrong files and titles.
 
-- [ ] **Data quality (do before launch):** fix the documents in `wrong_files.json` / `wrong_titles.json`; wrong titles show in the Sources box.
+- [x] **Data quality** (25 Nov): `config/index_corrections.json`. The 6 documents whose text is another work (e.g. 752 chunks of Canadian Journal of Surgery abstracts) are never returned by the search or the reference lookup (`exclude`); the 7 wrong titles (a licence line, a repository header, "Alfalfa…" for *Building better theories*) are corrected in both indexes' metadata by `scripts/fix_index_titles.py` (384 chunks; backups `docstore.json.bak-261125`).
 - [ ] **Coverage gaps:** sub-clusters with few chunks first get task 5's abstract cards.
 - [ ] Cluster metadata on chunks (from `Publications.csv`), then a boost when the question clearly belongs to one cluster.
 - [ ] Suggested questions on the chat start page, one per cluster.
@@ -247,7 +250,7 @@ Checked on 25 November:
 - [ ] Human review of a sample of Gemma 4 31B answers on `/review` (dev).
 - [ ] Re-run the topic check pairs on today's defaults.
 - [ ] Faster PDF conversion (#36), HTML route for web resources (#18).
-- [ ] Runbook in [docs/README.md](README.md): deploy, update the index (glossary and abstract cards included), roll back, rotate keys.
+- [x] Runbook: [runbook.md](runbook.md) (deploy, update the index with glossary and abstract cards, roll back, rotate keys, symptoms).
 
 ---
 
