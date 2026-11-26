@@ -18,6 +18,7 @@ from flask_limiter.util import get_remote_address
 from werkzeug.exceptions import TooManyRequests
 
 from config.settings import get_config
+from just_os.clusters import SUGGESTED_QUESTIONS
 from just_os.chat_manager import ChatManager
 from just_os import criteria
 from just_os import eval_report
@@ -328,6 +329,7 @@ class FlaskApp:
                 default_model=self.config["CITATION_MODEL"],
                 routers=ROUTERS,
                 debug_panel=self._debug_panel(),
+                suggestions=SUGGESTED_QUESTIONS,
             )
 
         @self.app.route("/chat", methods=["POST"])

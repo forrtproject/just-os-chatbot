@@ -159,6 +159,14 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "MIN_VECTOR_SIMILARITY": 0.55,
     # doi,year table for the reference year (scripts/get_pub_years.py); missing → "n.d."
     "PUB_YEARS_FILE": "data/raw/pub_years.csv",
+    # FORRT cluster of each resource (scripts/forrt_article_list.py; just_os/clusters.py)
+    "CLUSTERS_FILE": "data/curation/forrt_article_list.csv",
+    # Cluster boost (vector search, RERANK=false): when the question is closer to one FORRT cluster's centroid
+    # than to the next by CLUSTER_BOOST_MARGIN, that cluster's chunks get CLUSTER_BOOST added to their cosine
+    # before the cut to MAX_CHUNKS. 0 = off. On since 26 Nov: hit@7 0.648 -> 0.704, judge support level or better
+    # (docs/evaluation.md 3.26); costs ~7 s at start and one more question embedding per search
+    "CLUSTER_BOOST": 0.02,
+    "CLUSTER_BOOST_MARGIN": 0.02,
     # Redis settings
     "REDIS_HOST": "redis",
     "REDIS_PORT": 6379,

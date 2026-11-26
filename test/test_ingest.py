@@ -154,3 +154,14 @@ def test_curate_reads_recommendations(tmp_path):
                     encoding="utf-8")
     rows = curate.read_rows(None, recommendations=str(path))
     assert [(r["doi"], r["link_to_resource"], r["title"]) for r in rows] == [("10.1234/abc", "", ""), ("", "https://osf.io/abcd1/", "")]
+
+
+def test_web_page_needs_running_text(monkeypatch):
+    from scripts import curate, fetch_web_resources
+
+    menu = "\n".join(["Home", "People", "Dataset", "Download", "Terms of Use"] * 60)
+    prose = "\n".join(["Open data lets other researchers check and reuse the results of a study."] * 20)
+    for text, outcome in ((menu, "web_page_too_short"), (prose, "converted")):
+        monkeypatch.setattr(fetch_web_resources, "fetch", lambda url: "")
+        monkeypatch.setattr(fetch_web_resources, "main_text", lambda html, t=text: t)
+        assert curate.web_markdown({"title": "T", "link_to_resource": "https://x.org"})[0] == outcome

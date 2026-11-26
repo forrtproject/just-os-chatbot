@@ -291,8 +291,18 @@ document.addEventListener("DOMContentLoaded", function () {
   sendButton.addEventListener("click", function () {
     const message = userInput.value;
     userInput.value = "";
+    showSuggestions(false);
     sendMessage(message);
   });
+
+  // Example questions, one per FORRT cluster: four at random until the first question is sent
+  document.querySelectorAll("#suggestions .suggestion").forEach((button) => {
+    button.addEventListener("click", () => {
+      showSuggestions(false);
+      sendMessage(button.innerText);
+    });
+  });
+  showSuggestions(true);
 
   // Modal functionality
   infoButton.addEventListener("click", function () {
@@ -318,12 +328,21 @@ document.addEventListener("DOMContentLoaded", function () {
     // Generate a new chat ID
     window.chatId = crypto.randomUUID();
     resetDebug();
+    showSuggestions(true);
     
     // Reset the input field with the default question
     userInput.value = "How does open science reshape the future of interdisciplinary and collaborative research?";
     
   });
 });
+
+function showSuggestions(show) {
+  const box = document.getElementById("suggestions");
+  if (!box) return;
+  const buttons = [...box.querySelectorAll(".suggestion")];
+  buttons.sort(() => Math.random() - 0.5).forEach((b, i) => { b.hidden = i >= 4; });
+  box.hidden = !show || document.getElementById("chat-messages").children.length > 0;
+}
 
 function requestBody(message) {
   return JSON.stringify({

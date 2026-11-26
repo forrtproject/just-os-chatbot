@@ -31,6 +31,11 @@
 <div id="container">
     <div id="chat-messages">{{ message_history | safe }}</div>
     <div id="status-message"></div>
+    <div id="suggestions" aria-label="Example questions">
+        {% for cluster, question in suggestions.items() %}
+        <button type="button" class="suggestion" title="FORRT cluster: {{ cluster }}">{{ question }}</button>
+        {% endfor %}
+    </div>
     {% if not prod_mode %}
     <div id="model-choice">
         <label for="model-select">Answer model</label>

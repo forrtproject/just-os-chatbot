@@ -84,6 +84,35 @@ body {
     max-width: 800px;
 }
 
+#suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+#suggestions[hidden], #suggestions .suggestion[hidden] {
+    display: none;
+}
+
+#suggestions .suggestion {
+    flex: 1 1 220px;
+    padding: 10px 12px;
+    text-align: left;
+    font: inherit;
+    font-size: 0.95em;
+    color: #004055;
+    background-color: #fff;
+    border: 1px solid #c9d6da;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#suggestions .suggestion:hover, #suggestions .suggestion:focus-visible {
+    border-color: #004055;
+    background-color: #f1f6f7;
+}
+
 #user-input-box {
     display: flex;
     justify-content: space-between;

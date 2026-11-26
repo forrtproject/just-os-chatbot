@@ -73,7 +73,7 @@ Left out: Muse Glimmer 30B (1 error, and p95 35 s), DeepSeek V4 Flash and Qwen 3
 | Part | Memory | CPU per question |
 |---|---|---|
 | bge-m3 on CPU (float32) | ~2.3 GB | one forward pass of the question: ~65 ms (eval/compare_embeddings.py, 3.19); up to `OMP_NUM_THREADS` cores |
-| Paper index + FORRT glossary (`vs_latest_bge-m3_glossary`): 160,316 vectors of 1,024 dims (~630 MB) + chunk text (~730 MB), with the 26 Nov full texts and abstract cards | ~1.4 GB | FAISS search over all vectors: ~0.1 s |
+| Paper index + FORRT glossary (`vs_latest_bge-m3_glossary`): 166,393 vectors of 1,024 dims (~650 MB) + chunk text (~750 MB), with the 26 Nov full texts, abstract cards and web pages | ~1.4 GB | FAISS search over all vectors: ~0.1 s |
 | FORRT page index (`vector_data/forrt_pages`) | 1 MB | negligible |
 | Python, Flask, gunicorn threads | ~0.5 GB | |
 
@@ -95,7 +95,7 @@ So one pod answers the embedding and search part of a question in about 0.2 s of
 
 - [ ] **You:** ask the university's Kubernetes team whether these fit, and whether they run the ingress and TLS.
 - [x] Manifests: [deploy/kubernetes/just-os.yaml](../deploy/kubernetes/just-os.yaml) (ConfigMap, data and model PVCs, web Deployment with probes and the sizes above, Service, Redis, Ingress with streaming, optional HPA; keys from a Secret). Parsed and checked offline; not applied to a cluster yet.
-- [x] Build, key, copy and check steps: [deploy/kubernetes/README.md](../deploy/kubernetes/README.md). `data/` is not in the image, so the data volume holds the index and the two files the bot reads from `data/raw` (`pub_years.csv`, `forrt_sheet1_261028.csv`).
+- [x] Build, key, copy and check steps: [deploy/kubernetes/README.md](../deploy/kubernetes/README.md). `data/` is not in the image, so the data volume holds the index and the two files the bot reads from `data/raw` (`pub_years.csv`, `forrt_sheet1_261028.csv`) and, since 26 Nov, `data/curation/forrt_article_list.csv` (cluster boost).
 - [ ] **You / cluster team:** registry for the image, host name, storage class; then apply and run the checks in the README.
 - [ ] Rotate the keys that were in team bundles (`scripts/make_share_bundle.py`).
 - [ ] Unit tests green on the deploy commit. (25 Nov: all green; `test_no_proxy_fix_by_default` no longer reads `PROXY_FIX_X_FOR` from `.env`.)
@@ -129,11 +129,11 @@ Read on 25 November (17 issues, 1 draft PR). **The 6 below were closed on 25 Nov
 | 31 Hackathon success criteria | Date passed; most points are decided (eval pipeline, model shortlist, router). You or Lukas: close with a summary, or keep as the record |
 | 12 M3 arena votes (≥ 50 from 4 people) | Needs people. Arena is dev-only now: run a rating session, or close as not needed |
 | 35 M8 arena protocol | Same: only needed if the arena is used for decisions |
-| 36 C5 faster PDF conversion / chunk size | Not started; not needed for launch. Close as won't do, or keep for after launch |
+| 36 C5 faster PDF conversion / chunk size | Conversion done: `./run curate` downloads and converts in parallel and resumes (573 rows in 16 min instead of ~15 h). Chunk size: needs a full re-embed (~1 day CPU); close as won't do, or keep for after launch |
 | 1 JUST-OS ideas | Keep open as the backlog |
 | PR 40 OpenScholar-8B on a RunPod GPU (Lukas) | OpenScholar is not a production candidate (3.12: 0.574). Ask Lukas to close or merge it as a tool for later tests |
 
-**Open work (P2, not blocking):** #61 one question bank (native-speaker checks of 20 translations are pending), #68 answer store format (the hybrid part is moot while search is `vector`), #23 hallucination check (`VERIFY_CITATIONS` exists; threshold not tuned), #18 HTML route for web resources (code done; links to task 5's rows without a DOI).
+**Open work (P2, not blocking):** #61 one question bank (native-speaker checks of 20 translations are pending), #68 answer store format (the hybrid part is moot while search is `vector`), #23 hallucination check (calibrated 26 Nov, evaluation.md 3.26: catches at most a third of unsupported sources and doubles answer time, so it stays off), #18 HTML route for web resources (done 26 Nov: 318 FORRT web pages indexed).
 
 - [x] Closed the 6 with notes (25 Nov). #33 and #13 close after their results.
 
@@ -160,13 +160,14 @@ Counted on 25 November against `data/processed/vs_latest_bge-m3`:
 
 - [x] ~~Write the DOI into the metadata of the 68 found by title~~: not needed. They are in the index as the **published version** (journal DOI) while FORRT's list cites the preprint DOI; both are valid, so nothing was overwritten.
 - [x] The 9 PDFs on disk are part of the download run below (in `data/curation/forrt_need_pdf.csv`).
-- [ ] **Abstract cards** for everything still missing (161 papers without a copy + 130 rows without a DOI): one document per row with title, FORRT summary, abstract, sub-cluster and link (DOI, or the URL from the APA reference), added with `add_to_index`. Abstracts and FORRT's own summaries can be indexed without full-text rights; the card links to the full work.
+- [x] **Abstract cards** for everything still missing (done, see the line below; 161 papers without a copy + 130 rows without a DOI): one document per row with title, FORRT summary, abstract, sub-cluster and link (DOI, or the URL from the APA reference), added with `add_to_index`. Abstracts and FORRT's own summaries can be indexed without full-text rights; the card links to the full work.
 - [x] **Downloader** (25 Nov): `./run curate` now looks for an open copy in several places, modelled on FLoRA's `shared/pdf_sources.py` ([ingest/pdf_sources.py](../ingest/pdf_sources.py)): the row's link, arXiv/OSF preprints, Unpaywall (all locations), OpenAlex, Semantic Scholar, Europe PMC, the publisher page's `citation_pdf_url`; only real PDFs are kept and GROBID's title must match the row's (else `wrong_document`, the next copy is tried). Input ready: `data/curation/forrt_cluster_missing.csv` (the 9 on disk + 161 without a copy) and `data/curation/forrt_cluster_doi_fixes.csv` (the 68 to fix).
 - [x] **Recommend a study** (25 Nov): page `/recommend` (dev, team page) where anyone pastes DOIs or links with a note; `./run curate --recommendations` processes them like any other list ([curators.md](curators.md)).
 - [x] **Downloaded (25–26 Nov):** `./run curate --csv data/curation/forrt_need_pdf.csv --no-index` on the 573 articles and books of the article list's "Need a PDF" sheet: 141 converted, 138 without an open copy, 190 downloads failed, 83 web pages failed or too short, 14 wrong document, 4 already indexed (`data/curation/261125/report.csv`). The 141 were added to `vs_latest_bge-m3_glossary` (26 Nov; the index before: `vs_latest_bge-m3_glossary_before_261125_additions`).
 - [x] **Abstract cards** built (25 Nov, `scripts/build_abstract_cards.py`): 908 resources not in the index whose FORRT summary + abstract has ≥100 characters (525 web resources, 314 articles, 69 books) → `data/processed/abstract_cards/`. Added to the index after the downloads, so full texts win: 818 cards added on 26 Nov (the other 90 had a document already). Decided: all of them, quotes hidden unless openly licensed. The other ~940 (mostly ORxD and JUSTOS rows) have only a title and a link: they need their page fetched (#18).
-- [ ] Later, full text for the 66 with an open-access link (`./run curate --csv <rows>`: DOI → Unpaywall PDF → GROBID → index, [curators.md](curators.md)) and the websites (`scripts/fetch_web_resources.py`, #18), replacing their cards.
-- [ ] Re-run hit@7 to check nothing dropped.
+- [x] Websites (#18, 26 Nov): 737 FORRT web resources fetched, 318 with enough running text indexed (`data/curation/261126/`; 316 too short, 88 failed, 102 menu and landing pages dropped by the new 200-word rule). Backup: `vs_latest_bge-m3_glossary_before_261126_web`.
+- [ ] Later, full text for the 66 with an open-access link (`./run curate --csv <rows>`: DOI → Unpaywall PDF → GROBID → index, [curators.md](curators.md)), replacing their cards.
+- [x] Re-run hit@7 (26 Nov, evaluation.md 3.26): 0.694 → 0.648 on the larger index, mostly new documents taking slots from expected DOIs picked on the old index; with the cluster boost (task 12) 0.704. Correct 0.871, judge 0.812.
 
 Other files in `data/FORRT Clusters/`: `Clusters.csv` (13) and `Sub-Clusters.csv` (95) hold the explanation of each cluster and sub-cluster (useful as chunk metadata and topic-map labels; the `annotations` column is editors' notes); `Publications.csv` also has `Focus`, `Specificity`, `Summary`, `Language`, `License`; `Website Source.xlsx` is the same three tables plus a `tags` sheet of allowed values.
 
@@ -201,7 +202,7 @@ Today 7 chunks come from 4.6 papers on average; only 42 of 542 cached questions 
 - [x] **Result (evaluation.md 3.23):** added to `data/processed/vs_latest_bge-m3_glossary`; score 0.764 vs 0.729 (rubric 0.80 vs 0.72, on questions written from the glossary, so favourable to it), judge support on the 147 other questions level (0.716 vs 0.701), hit@7 level; a glossary entry in the sources of 50 of 172 answers.
 - [x] Checked live on dev (25 Nov): "What is HARKing?" cites the English glossary entry and four papers. Fixed on the way: the kept glossary entry is now the one in the question's language, else English (it had picked the Turkish "HARKing", spelled alike); and `AUTO_DEFAULTS` now also reaches the RAG service that gunicorn preloads (it had answered with `CITATION_MODEL` from `.env`, Llama 3.1 8B, whenever a request named no model, as the forrt.org widget does; production sets the model explicitly and was not affected).
 - [x] Glossary index switched on (25 Nov): `VECTOR_STORE=data/processed/vs_latest_bge-m3_glossary` is the default in `config/settings.py`; the Kubernetes README copies that folder. Rebuilding: `scripts/build_glossary.py`, then `add_to_index` onto a fresh copy of the paper index.
-- [ ] Later: when a cited glossary entry lists a paper that is in the index (`reference_dois`), prefer that paper among the others.
+- [x] When a kept glossary entry cites papers in the index (`reference_dois`), they come first among the found chunks (26 Nov, `limit_per_document`).
 
 ### 8. Embedding model: why bge-m3 (OpenScholar_Retriever and sciembed)
 
@@ -239,17 +240,17 @@ Checked on 25 November:
 `eval/topic_map/` maps the index by FORRT cluster / sub-cluster with keywords and citation density, and lists wrong files and titles.
 
 - [x] **Data quality** (25 Nov): `config/index_corrections.json`. The 6 documents whose text is another work (e.g. 752 chunks of Canadian Journal of Surgery abstracts) are never returned by the search or the reference lookup (`exclude`); the 7 wrong titles (a licence line, a repository header, "Alfalfa…" for *Building better theories*) are corrected in both indexes' metadata by `scripts/fix_index_titles.py` (384 chunks; backups `docstore.json.bak-261125`).
-- [ ] **Coverage gaps:** sub-clusters with few chunks first get task 5's abstract cards.
-- [ ] Cluster metadata on chunks (from `Publications.csv`), then a boost when the question clearly belongs to one cluster.
-- [ ] Suggested questions on the chat start page, one per cluster.
-- [ ] Eval balance: questions per cluster against chunks per cluster.
+- [x] **Coverage gaps:** task 5's abstract cards and web pages are in. Publication Sharing is still thin (2% of chunks, 38 documents; `cluster_balance_261126.md`).
+- [x] Cluster boost (26 Nov, evaluation.md 3.26): clusters come from `forrt_article_list.csv` at start, not stored on chunks (`just_os/clusters.py`). On by default: `CLUSTER_BOOST=0.02`, hit@7 0.648 → 0.704, judge 0.802 → 0.812.
+- [x] Suggested questions on the chat start page, one per cluster (`SUGGESTED_QUESTIONS`; four at random until the first question).
+- [x] Eval balance (`eval/cluster_balance.py`): Replication Crisis, Academic Structures and Replication and Meta-research are under-tested (-6 to -12 points); add questions there next.
 
 ### 13. Other
 
-- [ ] Hallucination check before sending (#23).
+- [x] Hallucination check before sending (#23): calibrated, kept off (evaluation.md 3.26).
 - [ ] Human review of a sample of Gemma 4 31B answers on `/review` (dev).
-- [ ] Re-run the topic check pairs on today's defaults.
-- [ ] Faster PDF conversion (#36), HTML route for web resources (#18).
+- [x] Re-run the topic check on today's defaults (26 Nov, `classify_261126-1341.csv`): banded 0.89, the same answers as on 15 Nov; no retuning.
+- [x] Faster PDF conversion (#36: parallel, resumable `./run curate`), HTML route for web resources (#18: 318 pages indexed).
 - [x] Runbook: [runbook.md](runbook.md) (deploy, update the index with glossary and abstract cards, roll back, rotate keys, symptoms).
 
 ---

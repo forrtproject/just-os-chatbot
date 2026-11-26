@@ -399,3 +399,40 @@ def test_fix_index_titles_retitles_every_chunk_of_a_mistitled_document():
     meta = nodes["a"]["__data__"]["metadata"]
     assert meta["title"].startswith("Evaluating") and meta["link_to_resource"] == "https://doi.org/10.1126/science.aaf0918"
     assert nodes["c"]["__data__"]["metadata"]["title"] == "Fine" and meta["creators"] == "x"
+
+
+def test_document_clusters_by_doi_and_title(tmp_path):
+    from just_os.clusters import CLUSTERS, SUGGESTED_QUESTIONS, clusters_of, document_clusters
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eval"))
+    from cluster_balance import balance
+
+    path = tmp_path / "list.csv"
+    path.write_text("title,doi,url,clusters\n"
+                    "A paper,10.1234/A,,FAIR data and materials; Cluster 5: Free and open source software\n"
+                    "A web page,,https://x.org,Publication Sharing; ORxD: Psychology (General)\n"
+                    "No cluster,10.1234/b,,ORxD: Political Science\n", encoding="utf-8")
+    table = document_clusters(str(path))
+    assert clusters_of({"doi": "https://doi.org/10.1234/a"}, table) == ["FAIR Data and Materials"]
+    assert clusters_of({"title": "A Web Page"}, table) == ["Publication Sharing"]  # no DOI: by title
+    assert clusters_of({"doi": "10.1234/b", "title": "No cluster"}, table) == []
+    assert document_clusters(str(tmp_path / "missing.csv")) == {}
+    assert set(SUGGESTED_QUESTIONS) == set(CLUSTERS)
+    rows = balance([{"doi": "10.1234/a"}] * 3 + [{"title": "A web page"}], table,
+                   [{"cluster": "Publication Sharing"}] * 2)
+    by_name = {r[0]: r for r in rows}
+    assert by_name["FAIR Data and Materials"][1:4] == (0, 1, 3)
+    assert by_name["Publication Sharing"][1:4] == (2, 1, 1)
+    assert rows[0][0] == "FAIR Data and Materials"  # most under-tested first
+
+
+def test_citation_check_pairs_and_table():
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eval"))
+    from citation_check import pairs_of, table
+
+    pairs = pairs_of("Power is low [0][1]. Nothing cited here. Samples are small [1]. Bad ref [9].", ["p0", "p1"])
+    assert pairs == [(0, "Power is low .", "p0"), (1, "Power is low .", "p1"), (1, "Samples are small .", "p1")]
+    bad, rows = table([(0.005, False), (0.04, True), (0.4, False), (0.9, True)])
+    assert bad == 2
+    by_t = {t: (n, right) for t, n, right, _, _ in rows}
+    assert by_t[0.01] == (1, 1) and by_t[0.05] == (2, 1) and by_t[0.5] == (3, 2)

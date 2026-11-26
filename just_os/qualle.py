@@ -20,6 +20,7 @@ from config.settings import DEFAULT_CONFIG
 from just_os.answer_cache import AnswerCache
 from just_os import trace
 from just_os.chat_manager import ChatManager
+from just_os.clusters import ClusterBoost, document_clusters
 from just_os.decisions import DECISION_ROUTERS, DecisionClient
 from just_os.forrt_lookup import ForrtLookup
 from just_os import forrt_checks as checks
@@ -35,6 +36,7 @@ from just_os.references import (
     document_key,
     paper_key,
     load_publication_years,
+    normalize_doi,
     passage_allowed,
     plain_metadata,
     publication_year,
@@ -440,7 +442,8 @@ class DocumentRetriever:
         """Keep at most MAX_CHUNKS_PER_DOC chunks of one paper (0 = no limit), then MAX_CHUNKS.
         At most one FORRT glossary entry: the same term in five languages would otherwise fill the slots the
         papers need (scripts/build_glossary.py). It is the best-ranked entry in the question's language, else in
-        English (a term such as "HARKing" is spelled alike everywhere, so the best match can be any language)."""
+        English (a term such as "HARKing" is spelled alike everywhere, so the best match can be any language).
+        The papers that entry cites (reference_dois) come first among the found chunks."""
         excluded = getattr(self, "excluded", ())
         if excluded:  # documents whose text is another work (config/index_corrections.json)
             nodes = [n for n in nodes if document_key(plain_metadata(n.metadata)) not in excluded]
@@ -450,6 +453,12 @@ class DocumentRetriever:
             keep = next((n for lang in (wanted, "english") for n in glossary
                          if plain_metadata(n.metadata).get("language") == lang), glossary[0])
             nodes = [n for n in nodes if n is keep or n not in glossary]
+            glossary = [keep]
+        cited = {normalize_doi(d) for g in glossary
+                 for d in str(plain_metadata(g.metadata).get("reference_dois", "")).split(";")} - {None}
+        if cited:  # stable: the entry and the papers it cites first, the rest in search order
+            nodes = sorted(nodes, key=lambda n: not (any(n is g for g in glossary)
+                                                     or normalize_doi(plain_metadata(n.metadata).get("doi", "")) in cited))
         if self.max_per_doc > 0:
             counts: Dict[str, int] = {}
             kept = []
@@ -470,6 +479,9 @@ class DocumentRetriever:
             if cosine is not None and cosine < self.min_vector_similarity:
                 logger.info(f"No sources: best vector match {cosine:.3f} < MIN_VECTOR_SIMILARITY for {query[:60]!r}")
                 return []
+        boost = getattr(self, "cluster_boost", None)
+        if boost is not None and self.search_mode == "vector":
+            nodes = boost.apply(query, nodes)
         nodes = self.limit_per_document(nodes, query)
         if self.adaptive_top_k and self.search_mode == "vector" and nodes and nodes[0].score is not None:
             # ADAPTIVE_TOP_K without the re-ranker: keep chunks whose cosine (1 - L2 distance / 2) is at least
@@ -1135,6 +1147,15 @@ class Qualle:
         # Initialize document retriever
         self.document_retriever = DocumentRetriever(config, retriever)
 
+        if config.get("CLUSTER_BOOST"):
+            try:
+                vector_retriever = getattr(retriever, "vector_retriever", retriever)
+                self.document_retriever.cluster_boost = ClusterBoost(
+                    vector_retriever._index, embed_model, document_clusters(config.get("CLUSTERS_FILE")),
+                    config["CLUSTER_BOOST"], config.get("CLUSTER_BOOST_MARGIN", 0.02))
+            except Exception as e:  # no FAISS index or cluster list: search without the boost, never crash
+                logger.error(f"CLUSTER_BOOST is on but the cluster centroids could not be built ({e})")
+
         # Initialize response generator
         self.response_generator = ResponseGenerator(
             self.client_manager, config, self.reference_processor
@@ -1301,7 +1322,7 @@ class Qualle:
                 "DECISION_ROUTER_MIN_CONFIDENCE", "COSINE_PAPER_MIN", "COSINE_PAGE_MIN", "BAND_PAPER_LOW",
                 "BAND_PAGE_LOW", "BAND_PAPER_HIGH", "BAND_PAGE_HIGH", "BAND_MIDDLE_ROUTER", "EMBEDDING_MODEL",
                 "SEARCH_MODE", "RETRIEVER_TOP_K", "RERANK", "RERANK_MODEL", "MIN_RELEVANCE", "ADAPTIVE_TOP_K",
-                "ADAPTIVE_TOP_K_RATIO", "MAX_CHUNKS", "MAX_CHUNKS_PER_DOC", "VERIFY_CITATIONS", "FORRT_PAGES",
+                "ADAPTIVE_TOP_K_RATIO", "MAX_CHUNKS", "MAX_CHUNKS_PER_DOC", "CLUSTER_BOOST", "VERIFY_CITATIONS", "FORRT_PAGES",
                 "FORRT_IN_PAPERS", "FORRT_IN_PAPERS_MIN_SCORE", "FORRT_SELECT_MODEL", "FORRT_DECISION_THRESHOLD",
                 "FORRT_DECISION_FLOOR", "FORRT_ANSWER_MODEL", "ANSWER_CACHE_TTL")
         return {"answer_model": model or c.get("CITATION_MODEL"), "router": router or c.get("ROUTER") or "",

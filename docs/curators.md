@@ -33,7 +33,7 @@ The bot answers open-science questions from an index of papers and web pages. Ne
    | `wrong_document` | A PDF was found, but its title is another paper's | Check the link; add the right PDF by hand |
    | `pdf_not_converted` | GROBID read no text (a scan, or GROBID is not running) | Start GROBID (above) and run again |
    | `web_page_failed` | The page could not be opened (blocked, paywall, gone) | Check the link |
-   | `web_page_too_short` | The page has almost no text (a menu, an OSF project page) | Link the document itself instead of its landing page |
+   | `web_page_too_short` | The page has too little running text: under 200 words in lines of 8+ words (a menu, a landing page, an OSF project page) | Link the document itself instead of its landing page |
 
 4. **Switch the bot to the new index.** The command adds the new resources to a copy, `data/processed/vs_curated_<YYMMDD>`, so the running bot is not changed by mistake. To use it, set `VECTOR_STORE=data/processed/vs_curated_<YYMMDD>` in `.env` and restart the bot (`docker compose up -d web`). With `--in-place` the command adds to the live index directly.
 

@@ -118,3 +118,13 @@ def test_documents_of_another_work_are_never_returned():
     r.excluded = {"10.1503/cjs.016712"}
     nodes = [chunk("10.1503/cjs.016712"), chunk("10.1234/a")]
     assert [n.metadata["doi"] for n in r.limit_per_document(nodes)] == ["10.1234/a"]
+
+
+def test_papers_cited_by_the_glossary_entry_come_first():
+    entry = SimpleNamespace(text="t", metadata={"title": "HARKing (FORRT Glossary, English)", "language": "english",
+                                                "material_type": "FORRT Glossary",
+                                                "reference_dois": "10.1207/s15327957pspr0203_4; 10.1037/gpr0000128"})
+    a, kerr, nodoi, rubin = chunk("10.1234/a"), chunk("https://doi.org/10.1207/S15327957PSPR0203_4"), chunk(""), chunk("10.1037/gpr0000128")
+    kept = retriever(0, max_chunks=4).limit_per_document([a, nodoi, entry, kerr, rubin])
+    assert kept == [entry, kerr, rubin, a]  # the entry and the papers it cites, then search order
+    assert retriever(0).limit_per_document([a, kerr]) == [a, kerr]  # no glossary entry: search order

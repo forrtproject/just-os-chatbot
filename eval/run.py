@@ -160,6 +160,15 @@ def skip_classifier(qualle, route="open_science"):
     qualle.route = lambda query, router=None: route
 
 
+def index_stamp(config):
+    """Size and mtime of the index's docstore: an index changed in place (add_to_index) gets new cache keys."""
+    try:
+        stat = (Path(config.get("VECTOR_STORE") or "") / "docstore.json").stat()
+        return [stat.st_size, int(stat.st_mtime)]
+    except OSError:
+        return None
+
+
 def cache_retrieval(qualle, config, folder=Path("eval/.retrieval_cache")):
     """Keep the ranked chunks per question and retrieval settings on disk, so the re-ranker
     (4-15 s per question on CPU) runs once for all answer models. Cached questions have no
@@ -168,7 +177,8 @@ def cache_retrieval(qualle, config, folder=Path("eval/.retrieval_cache")):
     settings = json.dumps([retrieval_label(config), config.get("VECTOR_STORE"), config.get("RETRIEVER_TOP_K"),
                            config.get("MAX_CHUNKS"), config.get("MIN_RELEVANCE"), config.get("MAX_CHUNKS_PER_DOC"),
                            config.get("ADAPTIVE_TOP_K"), config.get("EMBEDDING_MODEL"),
-                           config.get("ADAPTIVE_TOP_K_RATIO"), config.get("ADAPTIVE_TOP_K_MIN")])
+                           config.get("ADAPTIVE_TOP_K_RATIO"), config.get("ADAPTIVE_TOP_K_MIN"),
+                           config.get("CLUSTER_BOOST"), config.get("CLUSTER_BOOST_MARGIN"), index_stamp(config)])
     folder.mkdir(parents=True, exist_ok=True)
 
     def cached(query, *args, **kwargs):

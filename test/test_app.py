@@ -246,6 +246,7 @@ def test_prod_mode_saves_nothing_and_hides_team_pages(app):
     html = client.get("/").get_data(as_text=True)
     assert 'id="model-select"' not in html and "top-nav" not in html and "are not saved" in html
     assert "JUSTOS_DEBUG_PANEL = false" in html
+    assert html.count('class="suggestion"') == 11  # one example question per FORRT cluster, in prod too
     assert client.get("/up").status_code == 200
 
 

@@ -15,6 +15,8 @@
   "gemma4+cap2": {"CITATION_MODEL": "google/gemma-4-31b-it", "MAX_CHUNKS_PER_DOC": 2},
   "gemma4+cap2+adaptive": {"CITATION_MODEL": "google/gemma-4-31b-it", "MAX_CHUNKS_PER_DOC": 2, "MAX_CHUNKS": 10, "ADAPTIVE_TOP_K": true, "ADAPTIVE_TOP_K_RATIO": 0.95, "ADAPTIVE_TOP_K_MIN": 4},
   "gemma4+glossary": {"CITATION_MODEL": "google/gemma-4-31b-it", "VECTOR_STORE": "data/processed/vs_latest_bge-m3_glossary"},
+  "gemma4+defaults-261126": {"CITATION_MODEL": "google/gemma-4-31b-it"},
+  "gemma4+cluster-boost-261126": {"CITATION_MODEL": "google/gemma-4-31b-it", "CLUSTER_BOOST": 0.02, "CLUSTER_BOOST_MARGIN": 0.02},
   "voyage+muse-glimmer-30b": {"EMBEDDING_MODEL": "mongodb/voyage-4-large", "VECTOR_STORE": "data/processed/vs_latest_voyage-4-large", "FORRT_PAGES_DIR": "vector_data/forrt_pages_voyage-4-large", "MIN_VECTOR_SIMILARITY": 0.397, "FORRT_IN_PAPERS_MIN_SCORE": 0.453, "CITATION_MODEL": "meta/muse-glimmer-30b"},
   "voyage+gemma-4-31b-it": {"EMBEDDING_MODEL": "mongodb/voyage-4-large", "VECTOR_STORE": "data/processed/vs_latest_voyage-4-large", "FORRT_PAGES_DIR": "vector_data/forrt_pages_voyage-4-large", "MIN_VECTOR_SIMILARITY": 0.397, "FORRT_IN_PAPERS_MIN_SCORE": 0.453, "CITATION_MODEL": "google/gemma-4-31b-it"},
   "voyage+gpt-6-luna": {"EMBEDDING_MODEL": "mongodb/voyage-4-large", "VECTOR_STORE": "data/processed/vs_latest_voyage-4-large", "FORRT_PAGES_DIR": "vector_data/forrt_pages_voyage-4-large", "MIN_VECTOR_SIMILARITY": 0.397, "FORRT_IN_PAPERS_MIN_SCORE": 0.453, "CITATION_MODEL": "openai/gpt-6-luna"},

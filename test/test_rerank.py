@@ -116,3 +116,25 @@ def test_verify_citations_loads_the_reranker_without_reranking(monkeypatch, node
     retriever = make_retriever(monkeypatch, nodes, lambda pairs: [0.9] * len(pairs), RERANK=False, VERIFY_CITATIONS=True)
     assert retriever.reranker is not None
     assert retriever.unsupported_citations("Claim [0].", nodes) == set()
+
+
+def test_cluster_boost_reorders_vector_candidates(monkeypatch):
+    import numpy as np
+    from llama_index.core.schema import NodeWithScore, TextNode
+    from just_os import clusters
+
+    table = {"a": [clusters.CLUSTERS[3]]}
+    # L2 distances 0.40 / 0.42 = cosine 0.80 / 0.79; the second is in the question's cluster
+    found = [NodeWithScore(node=TextNode(text="x", metadata={"title": "x"}), score=0.40),
+             NodeWithScore(node=TextNode(text="a", metadata={"title": "a"}), score=0.42)]
+    cents = np.eye(len(clusters.CLUSTERS))
+    assert clusters.question_cluster(cents, cents[3] + 0.1 * cents[4], 0.02) == clusters.CLUSTERS[3]
+    assert clusters.question_cluster(cents, cents[3] + cents[4], 0.02) is None  # a tie is not clear
+
+    boost = object.__new__(clusters.ClusterBoost)
+    boost.centroids, boost.table, boost.bonus, boost.margin = cents, table, 0.02, 0.02
+    boost.embed_model = SimpleNamespace(get_query_embedding=lambda q: cents[3])
+    retriever = make_retriever(monkeypatch, found, None, RERANK=False, MIN_VECTOR_SIMILARITY=0)
+    assert [n.node.text for n in retriever.search_order("q", found)] == ["x", "a"]
+    retriever.cluster_boost = boost
+    assert [n.node.text for n in retriever.search_order("q", found)] == ["a", "x"]

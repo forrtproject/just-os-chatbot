@@ -50,8 +50,9 @@ Licence (field `conditions_of_use`, free text from the form; "Not open access (U
 
 | Path | What | Size | Status |
 |---|---|---|---|
-| `data/processed/vs_latest_bge-m3_glossary/` | **Default index since 25 Nov 2026** (`VECTOR_STORE`): `vs_latest_bge-m3` plus the 1,298 FORRT glossary entries (`scripts/build_glossary.py` + `add_to_index`; `docs/evaluation.md` 3.23); since 26 Nov also the 141 full texts of `data/curation/261125/` and 818 abstract cards (160,316 chunks). Backups of its docstore: `docstore.json.bak-<YYMMDD>` (`scripts/fix_index_titles.py`) | 1.4 GB | Used by the app |
+| `data/processed/vs_latest_bge-m3_glossary/` | **Default index since 25 Nov 2026** (`VECTOR_STORE`): `vs_latest_bge-m3` plus the 1,298 FORRT glossary entries (`scripts/build_glossary.py` + `add_to_index`; `docs/evaluation.md` 3.23); since 26 Nov also the 141 full texts of `data/curation/261125/`, 818 abstract cards and 318 FORRT web pages (`data/curation/261126/`, #18; 166,393 chunks). Backups of its docstore: `docstore.json.bak-<YYMMDD>` (`scripts/fix_index_titles.py`) | 1.4 GB | Used by the app |
 | `data/processed/vs_latest_bge-m3_glossary_before_261125_additions/` | The default index as it was before the 26 Nov additions (rollback) | 1.3 GB | Rollback only |
+| `data/processed/vs_latest_bge-m3_glossary_before_261126_web/` | The default index before the 318 web pages (rollback) | 2.7 GB with its docstore backups | Rollback only |
 | `data/processed/vs_latest_bge-m3/` | The paper index (FAISS, 1024 dims), 1,354 documents; the glossary copy is built from it | 1.3 GB | Used by the app (`VECTOR_STORE`) |
 | `data/processed/vs_latest_bge-m3.zip` | Zipped index for `scripts/get_index.py` | 173 MB | **Out of date**: still the 513-document index |
 | `data/processed/vs_latest_bge-small-en-v1.5/` | Old production model (FAISS, 384 dims), 1,354 documents | 897 MB | English-only option for the app |

@@ -36,9 +36,10 @@ The web pods wait (startup probe) until step 4 has filled the two volumes.
 
 | Path in the volume | From this repository | Size |
 |---|---|---|
-| `processed/vs_latest_bge-m3_glossary/` | `data/processed/vs_latest_bge-m3_glossary/` (papers + FORRT glossary, the default `VECTOR_STORE`; git-ignored) | 1.3 GB |
+| `processed/vs_latest_bge-m3_glossary/` | `data/processed/vs_latest_bge-m3_glossary/` (papers + FORRT glossary, the default `VECTOR_STORE`; git-ignored) | 1.4 GB |
 | `raw/pub_years.csv` | `data/raw/pub_years.csv` | 36 KB |
 | `raw/forrt_sheet1_261028.csv` | `data/raw/forrt_sheet1_261028.csv` | small |
+| `curation/forrt_article_list.csv` | `data/curation/forrt_article_list.csv` (FORRT cluster of each resource, `CLUSTER_BOOST`; without it the search runs without the boost) | 4 MB |
 
 The model volume is mounted at `/home/python/.cache/huggingface` and needs `hub/models--BAAI--bge-m3/` (about 2.3 GB): copy it from the `hf-cache` Docker volume of a machine that ran the bot, or let one pod download it once with `HF_HUB_OFFLINE` removed from the ConfigMap and the volume writable.
 
@@ -49,6 +50,7 @@ kubectl -n just-os run copy --image=busybox --restart=Never --overrides='{"spec"
 kubectl -n just-os cp data/processed/vs_latest_bge-m3_glossary copy:/data/processed/vs_latest_bge-m3_glossary
 kubectl -n just-os cp data/raw/pub_years.csv copy:/data/raw/pub_years.csv
 kubectl -n just-os cp data/raw/forrt_sheet1_261028.csv copy:/data/raw/forrt_sheet1_261028.csv
+kubectl -n just-os cp data/curation/forrt_article_list.csv copy:/data/curation/forrt_article_list.csv
 kubectl -n just-os cp <hf-cache>/hub/models--BAAI--bge-m3 copy:/models/hub/models--BAAI--bge-m3
 kubectl -n just-os delete pod copy
 kubectl -n just-os rollout restart deployment/just-os-web

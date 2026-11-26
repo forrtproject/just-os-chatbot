@@ -776,3 +776,53 @@ Findings:
 3. Replay of the test chat on dev: no follow-up drifts to funders; self-contained questions come back unchanged.
 
 Limits: one run per side (run-to-run spread ~0.03 in 3.16); one judge.
+
+### 3.26 Larger index, cluster boost, citation check and topic check (26 November 2026, Gemma 4 31B)
+
+**Index:** since 3.23 the default index gained 141 full texts, 818 abstract cards and 318 FORRT web pages (#18; `./run curate` now drops pages with under 200 words of running text, `MIN_PROSE_WORDS`, which removed 102 menu and landing pages): 166,393 chunks.
+
+**Eval bug fixed on the way:** the retrieval cache of `eval/run.py` (`--cache-retrieval`, always on in `eval/run_batches.py`) was keyed on settings only, so a run on an index changed in place, or with a new search setting, reused the old chunks. The key now includes the docstore's size and mtime and `CLUSTER_BOOST`. The first hit@7 rerun on 26 Nov (0.657) and a first boost run (138 of 140 answers with the defaults' sources) were affected and were discarded. A code change to the search (such as the glossary preference below) still needs `eval/.retrieval_cache` cleared.
+
+**hit@7 rerun (task 5):** fresh run on the larger index (`run_261126-1620_cfg-gemma4+defaults-261126`, 140 questions, papers route): hit@7 **0.648** on the 108 questions with expected DOIs (0.694 on 25 Nov), Correct 0.871, judge support 0.802, citations valid 0.862. The drop comes from new full texts and cards that now win slots for questions whose expected DOIs were picked from the old index; some are relevant (CARE principles `dsj-2020-043` for `new07`). It is an artefact of the expected-DOI lists more than a loss, and the cluster boost wins it back (below).
+
+**Cluster boost:** each FORRT cluster's centroid is the mean unit vector of its documents' chunks (cluster of a document from `data/curation/forrt_article_list.csv`, by DOI or title: 64% of chunks have one). When the question is closer to one centroid than to the next by a margin, that cluster's chunks get a bonus on their cosine among the 20 candidates, before the per-paper cap and the cut to 7.
+
+Retrieval only (`eval/cluster_boost.py`, `cluster_boost_261126.md`, 105 questions with a cluster and expected DOIs; baseline 0.657):
+
+| Margin | Bonus | Questions boosted | Boosted cluster = labelled | hit@7 | Chunks in the labelled cluster |
+|---|---|---|---|---|---|
+| – | 0 | 0 | – | 0.657 | 0.311 |
+| 0 | 0.02 | 107 | 71 | 0.695 | 0.463 |
+| 0.01 | 0.02 | 73 | 58 | 0.705 | 0.448 |
+| **0.02** | **0.02** | 57 | 50 | **0.714** | 0.428 |
+| 0.03 | 0.02 | 43 | 39 | 0.695 | 0.406 |
+
+Every setting with a bonus is at least as good as none. With answers (`gemma4+defaults-261126` vs `gemma4+cluster-boost-261126`, the same 140 questions, judge gpt-oss-20b):
+
+| | Defaults | Cluster boost 0.02 / 0.02 |
+|---|---|---|
+| hit@7 (108 q) | 0.648 | **0.704** (+6, none lost: `ml04`, `new32`, `new48`, `pr06`, `pr07`, `qa08`) |
+| Correct | 0.871 | 0.871 |
+| Judge support (130 answers) | 0.802 | 0.812 |
+| Citations valid | 0.862 | 0.854 |
+| Mean / p95 s | 6.9 / 19.8 | 6.3 / 14.4 |
+
+58 of 140 answers had other sources. **Switched on** (`CLUSTER_BOOST=0.02`, `CLUSTER_BOOST_MARGIN=0.02`); it costs ~7 s at start (centroids) and one more question embedding per search, and needs `data/curation/forrt_article_list.csv` on the data volume. Limits: the margin and bonus were picked on the same questions (a 4 × 4 grid, all bonuses help); the expected DOIs come from the same FORRT lists as the clusters, so hit@7 favours the boost. The judge score, which does not use the lists, is level or better.
+
+**Glossary preference (task 7):** the papers a kept glossary entry cites (`reference_dois`) move ahead of the other found chunks (test `test_papers_cited_by_the_glossary_entry_come_first`); included in both runs above.
+
+**Hallucination check (#23):** `eval/citation_check.py` on a run with whole passages (`run_261126_full_gemma4`, 130 answers, 2,042 cited sentence-source pairs, 759 cited sources). gpt-oss-20b judged each pair; 74 sources (10%) were supported by no sentence citing them. The app's check (`VERIFY_CITATIONS`: re-ranker `bge-reranker-v2-m3`, a source is flagged when its best pair scores below `VERIFY_MIN_SCORE`):
+
+| VERIFY_MIN_SCORE | Sources flagged | Unsupported caught | Flags right |
+|---|---|---|---|
+| 0.01 | 13 | 9% | 54% |
+| 0.05 | 32 | 16% | 38% |
+| 0.1 (default) | 41 | 18% | 32% |
+| 0.3 | 74 | 27% | 27% |
+| 0.5 | 99 | 38% | 28% |
+
+The re-ranker took a median 9.2 s (p95 15.3 s) per answer on CPU. **Not switched on:** at any threshold it catches at most about a third of the unsupported sources, two of three flags are wrong, and it would double the answer time and load the re-ranker (~2.2 GB) in every pod. `VERIFY_MIN_SCORE` stays 0.1. Better candidates if it is needed: an LLM check of each pair (like the judge) on uniGPT, or a smaller NLI model. Limit: one judge, no human labels.
+
+**Topic check (task 13):** `eval/classify.py --routers jev,banded,cosine,llm,none` on the larger index (`classify_261126-1341.csv`, 214 questions): banded 0.89, Jev 0.89, LLM 0.84, cosine 0.77. On the 172 questions it shares with `classify_261115-1412`, banded gives the same answer to every one (153 right both times). The bands need no retuning.
+
+**Eval balance (task 12):** `eval/cluster_balance.py` (`cluster_balance_261126.md`): Replication Crisis and Credibility Revolution has 18% of the chunks but 6% of the questions (under-tested), and Academic Structures and Replication and Meta-research are each 6 points short. Publication Sharing has 11% of the questions but 2% of the chunks, and Pre-analysis Planning and FAIR are over-tested by 8-9 points. Next question-bank additions should go to the first three.

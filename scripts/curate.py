@@ -33,6 +33,7 @@ import pandas as pd
 from just_os.references import document_key, normalize_doi, plain_metadata
 
 MAX_TRIES = 6  # PDF copies tried per resource (each one may go through GROBID)
+MIN_PROSE_WORDS = 200  # words in lines of 8+ words: a page below is a menu or landing page (26 Nov: 102 of 420)
 WORKERS = 6  # resources at a time
 OUTCOMES = {
     "already_indexed": "The index already has this DOI or title",
@@ -42,7 +43,7 @@ OUTCOMES = {
     "pdf_not_converted": "GROBID gave no text (scan, or GROBID not running)",
     "wrong_document": "A PDF was found, but its title is not this resource's: check the link by hand",
     "web_page_failed": "The page could not be downloaded or is not HTML",
-    "web_page_too_short": "The page has too little text (a menu or landing page)",
+    "web_page_too_short": "The page has too little running text (a menu or landing page)",
     "converted": "Markdown written; added to the index unless add_to_index found it there",
 }
 
@@ -107,6 +108,11 @@ def pdf_markdown(row, work, http=None):
     return outcome, ""
 
 
+def prose_words(text):
+    """Words in lines of at least 8 words: running text, not menu items."""
+    return sum(len(line.split()) for line in text.splitlines() if len(line.split()) >= 8)
+
+
 def web_markdown(row):
     """(outcome, Markdown) for a row without a DOI: the page's main text."""
     from scripts.fetch_web_resources import MIN_CHARS, fetch, main_text
@@ -115,7 +121,7 @@ def web_markdown(row):
         text = main_text(fetch(row["link_to_resource"].strip()))
     except Exception:
         return "web_page_failed", ""
-    if len(text) < MIN_CHARS:
+    if len(text) < MIN_CHARS or prose_words(text) < MIN_PROSE_WORDS:
         return "web_page_too_short", ""
     return "converted", f"# {row['title']}\n\nSource: {row['link_to_resource']}\n\n{text}\n"
 
