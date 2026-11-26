@@ -831,6 +831,22 @@ The re-ranker took a median 9.2 s (p95 15.3 s) per answer on CPU. **Not switched
 
 **Topic map** rebuilt on `vs_latest_bge-m3_glossary` (`eval/results/topic_map_261126.{html,md,csv}`, shown on `/topics`): 3,930 documents, 166,449 chunks, 328 topics (231 multi-document, 61 from one document, 36 reference lists). Compared with 3.13 (13 Nov, 1,354 papers): the share of reference-list or near-empty chunks fell from 16% to 14%. The 7 blind sub-clusters stay blind (Equity, Public and Private Partnerships, Sexuality, Religion and culture, Feminist Thought, Inclusion, Rights retention strategies), each a little closer (e.g. Equity 0.495 → 0.509). Four thin ones moved up to covered (Preprints and postprints, Repositories, Adversarial collaborations, Hidden curriculum). Cluster 9 (diversity, equity, inclusion) holds 6 of the 7 blind ones: abstract cards and web pages did not reach it, so it needs full texts. The 6 documents with another work's text are excluded from the search (`config/index_corrections.json`). 29 cluster PDFs still show their file name as title (e.g. "C09 SC08 Incl Henrich 2010"), which answers show as the source title.
 
-**What the map gives the search:** (1) the FORRT clusters as a signal, now used by the cluster boost (3.26); (2) reference-list chunks: 4.6% of the passages the answers got in 3.26's boost run (42 of 904) are reference lists or near-empty (`common.is_boilerplate`), a small share of slots to win back with a filter, not yet tried; (3) the 29 file-name titles, which a title correction would fix in the sources box; (4) where to add documents (cluster 9).
+**What the map gives the search:** (1) the FORRT clusters as a signal, now used by the cluster boost (3.26); (2) reference-list chunks: 4.6% of the passages the answers got in 3.26's boost run (42 of 904) are reference lists or near-empty (`common.is_boilerplate`), a small share of slots to win back with a filter (3.28); (3) the 29 file-name titles, which a title correction would fix in the sources box; (4) where to add documents (cluster 9).
 
 **Article list:** `scripts/forrt_article_list.py` now checks the bot's index (`VECTOR_STORE`), says how each resource is in it and keeps the last download outcome. Of the 3,070 resources FORRT wants (34 more excluded in its sheets), 2,505 are in the index (82%): 1,365 as full text, 336 as web pages, 804 as abstract cards; 565 are missing, mostly web resources (417; 322 pages with too little text, 110 that failed). Shown on the dev page `/articles`.
+
+### 3.28 Leaving reference-list chunks out of the passages (26 November 2026, Gemma 4 31B, 140 questions)
+
+**Change:** `SKIP_REFERENCE_CHUNKS` drops a found chunk that is a reference list, author block or near-empty (`references.is_reference_chunk`: more than 4 citation patterns per 100 words, or under 25 words; the topic map's rule, now one definition for both) before the per-paper cap and the cut to 7. FORRT glossary entries and abstract cards are short on purpose and are kept.
+
+**Runs:** `gemma4+defaults-261126` (today's defaults, cluster boost on) against `gemma4+skip-refs-261126`, both fresh on the same index, papers route, judge gpt-oss-20b.
+
+| | Defaults | Without reference-list chunks |
+|---|---|---|
+| Reference-list passages (of ~900) | 43 | 13 |
+| hit@7 (108 q) | 0.704 | 0.713 (+2 `new07`, `new09`; −1 `new27`) |
+| Correct | 0.871 | 0.871 |
+| Judge support (130 answers) | 0.806 | 0.823 |
+| Citations valid | 0.854 | 0.846 |
+
+Passages counted on the first 800 characters the run keeps of each: of the 13 left, 4 are glossary entries (kept on purpose); the others pass the rule on their whole text, or come from the reference lookup, which answers from the named paper and skips the filter. 26 of 140 answers got other sources. The gains are small and inside the run-to-run spread (~0.03 judge, 3.16), but nothing got worse and the rule costs nothing (a regex on 20 candidates). **Switched on** (`SKIP_REFERENCE_CHUNKS=true`). Times are not compared (OpenRouter load differed between the runs).

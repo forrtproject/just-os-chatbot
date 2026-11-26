@@ -21,6 +21,22 @@ OPEN_LICENCE = re.compile(
     re.I,
 )
 GLOSSARY_TYPE = "FORRT Glossary"  # material_type of the glossary documents (scripts/build_glossary.py)
+
+# Reference-list chunk: many "(2013)", "2013.", "et al.", "12(3)" or "123-130." per 100 words (eval/topic_map,
+# SKIP_REFERENCE_CHUNKS); 14% of the index's chunks are reference lists or near-empty (docs/evaluation.md 3.27)
+CITATION = re.compile(r"\(\d{4}[a-z]?\)|\b(19|20)\d{2}[a-z]?\.|et al\.|\b\d+\(\d+\)|\b\d{1,4}[–-]\d{1,4}\.")
+CITATIONS_PER_100_WORDS = 4
+MIN_WORDS = 25
+
+
+def citation_density(text: str) -> float:
+    """Citation patterns per 100 words."""
+    return len(CITATION.findall(text)) / max(len(text.split()), 1) * 100
+
+
+def is_reference_chunk(text: str) -> bool:
+    """A reference list, author block or near-empty chunk."""
+    return citation_density(text) > CITATIONS_PER_100_WORDS or len(text.split()) < MIN_WORDS
 RESTRICTED = re.compile(r"\bnc\b|\bnd\b|non-?commercial|no-?deriv", re.I)
 
 

@@ -2,6 +2,7 @@
 
 import os
 import re
+import sys
 import time
 from pathlib import Path
 
@@ -22,10 +23,10 @@ CLUSTER_PDF_LICENCE = "FORRT cluster PDF (open access)"  # conditions_of_use of 
 # Coverage of a sub-cluster: similarity of its name to the 10th-closest paper
 STATUS_LIMITS = ((0.56, "blind"), (0.59, "thin"), (0.63, "covered"))
 
-# Reference-list chunk: many "(2013)", "2013.", "et al.", "12(3)" or "123-130." per 100 words
-CITATION = re.compile(r"\(\d{4}[a-z]?\)|\b(19|20)\d{2}[a-z]?\.|et al\.|\b\d+\(\d+\)|\b\d{1,4}[–-]\d{1,4}\.")
-CITATIONS_PER_100_WORDS = 4
-MIN_WORDS = 25
+# Reference-list chunk: the app's rule (SKIP_REFERENCE_CHUNKS), one definition for both
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from just_os.references import (CITATION, CITATIONS_PER_100_WORDS, MIN_WORDS,  # noqa: E402,F401
+                                citation_density, is_reference_chunk as is_boilerplate)
 
 
 def plain(value):
@@ -39,16 +40,6 @@ def clean(text: str) -> str:
     text = re.sub(r"\]\([^)]*\)", "]", text)  # Markdown link targets
     text = re.sub(r"https?://\S+|www\.\S+|doi:\s*\S+|\b10\.\d{4,}/\S+", " ", text)
     return re.sub(r"[*_#|\[\]]", " ", text)
-
-
-def citation_density(text: str) -> float:
-    """Citation patterns per 100 words of cleaned text."""
-    return len(CITATION.findall(text)) / max(len(text.split()), 1) * 100
-
-
-def is_boilerplate(text: str) -> bool:
-    """A reference list, author block or near-empty chunk: it does not count as coverage."""
-    return citation_density(text) > CITATIONS_PER_100_WORDS or len(text.split()) < MIN_WORDS
 
 
 def topic_kind(boilerplate_share: float, top_paper_share: float) -> str:

@@ -128,3 +128,17 @@ def test_papers_cited_by_the_glossary_entry_come_first():
     kept = retriever(0, max_chunks=4).limit_per_document([a, nodoi, entry, kerr, rubin])
     assert kept == [entry, kerr, rubin, a]  # the entry and the papers it cites, then search order
     assert retriever(0).limit_per_document([a, kerr]) == [a, kerr]  # no glossary entry: search order
+
+
+def test_reference_list_chunks_are_skipped_but_short_glossary_and_cards_kept():
+    prose = "Preregistration means writing down the hypotheses, design and analysis plan before the data exist, " * 3
+    refs = "Nosek, B. A. (2018). The preregistration revolution. PNAS, 115(11), 2600-2606. " * 4
+    text = lambda t, **m: SimpleNamespace(text=t, metadata={"doi": t[:9], **m})  # noqa: E731
+    paper, reference_list = text(prose), text(refs)
+    glossary = text("HARKing: hypothesising after the results are known.", material_type="FORRT Glossary")
+    card = text("Short card", material_type="FORRT abstract card: Reading")
+    r = retriever(0)
+    assert r.limit_per_document([reference_list, paper]) == [reference_list, paper]  # off by default
+    r.skip_reference_chunks = True
+    assert r.limit_per_document([reference_list, paper, glossary, card]) == [paper, glossary, card]
+    assert qualle.is_reference_chunk(refs) and not qualle.is_reference_chunk(prose)

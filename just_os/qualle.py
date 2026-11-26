@@ -33,6 +33,7 @@ from llama_index.core.schema import TextNode
 from just_os.references import (
     GLOSSARY_TYPE,
     best_snippet,
+    is_reference_chunk,
     document_key,
     paper_key,
     load_publication_years,
@@ -405,6 +406,7 @@ class DocumentRetriever:
         self.n_context_items = config["MAX_CHUNKS"]
         self.min_relevance = config["MIN_RELEVANCE"]
         self.max_per_doc = config.get("MAX_CHUNKS_PER_DOC", 0)
+        self.skip_reference_chunks = config.get("SKIP_REFERENCE_CHUNKS", False)
         self.excluded = excluded_documents(config.get("INDEX_CORRECTIONS_FILE"))
         self.adaptive_top_k = config.get("ADAPTIVE_TOP_K", False)
         self.adaptive_ratio = config.get("ADAPTIVE_TOP_K_RATIO", 0.5)
@@ -447,6 +449,9 @@ class DocumentRetriever:
         excluded = getattr(self, "excluded", ())
         if excluded:  # documents whose text is another work (config/index_corrections.json)
             nodes = [n for n in nodes if document_key(plain_metadata(n.metadata)) not in excluded]
+        if getattr(self, "skip_reference_chunks", False):  # glossary entries and abstract cards are short on purpose
+            nodes = [n for n in nodes if str(plain_metadata(n.metadata).get("material_type", "")).startswith(
+                (GLOSSARY_TYPE, "FORRT abstract card")) or not is_reference_chunk(n.text)]
         glossary = [n for n in nodes if plain_metadata(n.metadata).get("material_type") == GLOSSARY_TYPE]
         if len(glossary) > 1:
             wanted = GLOSSARY_LANGUAGES.get(msg.confident_language(query) if query else None, "english")
@@ -1322,7 +1327,7 @@ class Qualle:
                 "DECISION_ROUTER_MIN_CONFIDENCE", "COSINE_PAPER_MIN", "COSINE_PAGE_MIN", "BAND_PAPER_LOW",
                 "BAND_PAGE_LOW", "BAND_PAPER_HIGH", "BAND_PAGE_HIGH", "BAND_MIDDLE_ROUTER", "EMBEDDING_MODEL",
                 "SEARCH_MODE", "RETRIEVER_TOP_K", "RERANK", "RERANK_MODEL", "MIN_RELEVANCE", "ADAPTIVE_TOP_K",
-                "ADAPTIVE_TOP_K_RATIO", "MAX_CHUNKS", "MAX_CHUNKS_PER_DOC", "CLUSTER_BOOST", "VERIFY_CITATIONS", "FORRT_PAGES",
+                "ADAPTIVE_TOP_K_RATIO", "MAX_CHUNKS", "MAX_CHUNKS_PER_DOC", "CLUSTER_BOOST", "SKIP_REFERENCE_CHUNKS", "VERIFY_CITATIONS", "FORRT_PAGES",
                 "FORRT_IN_PAPERS", "FORRT_IN_PAPERS_MIN_SCORE", "FORRT_SELECT_MODEL", "FORRT_DECISION_THRESHOLD",
                 "FORRT_DECISION_FLOOR", "FORRT_ANSWER_MODEL", "ANSWER_CACHE_TTL")
         return {"answer_model": model or c.get("CITATION_MODEL"), "router": router or c.get("ROUTER") or "",

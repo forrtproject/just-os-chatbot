@@ -178,7 +178,8 @@ def cache_retrieval(qualle, config, folder=Path("eval/.retrieval_cache")):
                            config.get("MAX_CHUNKS"), config.get("MIN_RELEVANCE"), config.get("MAX_CHUNKS_PER_DOC"),
                            config.get("ADAPTIVE_TOP_K"), config.get("EMBEDDING_MODEL"),
                            config.get("ADAPTIVE_TOP_K_RATIO"), config.get("ADAPTIVE_TOP_K_MIN"),
-                           config.get("CLUSTER_BOOST"), config.get("CLUSTER_BOOST_MARGIN"), index_stamp(config)])
+                           config.get("CLUSTER_BOOST"), config.get("CLUSTER_BOOST_MARGIN"), config.get("SKIP_REFERENCE_CHUNKS"),
+                           index_stamp(config)])
     folder.mkdir(parents=True, exist_ok=True)
 
     def cached(query, *args, **kwargs):

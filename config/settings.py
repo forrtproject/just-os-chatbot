@@ -167,6 +167,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # (docs/evaluation.md 3.26); costs ~7 s at start and one more question embedding per search
     "CLUSTER_BOOST": 0.02,
     "CLUSTER_BOOST_MARGIN": 0.02,
+    # Leave out reference-list and near-empty chunks (references.is_reference_chunk) before the cut to MAX_CHUNKS;
+    # glossary entries and abstract cards are kept. On since 26 Nov: reference-list passages 43 -> 13 of ~900,
+    # judge support 0.806 -> 0.823, hit@7 level (docs/evaluation.md 3.28)
+    "SKIP_REFERENCE_CHUNKS": True,
     # Redis settings
     "REDIS_HOST": "redis",
     "REDIS_PORT": 6379,
