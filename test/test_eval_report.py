@@ -227,7 +227,8 @@ def test_every_answer_run_names_its_setting_and_today_comes_first():
     assert eval_report.setting(cap, configs)["setting"] == "bge-m3 · vector · ≤ 2 chunks per paper"
     glossary = {"run": "261125-1800", "model": "g", "config": "g"}
     assert eval_report.setting(glossary, {"g": {"VECTOR_STORE": "data/processed/vs_latest_bge-m3_glossary"}})["setting"] ==         "bge-m3 + FORRT glossary · vector"
-    runs = [{"run": "261119-1900", "model": "google/gemma-4-31b-it", "config": "", "kind": "papers", "score": 0.73},
+    runs = [{"run": "261126-1643", "model": "google/gemma-4-31b-it", "config": "", "kind": "papers", "score": None},  # A/B
+            {"run": "261119-1900", "model": "google/gemma-4-31b-it", "config": "", "kind": "papers", "score": 0.73},
             {"run": "261113-1200", "model": "google/gemma-4-31b-it", "config": "", "kind": "papers", "score": 0.70},
             {"run": "261113-1200", "model": "x", "config": "search-bm25", "kind": "papers", "score": 0.9},  # search table
             {"run": "261119-1900", "model": "m", "config": "", "kind": "FORRT pages", "score": None}]

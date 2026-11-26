@@ -235,7 +235,10 @@ def answer_model_rows(runs: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
         row["uni_credits"] = unigpt_credits_per_1k(row)
         row["why"] = (EMBEDDING_WHY["E10"] if row["setting"].startswith("Voyage")
                       else ANSWER_WHY.get(row["answer_model"], ""))
-        latest.setdefault((row["answer_model"], row["setting"]), row)
+        # a newer run without a score (part of the questions, no rubric judge: an A/B run) must not hide a scored one
+        kept = latest.get((row["answer_model"], row["setting"]))
+        if kept is None or (kept.get("score") is None and row["score"] is not None):
+            latest[(row["answer_model"], row["setting"])] = row
     rows = sorted(latest.values(), key=lambda r: -(r.get("score") or -1))
     return [r for r in rows if r["setting"] == TODAY_SETTING], [r for r in rows if r["setting"] != TODAY_SETTING]
 
