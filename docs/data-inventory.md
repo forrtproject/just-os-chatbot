@@ -94,7 +94,7 @@ Where title, authors and DOI of the 753 papers come from:
 | A DOI printed in the PDF, found by GROBID, or from the sheet match, **and** the OpenAlex title for that DOI is in the first pages → title, authors, licence and open-access status from OpenAlex | 561 |
 | No checked DOI: title and authors from GROBID (the title is in the first pages) | 95 |
 | No checked DOI: title from the sheet match, the PDF's own title field or the largest text on page 1; no authors | 67 |
-| No title found: the file name is the title (for example "C01 SC01 HistRC Edwards 2016") | 30 |
+| No title found: the file name is the title (for example "C01 SC01 HistRC Edwards 2016"; the 29 in the index are corrected since 27 Nov, `config/index_corrections.json`) | 30 |
 
 The 192 papers without a DOI have no link and show "n.d." as year.
 

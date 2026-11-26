@@ -240,7 +240,7 @@ Checked on 25 November:
 
 `eval/topic_map/` maps the index by FORRT cluster / sub-cluster with keywords and citation density, and lists wrong files and titles.
 
-- [x] **Data quality** (25 Nov): `config/index_corrections.json`. The 6 documents whose text is another work (e.g. 752 chunks of Canadian Journal of Surgery abstracts) are never returned by the search or the reference lookup (`exclude`); the 7 wrong titles (a licence line, a repository header, "Alfalfa…" for *Building better theories*) are corrected in both indexes' metadata by `scripts/fix_index_titles.py` (384 chunks; backups `docstore.json.bak-261125`).
+- [x] **Data quality** (25 Nov): `config/index_corrections.json`. The 6 documents whose text is another work (e.g. 752 chunks of Canadian Journal of Surgery abstracts) are never returned by the search or the reference lookup (`exclude`); the 7 wrong titles (a licence line, a repository header, "Alfalfa…" for *Building better theories*) are corrected in both indexes' metadata by `scripts/fix_index_titles.py` (384 chunks; backups `docstore.json.bak-261125`). 27 Nov: the 29 file-name titles too (4,541 chunks; evaluation.md 3.29).
 - [x] **Coverage gaps:** task 5's abstract cards and web pages are in. Publication Sharing is still thin (2% of chunks, 38 documents; `cluster_balance_261126.md`).
 - [x] Cluster boost (26 Nov, evaluation.md 3.26): clusters come from `forrt_article_list.csv` at start, not stored on chunks (`just_os/clusters.py`). On by default: `CLUSTER_BOOST=0.02`, hit@7 0.648 → 0.704, judge 0.802 → 0.812.
 - [x] Suggested questions on the chat start page, one per cluster (`SUGGESTED_QUESTIONS`; four at random until the first question).

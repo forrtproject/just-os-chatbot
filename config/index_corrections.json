@@ -1,5 +1,5 @@
 {
-  "_about": "Fixes for documents of the index, found by the topic map (eval/topic_map/wrong_files.json, wrong_titles.json; docs/deployment-checklist.md task 12). exclude: documents whose text is another work; the search never returns them (EXCLUDED_DOCUMENTS, read by just_os/qualle.py). titles: documents whose text is right but whose title is a page header, a licence line or another work's; scripts/fix_index_titles.py writes the title (and DOI) into the index's metadata. Keys of titles are the start of the wrong title.",
+  "_about": "Fixes for documents of the index, found by the topic map (eval/topic_map/wrong_files.json, wrong_titles.json; docs/deployment-checklist.md task 12). exclude: documents whose text is another work; the search never returns them (EXCLUDED_DOCUMENTS, read by just_os/qualle.py). titles: documents whose text is right but whose title is a page header, a licence line, another work's or the PDF's file name (29 cluster PDFs, checked against Crossref 27 Nov 2026); scripts/fix_index_titles.py writes the title (and DOI) into the index's metadata. Keys of titles are the start of the wrong title.",
   "exclude": {
     "10.1503/cjs.016712": "Canadian Journal of Surgery supplement: colorectal and bariatric surgery abstracts",
     "10.1503/cjs.012621": "Canadian Spine Society conference abstracts",
@@ -15,6 +15,35 @@
     "Munich Personal RePEc Archive": {"title": "Evaluating replicability of laboratory experiments in economics", "doi": "10.1126/science.aaf0918"},
     "Alfalfa : the king of all fodder plants": {"title": "Building better theories", "doi": "10.1016/j.cub.2021.11.027", "creators": "Clare Press, Daniel Yon, Cecilia Heyes"},
     "DANISH CENTRE FOR STUDIES IN RESEARCH AND RESEARCH POLICY": {"title": "Using Generative Artificial Intelligence (GenAI) across different Research Phases – Cases, Potential and Risks"},
-    "GEOLOGY Deep-drilling pioneers": {"title": "Reproducibility: A tragedy of errors"}
+    "GEOLOGY Deep-drilling pioneers": {"title": "Reproducibility: A tragedy of errors"},
+    "C01 SC01 HistRC Baker 2016": {"title": "1,500 scientists lift the lid on reproducibility", "doi": "10.1038/533452a", "creators": "Monya Baker"},
+    "C01 SC01 HistRC Edwards 2016": {"title": "Academic Research in the 21st Century: Maintaining Scientific Integrity in a Climate of Perverse Incentives and Hypercompetition", "doi": "10.1089/ees.2016.0223", "creators": "Marc A. Edwards, Siddhartha Roy"},
+    "C11 SC04 ResCultIncInstResp Edwards 2017": {"title": "Academic Research in the 21st Century: Maintaining Scientific Integrity in a Climate of Perverse Incentives and Hypercompetition", "doi": "10.1089/ees.2016.0223", "creators": "Marc A. Edwards, Siddhartha Roy"},
+    "C01 SC02 SciMis Fang 2012": {"title": "Misconduct accounts for the majority of retracted scientific publications", "doi": "10.1073/pnas.1212247109", "creators": "Ferric C. Fang, R. Grant Steen, Arturo Casadevall"},
+    "C01 SC06 Ethic Jones 2006": {"title": "A code of ethics for the life sciences", "creators": "Nancy L. Jones"},
+    "C01 SC07 OpSciDeb McDermott 2022": {"title": "Breaking free: How preregistration hurts scholars and science", "doi": "10.1017/pls.2022.4", "creators": "Rose McDermott"},
+    "C03 SC01 AdvCollab Nature 2025": {"title": "Make science more collegial: why the time for 'adversarial collaboration' has come", "doi": "10.1038/d41586-025-01379-3"},
+    "C03 SC01 QualResearch Barbour 2014": {"title": "Introducing Qualitative Research: A Student's Guide", "doi": "10.4135/9781526485045", "creators": "Rosaline Barbour"},
+    "C03 SC011 AcadNonAcadAltAcadPos Forrester 2023": {"title": "Fed up and burnt out: 'quiet quitting' hits academia", "doi": "10.1038/d41586-023-00633-w", "creators": "Nikki Forrester"},
+    "C03 SC011 AcadNonAcadAltAcadPos Nature 2019(1)": {"title": "Nature editorial (2020): funders and universities must support early-career researchers through the pandemic"},
+    "C03 SC011 AcadNonAcadAltAcadPos Nature 2020": {"title": "Seeking an 'exit plan' for leaving academia amid coronavirus worries", "doi": "10.1038/d41586-020-02029-6", "creators": "Chris Woolston"},
+    "C03 SC03 CommSci Haklay 2018": {"title": "Citizen Science: Innovation in Open Science, Society and Policy", "doi": "10.14324/111.9781787352339", "creators": "Susanne Hecker, Muki Haklay, Anne Bowser, Zen Makuch, Johannes Vogel, Aletta Bonn (eds.)"},
+    "C03 SC03 CommSci Hart 2020": {"title": "Rebuilding the Ivory Tower: A Bottom-Up Experiment in Aligning Research With Societal Needs", "creators": "David D. Hart, Linda Silka"},
+    "C03 SC03 CommSci Picot 2022": {"title": "Fieldwork: institutions can make it more ethical", "doi": "10.1038/d41586-022-02805-6", "creators": "Laura E. Picot, Catherine Fallon Grasham"},
+    "C09 SC01 Acc Steinfeld 2012": {"title": "Universal Design: Creating Inclusive Environments", "creators": "Edward Steinfeld, Jordana L. Maisel"},
+    "C09 SC02 CitePolPract Kwon 2022": {"title": "The rise of citational justice: how scholars are making references fairer", "doi": "10.1038/d41586-022-00793-1", "creators": "Diana Kwon"},
+    "C09 SC08 Incl Henrich 2010": {"title": "Most people are not WEIRD", "doi": "10.1038/466029a", "creators": "Joseph Henrich, Steven J. Heine, Ara Norenzayan"},
+    "C09 SC10 NeuroDiv Powell 2021": {"title": "Disabled scientists on the barriers in academia (Nature, 2021, interviews by Kendall Powell)", "creators": "Kendall Powell"},
+    "C09 SC17 SocAcceptAppear Shahani-Denning 2003": {"title": "Physical Attractiveness Bias in Hiring: What Is Beautiful Is Good", "creators": "Comila Shahani-Denning"},
+    "C09 SC18 StructIncAcad Begley 2015": {"title": "Robust research: Institutions must do their part for reproducibility", "doi": "10.1038/525025a", "creators": "C. Glenn Begley, Alastair M. Buchan, Ulrich Dirnagl"},
+    "C09 SC18 StructIncAcad Hirsch 2010": {"title": "An index to quantify an individual's scientific research output that takes into account the effect of multiple coauthorship", "doi": "10.1007/s11192-010-0193-9", "creators": "J. E. Hirsch"},
+    "C10 SC10 TransQualRes Moravcsik 2019": {"title": "Transparency in Qualitative Research", "doi": "10.4135/9781526421036863782", "creators": "Andrew Moravcsik"},
+    "C11 SC02 ResMisFFP Martinson 2005": {"title": "Scientists behaving badly", "doi": "10.1038/435737a", "creators": "Brian C. Martinson, Melissa S. Anderson, Raymond de Vries"},
+    "C11 SC02 ResMisFFP Titus 2008": {"title": "Repairing research integrity", "doi": "10.1038/453980a", "creators": "Sandra L. Titus, James A. Wells, Lawrence J. Rhoades"},
+    "C11 SC04 ResCultIncInstResp Hicks 2015": {"title": "Bibliometrics: The Leiden Manifesto for research metrics", "doi": "10.1038/520429a", "creators": "Diana Hicks, Paul Wouters, Ludo Waltman, Sarah de Rijcke, Ismael Rafols"},
+    "C11 SC04 ResCultIncInstResp Nature 2019": {"title": "Research integrity is much more than misconduct", "doi": "10.1038/d41586-019-01727-0"},
+    "C11 SC05 PublicationPeerReviewRI Grudniewicz 2019": {"title": "Predatory journals: no definition, no defence", "doi": "10.1038/d41586-019-03759-y", "creators": "Agnes Grudniewicz, David Moher, Kelly D. Cobey et al."},
+    "C11 SC05 PublicationPeerReviewRI Smith 2006": {"title": "Peer review: a flawed process at the heart of science and journals", "doi": "10.1177/014107680609900414", "creators": "Richard Smith"},
+    "C11 SC05 PublicationPeerReviewRI Stie 2024": {"title": "What is it like to attend a predatory conference?", "doi": "10.1038/d41586-024-02358-w", "creators": "Christine Ro"}
   }
 }
