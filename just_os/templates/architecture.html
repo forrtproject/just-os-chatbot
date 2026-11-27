@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How JUST-OS works</title>
+    <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+    <style>
+        #arch { max-width: 1100px; margin: 0 auto; padding: 0 16px 64px; font-family: "Helvetica", sans-serif; color: #313131; }
+        #arch h1 { color: #004055; font-size: 2rem; margin: 16px 0 8px; }
+        #arch h2 { color: #004055; font-size: 1.5rem; margin: 40px 0 4px; border-bottom: 2px solid #004055; padding-bottom: 4px; }
+        #arch h3 { color: #004055; font-size: 1.15rem; margin: 0 0 6px; }
+        #arch h4 { font-size: 1rem; margin: 14px 0 4px; }
+        #arch p, #arch li { font-size: 0.95rem; line-height: 1.55; max-width: 95ch; }
+        #arch code { background: #eef1f3; padding: 0 3px; border-radius: 3px; font-size: 0.88em; }
+        #arch-bar { position: sticky; top: 0; z-index: 2; background: #fefdf6; padding: 8px 0; display: flex; flex-wrap: wrap;
+                    gap: 10px; align-items: center; border-bottom: 1px solid #e1e4e8; }
+        #arch-filter { font: inherit; font-size: 0.95rem; padding: 5px 8px; border: 1px solid #c8cdd2; border-radius: 4px; min-width: 300px; }
+        #arch-bar button { font: inherit; font-size: 0.85rem; padding: 4px 8px; border: 1px solid #c8cdd2; border-radius: 4px; background: white; cursor: pointer; }
+        #arch-count { font-size: 0.85rem; color: #5a6270; }
+        .legend { display: flex; gap: 8px; margin-left: auto; font-size: 0.8rem; }
+        .tag { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 0.75rem; font-weight: normal; vertical-align: middle; white-space: nowrap; }
+        .t-both { background: #d9efe2; color: #1d5a36; } .t-dev { background: #fbe3c8; color: #7a4208; } .t-prod { background: #e4dcf5; color: #47307a; }
+        .step { background: white; border: 2px solid #8fc9a5; border-radius: 4px; padding: 12px 16px; margin: 14px 0; scroll-margin-top: 60px; }
+        .step.w-dev { border-color: #f0a65a; } .step.w-prod { border-color: #9b84d6; }
+        .step.dim { opacity: 0.3; } .step.hit { box-shadow: 0 0 0 2px #004055; }
+        .step:target { box-shadow: 0 0 0 3px #f0a65a; }
+        .anchor { color: #9aa3ab; text-decoration: none; font-weight: normal; }
+        table.cfg, table.plain { border-collapse: collapse; font-size: 0.82rem; margin: 8px 0; }
+        table.cfg th, table.cfg td, table.plain th, table.plain td { border: 1px solid #e1e4e8; padding: 3px 8px; text-align: left; vertical-align: top; }
+        table.cfg th, table.plain th { background: #f3f5f7; }
+        table.cfg td:first-child { font-family: monospace; }
+        table.cfg tr.differs td { background: #fff4e5; }
+        pre.prompt { white-space: pre-wrap; background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 4px; padding: 8px 10px;
+                     font-size: 0.8rem; max-height: 420px; overflow: auto; }
+        details { margin: 6px 0; } summary { cursor: pointer; color: #004055; font-size: 0.92rem; }
+        .flowline { font-size: 0.9rem; background: #f3f7f9; border-radius: 4px; padding: 8px 12px; }
+        mark { background: #ffe27a; padding: 0; }
+        #arch nav.toc { columns: 2; font-size: 0.88rem; } #arch nav.toc a { color: #004055; }
+        .note { color: #5a6270; font-size: 0.85rem; }
+    </style>
+</head>
+
+<body>
+    <div id="header-bar">
+        <img src='/images/qualle.png' id="header-logo" alt="JUST-OS">
+    </div>
+    {% include "_nav.html" %}
+{% set labels = {"both": "dev + prod", "dev": "dev only", "prod": "prod only"} %}
+{% macro step(id, title, where) %}
+<section class="step w-{{ where }}" id="{{ id }}" data-title="{{ title }}">
+    <h3><a class="anchor" href="#{{ id }}" title="Link to this step">#</a> {{ title }} <span class="tag t-{{ where }}">{{ labels[where] }}</span></h3>
+    {{ caller() }}
+</section>
+{% endmacro %}
+{% macro cfg(names) %}
+<table class="cfg"><tr><th>Setting</th><th>Code default</th><th>This server</th><th>Prod (Kubernetes)</th></tr>
+{% for n in names %}{% set r = s.row(n) %}
+<tr class="{{ 'differs' if r.differs }}"><td>{{ r.name }}</td><td>{{ r.code }}</td><td>{{ r.here }}</td><td>{{ r.prod }}{% if r.prod_set %} <span class="note">(set)</span>{% endif %}</td></tr>
+{% endfor %}</table>
+{% endmacro %}
+{% macro prompt(title, text, open=False) %}<details {{ 'open' if open }}><summary>{{ title }}</summary><pre class="prompt">{{ text }}</pre></details>{% endmacro %}
+    <main id="arch">
+        <h1>How JUST-OS works</h1>
+        <p>Two flows, top to bottom: what happens to <b>one question</b>, and how the <b>index</b> the answers come from is
+            built. The page explains the logic, not the code. Every setting, model name, threshold and prompt below is read
+            from the running app when the page loads (<code>just_os/architecture.py</code>): <b>Code default</b> is
+            <code>config/settings.py</code>, <b>This server</b> is this app with its <code>.env</code> and
+            <code>AUTO_DEFAULTS</code> applied, <b>Prod</b> is <code>deploy/kubernetes/just-os.yaml</code> (a value it does not
+            set is the code default). Rows where this server and prod differ are shaded. Keys are never shown.</p>
+        <div id="arch-bar">
+            <input id="arch-filter" type="search" placeholder="Filter steps: a setting, model, word…" aria-label="Filter steps">
+            <button type="button" id="arch-prev" title="Previous match (Shift+Enter)">↑</button>
+            <button type="button" id="arch-next" title="Next match (Enter)">↓</button>
+            <span id="arch-count" aria-live="polite"></span>
+            <span class="legend"><span class="tag t-both">dev + prod</span><span class="tag t-dev">dev only</span><span class="tag t-prod">prod only</span></span>
+        </div>
+        <nav class="toc" id="arch-toc" aria-label="Steps"></nav>
+
+        <h2 id="flow-question">Flow 1: a question's journey</h2>
+        <p class="flowline">request → small talk? → answer cache? → follow-up rewritten → names a library paper? → topic check →
+            (refuse | FORRT pages | papers) → search → filter and cut → answer model → citations and Sources box → stored in the chat memory</p>
+
+        {% call step("q-request", "1. The request: what the page or widget sends to POST /chat", "both") %}
+        <p>The forrt.org widget (prod) and the built-in chat page (dev) send one JSON object per question:</p>
+        <pre class="prompt">{"message": "{{ question }}",      // required, {{ s.value('MIN_MESSAGE_LENGTH') }} to {{ s.value('MAX_MESSAGE_LENGTH') }} characters
+ "chat_id": "3f2a…",              // required: the chat's memory key
+ "model": "…",                    // optional: answer model (dev page; must be in its list)
+ "router": "banded",              // optional: topic check for this question (dev page dropdown)
+ "stream": true,                  // optional: send the answer while it is written
+ "debug": true}                   // optional: the debug panel's trace (dev page with ?debug=1)</pre>
+        <p>The answer comes back as a stream of JSON lines: progress lines (<code>{"status": "in-progress", "message":
+            "Classifying question"}</code>, then "Finding relevant sources", "Generating response"), with <code>stream</code> pieces
+            of the answer (<code>{"status": "partial", "delta": "…"}</code>), and one final line
+            <code>{"status": "complete" | "error", "message": "&lt;p&gt;HTML…&lt;/p&gt;", "outcome": …, "metadata": {"sources":
+            text, "references": [ … ]}, "timings": {"classify_s", "search_s", "answer_s", …, "total_s"}}</code>. On dev the final
+            line also has a <code>turn_id</code> (for the Good/Bad buttons) and, when asked, <code>debug</code>.</p>
+        <ul>
+            <li>Missing <code>message</code>/<code>chat_id</code>, a message too short or long, an unknown model or topic check:
+                HTTP 400.</li>
+            <li>More than <code>RATE_LIMIT</code> requests from one IP: HTTP 429 (counted in Redis; behind a proxy the client IP
+                comes from <code>X-Forwarded-For</code> when <code>PROXY_FIX_X_FOR</code> is set).</li>
+            <li>Only <code>ALLOWED_ORIGINS</code> may call <code>/chat</code> from another website (CORS).</li>
+            <li><span class="tag t-prod">prod only</span> <code>PROD_MODE</code>: the only allowed model is
+                <code>CITATION_MODEL</code>, <code>debug</code> is ignored, and no <code>turn_id</code> is sent.</li>
+        </ul>
+        {{ cfg(["MIN_MESSAGE_LENGTH", "MAX_MESSAGE_LENGTH", "RATE_LIMIT", "PROXY_FIX_X_FOR", "ALLOWED_ORIGINS", "PROD_MODE", "DEBUG_PANEL"]) }}
+        {% endcall %}
+
+        {% call step("q-small-talk", "2. Small talk: greetings, thanks, \"who are you?\"", "both") %}
+        <p>Before anything else, a pattern test: a message that is only a greeting, thanks or a question about the bot itself
+            ("Hi!", "Who are you?", "Hello, what can you do?") gets the short self-introduction (the <code>about</code> text of
+            <code>config/refusals.csv</code>, in the question's language). No model call, no search. Outcome
+            <code>small_talk</code>. This runs before the follow-up rewrite, so "thanks" after an answer is not turned into a
+            question.</p>
+        {% endcall %}
+
+        {% call step("q-cache", "3. Answer cache (first question of a chat only)", "both") %}
+        <p>When <code>ANSWER_CACHE_TTL</code> is above 0, the first question of a chat is compared with recent first questions
+            (cosine of their bge-m3 vectors). At or above <code>ANSWER_CACHE_MIN_SIMILARITY</code> the stored answer is sent again:
+            no topic check, search or model call. One cache per setup: the entry is only reused when these settings are the same:
+            {{ c.cache_keys | join(", ") }} (and the chosen answer model). The cache lives in Redis, shared by all users, at most
+            <code>ANSWER_CACHE_MAX_ITEMS</code> entries. On this server it is {{ "on" if s.value('ANSWER_CACHE_TTL') not in ("0", "(empty)") else "off" }}.</p>
+        {{ cfg(["ANSWER_CACHE_TTL", "ANSWER_CACHE_MIN_SIMILARITY", "ANSWER_CACHE_MAX_ITEMS"]) }}
+        {% endcall %}
+
+        {% call step("q-follow-up", "4. Follow-up questions: rewritten into a stand-alone question", "both") %}
+        <p>The chat memory (Redis, see <a href="#q-redis">Redis</a>) holds the earlier turns. The first question of a chat is used
+            as typed. For a follow-up, <code>CONTEXT_METHOD</code> decides (this server: <b>{{ s.value('CONTEXT_METHOD') }}</b>):</p>
+        <ul>
+            <li><b>rephrase</b>: one call to <code>GENERAL_MODEL</code> (<b>{{ s.value('GENERAL_MODEL') }}</b>) rewrites the follow-up
+                into one question that makes sense alone; everything after uses the rewrite.</li>
+            <li><b>hybrid</b>: the same rewrite for the topic check and the search; the answer model gets the last
+                {{ c.history_turns }} messages of the chat and the question as typed, plus "(Meaning: the rewrite)" when it differs.</li>
+            <li><b>history</b>: no rewrite; the search sees the last user question plus the new one, and the answer model gets the
+                last {{ c.history_turns }} messages.</li>
+        </ul>
+        <p>In the prompt, the bot's earlier answers are cut to {{ c.rephrase_answer_chars }} characters, so the rewrite takes its
+            words from the user. A rewrite that grows by more than {{ c.rewrite_max_added_words }} words (and more than twice the
+            question) has pulled in an answer: the question as typed is used instead. If the call fails, also the question as typed.
+            The model is asked for one JSON value (<code>{{ prompts.rephrase.key }}</code>) through a forced tool call at temperature
+            {{ prompts.rephrase.temperature }}; models without tool calls are asked again for plain JSON.</p>
+        <p>The exact prompt for the example chat ("{{ history[0].content }}" → answer → "{{ follow_up }}"), model <b>{{ prompts.rephrase.model }}</b>:</p>
+        {{ prompt("Rewrite prompt", prompts.rephrase.prompt, True) }}
+        {{ cfg(["CONTEXT_METHOD", "GENERAL_MODEL", "TEMPERATURE_GENERAL", "MESSAGE_TTL"]) }}
+        {% endcall %}
+
+        {% call step("q-reference", "5. Does the question name one paper of the library?", "both") %}
+        <p>With <code>REFERENCE_LOOKUP</code> on, the question as typed (then the rewrite) is checked against every paper of the
+            index (not the glossary): a <b>DOI</b> in the question; a <b>title</b> (all its content words, for titles of at least
+            {{ c.min_title_words }} words, or {{ (c.title_coverage * 100) | round | int }}% of them when the question refers to a work:
+            "paper", "et al.", a year, quotes; or its short title before the colon); or <b>authors</b> (two surnames of one paper,
+            or one surname and its year). More than {{ c.max_matches }} matching papers is too vague: the normal search runs.</p>
+        <ul>
+            <li>DOI or title match: <b>no topic check</b>; the answer comes from that paper's chunks only, the
+                <code>MAX_CHUNKS</code> closest to the question, any number per paper, without the similarity floor.</li>
+            <li>Author match: the topic check still runs. If it says FORRT, the match is dropped (a person or a FORRT project); if it
+                says off topic, it is overruled (two of a library paper's authors were named).</li>
+        </ul>
+        {{ cfg(["REFERENCE_LOOKUP"]) }}
+        {% endcall %}
+
+        {% call step("q-topic", "6. Topic check: answer from the papers, from FORRT's pages, or refuse?", "both") %}
+        <p>The topic check (the <code>ROUTER</code> setting; on dev the chat page's dropdown can pick another per question) gives
+            one of: <b>open_science</b> (papers), <b>forrt</b> (forrt.org pages), <b>both</b>, <b>off_topic</b>, or, from the LLM
+            classifier, <b>forrt_lookup</b> (treated like forrt). If the model cannot be reached the user gets the
+            "model unavailable" message, never a refusal. This server's default: <b>{{ s.value('ROUTER') }}</b>.</p>
+        <table class="plain"><tr><th>ROUTER</th><th>Name in the dropdown</th><th>What it does</th></tr>
+            {% for key, label in routers.items() %}<tr><td><code>{{ key or '""' }}</code></td><td>{{ label }}</td><td>{{ router_text[key] }}</td></tr>{% endfor %}
+        </table>
+        <h4>Similarity (cosine, banded)</h4>
+        <p>The question is turned into a bge-m3 vector and compared with two things: the <b>nearest paper chunk</b> of the index
+            and the <b>nearest FORRT page description</b> (<code>FORRT_PAGES_DIR</code>). Cosine 1 = same direction, 0 = unrelated.
+            The two numbers are on different scales (short descriptions vs. passages), so each has its own thresholds.</p>
+        <ul>
+            <li><b>cosine</b>: paper ≥ <code>COSINE_PAPER_MIN</code> ({{ s.value('COSINE_PAPER_MIN') }}) → papers; page ≥
+                <code>COSINE_PAGE_MIN</code> ({{ s.value('COSINE_PAGE_MIN') }}) → FORRT pages; both → the higher number; neither → off topic.</li>
+            <li><b>banded</b>: paper &lt; {{ s.value('BAND_PAPER_LOW') }} <i>and</i> page &lt; {{ s.value('BAND_PAGE_LOW') }} → off topic, no
+                model call. Paper ≥ {{ s.value('BAND_PAPER_HIGH') }} <i>and</i> page &lt; {{ s.value('BAND_PAGE_HIGH') }} → papers, no model
+                call. Everything else (the middle band, and every question close to a FORRT page) → <code>BAND_MIDDLE_ROUTER</code>
+                (<b>{{ s.value('BAND_MIDDLE_ROUTER') }}</b>). Similarity alone never sends a question to FORRT's pages.</li>
+        </ul>
+        {% if example and not example.error %}<p class="note">Example "{{ question }}" on this server: paper {{ example.paper }}, page {{ example.page }}.</p>{% endif %}
+        <h4>Decision models (Jev, Clef, Clef-flash)</h4>
+        <p>A decision model does not write text: it gets the question and the four options and returns a probability for each
+            (OpenRouter's decisions API, <code>DECISION_URL</code>, about 0.3–2 s, its own key <code>DECISION_API_KEY</code>, on prod
+            too: uniGPT has no decision models). The default route takes its answer only when it is at least
+            <code>DECISION_ROUTER_MIN_CONFIDENCE</code> sure; a router picked by name takes any answer. "neither" means off topic.
+            A failed call or time-out (<code>DECISION_TIMEOUT</code> s) falls back to the LLM classifier. The exact call
+            (model <b>{{ prompts.decision.model }}</b>):</p>
+        {{ prompt("Decision model call", prompts.decision | tojson(indent=2)) }}
+        <h4>LLM classifier (GENERAL_MODEL)</h4>
+        <p>With FORRT pages (or <code>FORRT_LOOKUP</code>) set up, the three-way prompt ({{ c.intents | join(" / ") }}); without
+            them a yes/no prompt. Model <b>{{ prompts.intent.model }}</b>, one JSON value through a forced tool call.</p>
+        {{ prompt("Three-way prompt (used with FORRT pages)", prompts.intent.prompt) }}
+        {{ prompt("Yes/no prompt (no FORRT pages)", prompts.classify.prompt) }}
+        {{ cfg(["ROUTER", "DECISION_ROUTER", "DECISION_ROUTER_MODEL", "DECISION_ROUTER_MIN_CONFIDENCE", "DECISION_TIMEOUT", "DECISION_URL", "DECISION_API_KEY",
+                "COSINE_PAPER_MIN", "COSINE_PAGE_MIN", "BAND_PAPER_LOW", "BAND_PAPER_HIGH", "BAND_PAGE_LOW", "BAND_PAGE_HIGH",
+                "BAND_MIDDLE_ROUTER", "GENERAL_MODEL", "EMBEDDING_MODEL", "FORRT_LOOKUP"]) }}
+        <h4>Which model does what</h4>
+        <table class="plain"><tr><th>Job</th><th>Model on this server</th></tr>
+            <tr><td>Question and chunk vectors</td><td>{{ s.value('EMBEDDING_MODEL') }} (local, CPU)</td></tr>
+            <tr><td>Rewrite follow-ups, LLM classifier</td><td>{{ s.value('GENERAL_MODEL') }}</td></tr>
+            <tr><td>Topic check (default decision model)</td><td>{{ s.value('DECISION_ROUTER_MODEL') }}</td></tr>
+            <tr><td>Banded router's middle band</td><td>{{ s.value('BAND_MIDDLE_ROUTER') }}</td></tr>
+            <tr><td>Pick FORRT pages</td><td>{{ s.value('FORRT_SELECT_MODEL') }}</td></tr>
+            <tr><td>Answer from papers</td><td>{{ s.value('CITATION_MODEL') }}</td></tr>
+            <tr><td>Answer from FORRT pages</td><td>{{ s.value('FORRT_ANSWER_MODEL') if s.value('FORRT_ANSWER_MODEL') != "(empty)" else s.value('CITATION_MODEL') ~ " (FORRT_ANSWER_MODEL empty: CITATION_MODEL)" }}</td></tr>
+            <tr><td>Re-ranker, citation check</td><td>{{ s.value('RERANK_MODEL') }} (local; only loaded when RERANK or VERIFY_CITATIONS is on)</td></tr>
+        </table>
+        {{ cfg(["CITATION_MODEL", "BASE_URL", "LLM_API_KEY", "FORRT_SELECT_MODEL", "FORRT_ANSWER_MODEL", "RERANK_MODEL"]) }}
+        {% endcall %}
+
+        {% call step("q-outcomes", "7. What happens per outcome", "both") %}
+        <table class="plain"><tr><th>Outcome</th><th>What the user gets</th></tr>
+            <tr><td><code>small_talk</code></td><td>The self-introduction (step 2).</td></tr>
+            <tr><td><code>off_topic</code></td><td>The refusal "only questions related to Open Science", in the question's language. No search.</td></tr>
+            <tr><td><code>forrt</code> / <code>forrt_lookup</code></td><td>An answer from forrt.org's own pages (step 8). If no FORRT page index is loaded: the FORRT sheet search when <code>FORRT_LOOKUP</code> is on (outcome <code>forrt_lookup</code>), else the papers answer.</td></tr>
+            <tr><td><code>open_science</code> → <code>answered</code></td><td>An answer from the papers (steps 9–13), with FORRT pages next to them when they clearly help (step 11).</td></tr>
+            <tr><td><code>both</code></td><td>The papers answer; if no FORRT page joined the sources, up to three forrt.org page links are added to the Sources box (no extra answer call).</td></tr>
+            <tr><td><code>no_sources</code></td><td>"I couldn't find any relevant information": the search found nothing close enough, or no FORRT page could be read.</td></tr>
+            <tr><td><code>error</code></td><td>"Model unavailable" (the topic check failed), "error while generating" (no answer after all retries) or "unexpected error".</td></tr>
+        </table>
+        {% endcall %}
+
+        {% call step("q-forrt-pages", "8. FORRT route: answering from forrt.org's pages", "both") %}
+        <ol>
+            <li><b>Find candidate pages</b>: the question vector against the page index (links and short LLM-written descriptions
+                of forrt.org pages, not their content), plus <code>FORRT_LEXICAL_WEIGHT</code> × word overlap, plus, for "news / events /
+                upcoming" questions, a recency bonus (<code>FORRT_RECENCY_WEIGHT</code>, halving every
+                <code>FORRT_RECENCY_HALF_LIFE</code> days). The top <code>FORRT_TOP_K</code> pages.</li>
+            <li><b>Pick pages</b>: the decision model <code>FORRT_SELECT_MODEL</code> answers yes/no per page ("Would reading this
+                page help?"). Pages at or above <code>FORRT_DECISION_THRESHOLD</code> are read, at most <code>FORRT_MAX_PAGES</code>.
+                If none, but the best is above <code>FORRT_DECISION_FLOOR</code>: the plausible ones (up to 3) plus the top search
+                result. If the call fails: the top search results.</li>
+            <li><b>Read them live</b> from forrt.org (only <code>FORRT_FETCH_DOMAINS</code>; kept in memory
+                <code>FORRT_CACHE_TTL</code> s), each cut to the <code>FORRT_MAX_CHARS_PER_PAGE</code> characters that best match the question.</li>
+            <li><b>Answer</b> with the prompts below (temperature 0, at most <code>FORRT_MAX_ANSWER_TOKENS</code> tokens), in the
+                language of the question as typed.</li>
+            <li><b>Checks in code</b>: wrong language, or past events called upcoming → one rewrite with the problems listed; links
+                that are not on the pages are removed; citation numbers are cleaned. The pages go to the Sources box.</li>
+        </ol>
+        {{ prompt("System prompt (FORRT pages)", prompts.forrt_system) }}
+        {{ prompt("User message (FORRT pages)", prompts.forrt_user) }}
+        {{ prompt("Rewrite message, only when a check failed", prompts.forrt_rewrite) }}
+        {{ prompt("Page selection call (decision model " ~ prompts.select.model ~ ")", prompts.select | tojson(indent=2)) }}
+        {{ cfg(["FORRT_PAGES", "FORRT_PAGES_DIR", "FORRT_TOP_K", "FORRT_LEXICAL_WEIGHT", "FORRT_RECENCY_WEIGHT", "FORRT_RECENCY_HALF_LIFE",
+                "FORRT_SELECT_MODEL", "FORRT_DECISION_THRESHOLD", "FORRT_DECISION_FLOOR", "FORRT_MAX_PAGES", "FORRT_FETCH_DOMAINS",
+                "FORRT_CACHE_TTL", "FORRT_MAX_CHARS_PER_PAGE", "FORRT_MAX_ANSWER_TOKENS", "FORRT_ANSWER_MODEL"]) }}
+        {% endcall %}
+
+        {% call step("q-search", "9. Search: finding chunks in the index", "both") %}
+        <p>The (rewritten) question is searched in the index of paper chunks (see <a href="#flow-index">Flow 2</a>). This server:
+            <code>SEARCH_MODE</code> = <b>{{ s.value('SEARCH_MODE') }}</b>, <code>RERANK</code> = <b>{{ s.value('RERANK') }}</b>,
+            <code>RETRIEVER_TOP_K</code> = <b>{{ s.value('RETRIEVER_TOP_K') }}</b> candidates.</p>
+        <table class="plain"><tr><th>SEARCH_MODE</th><th>What it does</th></tr>
+            {% for key, text in search_modes.items() %}<tr><td><code>{{ key }}</code></td><td>{{ text }}</td></tr>{% endfor %}
+        </table>
+        <p class="note">Reciprocal rank fusion: a chunk's score is the sum of 1 / ({{ c.rrf_k }} + rank) over both lists.</p>
+        <h4>RERANK off: keep the search order</h4>
+        <p>If the best vector match has a cosine below <code>MIN_VECTOR_SIMILARITY</code> ({{ s.value('MIN_VECTOR_SIMILARITY') }}),
+            the answer is "no sources" (no model call). Not in bm25 mode (no fixed scale). Then the filters of step 10.</p>
+        <h4>RERANK on</h4>
+        <p>A cross-encoder (<code>RERANK_MODEL</code>) reads each (question, "Title: … Text: …") pair and scores it; chunks at or
+            below <code>MIN_RELEVANCE</code> are dropped and the rest sorted by that score. No similarity floor and no cluster boost.
+            If the re-ranker fails, the search order is kept.</p>
+        <p><code>ADAPTIVE_TOP_K</code> ({{ s.value('ADAPTIVE_TOP_K') }} here) keeps only chunks scoring at least
+            <code>ADAPTIVE_TOP_K_RATIO</code> of the best one, but at least <code>ADAPTIVE_TOP_K_MIN</code>.</p>
+        {{ cfg(["SEARCH_MODE", "RETRIEVER_TOP_K", "MIN_VECTOR_SIMILARITY", "RERANK", "RERANK_MODEL", "MIN_RELEVANCE",
+                "ADAPTIVE_TOP_K", "ADAPTIVE_TOP_K_RATIO", "ADAPTIVE_TOP_K_MIN"]) }}
+        {% endcall %}
+
+        {% call step("q-filter", "10. From the candidates to at most " ~ s.value('MAX_CHUNKS') ~ " passages", "both") %}
+        <p>In this order:</p>
+        <ol>
+            <li><b>Cluster boost</b> (vector search, RERANK off; <code>CLUSTER_BOOST</code> = {{ s.value('CLUSTER_BOOST') }}, 0 = off):
+                each FORRT cluster has a centroid (mean vector of its documents' chunks). When the question is closer to one
+                cluster's centroid than to the next by <code>CLUSTER_BOOST_MARGIN</code>, that cluster's chunks get
+                <code>CLUSTER_BOOST</code> added to their cosine and the candidates are re-sorted.</li>
+            <li><b>Wrong documents out</b>: documents listed under <code>exclude</code> in <code>INDEX_CORRECTIONS_FILE</code> (their
+                text is another work) are dropped.</li>
+            <li><b>Reference lists out</b> (<code>SKIP_REFERENCE_CHUNKS</code> = {{ s.value('SKIP_REFERENCE_CHUNKS') }}): a chunk with
+                more than {{ c.citations_per_100_words }} citation patterns ("(2013)", "et al.", "12(3)", page ranges) per 100 words, or
+                fewer than {{ c.min_words }} words, is dropped. Glossary entries and abstract cards are short on purpose and stay.</li>
+            <li><b>One glossary entry</b>: the FORRT glossary has the same term in five languages, which would fill the slots. Only one
+                stays: the best-ranked entry in the question's language, else in English, else the best one. Then the search picks
+                the term and the question picks the language (<code>same_term_in</code>): the found entry is swapped for the same
+                term in the question's language, else English. Language map: {{ c.glossary_languages | tojson }}.
+                The entry and the papers it cites move to the front.</li>
+            <li><b>At most <code>MAX_CHUNKS_PER_DOC</code> ({{ s.value('MAX_CHUNKS_PER_DOC') }}) chunks per document</b>, for variety.</li>
+            <li><b>Cut to <code>MAX_CHUNKS</code> ({{ s.value('MAX_CHUNKS') }})</b>.</li>
+        </ol>
+        <p>Nothing left: "no sources".</p>
+        {{ cfg(["CLUSTER_BOOST", "CLUSTER_BOOST_MARGIN", "CLUSTERS_FILE", "INDEX_CORRECTIONS_FILE", "SKIP_REFERENCE_CHUNKS",
+                "MAX_CHUNKS_PER_DOC", "MAX_CHUNKS"]) }}
+        {% if example and example.error %}<p class="note">Worked example failed: {{ example.error }}</p>
+        {% elif example %}
+        <details><summary>Worked example: the {{ example.hits | length }} candidates for "{{ question }}" on this server</summary>
+            <table class="plain"><tr><th>#</th><th>Cosine</th><th>Title</th><th>Type</th><th>Sent as</th></tr>
+                {% for h in example.hits %}<tr><td>{{ loop.index }}</td><td>{{ h.cosine }}</td><td>{{ h.title }}</td><td>{{ h.type }} {{ h.language }}</td>
+                    <td>{{ ("[" ~ h.sent ~ "]") if h.sent is not none else "–" }}</td></tr>{% endfor %}
+            </table>
+            <p class="note">"Sent as" is the passage number the answer model sees (step 12). A glossary entry swapped for another
+                language shows "–" here and appears among the passages in its new language.</p>
+        </details>
+        {% else %}<p class="note">The worked example appears once the search is loaded in this process.</p>{% endif %}
+        {% endcall %}
+
+        {% call step("q-forrt-in-papers", "11. FORRT pages next to the papers", "both") %}
+        <p>With <code>FORRT_IN_PAPERS</code> on, the page index is searched while the papers are. Pages with a search score of at
+            least <code>FORRT_IN_PAPERS_MIN_SCORE</code> (no floor for <code>both</code>) go to the decision model, which must clearly
+            say yes (<code>FORRT_DECISION_THRESHOLD</code>, no fallback). At most <code>FORRT_IN_PAPERS_MAX_PAGES</code> pages, each cut
+            to the <code>FORRT_IN_PAPERS_MAX_CHARS</code> characters that best match, join the passages after the paper chunks and are
+            cited like papers. If this takes longer than <code>FORRT_IN_PAPERS_TIMEOUT</code> s after the paper search, the papers
+            answer alone. Not for a question that names a library paper (step 5).</p>
+        {{ cfg(["FORRT_IN_PAPERS", "FORRT_IN_PAPERS_MIN_SCORE", "FORRT_IN_PAPERS_MAX_PAGES", "FORRT_IN_PAPERS_MAX_CHARS", "FORRT_IN_PAPERS_TIMEOUT"]) }}
+        {% endcall %}
+
+        {% call step("q-answer", "12. What the answer model gets", "both") %}
+        <p>Model: the request's <code>model</code>, else <code>CITATION_MODEL</code> (<b>{{ s.value('CITATION_MODEL') }}</b>), at
+            <code>TEMPERATURE</code> {{ s.value('TEMPERATURE') }}, at most <code>MAX_ANSWER_TOKENS</code> {{ s.value('MAX_ANSWER_TOKENS') }}
+            tokens, through <code>BASE_URL</code>. Three parts:</p>
+        <ol>
+            <li><b>System message</b>: the prompt of <code>PROMPT_STYLE</code> (<b>{{ s.value('PROMPT_STYLE') }}</b>: "openscholar" is the
+                long prompt made for OpenScholar, with a worked example; "short" is a model-neutral one) + <code>LANGUAGE_RULE</code>
+                (answer in the question's language, cite only as [n], keep field terms in English) + <code>ANSWER_STYLE</code> (speak to
+                the asker, Markdown). For a question detected as non-English, also: "{{ c.local_word_rule }}"</li>
+            <li><b>Earlier turns</b> (CONTEXT_METHOD hybrid or history): the last {{ c.history_turns }} messages of the chat.</li>
+            <li><b>User message</b>: the template filled with the passages and the question. Each passage is one line
+                <code>[n] Title: &lt;title&gt; Text: &lt;chunk text&gt;</code>, numbered from 0 in the order of step 10; only the title of
+                the metadata is shown, never authors or DOI.{% if prompts.marks_response %} The OpenScholar prompt asks for the answer
+                between [Response_Start] and [Response_End].{% endif %}</li>
+        </ol>
+        {{ prompt("System message on this server", prompts.answer_system) }}
+        {{ prompt("User message template ({context_items} = the passages, {query} = the question)", prompts.answer_template) }}
+        {% if example and example.messages %}
+        {{ prompt("Worked example: the exact messages for \"" ~ question ~ "\" on this server", example.messages | tojson(indent=2)) }}
+        {% endif %}
+        <p>With <code>stream</code>, the visible part is sent while it is written (nothing before [Response_Start], no half-written
+            "[…"). A failed call (error, time-out, empty answer) is tried <code>LLM_RETRIES</code> more times, each waiting at most
+            <code>LLM_TIMEOUT</code> s. An answer without any [n] citation that came back within <code>LLM_TIMEOUT</code> is asked
+            for once more.</p>
+        {{ cfg(["CITATION_MODEL", "PROMPT_STYLE", "TEMPERATURE", "MAX_ANSWER_TOKENS", "LLM_RETRIES", "LLM_TIMEOUT", "NO_REASONING_MODELS", "BASE_URL"]) }}
+        {% endcall %}
+
+        {% call step("q-citations", "13. Citations and the Sources box", "both") %}
+        <ol>
+            <li>The answer between the markers is kept and bare links become clickable.</li>
+            <li><code>VERIFY_CITATIONS</code> ({{ s.value('VERIFY_CITATIONS') }}): each cited sentence is scored against its passage by
+                the re-ranker; below <code>VERIFY_MIN_SCORE</code> the source is marked "not verified".</li>
+            <li>The Markdown becomes HTML. The model's [0], [1], … (one per passage) become [1], [2], … <b>one number per document</b>,
+                in the order they are first cited; "[0][2]" from the same paper shows once. Each number is a link with the title,
+                authors, year (from <code>PUB_YEARS_FILE</code>, else "n.d.") and DOI link, and the passage itself only when the
+                licence allows it (CC BY, CC0, public domain; not NC/ND).</li>
+            <li>The <b>Sources box</b> lists the cited documents in that order, each with the sentence of its passage that best
+                matches the first sentence citing it (licence permitting). <code>metadata.sources</code> is the same list as text
+                lines for the forrt.org widget.</li>
+            <li>The answer (Markdown) is added to the chat memory, with the question as the user typed it.</li>
+        </ol>
+        {{ cfg(["VERIFY_CITATIONS", "VERIFY_MIN_SCORE", "PUB_YEARS_FILE"]) }}
+        {% endcall %}
+
+        {% call step("q-redis", "14. Where Redis comes in", "both") %}
+        <table class="plain"><tr><th>Key</th><th>What</th><th>How long</th><th></th></tr>
+            <tr><td><code>chat:&lt;chat_id&gt;</code></td><td>The chat memory: each question as typed and each answer</td><td><code>MESSAGE_TTL</code> s after the last message</td><td><span class="tag t-both">dev + prod</span></td></tr>
+            <tr><td>(flask-limiter keys)</td><td>Rate-limit counters per IP, fixed window</td><td>the window</td><td><span class="tag t-both">dev + prod</span></td></tr>
+            <tr><td><code>answer_cache:&lt;setup&gt;</code></td><td>The answer cache (step 3)</td><td><code>ANSWER_CACHE_TTL</code> (0 = off)</td><td><span class="tag t-both">dev + prod</span></td></tr>
+            <tr><td><code>chat:turn:&lt;turn_id&gt;</code></td><td>The answered turn, so a Good/Bad click can refer to it</td><td>1 day, or until rated</td><td><span class="tag t-dev">dev only</span></td></tr>
+            <tr><td><code>arena:battle:&lt;id&gt;</code>, <code>arena:ratings</code></td><td>Arena rounds until rated, and all ratings</td><td>1 day / kept</td><td><span class="tag t-dev">dev only</span></td></tr>
+        </table>
+        <p>On prod (Kubernetes) Redis keeps nothing on disk and is shared by both web pods (<code>just-os-redis</code>). Files are
+            separate: on dev every turn is appended to <code>CHAT_LOG_FILE</code> and feedback to <code>CHAT_FEEDBACK_FILE</code>;
+            <code>PROD_MODE</code> saves neither.</p>
+        {{ cfg(["REDIS_HOST", "REDIS_PORT", "REDIS_DB", "MESSAGE_TTL", "RATE_LIMIT", "CHAT_LOG_FILE", "CHAT_FEEDBACK_FILE"]) }}
+        {% endcall %}
+
+        {% call step("q-errors", "15. Refusals, errors and their language", "both") %}
+        <p>Every fixed text the user can get is a column of <code>config/refusals.csv</code> ({{ c.message_keys | join(", ") }}), one row per
+            language: {{ c.message_languages | join(", ") }}. The language of the question as typed decides the row; when it cannot be
+            told with confidence (fewer than 3 words, or unclear) English is used.</p>
+        <ul>
+            <li><code>off_topic</code>: the topic check said off topic. <code>no_sources</code>: nothing close enough found.</li>
+            <li><code>model_unavailable</code>: the topic check got no answer (shown as an error with a Try again button).</li>
+            <li><code>generation_error</code>: the answer model gave nothing after all retries. <code>unexpected_error</code>: anything else that broke.</li>
+            <li><code>about</code>: the self-introduction for small talk.</li>
+        </ul>
+        {% endcall %}
+
+        {% call step("q-prod", "16. The public deployment (PROD_MODE)", "prod") %}
+        <p>The forrt.org widget talks to the Kubernetes deployment (or the <code>web-prod</code> service of Docker Compose): two web
+            pods and one Redis. <code>PROD_MODE</code> is true there: nothing is saved (no chat log, feedback or arena files, no
+            <code>chat:turn</code> keys), no Good/Bad buttons, no debug panel, only <code>CITATION_MODEL</code> on the chat page, and
+            all team pages (/eval, /review, /topics, /arena, /recommend, /articles, /architecture) answer 404. Answers and
+            rewrites run on uniGPT Münster (<code>BASE_URL</code>); the decision models stay on OpenRouter with their own key. The
+            index is mounted read-only.</p>
+        {{ cfg(["PROD_MODE", "BASE_URL", "CITATION_MODEL", "GENERAL_MODEL", "ROUTER", "SEARCH_MODE", "RERANK", "REDIS_HOST", "PROXY_FIX_X_FOR", "AUTO_DEFAULTS"]) }}
+        {% endcall %}
+
+        {% call step("q-auto-defaults", "17. AUTO_DEFAULTS: the eval winners become the defaults", "dev") %}
+        <p>With <code>AUTO_DEFAULTS</code> on (dev's <code>.env</code>; prod does not set it), at start-up the app reads the eval
+            results in <code>EVAL_RESULTS_DIR</code> and sets <code>CITATION_MODEL</code> and <code>ROUTER</code> to the winners shown
+            on <a href="/eval">/eval</a>, and the chat and arena model lists to the 10 best-scored answer models. When the results
+            cannot decide, the settings stay as they are. A restart reads them again. The "This server" column already includes
+            them.</p>
+        {{ cfg(["AUTO_DEFAULTS", "EVAL_RESULTS_DIR", "CITATION_MODEL", "ROUTER", "ARENA_MODELS"]) }}
+        {% endcall %}
+
+        {% call step("q-arena", "18. Arena: several models, same sources", "dev") %}
+        <p>On <a href="/arena">/arena</a> (when <code>ARENA_ENABLED</code>), one question goes through the same topic check (it only
+            decides answer or refuse) and the same paper search once; then every chosen model answers from the same passages at the
+            same time, in random order, without chat memory, FORRT pages or reference lookup. The user rates each answer; with
+            <code>ARENA_BLIND</code> the names appear after rating. Rounds and ratings go to Redis and the arena files.</p>
+        {{ cfg(["ARENA_ENABLED", "ARENA_MODELS", "ARENA_MAX_MODELS", "ARENA_BLIND", "ARENA_RATINGS_FILE", "ARENA_ROUNDS_FILE"]) }}
+        {% endcall %}
+
+        {% call step("q-debug", "19. Debug panel and team pages", "dev") %}
+        <p>The chat page with <code>?debug=1</code> sends <code>"debug": true</code> and shows, per turn, the rewrite, the topic
+            check's numbers, every candidate chunk with its score and why it was not sent, step times and model costs
+            (<code>DEBUG_PANEL</code>, never in prod). The team pages (evaluation, review, recommend a study, articles, topics, this
+            page) exist only on dev.</p>
+        {{ cfg(["DEBUG_PANEL"]) }}
+        {% endcall %}
+
+        <h2 id="flow-index">Flow 2: the index</h2>
+        <p class="flowline">sources → Markdown → chunks of {{ s.value('CHUNK_SIZE') }} tokens + metadata → {{ s.value('EMBEDDING_MODEL') }}
+            vectors → FAISS store → searched per question → passages for the answer model</p>
+
+        {% call step("i-inputs", "1. The raw inputs", "dev") %}
+        <ul>
+            <li><b>FORRT sheets and lists</b>: the resources FORRT wants in the bot (<code>FORRT_SHEET_FILE</code>; merged into the
+                article list <code>CLUSTERS_FILE</code> by <code>scripts/forrt_article_list.py</code>, shown on <a href="/articles">/articles</a>).</li>
+            <li><b>The original JUST-OS library</b>: PDFs converted with marker, with metadata from the JUST-OS database.</li>
+            <li><b>FORRT cluster PDFs</b>: the PDFs of the clusters (<code>scripts/convert_cluster_pdfs.py</code>).</li>
+            <li><b>Curated additions</b>: <code>./run curate</code> takes the FORRT sheets, a CSV, or what people sent on
+                <a href="/recommend">/recommend</a> (<code>RECOMMENDATIONS_FILE</code>), finds an open copy by DOI (row link, arXiv/OSF,
+                Unpaywall, OpenAlex, Semantic Scholar, Europe PMC, publisher page) or, without a DOI, the web page.</li>
+            <li><b>Web pages</b>: FORRT resources without a DOI, their main text (<code>scripts/fetch_web_resources.py</code>).</li>
+            <li><b>FORRT glossary</b>: <code>_glossaries.json</code> of the forrt repository, one document per term and language
+                (<code>scripts/build_glossary.py</code>).</li>
+            <li><b>Abstract cards</b>: resources without full text (paywalled, books): title, authors, year, cluster, FORRT summary,
+                abstract and link as one short document (<code>scripts/build_abstract_cards.py</code>).</li>
+            <li class="note">Separate from the index: the FORRT page index (<code>FORRT_PAGES_DIR</code>), links and descriptions written by
+                <code>FORRT_DESCRIBE_MODEL</code> (<code>scripts/build_forrt_pages.py</code>); page content is always read live.</li>
+        </ul>
+        {{ cfg(["FORRT_SHEET_FILE", "CLUSTERS_FILE", "RECOMMENDATIONS_FILE", "FORRT_PAGES_DIR", "FORRT_DESCRIBE_MODEL"]) }}
+        {% endcall %}
+
+        {% call step("i-markdown", "2. Everything becomes Markdown", "dev") %}
+        <ul>
+            <li><b>PDF → GROBID</b> (curate, cluster PDFs): body text without the reference list and page headers, plus title, authors,
+                DOI. A found copy is kept only when its title matches. Books (over 80 pages) and PDFs where GROBID finds almost no body:
+                pymupdf4llm. Scans are rejected.</li>
+            <li><b>PDF → marker</b> (<code>scripts/marker.sh</code>): the original JUST-OS library.</li>
+            <li><b>Web page → main text</b>: the page without menus and footers. Licence unknown, so no quotes are shown.</li>
+            <li><b>Glossary</b>: title, definition and related terms; the entry's reference list goes to the metadata
+                (<code>reference_dois</code>), not the text.</li>
+            <li><b>Clean-up</b> before chunking: in-text citation numbers like "[12]" are removed.</li>
+        </ul>
+        {% endcall %}
+
+        {% call step("i-chunks", "3. Chunks and their metadata", "dev") %}
+        <p>Each document is split into chunks of about <code>CHUNK_SIZE</code> = {{ s.value('CHUNK_SIZE') }} tokens, at sentence
+            boundaries, overlapping by {{ c.chunk_overlap }} tokens (llama-index SentenceSplitter). Every chunk keeps its document's
+            metadata (title, creators, DOI, link, licence, material type, language, …).
+            {% if example and example.chunk %}Only what the chunk's text template <code>{{ example.chunk.template }}</code> contains is
+            embedded{% if example.chunk.template == "{content}" %}: the chunk text alone, so a title, author or DOI in the question does
+            not find its paper (that is why step 5 of Flow 1 exists){% endif %}.{% endif %}</p>
+        {% if example and example.chunk %}
+        <p>A real chunk (the best match for "{{ question }}" in <code>{{ s.value('VECTOR_STORE') }}</code>):</p>
+        {{ prompt("Chunk " ~ example.chunk.id ~ ": text", example.chunk.text, True) }}
+        {{ prompt("Its metadata", example.chunk.metadata | tojson(indent=2), True) }}
+        {% else %}<p class="note">A real chunk appears here once the index is loaded in this process.</p>{% endif %}
+        {{ cfg(["CHUNK_SIZE", "VECTOR_STORE"]) }}
+        {% endcall %}
+
+        {% call step("i-embed", "4. Vectors and the FAISS store", "dev") %}
+        <p>Each chunk's text becomes one vector of <code>EMBEDDING_MODEL</code> ({{ s.value('EMBEDDING_MODEL') }}, multilingual, so a
+            German question finds English text){% if example and example.dimension %}: {{ example.dimension }} numbers, scaled to
+            length 1{% endif %}. The vectors go into a FAISS store{% if example and example.faiss %} (<code>{{ example.faiss }}</code>,
+            {{ "{:,}".format(example.chunks) }} chunks){% endif %}: an exact search that compares the question with every chunk. The
+            chunk texts and metadata are in <code>docstore.json</code> next to it. The question uses the same model, so both are in
+            the same space.</p>
+        {{ cfg(["EMBEDDING_MODEL", "VECTOR_STORE"]) }}
+        {% endcall %}
+
+        {% call step("i-add", "5. Adding, fixing and removing documents", "dev") %}
+        <ul>
+            <li><b>Adding</b>: <code>scripts/add_to_index.py</code> (used by <code>./run curate</code>, the glossary and the abstract
+                cards) embeds only new documents and appends them; a document whose DOI or title is already in the index is skipped.
+                <code>./run curate</code> writes a copy (<code>data/processed/vs_curated_&lt;YYMMDD&gt;</code>) unless
+                <code>--in-place</code>; point <code>VECTOR_STORE</code> at the new folder and restart.</li>
+            <li><b>FAISS IndexFlatL2 cannot delete</b> a vector. So a wrong document stays in the store and is filtered out instead:
+                <code>exclude</code> in <code>INDEX_CORRECTIONS_FILE</code> (text of another work; never returned by the search or the
+                reference lookup). Wrong titles are corrected in the metadata only by <code>scripts/fix_index_titles.py</code> (the vectors
+                came from the text, which is right).</li>
+            <li><b>A full text joins its abstract card</b>: cards do not count as "already in the index", so the full text is added; the
+                card stays, and the per-document limit counts both as one document.</li>
+            <li><b>Full rebuild</b>: <code>scripts/embed.py</code> builds a new store from all Markdown; then the add steps again. Only a
+                rebuild really removes documents and leftover cards. <code>scripts/reembed.py</code> copies an index to another
+                embedding model.</li>
+        </ul>
+        {{ cfg(["INDEX_CORRECTIONS_FILE", "VECTOR_STORE"]) }}
+        {% endcall %}
+
+        {% call step("i-search", "6. How search works in that space", "both") %}
+        <p>The question becomes a vector of length 1 the same way. FAISS returns the <code>RETRIEVER_TOP_K</code>
+            ({{ s.value('RETRIEVER_TOP_K') }}) chunks with the smallest squared distance <i>d</i>. For vectors of length 1, cosine
+            = 1 − <i>d</i>/2, so the smallest distance is the highest cosine: 1 means the same direction. All the thresholds of
+            Flow 1 (<code>MIN_VECTOR_SIMILARITY</code>, <code>COSINE_PAPER_MIN</code>, the bands) are on that cosine scale.</p>
+        {% if example and example.hits %}<p class="note">Example "{{ question }}": best cosine {{ example.hits[0].cosine }}, candidate {{ example.hits | length }}: {{ example.hits[-1].cosine }}.</p>{% endif %}
+        {{ cfg(["RETRIEVER_TOP_K", "MIN_VECTOR_SIMILARITY"]) }}
+        {% endcall %}
+
+        {% call step("i-llm", "7. What finally reaches the answer model", "both") %}
+        <p>Of the whole index, at most <code>MAX_CHUNKS</code> ({{ s.value('MAX_CHUNKS') }}) passages, plus up to
+            <code>FORRT_IN_PAPERS_MAX_PAGES</code> forrt.org page excerpts, each as "[n] Title: … Text: …", with the question and the
+            prompts of Flow 1 step 12. The model never sees the rest of the index, the metadata (except titles) or the scores.</p>
+        {% if example and example.context %}{{ prompt("The passages for \"" ~ question ~ "\" on this server", example.context) }}{% endif %}
+        {% endcall %}
+
+        <p class="note">This page must change with the pipeline: when a step, setting, prompt or option changes, update
+            <code>templates/architecture.html</code> and <code>just_os/architecture.py</code> (docs/architecture.md). The tests fail when
+            a setting it names is gone or a ROUTER / SEARCH_MODE option has no text.</p>
+    </main>
+    <script>
+        (function () {
+            const steps = [...document.querySelectorAll(".step")];
+            const toc = document.getElementById("arch-toc");
+            steps.forEach((s) => {
+                const a = document.createElement("a");
+                a.href = "#" + s.id;
+                a.textContent = (s.id.startsWith("i-") ? "Index " : "") + s.dataset.title;
+                toc.append(a, document.createElement("br"));
+            });
+            const main = document.getElementById("arch");
+            const input = document.getElementById("arch-filter"), count = document.getElementById("arch-count");
+            let hits = [], at = -1;
+            function unmark() {
+                main.querySelectorAll("mark").forEach((m) => m.replaceWith(m.textContent));
+                main.normalize();
+            }
+            function mark(root, q) {
+                const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), found = [];
+                while (walker.nextNode()) if (walker.currentNode.nodeValue.toLowerCase().includes(q)) found.push(walker.currentNode);
+                found.forEach((node) => {
+                    const text = node.nodeValue, low = text.toLowerCase(), frag = document.createDocumentFragment();
+                    let i = 0, j;
+                    while ((j = low.indexOf(q, i)) !== -1) {
+                        frag.append(text.slice(i, j));
+                        const m = document.createElement("mark");
+                        m.textContent = text.slice(j, j + q.length);
+                        frag.append(m);
+                        i = j + q.length;
+                    }
+                    frag.append(text.slice(i));
+                    node.replaceWith(frag);
+                });
+            }
+            function go(step) {
+                if (!hits.length) return;
+                at = (at + step + hits.length) % hits.length;
+                const s = hits[at];
+                s.querySelectorAll("details").forEach((d) => { if (d.querySelector("mark")) d.open = true; });
+                s.scrollIntoView({ behavior: "smooth", block: "start" });
+                history.replaceState(null, "", "#" + s.id);
+                count.textContent = `${at + 1} of ${hits.length} steps`;
+            }
+            function filter() {
+                unmark();
+                const q = input.value.trim().toLowerCase();
+                hits = q ? steps.filter((s) => s.textContent.toLowerCase().includes(q)) : [];
+                steps.forEach((s) => { s.classList.toggle("dim", !!q && !hits.includes(s)); s.classList.toggle("hit", hits.includes(s)); });
+                if (q.length > 1) hits.forEach((s) => mark(s, q));
+                at = -1;
+                count.textContent = q ? `${hits.length} matching steps (Enter: next)` : "";
+            }
+            input.addEventListener("input", filter);
+            input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); go(e.shiftKey ? -1 : 1); } });
+            document.getElementById("arch-next").onclick = () => go(1);
+            document.getElementById("arch-prev").onclick = () => go(-1);
+            const fromUrl = new URLSearchParams(location.search).get("q");
+            if (fromUrl) { input.value = fromUrl; filter(); go(1); }
+        })();
+    </script>
+</body>
+
+</html>

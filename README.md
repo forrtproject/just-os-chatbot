@@ -14,6 +14,10 @@ All documentation is in [`docs/`](docs/README.md):
 [hackathon](docs/hackathon.md) ·
 [issues](docs/issues.md)
 
+For the logic without the code, open **How it works** (`/architecture`) on the dev app: both flows (a question's
+journey, the index), each step marked dev only / prod only / both, with this server's settings, prompts and a worked
+search, read live from the code. Update it when a pipeline step, setting, prompt or option changes.
+
 
 ## Installation
 
@@ -96,7 +100,7 @@ docker compose exec -e OMP_NUM_THREADS=8 web python eval/run.py --model openai/g
 docker compose exec web python eval/compare.py             # table of all runs in eval/results/
 ```
 
-Before you open a PR: tests pass, and `docs/` is updated for any changed file, setting, route or cache.
+Before you open a PR: tests pass, and `docs/` is updated for any changed file, setting, route or cache (and the `/architecture` page for pipeline changes).
 
 ## Ingestion pipeline
 

@@ -23,7 +23,7 @@ Windows: use Docker Desktop with WSL2. If the build fails with `exit code 127`, 
 6. Keys only in `.env`. Never paste keys in issues, chat or screenshots. The hackathon key is switched off on 13 November in the evening.
 7. Do not commit PDFs, indexes or generated data (`data/` is git-ignored). `data/NWO JUST-OS/` has private files (grants, e-mails): never put them in Git or in the index.
 8. Style: `ruff check --select E,F --ignore E501 just_os test eval` passes.
-9. Update `docs/` in the same PR when you change behaviour, settings or files (see [architecture.md](architecture.md)).
+9. Update `docs/` in the same PR when you change behaviour, settings or files (see [architecture.md](architecture.md)), and the `/architecture` page when a pipeline step, setting, prompt or option changes.
 
 ## 3. Tracks
 

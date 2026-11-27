@@ -123,7 +123,7 @@ FORRT sheets → triage: DOI + OA → PDF (check `%PDF`) → marker; web pages �
 7. Do not commit PDFs, indexes or generated data.
 8. `ruff check --select E,F --ignore E501 just_os test eval` passes.
 9. Keep the Apache-2.0 header in `openscholar.py` and the GPL-3 notice in `assets/`.
-10. **Definition of done:** code + test + updated docs in `docs/` + eval result if relevant.
+10. **Definition of done:** code + test + updated docs in `docs/` (and the `/architecture` page for pipeline changes) + eval result if relevant.
 
 ## 9. Roadmap after the hackathon (from 16 Nov)
 

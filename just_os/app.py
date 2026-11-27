@@ -42,7 +42,7 @@ ARENA_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 APPEND_LOCK = threading.Lock()  # chat, feedback and arena logs (_append_jsonl)
 # 404 in PROD_MODE (with /chat/feedback: nothing to rate, nowhere to save)
-TEAM_PAGES = ("/eval", "/review", "/topics", "/arena", "/chat/feedback", "/recommend", "/articles")
+TEAM_PAGES = ("/eval", "/review", "/topics", "/arena", "/chat/feedback", "/recommend", "/articles", "/architecture")
 MAX_RECOMMENDATIONS = 20  # DOIs or links per /recommend form
 
 
@@ -448,6 +448,13 @@ class FlaskApp:
                 abort(404)
             return send_file(os.path.abspath(path), mimetype="text/csv", as_attachment=True,
                              download_name="forrt_article_list.csv")
+
+        @self.app.route("/architecture")
+        def architecture_page():
+            """How the bot answers and how the index is built, with this server's settings, prompts and a search."""
+            from just_os import architecture  # imports the pipeline (torch): only for this page
+
+            return render_template("architecture.html", **architecture.page(self.config, self.get_rag_service()))
 
         @self.app.route("/recommend")
         def recommend_page():

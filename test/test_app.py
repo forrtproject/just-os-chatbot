@@ -454,3 +454,47 @@ def test_articles_page_counts_the_list_and_why_resources_are_missing(app, tmp_pa
     assert client.get("/articles").status_code == 404
     app.config["PROD_MODE"] = True
     assert client.get("/articles.csv").status_code == 404
+
+
+def test_architecture_page_shows_this_servers_settings_prompts_and_prod_values(app):
+    import html as html_lib
+    from just_os import qualle
+
+    app.config.update(MAX_CHUNKS=5, ROUTER="banded")
+    client = app.app.test_client()
+    html = html_lib.unescape(client.get("/architecture").get_data(as_text=True))
+    assert 'href="/architecture" aria-current="page"' in html
+    assert "at most 5 passages" in html  # the running config, not a copy
+    assert "Rewrite the new message as one question" in html and "Which journals offer them?" in html  # live prompt
+    assert qualle.LANGUAGE_RULE in html and qualle.OPEN_SCIENCE_SCOPE.splitlines()[0] in html
+    assert "gemma-4-31B-it" in html  # prod value from deploy/kubernetes/just-os.yaml
+    assert 'id="q-topic"' in html and 'id="i-chunks"' in html and 'id="arch-filter"' in html
+    assert app.config["LLM_API_KEY"] is None or app.config["LLM_API_KEY"] not in html
+    app.config["PROD_MODE"] = True
+    assert client.get("/architecture").status_code == 404
+
+
+def test_architecture_page_names_only_existing_settings_and_explains_every_option():
+    """Fails when the pipeline changes and the page does not: update templates/architecture.html and
+    just_os/architecture.py with it."""
+    import re
+    from just_os import architecture, qualle
+    from just_os.decisions import ROUTERS
+    from just_os.hybrid import SEARCH_MODES
+
+    assert set(architecture.ROUTER_TEXT) == set(ROUTERS), "explain every ROUTER option on /architecture"
+    assert set(architecture.SEARCH_MODE_TEXT) == set(SEARCH_MODES), "explain every SEARCH_MODE on /architecture"
+    template = (architecture.ROOT / "just_os" / "templates" / "architecture.html").read_text(encoding="utf-8")
+    names = set(re.findall(r"s\.value\('([A-Z0-9_]+)'\)", template))
+    names |= {n for block in re.findall(r"cfg\(\[([^\]]*)\]\)", template) for n in re.findall(r'"([A-Z0-9_]+)"', block)}
+    named_in_text = set(re.findall(r"<code>([A-Z][A-Z0-9_]{3,})</code>", template))
+    defaults = architecture.code_defaults()
+    assert len(names) > 50 and names <= set(defaults), names - set(defaults)
+    unknown = {n for n in named_in_text if n not in defaults and not hasattr(qualle, n)}
+    assert not unknown, f"/architecture names {unknown}: neither a setting nor a qualle constant"
+    try:
+        architecture.Settings({}).value("NO_SUCH_SETTING")
+    except KeyError:
+        pass
+    else:
+        raise AssertionError("an unknown setting must break the page")

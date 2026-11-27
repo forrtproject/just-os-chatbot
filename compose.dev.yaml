@@ -8,3 +8,5 @@ services:
       - "./eval:/app/eval"
       - "./scripts:/app/scripts"
       - "./ingest:/app/ingest"
+      # read by the /architecture page (prod values); not in the image
+      - "./deploy:/app/deploy:ro"

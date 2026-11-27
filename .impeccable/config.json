@@ -8,6 +8,15 @@
         "value": "helvetica",
         "createdAt": "2026-11-12T11:42:32.647Z",
         "reason": "Claude: project house UI font, used 9 times in assets/css/app.css (sources heading, arena leaderboard) before the /eval page matched it"
+      },
+      {
+        "rule": "skipped-heading",
+        "value": "*",
+        "files": [
+          "just_os/templates/architecture.html"
+        ],
+        "createdAt": "2026-11-27T10:39:34.588Z",
+        "reason": "Claude: false positive; the <h3> is inside the Jinja step macro defined above the first <h2>; the rendered order is h1 > h2 > h3 > h4"
       }
     ]
   }
