@@ -857,3 +857,22 @@ The 29 cluster PDFs that showed their file name as title (3.27, e.g. "C09 SC08 I
 
 **Article list** (`python -m scripts.forrt_article_list`): 11 resources move from abstract card to full text (the PDF now has their DOI); Baker's *How quality control could save your science* (10.1038/529456a) is now missing, since the PDF in the folder is the other Baker paper. 2,504 of 3,070 in the index; 418 need a PDF (`data/curation/forrt_need_pdf.csv`). **Topic map** rebuilt with the new titles (`eval/results/topic_map_261127.*`, shown on `/topics`): file-name titles 29 → 0; the topics, blind sub-clusters and coverage are unchanged (a few paper counts per sub-cluster drop by 1–2, as the two copies of Edwards & Roy now share one title). The page's next steps mark the wrong files, the titles and the reference-list filter as done.
 
+### 3.30 The glossary entry in the question's language (27 November 2026, Gemma 4 31B, 140 questions)
+
+**Problem:** "What are preprints, and should I post one?" cited the German *Vorabdruck [Preprint]*. The search returns 20 candidates; the German entry ranked 16th (cosine 0.665), the English *Preprint* 30th (0.657), so the English-first rule never saw it (and it only ran with two or more entries). bge-m3 is multilingual: the same definition scores alike in every language, and the German text repeats "Preprints".
+
+**Change:** the search still picks the term; `DocumentRetriever.same_term_in` then swaps the found entry for the same term in the question's language, else English (`glossary_entries`: term → language → entry, built from the docstore at start; the English term in the title's brackets links the versions, e.g. "Vorabdruck [Preprint]"). The swapped entry keeps the found one's place and score; nothing else in the search changes. 235 of 279 terms exist in all five languages; 16 Turkish titles with the English term in round brackets match nothing and keep the entry found. A keyword lookup on the question alone was rejected: 58 of the 140 questions name a glossary term, often several in passing ("transparency", "hypothesis").
+
+**Run:** `gemma4+glossary-swap-261127` against `gemma4+skip-refs-261126` (3.28), fresh retrieval (the docstore changed with 3.29).
+
+| | 26 Nov | With the swap |
+|---|---|---|
+| Glossary entry in the wrong language | 10 (7 English questions got German, Turkish or Chinese; hi/mr/kn got Chinese) | 0 (all English; de and tr keep theirs) |
+| Answers with a glossary source | 42 | 42 |
+| Correct | 0.871 | 0.871 |
+| hit@7 (108 q) | 0.713 | 0.704 (−2 `qa08`, `new07`; +1 `new27`) |
+| Citations valid | 0.846 | 0.846 |
+| Judge support (130 answers) | 0.823 | 0.811 |
+
+The papers changed in 12 answers, none of them swapped ones: 4 through 3.29 (books and papers that now have a DOI), the others run-to-run (hit@7 and judge inside the spread, ~0.03, 3.16). Rubric coverage 0.939 (23 glossary questions; the 26 Nov run has no rubric column to compare). Checked live on dev: the English question cites `forrt.org/glossary/english/preprint`, German questions ("Vorabdruck", "Preprints") cite the German entry.
+

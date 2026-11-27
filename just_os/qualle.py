@@ -28,7 +28,7 @@ from just_os.forrt_pages import ForrtPages
 from just_os.hybrid import vector_cosine
 from just_os import messages as msg
 from just_os.openscholar import generation_instance_prompts_w_references, system_prompt
-from llama_index.core.schema import TextNode
+from llama_index.core.schema import NodeWithScore, TextNode
 
 from just_os.references import (
     GLOSSARY_TYPE,
@@ -64,6 +64,29 @@ def excluded_documents(path: Optional[str]) -> set:
 
 # question language (messages.confident_language) -> language of the FORRT glossary entry to keep
 GLOSSARY_LANGUAGES = {"en": "english", "de": "german", "tr": "turkish", "zh": "chinese", "ar": "arabic"}
+
+
+def glossary_term(title: str) -> str:
+    """The English term of a glossary entry's title: "Vorabdruck [Preprint] (FORRT Glossary, German)" -> "preprint"."""
+    term = re.sub(r"\s*\(FORRT Glossary, [^)]*\)$", "", str(title)).strip()
+    bracket = re.search(r"\[([^\]]+)\]$", term)
+    return (bracket.group(1) if bracket else term).strip().lower()
+
+
+def glossary_entries(docs) -> Dict[str, Dict[str, TextNode]]:
+    """{English term: {language: node}} of the FORRT glossary entries in the docstore. A long entry has several
+    chunks: the one that starts with the "# term" heading (the definition)."""
+    table: Dict[str, Dict[str, TextNode]] = {}
+    for node in docs.values():
+        meta = plain_metadata(node.metadata)
+        if meta.get("material_type") == GLOSSARY_TYPE:
+            versions = table.setdefault(glossary_term(meta.get("title", "")), {})
+            lang = meta.get("language")
+            if lang not in versions or (node.text.startswith("#") and not versions[lang].text.startswith("#")):
+                versions[lang] = node
+    return table
+
+
 TITLE_KEY = "title"
 LICENCE_KEY = "conditions_of_use"
 
@@ -453,12 +476,13 @@ class DocumentRetriever:
             nodes = [n for n in nodes if str(plain_metadata(n.metadata).get("material_type", "")).startswith(
                 (GLOSSARY_TYPE, "FORRT abstract card")) or not is_reference_chunk(n.text)]
         glossary = [n for n in nodes if plain_metadata(n.metadata).get("material_type") == GLOSSARY_TYPE]
-        if len(glossary) > 1:
+        if glossary:
             wanted = GLOSSARY_LANGUAGES.get(msg.confident_language(query) if query else None, "english")
             keep = next((n for lang in (wanted, "english") for n in glossary
                          if plain_metadata(n.metadata).get("language") == lang), glossary[0])
-            nodes = [n for n in nodes if n is keep or n not in glossary]
-            glossary = [keep]
+            entry = self.same_term_in(keep, wanted)
+            nodes = [entry if n is keep else n for n in nodes if n is keep or n not in glossary]
+            glossary = [entry]
         cited = {normalize_doi(d) for g in glossary
                  for d in str(plain_metadata(g.metadata).get("reference_dois", "")).split(";")} - {None}
         if cited:  # stable: the entry and the papers it cites first, the rest in search order
@@ -474,6 +498,18 @@ class DocumentRetriever:
                     kept.append(node)
             nodes = kept
         return nodes[: self.n_context_items]
+
+    def same_term_in(self, entry, wanted: str):
+        """The search picks the term, the language comes from the question: the entry of the same term in the
+        wanted language, else in English, else the one found (glossary_terms, built from the docstore)."""
+        meta = plain_metadata(entry.metadata)
+        versions = getattr(self, "glossary_terms", {}).get(glossary_term(meta.get("title", "")), {})
+        for lang in (wanted, "english"):
+            if meta.get("language") == lang:
+                return entry
+            if lang in versions:
+                return NodeWithScore(node=versions[lang], score=getattr(entry, "score", None))
+        return entry
 
     def search_order(self, query: str, nodes: List[Any]) -> List[Any]:
         """RERANK=false: the chunks in search order, or none ("no sources") when the best vector
@@ -1151,6 +1187,11 @@ class Qualle:
 
         # Initialize document retriever
         self.document_retriever = DocumentRetriever(config, retriever)
+        try:  # the glossary entry of the found term in the question's language (limit_per_document)
+            index = getattr(retriever, "vector_retriever", retriever)._index
+            self.document_retriever.glossary_terms = glossary_entries(index.docstore.docs)
+        except Exception as e:  # no docstore (tests, other retrievers): keep the entry the search found
+            logger.warning(f"Glossary terms not loaded ({e})")
 
         if config.get("CLUSTER_BOOST"):
             try:

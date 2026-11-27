@@ -120,6 +120,25 @@ def test_documents_of_another_work_are_never_returned():
     assert [n.metadata["doi"] for n in r.limit_per_document(nodes)] == ["10.1234/a"]
 
 
+def test_found_glossary_term_is_swapped_to_the_question_language():
+    def entry(title, lang, text="# t"):
+        return TextNode(text=text, metadata={"title": f"{title} (FORRT Glossary, {lang.title()})",
+                                             "material_type": "FORRT Glossary", "language": lang})
+    en_part2, en = entry("Preprint", "english", "second chunk"), entry("Preprint", "english")
+    de, harking_de = entry("Vorabdruck [Preprint]", "german"), entry("HARKing", "german")
+    assert qualle.glossary_term(de.metadata["title"]) == "preprint"
+    terms = qualle.glossary_entries({"a": en_part2, "b": en, "c": de, "d": harking_de})
+    assert terms["preprint"]["english"] is en and terms["harking"] == {"german": harking_de}  # the definition chunk
+    r = retriever(0)
+    r.glossary_terms = terms
+    found = NodeWithScore(node=de, score=0.6)  # only the German entry in the candidates
+    kept = r.limit_per_document([chunk("10.1234/a"), found], "What are preprints, and should I post one?")
+    assert kept[1].node is en and kept[1].score == 0.6 and kept[0].metadata["doi"] == "10.1234/a"  # same place
+    assert r.limit_per_document([found], "Was ist ein Vorabdruck und warum ist er wichtig?")[0] is found
+    only_de = NodeWithScore(node=harking_de, score=0.5)  # no English version: keep the one found
+    assert r.limit_per_document([only_de], "What is HARKing and why is it a problem?")[0] is only_de
+
+
 def test_papers_cited_by_the_glossary_entry_come_first():
     entry = SimpleNamespace(text="t", metadata={"title": "HARKing (FORRT Glossary, English)", "language": "english",
                                                 "material_type": "FORRT Glossary",
