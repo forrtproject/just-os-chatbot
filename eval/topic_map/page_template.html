@@ -270,10 +270,10 @@ footer { font-size: 12.5px; color: var(--ink-3); border-top: 1px solid var(--lin
   <section>
     <div class="head"><div class="eyebrow">5 · Next steps</div><h2>What to do with this</h2></div>
     <ol class="steps">
-      <li><b>Fix the six wrong files.</b> Correct the DOIs in the FORRT sheet and drop their chunks from the index (1,741 chunks).</li>
-      <li><b>Fix the cluster-paper titles.</b> The seven wrong titles above, plus the 29 papers whose title is still the file name (for example <code>C09 SC08 Incl Henrich 2010</code>). Users see these titles in the source list.</li>
+      <li><b>Fix the six wrong files.</b> Done for the bot: the search never returns them (<code>config/index_corrections.json</code>, <code>exclude</code>). Their DOIs in the FORRT sheet still need correcting.</li>
+      <li><b>Fix the cluster-paper titles.</b> Done: the seven wrong titles and the 29 file-name titles are corrected in the index (<code>scripts/fix_index_titles.py</code>, docs/evaluation.md 3.29).</li>
       <li><b>Use the gap list for content.</b> The free similarity check now exists as the banded topic check (<code>ROUTER=banded</code>, docs/evaluation.md 3.11). An in-scope question with a low score points to missing papers, not to a question to refuse.</li>
-      <li><b>Drop reference-list chunks</b> from the JUST-OS papers: filter them at query time, or convert those papers with GROBID when the index is next rebuilt.</li>
+      <li><b>Drop reference-list chunks.</b> Done at query time (<code>SKIP_REFERENCE_CHUNKS</code>, docs/evaluation.md 3.28); converting those papers with GROBID at the next rebuild would also take them out of the index.</li>
       <li><b>Check the seven remaining blind spots by hand.</b> Equity, Public–Private Partnerships, Religion and culture, Sexuality, Feminist Thought, Inclusion and Rights retention. Equity and Inclusion each have 20 PDFs in their folders, yet few papers sit close to the name. Either the PDFs cover the topic in other words (a short one-word name is a weak probe), or the material is thin. Then add sources for PIDs/ORCID, Gold OA and ghost authorship.</li>
     </ol>
   </section>
