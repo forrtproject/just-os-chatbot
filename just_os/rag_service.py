@@ -13,7 +13,7 @@ from just_os.chat_manager import ChatManager
 from just_os.manifest import check_index_dir, embedder_dimension
 from just_os.hybrid import excluded_node_ids, search_retriever
 from just_os.qualle import Qualle, excluded_documents
-from just_os.voyage import Voyage, is_voyage
+from just_os.voyage import Voyage, is_voyage, voyage_dimension
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,10 @@ class VoyageEmbedding(BaseEmbedding):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._voyage = Voyage(self.model_name)
+
+    @property
+    def embedding_dimension(self) -> Optional[int]:
+        return voyage_dimension(self.model_name)
 
     def _get_query_embedding(self, query: str) -> List[float]:
         return self._voyage.query(query)

@@ -13,8 +13,20 @@ import numpy as np
 from openai import OpenAI
 
 
+VOYAGE_DIMENSIONS = {
+    "mongodb/voyage-4-large": 1024,
+    "mongodb/voyage-4": 1024,
+    "mongodb/voyage-4-lite": 1024,
+    "mongodb/voyage-4-nano": 1024,
+}
+
+
 def is_voyage(model: str) -> bool:
     return model.startswith("mongodb/voyage-")
+
+
+def voyage_dimension(model: str) -> int | None:
+    return VOYAGE_DIMENSIONS.get(model)
 
 
 class Voyage:

@@ -113,10 +113,14 @@ def pdf_markdown(row, work, http=None):
     if not row["title"]:
         row["title"] = pdf_sources.lookup_title(http, row["doi"])
     outcome = "no_open_access_pdf"
+    from scripts.fetch_web_resources import BlockedURL, check_http_url
+
     for n, (url, source, licence) in enumerate(pdf_sources.candidates(http, row["doi"], row["link_to_resource"])):
         if n >= MAX_TRIES:
             break
-        if not is_public_url(url):
+        try:
+            check_http_url(url)
+        except BlockedURL:
             outcome = "pdf_download_failed"
             continue
         content = pdf_sources.download(http, url)

@@ -55,17 +55,25 @@ def public_addresses(host: str, port: Optional[int] = None) -> List[str]:
         raise BlockedURL(f"host not found: {host}")
     for address in addresses:
         ip = ipaddress.ip_address(address.split("%")[0])
-        if not ip.is_global or ip.is_multicast:  # private, loopback, link-local, reserved, shared, unspecified
+        if not ip.is_global or ip.is_multicast or getattr(ip, "is_site_local", False):
             raise BlockedURL(f"{host} is a private or local address ({ip})")
     return addresses
 
 
-def check_public_url(url: str) -> None:
-    """Raise BlockedURL unless url is http(s) and every address its host resolves to is public. A check before a
-    request, for a clear outcome; what stops a request is PublicOnlyBackend, which checks again when it connects."""
-    parts = urllib.parse.urlsplit(str(url or "").strip())
+def check_http_url(url: str) -> None:
+    """Syntactic check only (http/https scheme and host, no DNS lookup)."""
+    try:
+        parts = urllib.parse.urlsplit(str(url or "").strip())
+    except ValueError as e:
+        raise BlockedURL(f"invalid URL: {url!r}") from e
     if parts.scheme.lower() not in ("http", "https") or not parts.hostname:
         raise BlockedURL(f"not an http(s) link: {url!r}")
+
+
+def check_public_url(url: str) -> None:
+    """Raise BlockedURL unless url is http(s) and every address its host resolves to is public."""
+    check_http_url(url)
+    parts = urllib.parse.urlsplit(str(url or "").strip())
     public_addresses(parts.hostname, parts.port)
 
 
@@ -133,8 +141,9 @@ def blocked_cause(error: BaseException) -> Optional[BlockedConnect]:
 
 
 def fetch(url: str) -> str:
-    """The HTML of a public page (at most MAX_BYTES); BlockedURL for a link or redirect to a private address."""
-    check_public_url(url)
+    """The HTML of a public page (at most MAX_BYTES); BlockedURL for a link or redirect to a private address.
+    DNS resolution happens once at connect time inside PublicOnlyBackend (no separate preflight lookup)."""
+    check_http_url(url)
     try:
         with public_client(timeout=20, headers={"User-Agent": "JUST-OS resource indexer"}) as http:
             with http.stream("GET", url) as response:

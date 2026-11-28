@@ -22,7 +22,7 @@ OPEN_LICENCE = re.compile(
 # Any of these in any licence field vetoes the quote: NC/ND variants, negations ("Not licensed under CC BY", "not open
 # access", "I don't see any of these"), closed access and reserved rights
 RESTRICTED = re.compile(
-    r"\bnc\b|\bnd\b|non ?commercial|no ?deriv|\bnot\b|n['\u2019]t\b|\bclosed\b|\b(all|some) rights reserved\b|copyright|\u00a9"
+    r"\bnc\b|\bnd\b|non ?commercial|no ?deriv|\bnot\b|n['\u2019]t\b|\bclosed\b|\brights reserved\b|copyright|\u00a9"
 )
 # Free to read is not free to quote: the label of a FORRT cluster PDF never makes a passage quotable, and neither does
 # the OpenAlex licence recorded next to it (scripts/convert_cluster_pdfs.py), which belongs to one open-access copy
@@ -103,22 +103,25 @@ def reference_url(metadata: Dict) -> Optional[str]:
 
 
 def normalize_url(url: Optional[str]) -> str:
-    """A link for comparing: scheme and host in lower case, no trailing slash; path, query and fragment keep their
-    case (on many sites /Guide and /guide are different pages, and #/route a different view). "" for no link."""
+    """A link for comparing: scheme and host in lower case, trailing slash stripped only from path; path, query and
+    fragment keep their case. Malformed bracketed URLs fall back cleanly without raising. "" for no link."""
     url = str(url or "").strip()
     if not url:
         return ""
-    parts = urllib.parse.urlsplit(url)
+    try:
+        parts = urllib.parse.urlsplit(url)
+    except ValueError:
+        return url.rstrip("/")
     if not parts.scheme or not parts.netloc:
         return url.rstrip("/")
-    return urllib.parse.urlunsplit(
-        (parts.scheme.lower(), parts.netloc.lower(), parts.path, parts.query, parts.fragment)).rstrip("/")
+    path = parts.path.rstrip("/")
+    return urllib.parse.urlunsplit((parts.scheme.lower(), parts.netloc.lower(), path, parts.query, parts.fragment))
 
 
 def document_key(metadata: Dict) -> str:
     """One key per paper, so chunks of the same paper share one reference number: the DOI, else the title, else (a
     web page or recommendation with neither) "url:" and its normalized link, so two untitled links stay apart."""
-    title = re.sub(r"[^a-z0-9]", "", str(metadata.get("title", "")).lower())
+    title = re.sub(r"[^a-z0-9]", "", str(metadata.get("title") or "").lower())
     if doi := _doi(metadata):
         return doi
     if title:
@@ -130,13 +133,13 @@ def document_key(metadata: Dict) -> str:
 def paper_key(metadata: Dict) -> str:
     """One reference number per paper in an answer: the title, so a preprint without DOI
     and its journal version (same title) share a number; document_key without a title."""
-    title = re.sub(r"[^a-z0-9]", "", str(metadata.get("title", "")).lower())
+    title = re.sub(r"[^a-z0-9]", "", str(metadata.get("title") or "").lower())
     return title or document_key(metadata)
 
 
 def licence_words(text: Optional[str]) -> str:
-    """A licence text for matching: lower case, with hyphens, slashes, commas and brackets as spaces."""
-    return " ".join(re.sub(r"[-_/,;:()\[\].]+", " ", str(text or "").lower()).split())
+    """A licence text for matching: lower case, with ASCII and Unicode hyphens/dashes, slashes, commas and brackets as spaces."""
+    return " ".join(re.sub(r"[-_\u2010-\u2015\u2212\u00ad/,;:()\[\].]+", " ", str(text or "").lower()).split())
 
 
 def licence_vetoes(text: Optional[str]) -> bool:

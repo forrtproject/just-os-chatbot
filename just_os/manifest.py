@@ -69,8 +69,11 @@ def check_index_dir(directory: Union[str, Path], embedding_model: str, dimension
 
 
 def embedder_dimension(embed_model) -> Optional[int]:
-    """The vector size of a llama-index embedding model without embedding anything: the sentence-transformers model
-    behind HuggingFaceEmbedding knows it; None for API models (Voyage), test doubles and anything else."""
+    """The vector size of a llama-index embedding model without embedding anything: reads explicit
+    embedding_dimension (e.g. VoyageEmbedding) or sentence-transformers' dimension getter."""
+    explicit = getattr(embed_model, "embedding_dimension", None)
+    if isinstance(explicit, int) and not isinstance(explicit, bool) and explicit > 0:
+        return explicit
     model = getattr(embed_model, "_model", None)
     # get_embedding_dimension in sentence-transformers 5, get_sentence_embedding_dimension (deprecated) before
     getter = getattr(model, "get_embedding_dimension", None) or getattr(model, "get_sentence_embedding_dimension", None)

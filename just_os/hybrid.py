@@ -102,19 +102,18 @@ class HybridRetriever:
 
     def __init__(self, vector_retriever, nodes: List[Any], top_k: int, excluded_ids: Collection[str] = frozenset()):
         self.vector_retriever = vector_retriever
-        self.nodes = nodes
-        self.by_id = {node.node_id: node for node in nodes}
-        self.top_k = top_k
         self.excluded_ids = frozenset(excluded_ids)
-        self.excluded_rows = [i for i, node in enumerate(nodes) if node.node_id in self.excluded_ids]
-        logger.info(f"Building the BM25 keyword index over {len(nodes)} chunks")
-        self.bm25 = BM25([node.get_content() for node in nodes])
+        self.nodes = [node for node in nodes if node.node_id not in self.excluded_ids]
+        self.by_id = {node.node_id: node for node in self.nodes}
+        self.top_k = top_k
+        logger.info(f"Building the BM25 keyword index over {len(self.nodes)} chunks")
+        self.bm25 = BM25([node.get_content() for node in self.nodes]) if self.nodes else None
 
     def retrieve(self, query: str) -> List[NodeWithScore]:
-        # both lists without excluded chunks and cut to top_k before the fusion, so ranks are as without them
+        # both lists without excluded chunks and cut to top_k before the fusion, so ranks and BM25 stats ignore them
         vector_hits = without_ids(self.vector_retriever.retrieve(query), self.excluded_ids, self.top_k)
         found = {hit.node.node_id: hit for hit in vector_hits}
-        keyword_ids = [self.nodes[i].node_id for i in self.bm25.top(query, self.top_k, exclude=self.excluded_rows)]
+        keyword_ids = [self.nodes[i].node_id for i in self.bm25.top(query, self.top_k)] if self.bm25 else []
         fused = reciprocal_rank_fusion([hit.node.node_id for hit in vector_hits], keyword_ids)
         return [
             found.get(node_id) or NodeWithScore(node=self.by_id[node_id], score=None)
@@ -128,17 +127,18 @@ class KeywordRetriever:
 
     def __init__(self, nodes: List[Any], top_k: int, vector_retriever=None, excluded_ids: Collection[str] = frozenset()):
         self.vector_retriever = vector_retriever
-        self.nodes = nodes
-        self.top_k = top_k
         excluded_ids = frozenset(excluded_ids)
-        self.excluded_rows = [i for i, node in enumerate(nodes) if node.node_id in excluded_ids]
-        logger.info(f"Building the BM25 keyword index over {len(nodes)} chunks")
-        self.bm25 = BM25([node.get_content() for node in nodes])
+        self.nodes = [node for node in nodes if node.node_id not in excluded_ids]
+        self.top_k = top_k
+        logger.info(f"Building the BM25 keyword index over {len(self.nodes)} chunks")
+        self.bm25 = BM25([node.get_content() for node in self.nodes]) if self.nodes else None
 
     def retrieve(self, query: str) -> List[NodeWithScore]:
+        if not self.bm25:
+            return []
         scores = self.bm25.scores(query)
         return [NodeWithScore(node=self.nodes[i], score=float(scores[i]))
-                for i in self.bm25.top(query, self.top_k, scores, exclude=self.excluded_rows)]
+                for i in self.bm25.top(query, self.top_k, scores)]
 
 
 SEARCH_MODES = ("vector", "bm25", "hybrid")

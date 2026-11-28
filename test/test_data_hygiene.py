@@ -827,3 +827,50 @@ def test_architecture_doc_names_the_licence_of_the_license_file():
     line = next(line for line in (root / "docs/architecture.md").read_text(encoding="utf-8").splitlines()
                 if line.lstrip("│├└─ ").startswith("LICENSE"))
     assert "Apache 2.0" in line
+
+
+def test_unicode_hyphens_and_bare_rights_reserved_veto_quotes():
+    for bad in (
+        "Creative Commons Attribution Non\u2011Commercial",
+        "Creative Commons Attribution No\u2011Derivatives",
+        "CC BY / Rights reserved",
+    ):
+        assert not passage_allowed(bad), bad
+        assert not metadata_passage_allowed({"conditions_of_use": bad}), bad
+        assert not metadata_passage_allowed({"conditions_of_use": "CC BY", "licence": bad}), bad
+
+
+def test_ipv6_site_local_is_blocked(monkeypatch):
+    monkeypatch.setattr(fetch_web_resources.socket, "getaddrinfo",
+                        lambda host, port, proto=0: [(10, 1, 6, "", ("fec0::1", 0, 0, 0))])
+    assert not fetch_web_resources.is_public_url("https://internal.example/page")
+
+
+def test_bm25_excludes_dropped_chunks_from_idf_and_length_stats():
+    from just_os.hybrid import KeywordRetriever
+    from llama_index.core.schema import TextNode
+
+    excluded = TextNode(text=("noise " * 200) + "alpha", id_="bad")
+    a = TextNode(text="alpha beta", id_="a")
+    b = TextNode(text="alpha gamma delta epsilon zeta eta theta", id_="b")
+    clean = KeywordRetriever([a, b], top_k=2).retrieve("alpha")
+    with_excluded = KeywordRetriever([excluded, a, b], top_k=2, excluded_ids={"bad"}).retrieve("alpha")
+    assert [(h.node.node_id, pytest.approx(h.score)) for h in with_excluded] == [
+        (h.node.node_id, pytest.approx(h.score)) for h in clean
+    ]
+
+
+def test_normalize_url_and_document_key_edge_cases():
+    from just_os.references import document_key, normalize_url
+
+    assert normalize_url("https://Example.ORG/p/?q=A/") == "https://example.org/p?q=A/"
+    assert normalize_url("https://Example.ORG/p/?q=A") != normalize_url("https://Example.ORG/p/?q=A/")
+    assert normalize_url("http://[::bad") == "http://[::bad"  # malformed bracketed URL does not raise
+    assert document_key({"title": None, "link_to_resource": "https://example.org/a"}) == "url:https://example.org/a"
+
+
+def test_voyage_embedder_exposes_known_dimension():
+    from just_os.voyage import voyage_dimension
+
+    assert voyage_dimension("mongodb/voyage-4-large") == 1024
+    assert manifest.embedder_dimension(SimpleNamespace(embedding_dimension=1024)) == 1024
