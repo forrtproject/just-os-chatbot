@@ -538,3 +538,56 @@ def test_retrieval_cache_pickles_are_written_whole(tmp_path, monkeypatch):
     with pytest.raises(KeyboardInterrupt):
         run.write_atomic(tmp_path / "y.pkl", b"half")
     assert [p.name for p in tmp_path.iterdir()] == ["x.pkl"]  # no y.pkl, no temp file left behind
+
+
+def test_concurrent_batch_series_reserve_distinct_outputs_and_detect_dotenv_changes(tmp_path, monkeypatch):
+    from datetime import datetime
+
+    monkeypatch.setattr(run_batches, "RESULTS", tmp_path)
+    env_file = tmp_path / ".env"
+    env_file.write_text("RERANK=false\nOPENROUTER_API_KEY=secret-value\n", encoding="utf-8")
+    monkeypatch.setattr(run_batches, "ENV_FILE", env_file)
+    lines = ['{"id": "q1"}\n']
+    m1 = run_batches.open_series("m", "261128-1200", lines, [], {})
+    m2 = run_batches.open_series("m", "261128-1205", lines, [], {})
+    # Changing .env stops resume of the same series, and secrets from .env stay hashed
+    manifest_text = run_batches.manifest_path("m", "261128-1200").read_text(encoding="utf-8")
+    assert "secret-value" not in manifest_text
+    env_file.write_text("RERANK=true\nOPENROUTER_API_KEY=secret-value\n", encoding="utf-8")
+    with pytest.raises(SystemExit, match="settings"):
+        run_batches.open_series("m", "261128-1200", lines, [], {})
+    # Atomic output reservation: two series requesting an output in the same second never claim the same file
+    times = iter([datetime(2026, 11, 28, 12, 0, 1), datetime(2026, 11, 28, 12, 0, 1), datetime(2026, 11, 28, 12, 0, 2)])
+    monkeypatch.setattr(run_batches, "datetime", SimpleNamespace(now=lambda: next(times)))
+    monkeypatch.setattr(run_batches.time, "sleep", lambda s: None)
+    out1 = run_batches.batch_out("m", m1)
+    out2 = run_batches.batch_out("m", m2)
+    assert out1 != out2 and out1.exists() and out2.exists()
+
+
+def test_pairs_ignores_partial_forced_run_when_required_ids_are_checked(tmp_path):
+    full = [report_row("a", "answer", "answered", 3), report_row("b", "answer", "answered", 3)]
+    partial = [report_row("a", "answer", "answered", 3)]
+    write(tmp_path / "run_261128-100000_m__route-open_science.csv", full)
+    write(tmp_path / "run_261128-100000_m__route-forrt.csv", full)
+    write(tmp_path / "run_261128-110000_m__route-open_science.csv", partial)  # newer, but incomplete (--limit 1)
+    chosen = pairs.routed_runs(tmp_path, required_ids={"a", "b"})
+    assert chosen["m"]["open_science"].name == "run_261128-100000_m__route-open_science.csv"
+
+
+def test_forced_forrt_route_fails_early_when_forrt_backends_are_absent():
+    from test_qualle import make_qualle, node
+
+    q = make_qualle(True, [node("Paper")], [node("Paper")], "Answer [0].")
+    q.forrt_pages = None
+    q.forrt_lookup = None
+    with pytest.raises(RuntimeError, match="FORRT_PAGES"):
+        run.skip_classifier(q, "forrt")
+
+
+def test_answer_cache_key_covers_band_and_forrt_selection_thresholds():
+    base = answer_cache_for().key
+    for key in ("BAND_PAPER_HIGH", "BAND_PAGE_LOW", "COSINE_PAPER_MIN", "BAND_MIDDLE_ROUTER",
+                "DECISION_ROUTER_MODEL", "FORRT_IN_PAPERS_MIN_SCORE", "FORRT_DECISION_THRESHOLD"):
+        assert key in NAMESPACE_KEYS
+        assert answer_cache_for(**{key: "changed"}).key != base, key

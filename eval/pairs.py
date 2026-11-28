@@ -33,13 +33,19 @@ FIELDS = ["topic_check", "answer_model", "n", "correct", "answered", "should_ans
           "no_sources_refuse", "both_as_papers", "hit", "citations_valid", "judge_support", "mean_s", "usd_per_1k"]
 
 
-def routed_runs(results=RESULTS):
-    """{answer model: {"open_science": path, "forrt": path}} for the models with both forced runs (newest)."""
+def routed_runs(results=RESULTS, required_ids=None):
+    """{answer model: {"open_science": path, "forrt": path}} for the models with both forced runs (newest).
+    When required_ids is given, partial runs (e.g. --limit 5) that do not cover required_ids are skipped so
+    they never silently supersede a complete run."""
+    needed = set(required_ids) if required_ids is not None else None
     runs = {}
     for path in sorted(results.glob("run_*__route-*.csv"), key=run_stamp):
         m = re.match(r"run_\d{6}-\d{4}(?:\d{2})?_(.+)__route-(open_science|forrt)\.csv$", path.name)
-        if m:
-            runs.setdefault(m.group(1).replace("__", "/"), {})[m.group(2)] = path
+        if not m:
+            continue
+        if needed is not None and not (needed <= set(read(path))):
+            continue
+        runs.setdefault(m.group(1).replace("__", "/"), {})[m.group(2)] = path
     return {model: r for model, r in runs.items() if len(r) == 2}
 
 
@@ -109,11 +115,13 @@ def main():
     parser.add_argument("--classify", help="classify CSV (default: the newest eval/results/classify_*.csv)")
     args = parser.parse_args()
     classify_csv = Path(args.classify) if args.classify else sorted(RESULTS.glob("classify_*.csv"))[-1]
-    runs = routed_runs()
+    by_router = decisions_by_router(classify_csv)
+    required_ids = set().union(*(d.keys() for d in by_router.values())) if by_router else None
+    runs = routed_runs(required_ids=required_ids)
     if not runs:
-        sys.exit("no answer model has both forced runs (eval/run_batches.py --route open_science / forrt)")
+        sys.exit("no answer model has both complete forced runs (eval/run_batches.py --route open_science / forrt)")
     table = []
-    for router, decisions in decisions_by_router(classify_csv).items():
+    for router, decisions in by_router.items():
         for model, paths in sorted(runs.items()):
             table.append({"topic_check": router, "answer_model": model,
                           **score(decisions, read(paths["open_science"]), read(paths["forrt"]))})

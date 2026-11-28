@@ -23,12 +23,14 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+from dotenv import dotenv_values
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from config.settings import DEFAULT_CONFIG  # noqa: E402
 RESULTS = ROOT / "eval/results"
+ENV_FILE = ROOT / ".env"
 BATCH = 30
 TMP = ROOT / "eval/tmp_batch.jsonl"
 
@@ -76,12 +78,24 @@ def save_manifest(label, since, manifest):
     tmp.replace(path)
 
 
+def effective_settings(env):
+    """Effective container settings: .env values overlaid with explicit --set overrides, with secrets hashed."""
+    merged = {}
+    if ENV_FILE.exists():
+        for k, v in dotenv_values(ENV_FILE).items():
+            if v not in (None, ""):
+                merged[k] = v
+    for k, v in (env or {}).items():
+        merged[k] = v
+    return recorded_settings(merged)
+
+
 def open_series(label, since, lines, run_args, env):
     """The manifest of this series (label, since): new, or the recorded one when its questions, run.py arguments
-    and settings are the same; other ones stop the run. Same-label run files the series did not write are
-    named and left alone."""
+    and settings (including .env) are the same; other ones stop the run. Same-label run files the series did not
+    write are named and left alone."""
     identity = {"label": label, "since": since, "questions": hashlib.sha256("".join(lines).encode("utf-8")).hexdigest(),
-                "run_args": list(run_args), "settings": recorded_settings(env)}
+                "run_args": list(run_args), "settings": effective_settings(env)}
     path = manifest_path(label, since)
     if path.exists():
         manifest = json.loads(path.read_text(encoding="utf-8"))
@@ -166,7 +180,7 @@ def run_all(label, run_args, since, lines, order, env=None):
     manifest lists them), then merge them. env: settings for this run, passed to the container
     (eval/scorecard.py)."""
     settings = [x for key, value in (env or {}).items() for x in ("-e", f"{key}={value}")]
-    tmp = TMP.with_name(f"tmp_batch_{slug(label)}.jsonl")  # one per run, so runs can go in parallel
+    tmp = TMP.with_name(f"tmp_batch_{slug(label)}__since-{since}.jsonl")  # one per series, safe for concurrent runs
     manifest = open_series(label, since, lines, run_args, env)
     while True:
         done = done_ids(series_files(manifest, order))
@@ -184,6 +198,10 @@ def run_all(label, run_args, since, lines, order, env=None):
             cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
         )
         if len(done_ids(series_files(manifest, order))) == len(order) - len(todo):
+            if out.exists() and out.stat().st_size == 0:
+                out.unlink(missing_ok=True)
+                manifest["files"] = [n for n in manifest["files"] if n != out.name]
+                save_manifest(label, since, manifest)
             raise SystemExit(f"{label}: the batch finished no question; stopping")
     tmp.unlink(missing_ok=True)
     merged = merge(series_files(manifest, order), order)
@@ -194,12 +212,18 @@ def run_all(label, run_args, since, lines, order, env=None):
 
 
 def batch_out(label, manifest):
-    """A new run file for the next batch: never one that exists or the series already lists (two batches in one
-    second wait for the next)."""
+    """Atomically reserve a new run file for the next batch via exclusive create ('x'), so concurrent series with
+    the same label can never claim the same output CSV."""
+    RESULTS.mkdir(parents=True, exist_ok=True)
     while True:
         out = RESULTS / f"run_{datetime.now():%y%m%d-%H%M%S}_{slug(label)}.csv"
-        if not out.exists() and out.name not in manifest["files"]:
-            return out
+        if out.name not in manifest["files"]:
+            try:
+                with open(out, "x", encoding="utf-8"):
+                    pass
+                return out
+            except FileExistsError:
+                pass
         time.sleep(1)
 
 

@@ -187,6 +187,8 @@ def skip_classifier(qualle, route="open_science"):
     topic check's decisions (eval/classify.py), so every topic check x answer model pair is scored.
     A question naming a library paper (REFERENCE_LOOKUP) would go to the papers without the topic check, so
     any other forced route turns the reference lookup off: every question really goes the forced way."""
+    if route == "forrt" and not getattr(qualle, "forrt_pages", None) and not getattr(qualle, "forrt_lookup", None):
+        raise RuntimeError("Forced --route forrt requested, but neither FORRT_PAGES nor FORRT_LOOKUP is loaded")
     qualle.route = lambda query, router=None, **kwargs: route  # kwargs: the turn's query_vector, not needed
     if route != "open_science":
         qualle.references = None
