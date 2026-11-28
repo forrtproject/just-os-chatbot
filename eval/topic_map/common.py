@@ -18,7 +18,9 @@ CLUSTERS = {
     6: "FAIR Data and Materials", 7: "Publication Sharing", 8: "Replication and Meta-research",
     9: "Academic Structures and Institutions", 10: "Qualitative Research", 11: "Research Integrity",
 }
-CLUSTER_PDF_LICENCE = "FORRT cluster PDF (open access)"  # conditions_of_use of the cluster papers
+# conditions_of_use of the cluster papers in the current index; later conversions store their OpenAlex licence instead,
+# so build_map also knows a cluster paper by its source_file (only scripts/convert_cluster_pdfs.py writes one)
+CLUSTER_PDF_LICENCE = "FORRT cluster PDF (open access)"
 
 # Coverage of a sub-cluster: similarity of its name to the 10th-closest paper
 STATUS_LIMITS = ((0.56, "blind"), (0.59, "thin"), (0.63, "covered"))

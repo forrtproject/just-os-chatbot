@@ -29,16 +29,17 @@ BONUSES = [0.0, 0.01, 0.02, 0.04]
 
 def main():
     from just_os.rag_service import create_embedding_model, load_index
-    from just_os.qualle import DocumentRetriever
+    from just_os.qualle import DocumentRetriever, excluded_documents
 
     config = dict(DEFAULT_CONFIG)
     embed = create_embedding_model(config)
     index = load_index(config, embed)
     table = document_clusters(config["CLUSTERS_FILE"])
-    cents = centroids(index, table)
+    excluded = excluded_documents(config.get("INDEX_CORRECTIONS_FILE"))
+    cents = centroids(index, table, excluded=excluded)
     retriever = index.as_retriever(similarity_top_k=config["RETRIEVER_TOP_K"])
     limiter = object.__new__(DocumentRetriever)
-    limiter.n_context_items, limiter.max_per_doc, limiter.excluded = config["MAX_CHUNKS"], config["MAX_CHUNKS_PER_DOC"], ()
+    limiter.n_context_items, limiter.max_per_doc, limiter.excluded = config["MAX_CHUNKS"], config["MAX_CHUNKS_PER_DOC"], excluded
 
     questions = [q for q in map(json.loads, open("eval/questions.jsonl", encoding="utf-8")) if q.get("cluster") in CLUSTERS]
     prepared = []

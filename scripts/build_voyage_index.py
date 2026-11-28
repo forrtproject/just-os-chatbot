@@ -1,4 +1,5 @@
-"""Voyage-4-large copies of the paper index and of the FORRT page vectors (docs/evaluation.md 3.21).
+"""Voyage-4-large copies of the index (VECTOR_STORE default: papers + glossary) and of the FORRT page vectors
+(docs/evaluation.md 3.21; built from the paper-only index then).
 
 Same chunks and pages as the bge-m3 ones, only the vectors change, so a run on them differs from a
 bge-m3 run in the embedding alone. Chunk vectors already in data/processed/emb_cache/ (made by
@@ -18,11 +19,12 @@ import faiss
 import numpy as np
 from dotenv import load_dotenv
 
+from just_os.manifest import read_manifest, write_manifest
 from just_os.voyage import Voyage
 from scripts.build_forrt_pages import embed_text
 
 MODEL = "mongodb/voyage-4-large"
-SRC, DST = Path("data/processed/vs_latest_bge-m3"), Path("data/processed/vs_latest_voyage-4-large")
+SRC, DST = Path("data/processed/vs_latest_bge-m3_glossary"), Path("data/processed/vs_latest_voyage-4-large")
 CACHE_INDEX = Path("data/processed/vs_261111_bge-small-en-v1.5_before_clusters")  # the emb_cache chunk order
 CACHE = Path("data/processed/emb_cache/mongodb__voyage-4-large.npy")
 PAGES_SRC, PAGES_DST = Path("vector_data/forrt_pages"), Path("vector_data/forrt_pages_voyage-4-large")
@@ -31,6 +33,12 @@ PAGES_SRC, PAGES_DST = Path("vector_data/forrt_pages"), Path("vector_data/forrt_
 def docstore_texts(folder: Path) -> dict:
     nodes = json.loads((folder / "docstore.json").read_text(encoding="utf-8"))["docstore/data"]
     return {k: v["__data__"]["text"] for k, v in nodes.items()}
+
+
+def document_count(folder: Path) -> int:
+    """Distinct source documents of the chunks in a docstore.json (relationship "1" is the source document)."""
+    nodes = json.loads((folder / "docstore.json").read_text(encoding="utf-8"))["docstore/data"]
+    return len({((v["__data__"].get("relationships") or {}).get("1") or {}).get("node_id") or k for k, v in nodes.items()})
 
 
 def main():
@@ -56,13 +64,17 @@ def main():
     index = faiss.IndexFlatL2(vectors.shape[1])  # same type as the bge-m3 index
     index.add(vectors)
     faiss.write_index(index, str(DST / "default__vector_store.json"))
+    write_manifest(DST, MODEL, vectors.shape[1], (read_manifest(SRC) or {}).get("chunk_size"),
+                   document_count(SRC), index.ntotal)
     print(f"wrote {DST} ({index.ntotal} vectors)", flush=True)
 
     # FORRT page descriptions, the text scripts/build_forrt_pages.py embeds
     records = json.loads((PAGES_SRC / "index.json").read_text(encoding="utf-8"))
     PAGES_DST.mkdir(parents=True, exist_ok=True)
     shutil.copy2(PAGES_SRC / "index.json", PAGES_DST / "index.json")
-    np.save(PAGES_DST / "vectors.npy", voyage.documents([embed_text(r) for r in records]))
+    page_vectors = np.asarray(voyage.documents([embed_text(r) for r in records]), dtype=np.float32)
+    np.save(PAGES_DST / "vectors.npy", page_vectors)
+    write_manifest(PAGES_DST, MODEL, page_vectors.shape[1], document_count=len(records), vector_count=len(page_vectors))
     print(f"wrote {PAGES_DST} ({len(records)} pages); cost {voyage.cost:.2f} USD", flush=True)
 
 

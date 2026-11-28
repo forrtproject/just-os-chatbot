@@ -53,6 +53,7 @@ if __name__ == "__main__":
     )
 
     pdf_output_dir = pdf_dir / "by-doi"
+    pdf_output_dir.mkdir(parents=True, exist_ok=True)
 
     for _, row in df.query("is_oa == True").iterrows():
         just_os_id = row["just_os_id"]

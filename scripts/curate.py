@@ -28,6 +28,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
 
+import httpx
 import pandas as pd
 
 from just_os.references import document_key, normalize_doi, plain_metadata
@@ -45,7 +46,28 @@ OUTCOMES = {
     "web_page_failed": "The page could not be downloaded or is not HTML",
     "web_page_too_short": "The page has too little running text (a menu or landing page)",
     "converted": "Markdown written; added to the index unless add_to_index found it there",
+    "duplicate": "Same DOI or link as an earlier row: done once, under that row",
+    "blocked_link": "The link is not http(s) or points to a private or local address: not fetched",
 }
+METADATA_FIELDS = ("title", "creators", "doi", "link_to_resource", "material_type", "conditions_of_use")
+
+
+def dedup_key(row):
+    """One resource per DOI; without a DOI, per link; without both, per title. Rows with none of the three are all
+    kept (each is reported on its own)."""
+    if row.get("doi"):
+        return "doi:" + row["doi"]
+    link = str(row.get("link_to_resource") or "").strip().rstrip("/").lower()
+    if link:
+        return "link:" + link
+    title = " ".join(str(row.get("title") or "").lower().split())
+    return "title:" + title if title else None
+
+
+def resource_key(row):
+    """The file name of a resource's Markdown (and its metadata): the DOI, else the link, else the title."""
+    basis = row["doi"] or str(row["link_to_resource"]).strip() or str(row["title"]).strip()
+    return hashlib.md5(basis.encode("utf-8")).hexdigest()
 
 
 def read_rows(csv_path, limit=None, recommendations=None):
@@ -60,7 +82,13 @@ def read_rows(csv_path, limit=None, recommendations=None):
         if column not in df:
             df[column] = ""
     df["doi"] = [normalize_doi(d) or normalize_doi(link) or "" for d, link in zip(df["doi"], df["link_to_resource"])]
-    rows = df.drop_duplicates(subset=["doi", "title"]).to_dict("records")
+    rows, seen = [], set()
+    for row in df.to_dict("records"):  # link-only rows (no DOI, no title) are told apart by their link
+        key = dedup_key(row)
+        if key is not None and key in seen:
+            continue
+        seen.add(key)
+        rows.append(row)
     return rows[:limit] if limit else rows
 
 
@@ -81,18 +109,21 @@ def pdf_markdown(row, work, http=None):
     from ingest import pdf_sources
     from scripts.convert_cluster_pdfs import grobid_tei, tei_to_markdown
 
-    http = http or pdf_sources.client()
+    http = http or guarded_client(pdf_sources.client())
     if not row["title"]:
         row["title"] = pdf_sources.lookup_title(http, row["doi"])
     outcome = "no_open_access_pdf"
     for n, (url, source, licence) in enumerate(pdf_sources.candidates(http, row["doi"], row["link_to_resource"])):
         if n >= MAX_TRIES:
             break
+        if not is_public_url(url):
+            outcome = "pdf_download_failed"
+            continue
         content = pdf_sources.download(http, url)
         if content is None:
             outcome = "pdf_download_failed"
             continue
-        pdf = work / "pdfs" / f"{hashlib.md5(row['doi'].encode()).hexdigest()}.pdf"
+        pdf = work / "pdfs" / f"{resource_key(row)}-{n}.pdf"
         pdf.parent.mkdir(parents=True, exist_ok=True)
         pdf.write_bytes(content)
         try:
@@ -112,6 +143,32 @@ def pdf_markdown(row, work, http=None):
     return outcome, ""
 
 
+class BlockedRequest(httpx.RequestError):
+    """A request (or a redirect) to a non-http(s) or private address; an httpx error, so the callers that skip a
+    failed source skip it too."""
+
+
+def guarded_client(http):
+    """The client with every request and redirect checked by fetch_web_resources.check_public_url (SSRF guard):
+    the row's link and the landing pages it leads to come from sheets and the /recommend page."""
+    from scripts.fetch_web_resources import BlockedURL, check_public_url
+
+    def check(request):
+        try:
+            check_public_url(str(request.url))
+        except BlockedURL as e:
+            raise BlockedRequest(str(e), request=request) from e
+
+    http.event_hooks = {**http.event_hooks, "request": [*http.event_hooks.get("request", []), check]}
+    return http
+
+
+def is_public_url(url):
+    from scripts.fetch_web_resources import is_public_url as public
+
+    return public(url)
+
+
 def prose_words(text):
     """Words in lines of at least 8 words: running text, not menu items."""
     return sum(len(line.split()) for line in text.splitlines() if len(line.split()) >= 8)
@@ -119,10 +176,12 @@ def prose_words(text):
 
 def web_markdown(row):
     """(outcome, Markdown) for a row without a DOI: the page's main text."""
-    from scripts.fetch_web_resources import MIN_CHARS, fetch, main_text
+    from scripts.fetch_web_resources import MIN_CHARS, BlockedURL, fetch, main_text
 
     try:
         text = main_text(fetch(row["link_to_resource"].strip()))
+    except BlockedURL:
+        return "blocked_link", ""
     except Exception:
         return "web_page_failed", ""
     if len(text) < MIN_CHARS or prose_words(text) < MIN_PROSE_WORDS:
@@ -133,27 +192,51 @@ def web_markdown(row):
 def curate(rows, known, work, workers=WORKERS):
     """Convert the new rows into work/markdown; returns (report rows, metadata rows). `workers` resources at a time
     (most of the time is waiting for publishers' servers); a resource whose Markdown this run's folder already has is
-    taken from there (a stopped run resumes)."""
+    taken from there with the metadata the first run found (a stopped run resumes). Rows with the same file name
+    (same DOI or link) are done once."""
     markdown_dir = work / "markdown"
     markdown_dir.mkdir(parents=True, exist_ok=True)
 
-    def one(row):
-        key = hashlib.md5((row["doi"] or row["link_to_resource"]).encode("utf-8")).hexdigest()
+    def one(row, key):
         done = markdown_dir / f"{key}.md"
         if document_key(row) in known:
             return row, key, "already_indexed", ""
         if done.exists():
+            saved = markdown_dir / f"{key}.json"  # what pdf_markdown filled in: title, creators, licence
+            if saved.exists():
+                try:
+                    for field, value in json.loads(saved.read_text(encoding="utf-8")).items():
+                        if field in METADATA_FIELDS and value and not row.get(field):
+                            row[field] = value
+                except ValueError:
+                    pass
             return row, key, "converted", done.read_text(encoding="utf-8")
-        outcome, markdown = pdf_markdown(row, work) if row["doi"] else web_markdown(row)
+        try:
+            outcome, markdown = pdf_markdown(row, work) if row["doi"] else web_markdown(row)
+        except Exception as e:  # one resource never stops the run
+            print(f"error on {row.get('link_to_resource') or row.get('doi')}: {e}", flush=True)
+            outcome, markdown = ("pdf_download_failed" if row["doi"] else "web_page_failed"), ""
         return row, key, outcome, markdown
+
+    for row in rows:
+        for field in METADATA_FIELDS:
+            row[field] = "" if row.get(field) is None else str(row[field])
+    keys = [resource_key(row) for row in rows]
 
     report, metadata = [], []
     with ThreadPoolExecutor(workers) as pool:
-        for row, key, outcome, markdown in pool.map(one, rows):  # in the order of the rows
+        futures, seen = [], set()
+        for row, key in zip(rows, keys):  # one job per file name, so two rows never write the same files
+            futures.append(None if key in seen else pool.submit(one, row, key))
+            seen.add(key)
+        for row, key, future in zip(rows, keys, futures):  # in the order of the rows
+            row, key, outcome, markdown = future.result() if future else (row, key, "duplicate", "")
             if markdown:
+                meta = {k: row[k] for k in METADATA_FIELDS}
+                # metadata first: a run stopped between the two files redoes the resource rather than losing it
+                (markdown_dir / f"{key}.json").write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
                 (markdown_dir / f"{key}.md").write_text(markdown, encoding="utf-8")
-                metadata.append({"doi_hash": key, **{k: row[k] for k in
-                                 ("title", "creators", "doi", "link_to_resource", "material_type", "conditions_of_use")}})
+                metadata.append({"doi_hash": key, **meta})
             report.append({"title": row["title"], "doi": row["doi"], "link_to_resource": row["link_to_resource"],
                            "outcome": outcome, "what_it_means": OUTCOMES[outcome]})
             print(f"{outcome:20} {str(row['title'])[:70]}", flush=True)

@@ -33,6 +33,7 @@ from openai import OpenAI
 
 from config.settings import get_config
 from just_os.forrt_pages import extract, refresh_target
+from just_os.manifest import write_manifest
 
 SITEMAP = "https://forrt.org/sitemap.xml"
 MENU_PAGE = "https://forrt.org/"
@@ -219,6 +220,7 @@ def main() -> None:
     vectors = np.asarray(embedder.get_text_embedding_batch([embed_text(r) for r in records]), dtype=np.float32)
     old_file.write_text(json.dumps(records, ensure_ascii=False, indent=1), encoding="utf-8")
     np.save(out / "vectors.npy", vectors)
+    write_manifest(out, cfg["EMBEDDING_MODEL"], vectors.shape[1], document_count=len(records), vector_count=len(vectors))
     print(f"wrote {len(records)} pages to {out} ({sum(1 for r in records if r.get('date'))} with a date)")
 
 

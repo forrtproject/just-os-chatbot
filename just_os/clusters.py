@@ -10,7 +10,7 @@ import csv
 import logging
 import re
 import time
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 import numpy as np
 
@@ -46,7 +46,7 @@ def document_clusters(path: Optional[str]) -> Dict[str, List[str]]:
     if not path:
         return out
     try:
-        with open(path, encoding="utf-8") as f:
+        with open(path, encoding="utf-8-sig") as f:  # Excel writes a BOM before "title"
             rows = list(csv.DictReader(f))
     except OSError:
         return out
@@ -66,9 +66,10 @@ def clusters_of(metadata: Dict, table: Dict[str, List[str]]) -> List[str]:
     return table.get(document_key(metadata)) or table.get(re.sub(r"[^a-z0-9]", "", str(metadata.get("title", "")).lower()), [])
 
 
-def centroids(index, table: Dict[str, List[str]], block: int = 10000) -> np.ndarray:
-    """len(CLUSTERS) x dim unit centroids: the mean unit vector of each cluster's chunks (no glossary entries),
-    read from the FAISS index a block of rows at a time."""
+def centroids(index, table: Dict[str, List[str]], block: int = 10000, excluded: Iterable[str] = ()) -> np.ndarray:
+    """len(CLUSTERS) x dim unit centroids: the mean unit vector of each cluster's chunks (no glossary entries, no
+    excluded documents: config/index_corrections.json), read from the FAISS index a block of rows at a time."""
+    excluded = set(excluded)
     faiss_index = index.vector_store._faiss_index
     node_of = {int(row): node_id for row, node_id in index.index_struct.nodes_dict.items()}
     docs = index.docstore.docs
@@ -80,7 +81,7 @@ def centroids(index, table: Dict[str, List[str]], block: int = 10000) -> np.ndar
             if node is None:
                 continue
             meta = plain_metadata(node.metadata)
-            if meta.get("material_type") == GLOSSARY_TYPE:
+            if meta.get("material_type") == GLOSSARY_TYPE or (excluded and document_key(meta) in excluded):
                 continue
             for c in clusters_of(meta, table):
                 k = CLUSTERS.index(c)
@@ -110,10 +111,11 @@ class ClusterBoost:
     """CLUSTER_BOOST: when a question clearly belongs to one FORRT cluster (CLUSTER_BOOST_MARGIN), that cluster's
     chunks get CLUSTER_BOOST added to their cosine among the found candidates (docs/evaluation.md 3.26)."""
 
-    def __init__(self, index, embed_model, table: Dict[str, List[str]], bonus: float, margin: float):
+    def __init__(self, index, embed_model, table: Dict[str, List[str]], bonus: float, margin: float,
+                 excluded: Iterable[str] = ()):
         start = time.time()
         self.embed_model, self.table, self.bonus, self.margin = embed_model, table, bonus, margin
-        self.centroids = centroids(index, table)
+        self.centroids = centroids(index, table, excluded=excluded)
         logger.info(f"Cluster boost: centroids of {len(CLUSTERS)} clusters in {time.time() - start:.1f} s")
 
     def apply(self, query: str, nodes) -> List:

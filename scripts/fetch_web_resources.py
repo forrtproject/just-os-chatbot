@@ -12,7 +12,10 @@ The licence is unknown, so the bot will not show passages from these pages (issu
 import argparse
 import csv
 import hashlib
+import ipaddress
 import random
+import socket
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -34,9 +37,49 @@ def main_text(html: str) -> str:
     return "\n".join(line for line in lines if line)
 
 
+class BlockedURL(ValueError):
+    """A link that is not http(s) or points into a private network (SSRF guard)."""
+
+
+def check_public_url(url: str) -> None:
+    """Raise BlockedURL unless url is http(s) and every address its host resolves to is public: links come from
+    sheets and the /recommend page, so a link to localhost, the LAN or a cloud metadata address is not fetched."""
+    parts = urllib.parse.urlsplit(str(url or "").strip())
+    if parts.scheme.lower() not in ("http", "https") or not parts.hostname:
+        raise BlockedURL(f"not an http(s) link: {url!r}")
+    try:
+        addresses = {info[4][0] for info in socket.getaddrinfo(parts.hostname, parts.port or None, proto=socket.IPPROTO_TCP)}
+    except (socket.gaierror, UnicodeError, ValueError) as e:
+        raise BlockedURL(f"host not found: {parts.hostname} ({e})") from e
+    for address in addresses:
+        ip = ipaddress.ip_address(address.split("%")[0])
+        if not ip.is_global or ip.is_multicast:  # private, loopback, link-local, reserved, shared, unspecified
+            raise BlockedURL(f"{parts.hostname} is a private or local address ({ip})")
+
+
+def is_public_url(url: str) -> bool:
+    try:
+        check_public_url(url)
+    except BlockedURL:
+        return False
+    return True
+
+
+class _CheckedRedirects(urllib.request.HTTPRedirectHandler):
+    """Every redirect is checked like the first link."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        check_public_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_OPENER = urllib.request.build_opener(_CheckedRedirects)
+
+
 def fetch(url: str) -> str:
+    check_public_url(url)
     request = urllib.request.Request(url, headers={"User-Agent": "JUST-OS resource indexer"})
-    with urllib.request.urlopen(request, timeout=20) as response:
+    with _OPENER.open(request, timeout=20) as response:
         if "html" not in response.headers.get("Content-Type", ""):
             raise ValueError("not an HTML page")
         return response.read(MAX_BYTES).decode(response.headers.get_content_charset() or "utf-8", "replace")

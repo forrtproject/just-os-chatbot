@@ -10,6 +10,7 @@ from llama_index.vector_stores.faiss import FaissVectorStore
 from config.settings import get_config
 from just_os.reference_lookup import ReferenceLookup
 from just_os.chat_manager import ChatManager
+from just_os.manifest import check_index_dir
 from just_os.hybrid import search_retriever
 from just_os.qualle import Qualle, excluded_documents
 from just_os.voyage import Voyage, is_voyage
@@ -62,6 +63,10 @@ def create_embedding_model(config: Dict[str, Any]):
 def load_index(config: Dict[str, Any], embed_model):
     persist_dir = config["VECTOR_STORE"]
     vector_store = FaissVectorStore.from_persist_dir(persist_dir)
+    # manifest.json (new indexes): the vectors are the size and model it names; an older folder loads unchecked
+    dimension = getattr(getattr(vector_store, "_faiss_index", None), "d", None)
+    if dimension is not None:
+        check_index_dir(persist_dir, config.get("EMBEDDING_MODEL", ""), dimension)
     storage_context = StorageContext.from_defaults(vector_store=vector_store, persist_dir=persist_dir)
     return load_index_from_storage(storage_context=storage_context, embed_model=embed_model)
 

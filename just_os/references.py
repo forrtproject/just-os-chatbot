@@ -7,17 +7,17 @@ import csv
 import re
 import urllib.parse
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 # A DOI is "10.<registrant>/<suffix>"; the suffix may contain almost anything
 DOI_PATTERN = re.compile(r"10\.\d{4,9}/[^\s\"'<>]+", re.IGNORECASE)
 TRAILING = ".,;:'\"!?"
 PAIRS = {")": "(", "]": "["}
 
-# CC BY, CC0 and public domain allow showing a passage; NC/ND variants do not (F4).
-# "FORRT cluster PDF": FORRT confirmed these are open access (scripts/convert_cluster_pdfs.py)
+# CC BY, CC0 and public domain allow showing a passage; NC/ND variants do not (F4). Free to read is not free to
+# quote: a FORRT cluster PDF shows a passage only when OpenAlex gives it an open licence (scripts/convert_cluster_pdfs.py)
 OPEN_LICENCE = re.compile(
-    r"\bcc[\s-]?0\b|\bcc[\s-]?zero\b|public domain|\bcc[\s-]?by\b|creative commons attribution|forrt cluster pdf",
+    r"\bcc[\s-]?0\b|\bcc[\s-]?zero\b|public[\s-]domain|\bcc[\s-]?by\b|creative commons attribution",
     re.I,
 )
 GLOSSARY_TYPE = "FORRT Glossary"  # material_type of the glossary documents (scripts/build_glossary.py)
@@ -107,10 +107,23 @@ def paper_key(metadata: Dict) -> str:
     return title or document_key(metadata)
 
 
-def passage_allowed(conditions_of_use: Optional[str]) -> bool:
-    """True for CC BY (and SA), CC0 and public domain; False for NC/ND and unknown licences."""
+def passage_allowed(conditions_of_use: Union[str, Dict, None]) -> bool:
+    """True for CC BY (and SA), CC0 and public domain; False for NC/ND and unknown licences.
+    A metadata dict is checked with metadata_passage_allowed."""
+    if isinstance(conditions_of_use, dict):
+        return metadata_passage_allowed(conditions_of_use)
     text = str(conditions_of_use or "")
     return bool(OPEN_LICENCE.search(text)) and not RESTRICTED.search(text)
+
+
+def metadata_passage_allowed(meta: Dict) -> bool:
+    """A chunk's passage may be shown: not closed access (oa_status), and its licence or conditions_of_use is an
+    open licence, with neither of them NC/ND."""
+    meta = plain_metadata(meta or {})
+    if str(meta.get("oa_status") or "").strip().lower() == "closed":
+        return False
+    texts = [str(meta.get(key) or "") for key in ("licence", "conditions_of_use")]
+    return any(OPEN_LICENCE.search(t) for t in texts) and not any(RESTRICTED.search(t) for t in texts)
 
 
 SNIPPET_MAX = 300  # characters of the quote under a source

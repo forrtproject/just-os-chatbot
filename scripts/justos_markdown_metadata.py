@@ -44,6 +44,17 @@ def metadata_row(row: dict, open_access: dict) -> dict:
     return out
 
 
+FIELDS = [*COLUMNS, "doi", "doi_hash"]
+
+
+def write_metadata(path: Path, rows: list) -> None:
+    """The metadata CSV with a fixed header, so no matching Markdown file still gives a readable file."""
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDS)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 if __name__ == "__main__":
     with open(OA_LIST, encoding="utf-8") as f:
         open_access = {r["title"]: normalize_doi(r["doi"]) for r in csv.DictReader(f)}
@@ -53,10 +64,7 @@ if __name__ == "__main__":
     rows = [r for r in rows if (MARKDOWN / f"{r['doi_hash']}.md").exists()]
     books = [r["doi_hash"] for r in rows if (MARKDOWN / f"{r['doi_hash']}.md").stat().st_size > MAX_BYTES]
     rows = [r for r in rows if r["doi_hash"] not in books]
-    with open(OUT, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0]))
-        writer.writeheader()
-        writer.writerows(rows)
+    write_metadata(OUT, rows)
     closed = sum(r["conditions_of_use"] == NOT_OA for r in rows)
     print(f"{len(rows)} Markdown files with a sheet row ({closed} not open access) → {OUT}; "
           f"left out as whole books under a chapter title: {', '.join(books)}")

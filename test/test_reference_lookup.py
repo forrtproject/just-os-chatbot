@@ -98,7 +98,7 @@ def test_a_named_paper_skips_the_topic_check_and_the_search():
     q.document_retriever.retrieve_and_rerank = lambda *a: (_ for _ in ()).throw(AssertionError("no search"))
     q.document_retriever.n_context_items = 7
     q.references = SimpleNamespace(match=lambda *questions: ([PAPERS[0]], "title"),
-                                   chunks=lambda query, found, n: [node("False-Positive Psychology")])
+                                   chunks=lambda query, found, n, **kw: [node("False-Positive Psychology")])
     final = list(q.get_response("Why did Simmons, Nelson and Simonsohn kick off the crisis?", "chat"))[-1]
     assert final["status"] == "complete" and "False-Positive Psychology" in final["metadata"]["sources"]
 
@@ -111,7 +111,7 @@ def test_after_an_author_match_the_topic_check_still_sends_people_to_forrt_and_o
         q.forrt_in_papers_result = lambda job, timings: []
         q.document_retriever.n_context_items = 7
         q.references = SimpleNamespace(match=lambda *questions: ([PAPERS[0]], "authors"),
-                                       chunks=lambda query, found, n: [node("False-Positive Psychology")])
+                                       chunks=lambda query, found, n, **kw: [node("False-Positive Psychology")])
         return list(q.get_response("What did Simmons and Nelson show?", "chat"))[-1]
 
     assert "False-Positive Psychology" in ask("off_topic")["metadata"]["sources"]  # overruled

@@ -42,7 +42,7 @@ The list of the 513 documents of the first build is in [indexed_documents.csv](i
 
 How a PDF got in: open access (Unpaywall `is_oa`) **and** a DOI → `data/pdfs/by-doi/<md5(doi)>.pdf` → marker → Markdown → `scripts/embed.py`. The Markdown of the original build is in `data/NWO JUST-OS/BOT/markdown/markdown/` (546 files, `NNNN.md`).
 
-Licence (field `conditions_of_use`, free text from the form; "Not open access (Unpaywall)" and "FORRT cluster PDF (open access)" are set by the scripts): of the first 513 documents CC BY (all spellings) ≈ 280, "I don't see any of these" 184, CC BY-NC-ND 14, public domain 8, other. The tooltip shows a passage only for CC BY (incl. SA), CC0, public domain and the FORRT cluster PDFs (`passage_allowed`, issue #6): 951 of the 1,354 documents; other sources show title + link.
+Licence (field `conditions_of_use`, free text from the form; "Not open access (Unpaywall)" and "FORRT cluster PDF (open access)" are set by the scripts): of the first 513 documents CC BY (all spellings) ≈ 280, "I don't see any of these" 184, CC BY-NC-ND 14, public domain 8, other. The tooltip shows a passage only for CC BY (incl. SA), CC0 and public domain, in `conditions_of_use` or `licence`, and never for closed access (`metadata_passage_allowed`, issue #6); a FORRT cluster PDF needs an open OpenAlex licence. Other sources show title + link.
 
 **Known metadata defect:** 10 documents have every metadata value stored as a one-item dict (`{"<doi_hash>": "title"}`) because `just-os_db_latest.csv` has duplicate `doi_hash` rows and `embed.py` calls `metadata.loc[hash].to_dict()`. Their references showed wrong titles and years. `scripts/embed.py` now keeps one row per `doi_hash` (#24); the current index keeps the defect until it is built again. The references shown to users, `eval/run.py` (`retrieved_dois` and `hit`) and `eval/make_retrieval_set.py` (titles) unwrap these values with `plain_metadata` (`just_os/references.py`), and `eval/coverage.py` and `scripts/get_pub_years.py` unwrap them inline. `scripts/reembed.py` copies the chunks with their metadata, so an index it builds keeps the defect.
 
@@ -122,7 +122,7 @@ forrt.org's sitemap misses many pages: the ~25 project sites published from sepa
 | Already in the index (same DOI or title as a JUST-OS document) | 105 |
 | **Added** (`add_to_index.py`, both indexes) | **648** |
 
-Their `conditions_of_use` is "FORRT cluster PDF (open access)", so the bot shows their passages (decision of the project lead, 12 Nov 2026). OpenAlex marks 117 of them as closed and 192 have no DOI; see [data-inventory.md](data-inventory.md) section 4.
+Their `conditions_of_use` is "FORRT cluster PDF (open access)" (FORRT, 12 Nov 2026), but the bot shows their passages only with an open licence from OpenAlex (`licence`) and never for closed access (`oa_status`; `metadata_passage_allowed`). OpenAlex marks 117 of them as closed and 192 have no DOI; see [data-inventory.md](data-inventory.md) section 4.
 
 ### Other
 - `data/archive/`: old prototypes (Oct–Dec 2024: first agent, `storage_m3` build, chunk classification, marker script). The code does not use them; kept for reference.
@@ -180,7 +180,7 @@ Limits: step 1 does not download PDFs and reads the June 2025 snapshot; step 3 r
 
 ## 6. What to share with a teammate (not in Git)
 
-`python scripts/make_share_bundle.py` puts all of it in one file: `share/just-os-team-bundle.zip` (the `share/` folder is git- and docker-ignored). It holds `.env`, the bge-m3 index, `pub_years.csv` and the FORRT sheet 1 (both read by the bot), the bge-small index, `emb_cache/`, FORRT sheet 2, `forrt_db_250627.csv`, `questions_and_text.csv` and `cluster_pdf_metadata.csv`, plus `TEAM_SETUP.md`. `--minimal` keeps only what the bot reads; `--no-env` leaves out your keys. The embedding/re-ranker model weights are not in it: Docker downloads them one time (README step 5).
+`python scripts/make_share_bundle.py` puts all of it in one file: `share/just-os-team-bundle.zip` (the `share/` folder is git- and docker-ignored). It holds the default index (`vs_latest_bge-m3_glossary`), `pub_years.csv`, the FORRT sheet 1 and the FORRT article list (`data/curation/forrt_article_list.csv`, the clusters; all read by the bot), the bge-small index, `emb_cache/`, FORRT sheet 2, `forrt_db_250627.csv`, `questions_and_text.csv` and `cluster_pdf_metadata.csv`, plus `TEAM_SETUP.md`. `--minimal` keeps only what the bot reads; your `.env` and its keys go in only with `--include-env`. The embedding/re-ranker model weights are not in it: Docker downloads them one time (README step 5).
 
 
 | Need | Item | How |

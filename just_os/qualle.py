@@ -37,8 +37,9 @@ from just_os.references import (
     document_key,
     paper_key,
     load_publication_years,
+    _doi,
+    metadata_passage_allowed,
     normalize_doi,
-    passage_allowed,
     plain_metadata,
     publication_year,
     short_authors,
@@ -463,15 +464,20 @@ class DocumentRetriever:
             best[ref] = max(best.get(ref, 0.0), float(score))
         return {ref for ref, score in best.items() if score < self.verify_min_score}
 
+    def without_excluded(self, nodes: List[Any]) -> List[Any]:
+        """The nodes without the documents whose text is another work (config/index_corrections.json)."""
+        excluded = getattr(self, "excluded", ())
+        if not excluded:
+            return nodes
+        return [n for n in nodes if document_key(plain_metadata(n.metadata)) not in excluded]
+
     def limit_per_document(self, nodes: List[Any], query: str = "") -> List[Any]:
         """Keep at most MAX_CHUNKS_PER_DOC chunks of one paper (0 = no limit), then MAX_CHUNKS.
         At most one FORRT glossary entry: the same term in five languages would otherwise fill the slots the
         papers need (scripts/build_glossary.py). It is the best-ranked entry in the question's language, else in
         English (a term such as "HARKing" is spelled alike everywhere, so the best match can be any language).
         The papers that entry cites (reference_dois) come first among the found chunks."""
-        excluded = getattr(self, "excluded", ())
-        if excluded:  # documents whose text is another work (config/index_corrections.json)
-            nodes = [n for n in nodes if document_key(plain_metadata(n.metadata)) not in excluded]
+        nodes = self.without_excluded(nodes)
         if getattr(self, "skip_reference_chunks", False):  # glossary entries and abstract cards are short on purpose
             nodes = [n for n in nodes if str(plain_metadata(n.metadata).get("material_type", "")).startswith(
                 (GLOSSARY_TYPE, "FORRT abstract card")) or not is_reference_chunk(n.text)]
@@ -487,12 +493,12 @@ class DocumentRetriever:
                  for d in str(plain_metadata(g.metadata).get("reference_dois", "")).split(";")} - {None}
         if cited:  # stable: the entry and the papers it cites first, the rest in search order
             nodes = sorted(nodes, key=lambda n: not (any(n is g for g in glossary)
-                                                     or normalize_doi(plain_metadata(n.metadata).get("doi", "")) in cited))
+                                                     or _doi(plain_metadata(n.metadata)) in cited))
         if self.max_per_doc > 0:
             counts: Dict[str, int] = {}
             kept = []
             for node in nodes:
-                key = document_key(node.metadata)
+                key = document_key(plain_metadata(node.metadata))
                 counts[key] = counts.get(key, 0) + 1
                 if counts[key] <= self.max_per_doc:
                     kept.append(node)
@@ -515,6 +521,7 @@ class DocumentRetriever:
         """RERANK=false: the chunks in search order, or none ("no sources") when the best vector
         match is below MIN_VECTOR_SIMILARITY. BM25 scores have no fixed scale, so bm25 search
         has no such check."""
+        nodes = self.without_excluded(nodes)  # an excluded document never sets the best match
         if self.search_mode != "bm25" and self.min_vector_similarity > 0:
             cosine = vector_cosine(nodes)
             if cosine is not None and cosine < self.min_vector_similarity:
@@ -524,11 +531,15 @@ class DocumentRetriever:
         if boost is not None and self.search_mode == "vector":
             nodes = boost.apply(query, nodes)
         nodes = self.limit_per_document(nodes, query)
-        if self.adaptive_top_k and self.search_mode == "vector" and nodes and nodes[0].score is not None:
+        best = vector_cosine(nodes) if self.adaptive_top_k and self.search_mode == "vector" else None
+        if best is not None:
             # ADAPTIVE_TOP_K without the re-ranker: keep chunks whose cosine (1 - L2 distance / 2) is at least
-            # ADAPTIVE_TOP_K_RATIO of the best one's, at least ADAPTIVE_TOP_K_MIN; hybrid/bm25 scores have no such scale
-            cutoff = (1 - nodes[0].score / 2) * self.adaptive_ratio
-            nodes = [n for i, n in enumerate(nodes) if i < self.adaptive_min or 1 - (n.score or 2) / 2 >= cutoff]
+            # ADAPTIVE_TOP_K_RATIO of the best one's, at least ADAPTIVE_TOP_K_MIN; hybrid/bm25 scores have no such scale.
+            # The best cosine of all kept chunks: the cluster boost and the glossary entry reorder them, and a distance
+            # of 0 is an exact match, not a missing score
+            cutoff = best * self.adaptive_ratio
+            nodes = [n for i, n in enumerate(nodes)
+                     if i < self.adaptive_min or 1 - (2.0 if n.score is None else n.score) / 2 >= cutoff]
         return nodes
 
     def node_to_text(self, node) -> str:
@@ -578,7 +589,7 @@ class DocumentRetriever:
         timings = {} if timings is None else timings
         # Retrieve relevant nodes
         start = time.time()
-        nodes = self._retriever.retrieve(query)
+        nodes = self.without_excluded(self._retriever.retrieve(query))  # before the similarity floor and re-ranker
         retrieved = time.time()
         timings["search_s"] = retrieved - start
 
@@ -622,15 +633,20 @@ class DocumentRetriever:
 
         return ranked_nodes, nodes
 
-    def trace_sources(self, scored: List[Tuple[Any, Any]], sent: List[Any], cutoff: Optional[float], kind: str) -> None:
-        """Debug panel: every retrieved chunk with its score, and why it was not sent to the model."""
+    def trace_sources(self, scored: List[Tuple[Any, Any]], sent: List[Any], cutoff: Optional[float], kind: str,
+                      reasons: Optional[Dict[int, str]] = None) -> None:
+        """Debug panel: every retrieved chunk with its score, and why it was not sent to the model
+        (reasons: id(node) -> why, for drops decided elsewhere)."""
         sent_ids = {id(node): i for i, node in enumerate(sent)}
+        reasons = reasons or {}
         rows = []
         for rank, (score, node) in enumerate(scored):
             meta = plain_metadata(node.metadata)
             score = None if score is None else float(score)
             if id(node) in sent_ids:
                 why = None
+            elif id(node) in reasons:
+                why = reasons[id(node)]
             elif kind == "rerank" and score is not None and score <= self.min_relevance:
                 why = "below minimum relevance"
             elif kind == "cosine" and not sent and self.min_vector_similarity > 0:
@@ -973,7 +989,7 @@ class ReferenceProcessor:
             "authors": meta.get(CREATOR_KEY, "Unknown Author"),
             "year": publication_year(meta, self.pub_years),
             "url": reference_url(meta),
-            "text": node.text if passage_allowed(meta.get(LICENCE_KEY)) else "",
+            "text": node.text if metadata_passage_allowed(meta) else "",
         }
 
     def process_markdown_with_references(
@@ -1098,7 +1114,7 @@ class ReferenceProcessor:
                     continue
                 meta = plain_metadata(nodes[ref].metadata)
                 key = paper_key(meta)
-                if key not in found and passage_allowed(meta.get(LICENCE_KEY)):
+                if key not in found and metadata_passage_allowed(meta):
                     found[key] = best_snippet(claim, nodes[ref].text)
         return found
 
@@ -1198,7 +1214,8 @@ class Qualle:
                 vector_retriever = getattr(retriever, "vector_retriever", retriever)
                 self.document_retriever.cluster_boost = ClusterBoost(
                     vector_retriever._index, embed_model, document_clusters(config.get("CLUSTERS_FILE")),
-                    config["CLUSTER_BOOST"], config.get("CLUSTER_BOOST_MARGIN", 0.02))
+                    config["CLUSTER_BOOST"], config.get("CLUSTER_BOOST_MARGIN", 0.02),
+                    excluded=self.document_retriever.excluded)
             except Exception as e:  # no FAISS index or cluster list: search without the boost, never crash
                 logger.error(f"CLUSTER_BOOST is on but the cluster centroids could not be built ({e})")
 
@@ -1240,13 +1257,39 @@ class Qualle:
         """bge-m3 cosine of the question to the nearest paper chunk (FAISS) and to the nearest
         FORRT page description (-1 without FORRT pages)."""
         q = np.asarray([self._embed_model.get_query_embedding(query)], dtype=np.float32)
-        q /= np.linalg.norm(q)
+        norm = float(np.linalg.norm(q))
+        if not np.isfinite(norm) or norm == 0:  # an empty or failed embedding: no similarity rather than NaN
+            trace.note(similarity={"paper": -1.0, "page": -1.0})
+            return -1.0, -1.0
+        q /= norm
         vector_retriever = getattr(self._retriever, "vector_retriever", self._retriever)  # bm25 and hybrid wrap it
-        distance, _ = vector_retriever._index.vector_store._faiss_index.search(q, 1)
-        paper = 1 - float(distance[0][0]) / 2  # squared L2 of unit vectors → cosine
+        excluded_rows = self.excluded_rows(vector_retriever._index)
+        distance, rows = vector_retriever._index.vector_store._faiss_index.search(q, len(excluded_rows) + 1)
+        # squared L2 of unit vectors → cosine; the nearest chunk that is not an excluded document
+        best = next((float(d) for d, r in zip(distance[0], rows[0]) if int(r) >= 0 and int(r) not in excluded_rows), None)
+        paper = -1.0 if best is None else 1 - best / 2
         page = float((self.forrt_pages.vectors @ q[0]).max()) if self.forrt_pages is not None else -1.0
         trace.note(similarity={"paper": round(paper, 4), "page": round(page, 4)})
         return paper, page
+
+    def excluded_rows(self, index) -> set:
+        """FAISS rows of the documents whose text is another work (config/index_corrections.json), built once."""
+        cached = getattr(self, "_excluded_rows", None)
+        if cached is not None:
+            return cached
+        rows: set = set()
+        excluded = getattr(self.document_retriever, "excluded", ()) if getattr(self, "document_retriever", None) else ()
+        if excluded:
+            try:
+                docs = index.docstore.docs
+                for row, node_id in index.index_struct.nodes_dict.items():
+                    node = docs.get(node_id)
+                    if node is not None and document_key(plain_metadata(node.metadata)) in excluded:
+                        rows.add(int(row))
+            except AttributeError as e:  # no docstore (test doubles, other retrievers): nothing to skip
+                logger.warning(f"Excluded documents not mapped to FAISS rows ({e})")
+        self._excluded_rows = rows
+        return rows
 
     def cosine_route(self, query: str) -> str:
         """Cosine router (no model call): above COSINE_PAPER_MIN → papers, above COSINE_PAGE_MIN →
@@ -1503,8 +1546,18 @@ class Qualle:
             yield {"status": "in-progress", "message": "Finding relevant sources"}
             if found:  # the named paper(s) only, any number of chunks each; no FORRT pages next to them
                 step = time.time()
-                ranked_nodes = self.references.chunks(query, found, self.document_retriever.n_context_items)
+                skip = getattr(self.document_retriever, "skip_reference_chunks", False)
+                dropped: List[Any] = []
+                ranked_nodes = self.references.chunks(query, found, self.document_retriever.n_context_items,
+                                                      skip_reference_chunks=skip, dropped=dropped)
                 timings["search_s"] = time.time() - step
+                if trace.active():
+                    trace.note(reference_lookup={"matched_by": matched_by, "papers": [p.title for p in found],
+                                                 "skip_reference_chunks": skip, "reference_chunks_left_out": len(dropped)})
+                    scored = sorted(list(ranked_nodes) + dropped, key=lambda x: 2.0 if x.score is None else x.score)
+                    self.document_retriever.trace_sources(
+                        [(None if x.score is None else 1 - x.score / 2, x) for x in scored], ranked_nodes, None,
+                        "cosine", reasons={id(x): "reference list" for x in dropped})
             else:
                 pages_job = self.start_forrt_in_papers(query, intent)
                 ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(query, timings)
