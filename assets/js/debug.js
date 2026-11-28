@@ -328,7 +328,7 @@ function sourcesSection(t) {
           scoreRow(c.title, c.score, { max, threshold, chosen: c.sent && isCited(c), dim: !c.sent,
             right: fmtScore(c.score) }),
           h("span", { class: `debug-chunk-tag${tag === "cited" ? " cited" : ""}` }, c.sent ? `[${c.n}] ${tag}` : tag)),
-        h("p", {}, c.text), c.url ? h("a", { href: c.url, target: "_blank", rel: "noopener" }, c.url) : null);
+        h("p", {}, c.text), /^https?:\/\//i.test(c.url || "") ? h("a", { href: c.url, target: "_blank", rel: "noopener noreferrer" }, c.url) : null);
       return item;
     };
     const legend = [

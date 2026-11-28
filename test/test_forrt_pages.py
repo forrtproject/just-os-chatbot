@@ -271,7 +271,7 @@ def test_bare_urls_become_links():
     assert "<https://join.slack.com/t/forrt/x>." in out  # the full stop stays outside the link
     assert "[Get involved](https://forrt.org/about/get-involved/)" in out and "<https://forrt.org/>" in out
     assert out.count("<https://forrt.org/>") == 1  # an existing autolink is not wrapped twice
-    html = qualle.markdown.markdown(out)
+    html = qualle.render_markdown(out)  # what the page gets: sanitized, the link kept
     assert 'href="https://join.slack.com/t/forrt/x"' in html
 
 

@@ -5,31 +5,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JUST-OS</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap"
-        rel="stylesheet">
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Icons, fonts, DOMPurify and marked are bundled into /public (assets/): no external CDNs -->
+    <link href="{{ static_url_for('static', filename='css/vendor.css') }}" rel="stylesheet">
+    <link href="{{ static_url_for('static', filename='css/app.css') }}" rel="stylesheet">
     <script>window.JUSTOS_DEBUG_PANEL = {{ 'true' if debug_panel else 'false' }};</script>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-    
+    <script src="{{ static_url_for('static', filename='js/app.js') }}"></script>
+
     <style>
         body {
-            background-color: {{ bg_color|safe }};
+            background-color: {{ bg_color }};
         }
     </style>
 </head>
+
+<body>
 <div id="header-bar">
-    <img src='/images/qualle.png' id="header-logo" alt="JUST-OS">
+    <img src="{{ static_url_for('static', filename='images/qualle.png') }}" id="header-logo" alt="JUST-OS">
 </div>
 {% include "_nav.html" %}
 <div id="container">
-    <div id="chat-messages">{{ message_history | safe }}</div>
+    <div id="chat-messages"></div>
     <div id="status-message"></div>
     <div id="suggestions" aria-label="Example questions">
         {% for cluster, question in suggestions.items() %}
@@ -77,17 +72,21 @@
         <div class="modal-body">
             <p>
                 Despite (or due to) the overwhelming amount of information on Open Science, it is practised way less than it is preached.
-                To bridge this gap, we propose JUST-OS, a chatbot to navigate Open Science resources.
-                Technically, JUST-OS uses retrieval-augmented generation, an AI-based natural language processing method, which operates on an Open Science database on FORRT.
-                Practically, JUST-OS assists in navigating initiatives, knowledge, and resources for various stakeholders by answering their questions interactively and leading them to related practices or topics.
-                Thus, JUST-OS will contribute to making Open Science more accessible, aligning researchers’ behaviour with their generally positive Open Science attitudes.
+                JUST-OS is a chatbot that helps researchers and other stakeholders navigate Open Science initiatives, knowledge and resources,
+                so that it becomes easier to put Open Science into practice.
             </p>
             <p>
-                The assistant is powered by Allen Institute for AI's <a href=https://huggingface.co/OpenSciLM/Llama-3.1_OpenScholar-8B>Open Scholar model</a>.
-                Its sources are from a selection from resources curated by <a href=https://forrt.org/>FORRT</a>.
-                We took care to only use resources that are assessed as open access by <a href=https://unpaywall.org/>Unpaywall</a>.
-                The entire list of resources on which the bot bases its answers can be found <a href=https://drive.google.com/file/d/1eMiimpcwcnVJT6k4PQ9xfz3Udvsejo6V/view?usp=drive_link>here</a>.
-                If you are an author or rights holder of one of these resources and don't want your work to be used in the bot, please create an issue on <a href=https://github.com/JUST-Open-Science/JUST-OS>our Github page</a> and we will remove it as soon as possible.
+                JUST-OS uses retrieval-augmented generation. For each question it searches a library of open science literature
+                and guides curated by <a href="https://forrt.org/">FORRT</a> (full texts where available, otherwise abstract cards)
+                and, for questions about FORRT itself, pages on forrt.org.
+                A large language model then writes an answer from the passages it found and cites them with numbered references:
+                click a number to see the source behind a claim. The passage itself is shown only where the source's licence permits.
+                Answers can still be wrong or incomplete, so check the cited sources.
+            </p>
+            <p>
+                The code is open source on <a href="https://github.com/forrtproject/just-os-chatbot">GitHub</a>.
+                If you are an author or rights holder of one of the resources and don't want your work to be used by the bot,
+                please open an issue there and we will remove it as soon as possible.
             </p>
         </div>
     </div>

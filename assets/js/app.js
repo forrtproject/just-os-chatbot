@@ -1,5 +1,6 @@
 import { renderSources, setupReferenceHandlers } from "./references.js";
 import { addDebugTurn, debugEnabled, initDebug, resetDebug } from "./debug.js";
+import { markdownToHtml, sanitizeAnswer } from "./sanitize.js";
 
 // "How was this answer?" under each answer: Good/Bad, then an optional comment, sent once
 function feedbackBar(turnId) {
@@ -55,7 +56,8 @@ function feedbackBar(turnId) {
 }
 
 // The answer while it is written (#41): plain Markdown without the [n] numbers, which are
-// renumbered at the end. The final message replaces it.
+// renumbered at the end. The final message replaces it. Draft markup comes from the model, so it
+// is cleaned with the strict sanitizer (no citation links, no classes).
 function showDraft(text) {
   let draft = document.getElementById("draft-answer");
   if (!draft) {
@@ -65,12 +67,7 @@ function showDraft(text) {
     draft.setAttribute("aria-live", "polite");
     document.getElementById("chat-messages").appendChild(draft);
   }
-  const plain = text.replace(/\s*\[\d+\]/g, "");
-  if (window.marked && window.DOMPurify) {
-    draft.innerHTML = DOMPurify.sanitize(marked.parse(plain));
-  } else {
-    draft.textContent = plain;
-  }
+  draft.innerHTML = markdownToHtml(text.replace(/\s*\[\d+\]/g, ""));
 }
 
 function removeDraft() {
@@ -85,7 +82,7 @@ function addMessage(message, sender, sources = null, turnId = null, retryQuestio
   messageDiv.classList.add("message", `${sender}-message`);
 
   if (sender === "bot") {
-    messageDiv.innerHTML = message;
+    messageDiv.innerHTML = sanitizeAnswer(message); // server-built HTML with citation links
     // Setup reference handlers after adding bot message
     setTimeout(() => {
       setupReferenceHandlers();
@@ -133,9 +130,23 @@ function addMessage(message, sender, sources = null, turnId = null, retryQuestio
   return added;
 }
 
+// Each question gets a number; only the newest one in the same conversation may change the draft,
+// status line, input controls, or append a reply. Clicking "New chat" increments activeRequestId and
+// aborts any in-flight request so an older conversation's stream can never bleed into the new chat.
+let activeRequestId = 0;
+const activeAbortControllers = new Set();
+
 async function sendMessage(message, { repeat = false } = {}) {
+  const requestId = ++activeRequestId;
+  const chatIdAtStart = window.chatId;
+  const isCurrent = () => requestId === activeRequestId;
+  const isSameChat = () => chatIdAtStart === window.chatId;
+  removeDraft();
   const chatMessages = document.getElementById("chat-messages");
   const question = message;
+
+  const controller = new AbortController();
+  activeAbortControllers.add(controller);
 
   console.log("user message: " + message);
   if (message && !repeat) {
@@ -151,119 +162,137 @@ async function sendMessage(message, { repeat = false } = {}) {
   let baseMessage = "Processing your request";
   statusMessage.innerText = baseMessage;
   let dotCount = 0;
+  let messageInterval = null;
   function updateMessage() {
+    if (!isCurrent()) {
+      clearInterval(messageInterval); // a newer question owns the status line
+      return;
+    }
     dotCount = (dotCount % 4) + 1;
-    let newMessage = baseMessage + ".".repeat(dotCount - 1);
-    statusMessage.innerText = newMessage;
+    statusMessage.innerText = baseMessage + ".".repeat(dotCount - 1);
   }
-  let messageInterval = setInterval(updateMessage, 1000);
+  messageInterval = setInterval(updateMessage, 1000);
 
   const messageInput = document.getElementById("user-input");
   const sendButton = document.getElementById("send-button");
 
   messageInput.disabled = true;
   sendButton.disabled = true;
-  //  sendButton.style.display = "none";
   window.scrollTo(0, document.body.scrollHeight, { behavior: "smooth" });
 
+  // Runs once per request; the controls are only touched while this is still the newest request
+  let ended = false;
   function endStream() {
+    if (ended) return;
+    ended = true;
     clearInterval(messageInterval);
+    if (!isCurrent()) return;
     messageInput.disabled = false;
+    sendButton.disabled = false;
     sendButton.style.display = "block";
     statusMessage.innerText = "";
   }
 
   // The final message: an answer, a refusal, or an error (status "error", or outcome "error" when the
   // answer model returned nothing); errors get a Try again button, refusals and answers do not
+  let finished = false;
   function finish(data) {
+    if (finished) return;
+    finished = true;
+    const current = isCurrent();
     endStream();
-    removeDraft();
+    if (current) removeDraft();
+    if (!isSameChat()) return;
     const failed = data.status === "error" || data.outcome === "error";
     const shown = addMessage(data.message, "bot", data.metadata?.references, data.turn_id, failed ? question : null);
     addDebugTurn(shown, data, question);
   }
 
+  let reader = null;
   try {
     const response = await fetch("/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
       body: JSON.stringify({
         message: message,
-        chat_id: window.chatId,
+        chat_id: chatIdAtStart,
         model: document.getElementById("model-select")?.value,
         router: document.getElementById("router-select")?.value || undefined,
         stream: true,
         debug: debugEnabled() || undefined,
       }),
     });
-    const reader = response.body.getReader();
+    // 400 (message too short or long), 429 (rate limit), 5xx from a proxy: no stream to read
+    if (!response.ok) {
+      let text = "";
+      if (response.headers.get("Content-Type")?.includes("json")) {
+        try {
+          text = (await response.json()).message || "";
+        } catch {
+          text = "";
+        }
+      }
+      const p = document.createElement("p");
+      p.textContent = text || `The bot could not answer (error ${response.status}). Please try again.`;
+      finish({ status: "error", message: p.outerHTML });
+      return;
+    }
+
+    reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
     let draft = "";
 
-    while (true) {
+    // A "complete" or "error" frame ends the request: nothing after it is read
+    const handle = (line) => {
+      const data = JSON.parse(line); // a broken line is an error (caught below)
+      if (data.status === "complete" || data.status === "error") {
+        finish(data);
+      } else if (data.status === "partial") {
+        draft += data.delta;
+        baseMessage = "Writing the answer";
+        if (isCurrent()) showDraft(draft);
+      } else {
+        if (isCurrent()) removeDraft();
+        baseMessage = data.message;
+      }
+    };
+
+    reading: while (!finished) {
       const { value, done } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-
-      // Process complete messages
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
       let newlineIndex;
       while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
-        const message = buffer.slice(0, newlineIndex);
+        const line = buffer.slice(0, newlineIndex).trim();
         buffer = buffer.slice(newlineIndex + 1);
-
-        if (message) {
-          // check for non-empty messages
-          try {
-            console.log("Received message:", message);
-            const data = JSON.parse(message);
-
-            if (data.status === "complete" || data.status === "error") {
-              finish(data);
-            } else if (data.status === "partial") {
-              draft += data.delta;
-              baseMessage = "Writing the answer";
-              showDraft(draft);
-            } else {
-              removeDraft();
-              baseMessage = data.message;
-            }
-          } catch (parseError) {
-            console.warn("Failed to parse message:", parseError);
-            // Add the failed message back to the buffer
-            buffer = message + "\n" + buffer;
-            break;
-          }
-        }
+        if (line) handle(line);
+        if (finished) break reading;
+      }
+      if (done) {
+        if (buffer.trim()) handle(buffer.trim());
+        break;
       }
     }
 
-    // Process any remaining data in the buffer
-    if (buffer.trim()) {
-      try {
-        console.log("Processing remaining buffer:", buffer);
-        const data = JSON.parse(buffer);
-        if (data.status === "complete" || data.status === "error") {
-          finish(data);
-        } else {
-          baseMessage = data.message;
-        }
-      } catch (parseError) {
-        console.warn("Failed to parse final buffer:", parseError);
-      }
+    // The stream ended without a final message (server restart, proxy timeout)
+    if (!finished) {
+      finish({ status: "error", message: "<p>The answer was interrupted. Please try again.</p>" });
     }
   } catch (error) {
+    if (error?.name === "AbortError" || !isSameChat()) return;
     console.error("Error:", error);
-    finish({ status: "error", message: "<p>The bot could not be reached. Check your connection and try again.</p>" });
+    finish({ status: "error", message: "<p>The bot could not be reached or sent a broken reply. Please try again.</p>" });
+  } finally {
+    activeAbortControllers.delete(controller);
+    reader?.cancel().catch(() => {}); // stop reading after the final frame (no-op when the stream is done)
+    endStream(); // never leave the input disabled
   }
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-  // Add CSS for new elements
-  const style = document.createElement('style');
   const userInput = document.getElementById("user-input");
   const sendButton = document.getElementById("send-button");
   const infoButton = document.getElementById("info-button");
@@ -290,6 +319,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   sendButton.addEventListener("click", function () {
     const message = userInput.value;
+    if (message.trim().length < 3) return; // the button is enabled again after each answer
     userInput.value = "";
     showSuggestions(false);
     sendMessage(message);
@@ -321,18 +351,30 @@ document.addEventListener("DOMContentLoaded", function () {
   
   // New chat button functionality
   newChatButton.addEventListener("click", function() {
+    // Invalidate and abort all active streams from the previous conversation
+    activeRequestId++;
+    for (const c of activeAbortControllers) c.abort();
+    activeAbortControllers.clear();
+    removeDraft();
+
     // Clear chat messages
     const chatMessages = document.getElementById("chat-messages");
     chatMessages.innerHTML = "";
-    
+
     // Generate a new chat ID
     window.chatId = crypto.randomUUID();
     resetDebug();
     showSuggestions(true);
-    
+
+    // Re-enable controls and clear status immediately
+    userInput.disabled = false;
+    sendButton.disabled = false;
+    sendButton.style.display = "block";
+    const statusMessage = document.getElementById("status-message");
+    if (statusMessage) statusMessage.innerText = "";
+
     // Reset the input field with the default question
     userInput.value = "How does open science reshape the future of interdisciplinary and collaborative research?";
-    
   });
 });
 
@@ -342,13 +384,6 @@ function showSuggestions(show) {
   const buttons = [...box.querySelectorAll(".suggestion")];
   buttons.sort(() => Math.random() - 0.5).forEach((b, i) => { b.hidden = i >= 4; });
   box.hidden = !show || document.getElementById("chat-messages").children.length > 0;
-}
-
-function requestBody(message) {
-  return JSON.stringify({
-    message: message,
-    chatId: window.chatId,
-  });
 }
 
 // Initialize chatId as a global variable

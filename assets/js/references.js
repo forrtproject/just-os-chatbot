@@ -1,9 +1,27 @@
 // Shared by app.js (chat) and arena.js (arena).
+
+// The tooltip data of a citation link: a plain object, or null when data-reference is missing,
+// broken JSON or not an object (such a link then does nothing)
+export function referenceData(link) {
+  try {
+    const data = JSON.parse(link.getAttribute("data-reference") || "");
+    return data && typeof data === "object" && !Array.isArray(data) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+// Tooltip fields as text: strings and numbers as they are, anything else empty
+const field = (value) => (typeof value === "string" || typeof value === "number" ? String(value) : "");
+
 export function setupReferenceHandlers() {
   document.querySelectorAll(".reference-link").forEach((link) => {
     link.addEventListener("click", function (e) {
       e.preventDefault();
       e.stopPropagation();
+
+      const data = referenceData(this);
+      if (!data) return;
 
       // Remove any existing tooltips
       document
@@ -14,8 +32,6 @@ export function setupReferenceHandlers() {
       const tooltip = document.createElement("div");
       tooltip.className = "reference-tooltip";
 
-      const data = JSON.parse(this.getAttribute("data-reference"));
-
       // Metadata comes from a public form: insert it as text, never as HTML
       const add = (tag, className, text) => {
         const el = document.createElement(tag);
@@ -24,19 +40,19 @@ export function setupReferenceHandlers() {
         tooltip.appendChild(el);
         return el;
       };
-      add("div", "title", data.title);
-      add("div", "metadata", `${data.authors} (${data.year})`);
-      if (data.unverified) {
+      add("div", "title", field(data.title));
+      add("div", "metadata", `${field(data.authors)} (${field(data.year)})`);
+      if (data.unverified === true) {
         add("div", "unverified", "Not verified: the citation check did not find this claim in the passage.");
       }
       add(
         "div",
         "content",
-        data.text || "The licence of this source does not allow showing the passage."
+        field(data.text) || "The licence of this source does not allow showing the passage."
       );
-      if (/^https?:\/\//i.test(data.url || "")) {
+      if (/^https?:\/\//i.test(field(data.url))) {
         const a = add("a", "source-link", "View source →");
-        a.href = data.url;
+        a.href = field(data.url);
         a.target = "_blank";
         a.rel = "noopener noreferrer";
       }

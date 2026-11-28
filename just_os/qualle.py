@@ -1,5 +1,4 @@
 import contextvars
-import html
 import json
 import logging
 import re
@@ -7,9 +6,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Any, Optional, Generator, Iterator, Tuple
 
-import markdown
 import numpy as np
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString
 from dotenv import load_dotenv
 from openai import OpenAI
 from openai.types.chat import ChatCompletion
@@ -27,6 +25,7 @@ from just_os import forrt_checks as checks
 from just_os.forrt_pages import ForrtPages
 from just_os.hybrid import vector_cosine
 from just_os import messages as msg
+from just_os.sanitize import render_markdown, sanitize_html
 from just_os.openscholar import generation_instance_prompts_w_references, system_prompt
 from llama_index.core.schema import NodeWithScore, TextNode
 
@@ -991,7 +990,8 @@ class ReferenceProcessor:
             the first cited chunk of each document, in order of appearance)
         """
         try:
-            html_text = markdown.markdown(markdown_text, extensions=MARKDOWN_EXTENSIONS)
+            # Sanitized first: reference links written by the model lose their attributes
+            html_text = render_markdown(markdown_text, extensions=MARKDOWN_EXTENSIONS)
             soup = BeautifulSoup(html_text, "html.parser")
             reference_pattern = r"\[(\d+)\]"
             text_nodes = soup.find_all(string=True)
@@ -1014,23 +1014,24 @@ class ReferenceProcessor:
 
             logger.debug(f"Used refs: {used_refs_ordered}, mapping: {ref_mapping}")
 
-            # Second pass - replace references with new numbers
+            # Second pass - replace references with new numbers. The text around a citation stays a
+            # text node and the link is built as a tag, so "A<B" or "&lt;img&gt;" stay plain text.
             for text in text_nodes:
                 matches = list(re.finditer(reference_pattern, text))
-                if not matches:
+                if not matches or not any(int(m.group(1)) in ref_mapping for m in matches):
                     continue
-                new_text = text
-                # Right to left, so earlier positions stay valid
-                for i in reversed(range(len(matches))):
-                    match = matches[i]
+                parts: List[Any] = []
+                pos = 0
+                for i, match in enumerate(matches):
                     old_ref_num = int(match.group(1))
                     if old_ref_num not in ref_mapping:
                         continue
                     start, end = match.span()
+                    parts.append(text[pos:start])
+                    pos = end
                     nxt = matches[i + 1] if i + 1 < len(matches) else None
                     # "[0][2]" with both chunks from one paper would show "[1][1]": keep one
                     if nxt and nxt.start() == end and ref_mapping.get(int(nxt.group(1))) == ref_mapping[old_ref_num]:
-                        new_text = new_text[:start] + new_text[end:]
                         continue
                     # Each citation keeps the passage of the chunk it cites
                     data_string = json.dumps(
@@ -1040,19 +1041,21 @@ class ReferenceProcessor:
                         ensure_ascii=True,
                         separators=(",", ":"),
                     )
-                    reference_html = (
-                        f'<a href="#" class="reference-link" '
-                        f'data-reference="{html.escape(data_string, quote=True)}">'
-                        f"[{ref_mapping[old_ref_num]}]"
-                        f"</a>"
-                    )
-                    new_text = new_text[:start] + reference_html + new_text[end:]
-                text.replace_with(BeautifulSoup(new_text, "html.parser"))
+                    link = soup.new_tag("a", attrs={"href": "#", "class": "reference-link",
+                                                    "data-reference": data_string})
+                    link.string = f"[{ref_mapping[old_ref_num]}]"
+                    parts.append(link)
+                parts.append(text[pos:])
+                nodes = [NavigableString(p) if isinstance(p, str) else p for p in parts if p != ""]
+                if nodes:
+                    text.replace_with(*nodes)
+                else:
+                    text.extract()
 
-            return str(soup), used_refs_ordered
+            return sanitize_html(str(soup), allow_references=True), used_refs_ordered
         except Exception as e:
             logger.error(f"Error processing references: {str(e)}")
-            return markdown.markdown(markdown_text, extensions=MARKDOWN_EXTENSIONS), []
+            return render_markdown(markdown_text, extensions=MARKDOWN_EXTENSIONS), []
 
     def reference_list(
         self,
@@ -1334,7 +1337,7 @@ class Qualle:
         text = msg.message("no_sources", query)
         self.chat_manager.add_message(chat_id, {"role": "user", "content": query})
         self.chat_manager.add_message(chat_id, {"role": "assistant", "content": text})
-        yield {"status": "complete", "message": markdown.markdown(text), "outcome": "no_sources"}
+        yield {"status": "complete", "message": render_markdown(text), "outcome": "no_sources"}
 
     def get_response(
         self, query: str, chat_id: str, model: Optional[str] = None, stream: bool = False,
@@ -1400,7 +1403,7 @@ class Qualle:
             if small_talk(user_query):  # before rephrasing: the history must not turn "thanks" into a question
                 about = msg.message("about", user_query)
                 remember(about)
-                yield {"status": "complete", "message": markdown.markdown(about), "outcome": "small_talk"}
+                yield {"status": "complete", "message": render_markdown(about), "outcome": "small_talk"}
                 return
 
             conversation_history = self.chat_manager.get_history(chat_id)
@@ -1411,7 +1414,10 @@ class Qualle:
                 cached = self.answer_cache.lookup(query, model)
                 if cached:
                     remember(cached["text"])
-                    yield cached["response"]
+                    response = dict(cached["response"])
+                    # Entries stored before answers were sanitized: clean them on the way out too
+                    response["message"] = sanitize_html(response.get("message") or "", allow_references=True)
+                    yield response
                     return
 
             # Follow-up questions (CONTEXT_METHOD): "rephrase" (default), "history" or "hybrid":
@@ -1457,7 +1463,7 @@ class Qualle:
             if intent is None:
                 yield {
                     "status": "error",
-                    "message": markdown.markdown(msg.message("model_unavailable", user_query)),
+                    "message": render_markdown(msg.message("model_unavailable", user_query)),
                     "outcome": "error",
                 }
                 return
@@ -1470,11 +1476,11 @@ class Qualle:
                 if result["text"] is None:
                     error = msg.message("generation_error", user_query)
                     remember(error)
-                    yield {"status": "complete", "message": markdown.markdown(error), "outcome": "error"}
+                    yield {"status": "complete", "message": render_markdown(error), "outcome": "error"}
                     return
                 remember(result["text"])
                 refs = page_references(result["sources"])
-                yield {"status": "complete", "message": markdown.markdown(result["text"], extensions=MARKDOWN_EXTENSIONS),
+                yield {"status": "complete", "message": render_markdown(result["text"], extensions=MARKDOWN_EXTENSIONS),
                        "outcome": "forrt" if result["found"] else "no_sources",
                        "metadata": {"sources": page_source_lines(refs), "references": refs}}
                 return
@@ -1482,7 +1488,7 @@ class Qualle:
             if intent in ("forrt", "forrt_lookup") and self.forrt_lookup is not None:
                 answer = self.forrt_lookup.answer(user_query if history_for_answer else query)
                 remember(answer)
-                yield {"status": "complete", "message": markdown.markdown(answer), "outcome": "forrt_lookup"}
+                yield {"status": "complete", "message": render_markdown(answer), "outcome": "forrt_lookup"}
                 return
 
             if intent in ("forrt", "forrt_lookup", "both"):
@@ -1491,13 +1497,13 @@ class Qualle:
             if intent == "small_talk":  # the rephrased follow-up is small talk
                 about = msg.message("about", user_query)
                 remember(about)
-                yield {"status": "complete", "message": markdown.markdown(about), "outcome": "small_talk"}
+                yield {"status": "complete", "message": render_markdown(about), "outcome": "small_talk"}
                 return
 
             if intent == "off_topic":
                 refusal = msg.message("off_topic", user_query)
                 remember(refusal)
-                yield {"status": "complete", "message": markdown.markdown(refusal), "outcome": "off_topic"}
+                yield {"status": "complete", "message": render_markdown(refusal), "outcome": "off_topic"}
                 return
 
             yield {"status": "in-progress", "message": "Finding relevant sources"}
@@ -1556,7 +1562,7 @@ class Qualle:
                 logger.error("Failed to generate response")
                 error = msg.message("generation_error", user_query)
                 remember(error)
-                yield {"status": "complete", "message": markdown.markdown(error), "outcome": "error"}
+                yield {"status": "complete", "message": render_markdown(error), "outcome": "error"}
                 return
 
             processed_message = self.response_generator.post_process_response(response_text)
@@ -1601,7 +1607,7 @@ class Qualle:
             logger.error(f"Error in get_response: {str(e)}")
             yield {
                 "status": "error",
-                "message": markdown.markdown(msg.message("unexpected_error", user_query)),
+                "message": render_markdown(msg.message("unexpected_error", user_query)),
                 "outcome": "error",
             }
 
@@ -1661,13 +1667,13 @@ class Qualle:
             if concerns_open_science is None:
                 yield {
                     "status": "error",
-                    "message": markdown.markdown(msg.message("model_unavailable", query)),
+                    "message": render_markdown(msg.message("model_unavailable", query)),
                 }
                 return
             if not concerns_open_science or intent == "small_talk":
                 yield {
                     "status": "complete",
-                    "message": markdown.markdown(msg.message("about" if intent == "small_talk" else "off_topic", query)),
+                    "message": render_markdown(msg.message("about" if intent == "small_talk" else "off_topic", query)),
                 }
                 return
 
@@ -1676,7 +1682,7 @@ class Qualle:
             if not ranked_nodes:
                 yield {
                     "status": "complete",
-                    "message": markdown.markdown(msg.message("no_sources", query)),
+                    "message": render_markdown(msg.message("no_sources", query)),
                 }
                 return
             context = self.document_retriever.context_from_nodes(ranked_nodes)
@@ -1689,7 +1695,7 @@ class Qualle:
                 if not text:
                     return {
                         "model": model,
-                        "message": markdown.markdown("This model did not answer (API error)."),
+                        "message": render_markdown("This model did not answer (API error)."),
                         "sources": "",
                         "error": True,
                         "seconds": round(time.time() - start, 1),
@@ -1718,5 +1724,5 @@ class Qualle:
             logger.error(f"Error in get_arena_response: {str(e)}")
             yield {
                 "status": "error",
-                "message": markdown.markdown(msg.message("unexpected_error", query)),
+                "message": render_markdown(msg.message("unexpected_error", query)),
             }

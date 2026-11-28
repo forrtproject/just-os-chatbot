@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JUST-OS Evaluation</title>
-    <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+    <link href="{{ static_url_for('static', filename='css/app.css') }}" rel="stylesheet">
     <style>
         /* about 10 rows, then scroll inside the table; "Show all" lifts the cap (script at the end) */
         #eval-page .eval-table { max-height: 26.5rem; overflow: auto; }
@@ -23,7 +23,7 @@
 
 <body>
     <div id="header-bar">
-        <img src='/images/qualle.png' id="header-logo" alt="JUST-OS">
+        <img src="{{ static_url_for('static', filename='images/qualle.png') }}" id="header-logo" alt="JUST-OS">
     </div>
     {% include "_nav.html" %}
     {% macro num(v) %}{{ v if v is not none and v != "" else "–" }}{% endmacro %}
