@@ -43,6 +43,9 @@ ARENA_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 APPEND_LOCK = threading.Lock()  # chat, feedback and arena logs (_append_jsonl)
 # 404 in PROD_MODE (with /chat/feedback: nothing to rate, nowhere to save)
 TEAM_PAGES = ("/eval", "/review", "/topics", "/arena", "/chat/feedback", "/recommend", "/articles", "/architecture")
+# ?bg_color= on the home page (forrt.org embed): #RGB, #RRGGBB or #RRGGBBAA, else the default
+HEX_COLOR = re.compile(r"#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})")
+DEFAULT_BG_COLOR = "#fefdf6"
 MAX_RECOMMENDATIONS = 20  # DOIs or links per /recommend form
 
 
@@ -310,18 +313,10 @@ class FlaskApp:
         @self.app.route("/")
         def home():
             """Home page route."""
-            # Get background color from URL parameter, default to #fefdf6 if not provided
-            bg_color = request.args.get("bg_color", "#fefdf6")
-
-            # Validate the background color (simple validation for hex colors and named colors)
-            import re
-
-            if bg_color.startswith("#"):
-                # Validate hex color format (#RGB, #RRGGBB, #RRGGBBAA)
-                if not re.match(
-                    r"^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$", bg_color
-                ):
-                    bg_color = "#fefdf6"  # Default if invalid
+            # Background colour from ?bg_color= (the forrt.org embed): a hex colour or the default
+            bg_color = request.args.get("bg_color", "")
+            if not HEX_COLOR.fullmatch(bg_color):
+                bg_color = DEFAULT_BG_COLOR
 
             return render_template(
                 "index.html",
@@ -343,25 +338,31 @@ class FlaskApp:
             Uses server-sent events for streaming responses.
             """
             # Extract request data
-            try:
-                user_message = request.json["message"]
-                chat_id = request.json["chat_id"]
-                # Optional: the built-in page can choose the answer model; the widget sends none
-                model = request.json.get("model") or None
-                # Optional: the built-in page asks for "partial" messages (#41); the widget does not
-                stream = request.json.get("stream") is True
-                # Optional topic check for this question (the page's dropdown; see ROUTERS)
-                router = request.json.get("router") or None
-                # Optional: the page's debug panel (?debug=1) asks for the trace of the turn
-                debug = request.json.get("debug") is True and self._debug_panel()
-            except (KeyError, TypeError) as e:
-                logger.error(f"Invalid request data: {str(e)}")
+            data = request.get_json(silent=True)
+            if not isinstance(data, dict):
+                data = {}
+            user_message = data.get("message")
+            chat_id = data.get("chat_id")
+            # Optional: the built-in page can choose the answer model; the widget sends none
+            model = data.get("model") or None
+            # Optional: the built-in page asks for "partial" messages (#41); the widget does not
+            stream = data.get("stream") is True
+            # Optional topic check for this question (the page's dropdown; see ROUTERS)
+            router = data.get("router") or None
+            # Optional: the page's debug panel (?debug=1) asks for the trace of the turn
+            debug = data.get("debug") is True and self._debug_panel()
+            if not isinstance(user_message, str) or not isinstance(chat_id, str) or not chat_id:
+                logger.error("Invalid request data: 'message' and 'chat_id' must be strings")
                 return jsonify(
                     {
                         "status": "error",
                         "message": "Invalid request data. 'message' and 'chat_id' are required.",
                     }
                 ), 400
+            if not isinstance(model, (str, type(None))) or not isinstance(router, (str, type(None))):
+                return jsonify({"status": "error", "message": "Invalid request data."}), 400
+            if self.config.get("PROD_MODE"):
+                router = None  # like the model and the debug panel: the public page has no choice
 
             # Validate message content
             is_valid, error_msg = self._validate_message(user_message)
@@ -585,7 +586,9 @@ class FlaskApp:
             """Answer one question with each chosen model (names hidden until rated)."""
             if not self.config["ARENA_ENABLED"]:
                 abort(404)
-            data = request.get_json(silent=True) or {}
+            data = request.get_json(silent=True)
+            if not isinstance(data, dict):
+                data = {}
             user_message = data.get("message")
             if not isinstance(user_message, str):
                 return jsonify({"status": "error", "message": "'message' is required."}), 400
@@ -596,6 +599,7 @@ class FlaskApp:
             models = data.get("models") or available
             if (
                 not isinstance(models, list)
+                or not all(isinstance(m, str) for m in models)
                 or not models
                 or len(set(models)) != len(models)
                 or any(m not in available for m in models)
@@ -605,7 +609,7 @@ class FlaskApp:
                 return jsonify({"status": "error", "message": f"Choose 1 to {limit} models from the list."}), 400
             # Random order: the card position must not give away the model
             router = data.get("router") or None
-            if router is not None and router not in ROUTERS:
+            if router is not None and (not isinstance(router, str) or router not in ROUTERS):
                 return jsonify({"status": "error", "message": "Unknown topic check."}), 400
             models = random.sample(models, len(models))
             return Response(

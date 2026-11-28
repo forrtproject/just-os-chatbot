@@ -1,4 +1,5 @@
 import { renderSources, setupReferenceHandlers } from "./references.js";
+import { htmlToText, sanitizeHtml } from "./sanitize.js";
 
 let battleId = null;
 let criteria = {};
@@ -79,7 +80,7 @@ function answerCard(response) {
     el("span", "arena-time", `${response.seconds} s`)
   );
   const body = el("div", "arena-body bot-message");
-  body.innerHTML = response.message; // server-built HTML, same as the chat page
+  body.innerHTML = sanitizeHtml(response.message); // server-built HTML, cleaned again
   card.append(header, body, renderSources(response.references, response.sources));
   if (response.error) {
     card.classList.add("failed");
@@ -159,9 +160,7 @@ async function ask(question) {
         showAnswers(data.responses);
       } else {
         // Refusal, no sources, or error: one message, nothing to rate
-        const tmp = el("div");
-        tmp.innerHTML = data.message;
-        status.textContent = tmp.textContent;
+        status.textContent = htmlToText(data.message);
       }
     });
   } catch (error) {

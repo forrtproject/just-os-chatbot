@@ -243,20 +243,25 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "GDRIVE_AUTHENTICATION_SERVER_PORT": 41813,
 }
 
+
+def env_value(raw: str, default_value: Any) -> Any:
+    """An environment string as the type of the default: bool, int, float, list (comma-separated) or str."""
+    # bool before int: bool is a subclass of int
+    if isinstance(default_value, bool):
+        return raw.lower() in ("true", "yes", "1")
+    if isinstance(default_value, int):
+        return int(raw)
+    if isinstance(default_value, float):
+        return float(raw)
+    if isinstance(default_value, list):
+        return [item.strip() for item in raw.split(",") if item.strip()]
+    return raw
+
+
 # Override defaults with environment variables
 for key in DEFAULT_CONFIG:
     if os.environ.get(key):
-        # Convert to appropriate type based on default value
-        default_value = DEFAULT_CONFIG[key]
-        # bool before int: bool is a subclass of int
-        if isinstance(default_value, bool):
-            DEFAULT_CONFIG[key] = os.environ.get(key).lower() in ("true", "yes", "1")
-        elif isinstance(default_value, int):
-            DEFAULT_CONFIG[key] = int(os.environ.get(key))
-        elif isinstance(default_value, float):
-            DEFAULT_CONFIG[key] = float(os.environ.get(key))
-        else:
-            DEFAULT_CONFIG[key] = os.environ.get(key)
+        DEFAULT_CONFIG[key] = env_value(os.environ[key], DEFAULT_CONFIG[key])
 
 if os.environ.get("HYBRID_SEARCH"):
     warnings.warn("HYBRID_SEARCH is no longer read; set SEARCH_MODE=hybrid instead", stacklevel=1)

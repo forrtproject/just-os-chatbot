@@ -17,7 +17,8 @@ from just_os import messages as msg
 
 URL_IN_TEXT = re.compile(r"https?://[^\s)\]>\"'`]+")
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
-MD_LINK = re.compile(r"\[([^\]\n]+)\]\(([^)\s]+)\)")
+# The URL may hold one level of brackets: [x](https://en.wikipedia.org/wiki/A_(b)), [x](javascript:f(1))
+MD_LINK = re.compile(r"\[([^\]\n]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)")
 AUTOLINK = re.compile(r"<((?:https?://|mailto:)[^>\s]+)>")
 BARE_URL = re.compile(r"(?<![(<\w/])https?://[^\s)\]>\"'`]+")
 UPCOMING = re.compile(r"upcoming|coming up|will (take place|be held|happen)|register now|save the date|"
@@ -102,7 +103,8 @@ def strip_unsupported_links(text: str, pages: List[Dict[str, Any]]) -> Tuple[str
     def md(m: re.Match) -> str:
         label, url = m.group(1), m.group(2)
         if not url.lower().startswith(("http://", "https://", "mailto:")):
-            return m.group(0)
+            # javascript:, data:, relative links...: the page would not show them, keep the label
+            return "" if label.lower().startswith(("http", "www.")) else label
         if not ok(url):
             removed.append(clean_url(url))
             return "" if label.lower().startswith(("http", "www.")) else label

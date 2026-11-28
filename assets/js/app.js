@@ -1,5 +1,6 @@
 import { renderSources, setupReferenceHandlers } from "./references.js";
 import { addDebugTurn, debugEnabled, initDebug, resetDebug } from "./debug.js";
+import { markdownToHtml, sanitizeHtml } from "./sanitize.js";
 
 // "How was this answer?" under each answer: Good/Bad, then an optional comment, sent once
 function feedbackBar(turnId) {
@@ -65,12 +66,7 @@ function showDraft(text) {
     draft.setAttribute("aria-live", "polite");
     document.getElementById("chat-messages").appendChild(draft);
   }
-  const plain = text.replace(/\s*\[\d+\]/g, "");
-  if (window.marked && window.DOMPurify) {
-    draft.innerHTML = DOMPurify.sanitize(marked.parse(plain));
-  } else {
-    draft.textContent = plain;
-  }
+  draft.innerHTML = markdownToHtml(text.replace(/\s*\[\d+\]/g, ""));
 }
 
 function removeDraft() {
@@ -85,7 +81,7 @@ function addMessage(message, sender, sources = null, turnId = null, retryQuestio
   messageDiv.classList.add("message", `${sender}-message`);
 
   if (sender === "bot") {
-    messageDiv.innerHTML = message;
+    messageDiv.innerHTML = sanitizeHtml(message);
     // Setup reference handlers after adding bot message
     setTimeout(() => {
       setupReferenceHandlers();
@@ -169,13 +165,17 @@ async function sendMessage(message, { repeat = false } = {}) {
   function endStream() {
     clearInterval(messageInterval);
     messageInput.disabled = false;
+    sendButton.disabled = false;
     sendButton.style.display = "block";
     statusMessage.innerText = "";
   }
 
   // The final message: an answer, a refusal, or an error (status "error", or outcome "error" when the
   // answer model returned nothing); errors get a Try again button, refusals and answers do not
+  let finished = false;
   function finish(data) {
+    if (finished) return;
+    finished = true;
     endStream();
     removeDraft();
     const failed = data.status === "error" || data.outcome === "error";
@@ -198,72 +198,67 @@ async function sendMessage(message, { repeat = false } = {}) {
         debug: debugEnabled() || undefined,
       }),
     });
+    // 400 (message too short or long), 429 (rate limit), 5xx from a proxy: no stream to read
+    if (!response.ok) {
+      let text = "";
+      if (response.headers.get("Content-Type")?.includes("json")) {
+        try {
+          text = (await response.json()).message || "";
+        } catch {
+          text = "";
+        }
+      }
+      const p = document.createElement("p");
+      p.textContent = text || `The bot could not answer (error ${response.status}). Please try again.`;
+      finish({ status: "error", message: p.outerHTML });
+      return;
+    }
+
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
     let draft = "";
 
+    const handle = (line) => {
+      const data = JSON.parse(line); // a broken line is an error (caught below)
+      if (data.status === "complete" || data.status === "error") {
+        finish(data);
+      } else if (data.status === "partial") {
+        draft += data.delta;
+        baseMessage = "Writing the answer";
+        showDraft(draft);
+      } else {
+        removeDraft();
+        baseMessage = data.message;
+      }
+    };
+
     while (true) {
       const { value, done } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-
-      // Process complete messages
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
       let newlineIndex;
       while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
-        const message = buffer.slice(0, newlineIndex);
+        const line = buffer.slice(0, newlineIndex).trim();
         buffer = buffer.slice(newlineIndex + 1);
-
-        if (message) {
-          // check for non-empty messages
-          try {
-            console.log("Received message:", message);
-            const data = JSON.parse(message);
-
-            if (data.status === "complete" || data.status === "error") {
-              finish(data);
-            } else if (data.status === "partial") {
-              draft += data.delta;
-              baseMessage = "Writing the answer";
-              showDraft(draft);
-            } else {
-              removeDraft();
-              baseMessage = data.message;
-            }
-          } catch (parseError) {
-            console.warn("Failed to parse message:", parseError);
-            // Add the failed message back to the buffer
-            buffer = message + "\n" + buffer;
-            break;
-          }
-        }
+        if (line) handle(line);
       }
+      if (done) break;
     }
+    if (buffer.trim()) handle(buffer.trim());
 
-    // Process any remaining data in the buffer
-    if (buffer.trim()) {
-      try {
-        console.log("Processing remaining buffer:", buffer);
-        const data = JSON.parse(buffer);
-        if (data.status === "complete" || data.status === "error") {
-          finish(data);
-        } else {
-          baseMessage = data.message;
-        }
-      } catch (parseError) {
-        console.warn("Failed to parse final buffer:", parseError);
-      }
+    // The stream ended without a final message (server restart, proxy timeout)
+    if (!finished) {
+      finish({ status: "error", message: "<p>The answer was interrupted. Please try again.</p>" });
     }
   } catch (error) {
     console.error("Error:", error);
-    finish({ status: "error", message: "<p>The bot could not be reached. Check your connection and try again.</p>" });
+    finish({ status: "error", message: "<p>The bot could not be reached or sent a broken reply. Please try again.</p>" });
+  } finally {
+    endStream(); // never leave the input disabled
   }
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-  // Add CSS for new elements
-  const style = document.createElement('style');
   const userInput = document.getElementById("user-input");
   const sendButton = document.getElementById("send-button");
   const infoButton = document.getElementById("info-button");
@@ -290,6 +285,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   sendButton.addEventListener("click", function () {
     const message = userInput.value;
+    if (message.trim().length < 3) return; // the button is enabled again after each answer
     userInput.value = "";
     showSuggestions(false);
     sendMessage(message);
@@ -342,13 +338,6 @@ function showSuggestions(show) {
   const buttons = [...box.querySelectorAll(".suggestion")];
   buttons.sort(() => Math.random() - 0.5).forEach((b, i) => { b.hidden = i >= 4; });
   box.hidden = !show || document.getElementById("chat-messages").children.length > 0;
-}
-
-function requestBody(message) {
-  return JSON.stringify({
-    message: message,
-    chatId: window.chatId,
-  });
 }
 
 // Initialize chatId as a global variable

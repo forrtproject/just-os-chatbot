@@ -97,7 +97,7 @@
             <ul class="review-sources">
                 {% for s in item.sources|sort(attribute="cited", reverse=True) %}
                 <li><b>[{{ s.n }}]</b> {{ s.title }}
-                    {% if s.link %}— <a href="{{ s.link }}" target="_blank" rel="noopener noreferrer">{{ ("DOI " ~ s.doi) if s.doi else s.link }}</a>{% endif %}
+                    {% if s.link and s.link.lower().startswith(("http://", "https://")) %}— <a href="{{ s.link }}" target="_blank" rel="noopener noreferrer">{{ ("DOI " ~ s.doi) if s.doi else s.link }}</a>{% endif %}
                     <span class="tag {{ '' if s.cited else 'unused' }}">{{ "cited in the answer" if s.cited else "read, not cited" }}</span>
                     {% if s.passage %}<details><summary>Text the bot was given</summary><p>{{ s.passage }}</p></details>{% endif %}
                 </li>
