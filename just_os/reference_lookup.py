@@ -179,12 +179,13 @@ class ReferenceLookup:
                     return found, why
         return [], ""
 
-    def chunks(self, question: str, found: List[Paper], n: int) -> List:
+    def chunks(self, question: str, found: List[Paper], n: int, query_vector: Optional[np.ndarray] = None) -> List:
         """The n chunks of the found papers closest to the question (NodeWithScore; score = FAISS L2 distance of unit
         vectors, as the vector search gives them), any number per paper."""
         from llama_index.core.schema import NodeWithScore
 
-        q = np.asarray(self._embed.get_query_embedding(question), dtype=np.float32)
+        vector = query_vector if query_vector is not None else self._embed.get_query_embedding(question)
+        q = np.array(vector, dtype=np.float32)  # a copy: normalised in place
         q /= np.linalg.norm(q) or 1
         scored = []
         for p in found:

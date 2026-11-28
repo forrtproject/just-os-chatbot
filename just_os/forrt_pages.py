@@ -212,8 +212,11 @@ class ForrtPages:
     # 1. candidates
     @trace.step("page search", lambda result, *a, **k: {"pages": [
         {"title": c["rec"]["title"], "url": c["rec"]["url"], "score": round(c["score"], 4)} for c in result]})
-    def retrieve(self, question: str) -> List[Dict[str, Any]]:
-        qv = np.asarray(self.embed_model.get_query_embedding(question), dtype=np.float32)
+    def retrieve(self, question: str, query_vector: Optional[np.ndarray] = None) -> List[Dict[str, Any]]:
+        """The FORRT_TOP_K candidate pages. query_vector: the question's embedding when the turn already has it."""
+        if query_vector is None:
+            query_vector = self.embed_model.get_query_embedding(question)
+        qv = np.asarray(query_vector, dtype=np.float32)
         qv = qv / max(float(np.linalg.norm(qv)), 1e-12)
         scores = self.vectors @ qv
         q = tokens(question)
@@ -230,6 +233,10 @@ class ForrtPages:
             for slot, url in enumerate(u for u in self.listing_urls if index_of.get(u) is not None and index_of[u] not in top):
                 top[-1 - slot] = index_of[url]
         return [{"rec": self.records[i], "score": float(scores[i])} for i in top]
+
+    def _candidates(self, question: str, query_vector: Optional[np.ndarray]) -> List[Dict[str, Any]]:
+        """retrieve, passing query_vector only when there is one (a replaced retrieve may not take it)."""
+        return self.retrieve(question) if query_vector is None else self.retrieve(question, query_vector=query_vector)
 
     # 2. selection (decision model; falls back to the top search results)
     def select(self, question: str, candidates: List[Dict[str, Any]], strict: bool = False) -> List[Dict[str, Any]]:
@@ -267,12 +274,13 @@ class ForrtPages:
         return [candidates[i]["rec"] for i in chosen]
 
     # 2b. pages next to the papers (FORRT_IN_PAPERS): a papers answer can also read forrt.org pages
-    def extra_sources(self, question: str, min_score: Optional[float]) -> List[Dict[str, Any]]:
+    def extra_sources(self, question: str, min_score: Optional[float],
+                      query_vector: Optional[np.ndarray] = None) -> List[Dict[str, Any]]:
         """[{title, url, date, text}] for the papers route: pages with a search score >= min_score (None: no
         floor, for the `both` route), then a clear yes from the decision model (strict select), at most
         FORRT_IN_PAPERS_MAX_PAGES, each cut to the FORRT_IN_PAPERS_MAX_CHARS that best match the question.
         No page close enough: no decision call."""
-        candidates = [c for c in self.retrieve(question) if min_score is None or c["score"] >= min_score]
+        candidates = [c for c in self._candidates(question, query_vector) if min_score is None or c["score"] >= min_score]
         if not candidates:
             return []
         chosen = self.select(question, candidates, strict=True)[: self.config.get("FORRT_IN_PAPERS_MAX_PAGES", 2)]
@@ -320,13 +328,14 @@ class ForrtPages:
 
     @trace.step("FORRT pages", lambda result, *a, **k: {k2: v for k2, v in (result.get("trace") or {}).items()
                                                          if k2 in ("fetched", "language", "rewrite", "removed_links")})
-    def answer(self, question: str, model: Optional[str] = None, language_text: Optional[str] = None) -> Dict[str, Any]:
+    def answer(self, question: str, model: Optional[str] = None, language_text: Optional[str] = None,
+               query_vector: Optional[np.ndarray] = None) -> Dict[str, Any]:
         """{"text": Markdown answer citing [n], "sources": [{n, title, url}], "trace": {...}}; text is None on error.
         language_text: what the user typed (a rephrased follow-up may be in another language)."""
         start = time.perf_counter()
         language_code = checks.question_language(language_text or question)
         language = checks.language_name(language_code)
-        candidates = self.retrieve(question)
+        candidates = self._candidates(question, query_vector)
         chosen = self.select(question, candidates)
         with ThreadPoolExecutor(max(1, len(chosen))) as pool:
             fetched = list(pool.map(lambda r: {**self.fetch(r["url"]), "rec": r}, chosen))
@@ -379,7 +388,7 @@ class ForrtPages:
         logger.info(f"Timing: FORRT pages {trace['seconds']}s, {len(pages)} pages, removed links {removed}")
         return {"text": text, "sources": sources, "found": True, "trace": trace}
 
-    def links(self, question: str, limit: int = 3) -> List[Dict[str, str]]:
+    def links(self, question: str, limit: int = 3, query_vector: Optional[np.ndarray] = None) -> List[Dict[str, str]]:
         """The best FORRT pages for a question, without fetching or an answer (the "both" route)."""
-        chosen = self.select(question, self.retrieve(question))[:limit]
+        chosen = self.select(question, self._candidates(question, query_vector))[:limit]
         return [{"title": r["title"], "url": r["url"]} for r in chosen]

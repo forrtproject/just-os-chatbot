@@ -5,7 +5,8 @@
 For each answered row of a run CSV (made by eval/run.py, which saves the passages the
 answer model saw), a judge model returns the share of cited sentences that their source
 supports (0-1). The column judge_support is added to the same CSV; eval/compare.py shows
-its mean. Check about 20 judge results by hand before you trust the numbers.
+its mean. A failed judge call leaves the cell empty, so it is not in the mean: the summary at the
+end counts those failures. Check about 20 judge results by hand before you trust the numbers.
 """
 
 import argparse
@@ -16,6 +17,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from build_grading_page import shown_answer  # noqa: E402  same folder
 from config.settings import get_config  # noqa: E402
 from just_os import criteria  # noqa: E402
 from just_os.qualle import OpenAIClientManager, QueryProcessor  # noqa: E402
@@ -35,17 +38,26 @@ cited sentences that their source supports. Use 0 if no sentence cites a source.
 
 
 def judge_row(processor: QueryProcessor, row: dict):
-    """judge_support for one row, or "" when there is nothing to judge or the judge fails."""
+    """judge_support for one row; "" when there is nothing to judge, None when the judge call fails."""
     passages = json.loads(row.get("passages") or "[]")
-    if row.get("outcome") != "answered" or not passages or not row.get("answer"):
+    answer = shown_answer(row.get("answer") or "")  # runs before Nov 2026 kept text after [Response_End]
+    if row.get("outcome") != "answered" or not passages or not answer:
         return ""
     start = 1 if row.get("answered_from") == "forrt pages" else 0  # FORRT pages are numbered from 1
     sources = "\n".join(f"[{i}] {text}" for i, text in enumerate(passages, start))
-    value = processor._structured_output(PROMPT.format(sources=sources, answer=row["answer"]), "supported_share", "number")
     try:
+        value = processor._structured_output(PROMPT.format(sources=sources, answer=answer), "supported_share", "number")
         return round(min(max(float(value), 0.0), 1.0), 2)
-    except (TypeError, ValueError):
-        return ""
+    except Exception:  # noqa: BLE001  no answer, an API error or not a number: counted as failed
+        return None
+
+
+def summary(scores) -> str:
+    """One line: how many rows were judged, their mean, and how many judge calls failed (left out of the mean)."""
+    judged = [s for s in scores if isinstance(s, float)]
+    failed = sum(s is None for s in scores)
+    mean = f"{sum(judged) / len(judged):.3f}" if judged else "n/a"
+    return f"judged {len(judged)}, mean {mean}; failed judge calls {failed} (empty, not in the mean)"
 
 
 def main():
@@ -60,16 +72,18 @@ def main():
     if rows and "passages" not in rows[0]:
         sys.exit("This run has no passages column: run eval/run.py again (it saves them since Nov 2026).")
     # 8 at a time: the judge is an API call, and a full run has ~170 answers
+    scores = []
     with ThreadPoolExecutor(8) as pool:
         for row, score in zip(rows, pool.map(lambda r: judge_row(processor, r), rows)):
-            row["judge_support"] = score
-            print(f"{row['id']:6} {score}", flush=True)
+            scores.append(score)
+            row["judge_support"] = "" if score is None else score
+            print(f"{row['id']:6} {'FAILED' if score is None else score}", flush=True)
     fields = list(rows[0].keys()) if rows else []
     with open(args.run_csv, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
         writer.writerows(rows)
-    print(f"judge_support added to {args.run_csv} (judge: {args.model})")
+    print(f"judge_support added to {args.run_csv} (judge: {args.model}): {summary(scores)}")
 
 
 if __name__ == "__main__":

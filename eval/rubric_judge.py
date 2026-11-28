@@ -69,17 +69,40 @@ def judge(manager, model, question, answer, rubric, cost):
         return None
 
 
+def failure_summary(judged, failed) -> str:
+    """judged: rubric_coverage per judged row; failed: ids of rows whose judge call failed (left empty)."""
+    mean = f"{sum(judged) / len(judged):.3f}" if judged else "n/a"
+    line = f"rubric judged {len(judged)}, mean coverage {mean}; failed judge calls {len(failed)} (empty, not in the mean)"
+    return line + (f": {', '.join(failed)}" if failed else "")
+
+
 def coverage(scores, rubric, kind=None):
     ids = [r["id"] for r in rubric if kind in (None, r["type"])]
     return round(sum(scores[i] - criteria.SCALE[0] for i in ids) / ((criteria.SCALE[-1] - criteria.SCALE[0]) * len(ids)), 3) if ids else ""
 
 
+def numbered_dois(row):
+    """{n: DOI} of the sources as the answer cites them: from the numbered "sources" column (eval/run.py), else
+    from "retrieved_dois" (older runs), split on single spaces so a source without a DOI (a glossary entry, a
+    FORRT page) keeps its slot and [1] is still the second source. FORRT-route rows (sources numbered from 1,
+    no DOIs) give {}."""
+    try:
+        sources = json.loads(row.get("sources") or "null")
+    except ValueError:
+        sources = None
+    if isinstance(sources, list) and sources:
+        return {int(s["n"]): s["doi"] for s in sources if isinstance(s, dict) and s.get("doi") and "n" in s}
+    return {i: d for i, d in enumerate((row.get("retrieved_dois") or "").split(" ")) if d}
+
+
 def doi_recall(row, item):
-    """Share of expected DOIs among the cited sources; the model sees sources numbered from 0."""
-    retrieved = row.get("retrieved_dois", "").split()
-    if not retrieved or not item.get("expected_dois"):
+    """Share of expected DOIs among the cited sources; the model sees sources numbered from 0. Only the shown
+    answer counts: [n] in passages the model echoed after [Response_End] are not citations."""
+    dois = numbered_dois(row)
+    if not dois or not item.get("expected_dois"):
         return ""
-    cited = {retrieved[int(n)] for n in re.findall(r"\[(\d+)\]", row.get("answer", "")) if int(n) < len(retrieved)}
+    answer = shown_answer(row.get("answer") or "")
+    cited = {dois[int(n)] for n in re.findall(r"\[(\d+)\]", answer) if int(n) in dois}
     return round(sum(d in cited for d in item["expected_dois"]) / len(item["expected_dois"]), 3)
 
 
@@ -96,6 +119,7 @@ def main():
         items = {i["id"]: i for i in map(json.loads, f) if i.get("rubric")}
     manager = OpenAIClientManager(get_config())
     cost = [0.0]
+    judged, failed = [], []
     with open(args.run_csv, encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     for row in rows:
@@ -111,6 +135,10 @@ def main():
         if scores:
             row.update(rubric_coverage=coverage(scores, item["rubric"]), rubric_core=coverage(scores, item["rubric"], "core"),
                        rubric_scores=json.dumps(scores))
+            if isinstance(row["rubric_coverage"], float):
+                judged.append(row["rubric_coverage"])
+        else:
+            failed.append(row["id"])
         row["doi_recall"] = doi_recall(row, item)
         print(f"{row['id']:7} coverage {row['rubric_coverage']} core {row['rubric_core']} doi {row['doi_recall']}")
     fields = list(rows[0].keys()) if rows else []
@@ -131,6 +159,7 @@ def main():
         print(f"controls: own reference answer {sum(own) / len(own):.3f} (n={len(own)}), "
               f"another item's answer {sum(other) / len(other):.3f} (n={len(other)})")
     print(f"rubric columns added to {args.run_csv} (judge: {args.model}), cost ${cost[0]:.4f}")
+    print(failure_summary(judged, failed))
 
 
 if __name__ == "__main__":

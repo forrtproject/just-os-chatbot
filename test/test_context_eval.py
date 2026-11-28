@@ -36,3 +36,10 @@ def test_source_recall_and_tables():
     table = context_eval.summary(rows, ["none", "oracle"])
     assert "| none | 0.50 | 0% | 100% | 50% | 2.0 | 0.10 |" in table
     assert "| needs_context | 1 | 0.50 | 2.00 |" in table and "| none | 0.00 | 1.00 |" in table
+
+
+def test_the_judge_reads_the_shown_answer_not_echoed_passages():
+    raw = "[Response_Start]Preregister the plan [0].[Response_End]\n[0] Title: echoed passage [3]"
+    assert context_eval.answer_text(raw, {"message": "<p>html</p>"}) == "Preregister the plan [0]."
+    assert context_eval.answer_text("Plain answer [1].", {}) == "Plain answer [1]."
+    assert context_eval.answer_text(None, {"message": "<p>FORRT pages answer</p>"}) == "FORRT pages answer"
