@@ -134,7 +134,7 @@ function addMessage(message, sender, sources = null, turnId = null, retryQuestio
 // status line, input controls, or append a reply. Clicking "New chat" increments activeRequestId and
 // aborts any in-flight request so an older conversation's stream can never bleed into the new chat.
 let activeRequestId = 0;
-let activeAbortController = null;
+const activeAbortControllers = new Set();
 
 async function sendMessage(message, { repeat = false } = {}) {
   const requestId = ++activeRequestId;
@@ -146,7 +146,7 @@ async function sendMessage(message, { repeat = false } = {}) {
   const question = message;
 
   const controller = new AbortController();
-  activeAbortController = controller;
+  activeAbortControllers.add(controller);
 
   console.log("user message: " + message);
   if (message && !repeat) {
@@ -286,7 +286,7 @@ async function sendMessage(message, { repeat = false } = {}) {
     console.error("Error:", error);
     finish({ status: "error", message: "<p>The bot could not be reached or sent a broken reply. Please try again.</p>" });
   } finally {
-    if (activeAbortController === controller) activeAbortController = null;
+    activeAbortControllers.delete(controller);
     reader?.cancel().catch(() => {}); // stop reading after the final frame (no-op when the stream is done)
     endStream(); // never leave the input disabled
   }
@@ -351,10 +351,10 @@ document.addEventListener("DOMContentLoaded", function () {
   
   // New chat button functionality
   newChatButton.addEventListener("click", function() {
-    // Invalidate and abort any active stream from the previous conversation
+    // Invalidate and abort all active streams from the previous conversation
     activeRequestId++;
-    activeAbortController?.abort();
-    activeAbortController = null;
+    for (const c of activeAbortControllers) c.abort();
+    activeAbortControllers.clear();
     removeDraft();
 
     // Clear chat messages

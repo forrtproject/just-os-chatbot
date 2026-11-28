@@ -78,7 +78,7 @@ def valid_reference_data(value: Optional[str]) -> bool:
             if not (v is None or isinstance(v, str) or (isinstance(v, int) and not isinstance(v, bool))):
                 return False
         elif key == "url":
-            if v is not None and (not isinstance(v, str) or (v.strip() and safe_href(v) is None)):
+            if v is not None and (not isinstance(v, str) or safe_href(v) is None):
                 return False
         else:  # title, authors, text
             if v is not None and not isinstance(v, str):

@@ -608,6 +608,8 @@ def test_valid_reference_data_rejects_nan_and_wrong_field_types():
     assert not valid_reference_data('{"title": "T", "unverified": 1}')
     assert not valid_reference_data('{"title": 123}')
     assert not valid_reference_data('{"title": "T", "url": "javascript:alert(1)"}')
+    assert not valid_reference_data('{"title": "T", "url": ""}')
+    assert not valid_reference_data('{"title": "T", "url": "   "}')
     assert valid_reference_data('{"title": "T", "authors": "A", "year": "2024", "url": "https://example.org", "text": "", "unverified": false}')
     assert valid_reference_data('{"title": "T", "year": 2024, "url": null, "unverified": true}')
 
@@ -616,16 +618,19 @@ def test_forrt_checks_preserves_allowed_paren_url_with_bracketed_label():
     from just_os.forrt_checks import strip_unsupported_links
 
     url = "https://en.wikipedia.org/wiki/Replication_(statistics)"
-    pages = [{"url": "https://forrt.org/p", "excerpt": f"See {url} for details."}]
-    md = f"Read [guide [v2]]({url}) now."
+    pages = [{"url": "https://forrt.org/p", "excerpt": f"See {url} and https://example.org/fn() and https://example.org/a(b"}]
+    md = f"Read [guide [v2]]({url}) now, plus https://example.org/fn() and https://example.org/a(b."
     cleaned, removed = strip_unsupported_links(md, pages)
     assert url in cleaned and not removed
+    assert "<https://example.org/fn()>" in cleaned
+    assert "<https://example.org/a(b>" in cleaned
 
 
 def test_new_chat_aborts_active_stream_and_ignores_stale_chat_replies():
     app_js = read("assets", "js", "app.js")
     assert "const chatIdAtStart = window.chatId;" in app_js
     assert "if (!isSameChat()) return;" in app_js
-    assert "activeAbortController?.abort();" in app_js
+    assert "activeAbortControllers.add(controller);" in app_js
+    assert "for (const c of activeAbortControllers) c.abort();" in app_js
     assert "removeDraft();" in app_js
     assert "data.unverified === true" in read("assets", "js", "references.js")
