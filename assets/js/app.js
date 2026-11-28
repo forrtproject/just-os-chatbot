@@ -130,16 +130,23 @@ function addMessage(message, sender, sources = null, turnId = null, retryQuestio
   return added;
 }
 
-// Each question gets a number; only the newest one may change the draft, the status line and the
-// input. An older request that is still streaming (a Try again or example-question click does not
-// wait) still shows its own final answer but leaves the controls of the newer one alone.
+// Each question gets a number; only the newest one in the same conversation may change the draft,
+// status line, input controls, or append a reply. Clicking "New chat" increments activeRequestId and
+// aborts any in-flight request so an older conversation's stream can never bleed into the new chat.
 let activeRequestId = 0;
+let activeAbortController = null;
 
 async function sendMessage(message, { repeat = false } = {}) {
   const requestId = ++activeRequestId;
+  const chatIdAtStart = window.chatId;
   const isCurrent = () => requestId === activeRequestId;
+  const isSameChat = () => chatIdAtStart === window.chatId;
+  removeDraft();
   const chatMessages = document.getElementById("chat-messages");
   const question = message;
+
+  const controller = new AbortController();
+  activeAbortController = controller;
 
   console.log("user message: " + message);
   if (message && !repeat) {
@@ -195,6 +202,7 @@ async function sendMessage(message, { repeat = false } = {}) {
     const current = isCurrent();
     endStream();
     if (current) removeDraft();
+    if (!isSameChat()) return;
     const failed = data.status === "error" || data.outcome === "error";
     const shown = addMessage(data.message, "bot", data.metadata?.references, data.turn_id, failed ? question : null);
     addDebugTurn(shown, data, question);
@@ -207,9 +215,10 @@ async function sendMessage(message, { repeat = false } = {}) {
       headers: {
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
       body: JSON.stringify({
         message: message,
-        chat_id: window.chatId,
+        chat_id: chatIdAtStart,
         model: document.getElementById("model-select")?.value,
         router: document.getElementById("router-select")?.value || undefined,
         stream: true,
@@ -273,9 +282,11 @@ async function sendMessage(message, { repeat = false } = {}) {
       finish({ status: "error", message: "<p>The answer was interrupted. Please try again.</p>" });
     }
   } catch (error) {
+    if (error?.name === "AbortError" || !isSameChat()) return;
     console.error("Error:", error);
     finish({ status: "error", message: "<p>The bot could not be reached or sent a broken reply. Please try again.</p>" });
   } finally {
+    if (activeAbortController === controller) activeAbortController = null;
     reader?.cancel().catch(() => {}); // stop reading after the final frame (no-op when the stream is done)
     endStream(); // never leave the input disabled
   }
@@ -340,18 +351,30 @@ document.addEventListener("DOMContentLoaded", function () {
   
   // New chat button functionality
   newChatButton.addEventListener("click", function() {
+    // Invalidate and abort any active stream from the previous conversation
+    activeRequestId++;
+    activeAbortController?.abort();
+    activeAbortController = null;
+    removeDraft();
+
     // Clear chat messages
     const chatMessages = document.getElementById("chat-messages");
     chatMessages.innerHTML = "";
-    
+
     // Generate a new chat ID
     window.chatId = crypto.randomUUID();
     resetDebug();
     showSuggestions(true);
-    
+
+    // Re-enable controls and clear status immediately
+    userInput.disabled = false;
+    sendButton.disabled = false;
+    sendButton.style.display = "block";
+    const statusMessage = document.getElementById("status-message");
+    if (statusMessage) statusMessage.innerText = "";
+
     // Reset the input field with the default question
     userInput.value = "How does open science reshape the future of interdisciplinary and collaborative research?";
-    
   });
 });
 

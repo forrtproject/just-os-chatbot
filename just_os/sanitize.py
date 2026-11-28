@@ -56,21 +56,34 @@ def safe_href(url: Optional[str], allow_fragment: bool = False) -> Optional[str]
     return None
 
 
+def _reject_constant(token: str):
+    raise ValueError(f"non-standard JSON constant: {token}")
+
+
 def valid_reference_data(value: Optional[str]) -> bool:
-    """True when data-reference is a JSON object with only tooltip fields and plain values
-    (strings, numbers, booleans, null), as the server builds it."""
+    """True when data-reference is strict JSON with only the server's tooltip fields and types."""
     if not value:
         return False
     try:
-        data = json.loads(value)
+        data = json.loads(value, parse_constant=_reject_constant)
     except (TypeError, ValueError):
         return False
-    return (
-        isinstance(data, dict)
-        and bool(data)
-        and set(data) <= REFERENCE_FIELDS
-        and all(v is None or isinstance(v, (str, int, float, bool)) for v in data.values())
-    )
+    if not isinstance(data, dict) or not data or not (set(data) <= REFERENCE_FIELDS):
+        return False
+    for key, v in data.items():
+        if key == "unverified":
+            if not isinstance(v, bool):
+                return False
+        elif key == "year":
+            if not (v is None or isinstance(v, str) or (isinstance(v, int) and not isinstance(v, bool))):
+                return False
+        elif key == "url":
+            if v is not None and (not isinstance(v, str) or (v.strip() and safe_href(v) is None)):
+                return False
+        else:  # title, authors, text
+            if v is not None and not isinstance(v, str):
+                return False
+    return True
 
 
 class _Sanitizer(HTMLParser):

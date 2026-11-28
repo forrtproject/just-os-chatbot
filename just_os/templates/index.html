@@ -20,7 +20,7 @@
 
 <body>
 <div id="header-bar">
-    <img src='/images/qualle.png' id="header-logo" alt="JUST-OS">
+    <img src="{{ static_url_for('static', filename='images/qualle.png') }}" id="header-logo" alt="JUST-OS">
 </div>
 {% include "_nav.html" %}
 <div id="container">

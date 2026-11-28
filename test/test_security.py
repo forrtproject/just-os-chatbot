@@ -455,6 +455,7 @@ def test_arena_page_uses_the_vendor_css(app):  # noqa: F811
 def test_templates_link_static_files_with_static_url_for(path):
     text = open(path, encoding="utf-8").read()
     assert not re.search(r"(?<!static_)url_for\(\s*['\"]static['\"]", text)
+    assert "'/images/qualle.png'" not in text and '"/images/qualle.png"' not in text
 
 
 def test_static_url_for_uses_the_digest_manifest(app, monkeypatch):  # noqa: F811
@@ -596,3 +597,35 @@ def test_dompurify_config_keeps_reference_data_and_table_attributes():
 
 def test_send_button_ignores_short_input():
     assert "message.trim().length < 3) return" in read("assets", "js", "app.js")
+
+
+def test_valid_reference_data_rejects_nan_and_wrong_field_types():
+    from just_os.sanitize import valid_reference_data
+
+    assert not valid_reference_data('{"title": "T", "year": NaN}')
+    assert not valid_reference_data('{"title": "T", "year": Infinity}')
+    assert not valid_reference_data('{"title": "T", "unverified": "false"}')
+    assert not valid_reference_data('{"title": "T", "unverified": 1}')
+    assert not valid_reference_data('{"title": 123}')
+    assert not valid_reference_data('{"title": "T", "url": "javascript:alert(1)"}')
+    assert valid_reference_data('{"title": "T", "authors": "A", "year": "2024", "url": "https://example.org", "text": "", "unverified": false}')
+    assert valid_reference_data('{"title": "T", "year": 2024, "url": null, "unverified": true}')
+
+
+def test_forrt_checks_preserves_allowed_paren_url_with_bracketed_label():
+    from just_os.forrt_checks import strip_unsupported_links
+
+    url = "https://en.wikipedia.org/wiki/Replication_(statistics)"
+    pages = [{"url": "https://forrt.org/p", "excerpt": f"See {url} for details."}]
+    md = f"Read [guide [v2]]({url}) now."
+    cleaned, removed = strip_unsupported_links(md, pages)
+    assert url in cleaned and not removed
+
+
+def test_new_chat_aborts_active_stream_and_ignores_stale_chat_replies():
+    app_js = read("assets", "js", "app.js")
+    assert "const chatIdAtStart = window.chatId;" in app_js
+    assert "if (!isSameChat()) return;" in app_js
+    assert "activeAbortController?.abort();" in app_js
+    assert "removeDraft();" in app_js
+    assert "data.unverified === true" in read("assets", "js", "references.js")

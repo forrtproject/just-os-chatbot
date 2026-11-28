@@ -42,7 +42,7 @@ export function setupReferenceHandlers() {
       };
       add("div", "title", field(data.title));
       add("div", "metadata", `${field(data.authors)} (${field(data.year)})`);
-      if (data.unverified) {
+      if (data.unverified === true) {
         add("div", "unverified", "Not verified: the citation check did not find this claim in the passage.");
       }
       add(

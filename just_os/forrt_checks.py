@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 from just_os import messages as msg
 
-URL_IN_TEXT = re.compile(r"https?://[^\s)\]>\"'`]+")
+URL_IN_TEXT = re.compile(r"https?://(?:[^\s()\]>\"'`]|\([^\s()\]>\"'`]*\))+")
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 # [label](url), [label](<url>), each optionally with a title: "t", 't' or (t), after a space or a line
 # break. The URL may hold one level of brackets: [x](https://en.wikipedia.org/wiki/A_(b)), [x](javascript:f(1))
@@ -25,10 +25,11 @@ MD_LINK = re.compile(
     r"""(?:\s+(?:"[^"]*"|'[^']*'|\([^()]*\)))?\s*\)"""
 )
 AUTOLINK = re.compile(r"<((?:https?://|mailto:)[^>\s]+)>")
-BARE_URL = re.compile(r"(?<![(<\w/])https?://[^\s)\]>\"'`]+")
+BARE_URL = re.compile(r"(?<![(<\w/])https?://(?:[^\s()\]>\"'`]|\([^\s()\]>\"'`]*\))+")
 # Every URL left after the link passes, whatever precedes it: a Markdown link the patterns above do not
-# parse ([a [b]](url), a quote inside the title...) must not keep a URL outside the allowlist
-ANY_URL = re.compile(r"(?:https?://|mailto:)[^\s)\]>\"'`]+", re.I)
+# parse ([a [b]](url), a quote inside the title...) must not keep a URL outside the allowlist, while
+# preserving one level of balanced parentheses in valid URLs like Wikipedia's A_(b).
+ANY_URL = re.compile(r"(?:https?://|mailto:)(?:[^\s()\]>\"'`]|\([^\s()\]>\"'`]*\))+", re.I)
 UPCOMING = re.compile(r"upcoming|coming up|will (take place|be held|happen)|register now|save the date|"
                       r"is open for registration|bevorstehend|kommende|próxim|aankomend|em breve|即将", re.I)
 MONTHS = {m: i for i, m in enumerate(["january", "february", "march", "april", "may", "june", "july", "august",
