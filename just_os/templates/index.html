@@ -6,10 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JUST-OS</title>
     <!-- Icons, fonts, DOMPurify and marked are bundled into /public (assets/): no external CDNs -->
-    <link href="{{ url_for('static', filename='css/vendor.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+    <link href="{{ static_url_for('static', filename='css/vendor.css') }}" rel="stylesheet">
+    <link href="{{ static_url_for('static', filename='css/app.css') }}" rel="stylesheet">
     <script>window.JUSTOS_DEBUG_PANEL = {{ 'true' if debug_panel else 'false' }};</script>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ static_url_for('static', filename='js/app.js') }}"></script>
 
     <style>
         body {
@@ -24,7 +24,7 @@
 </div>
 {% include "_nav.html" %}
 <div id="container">
-    <div id="chat-messages">{{ message_history | safe }}</div>
+    <div id="chat-messages"></div>
     <div id="status-message"></div>
     <div id="suggestions" aria-label="Example questions">
         {% for cluster, question in suggestions.items() %}
@@ -76,10 +76,12 @@
                 so that it becomes easier to put Open Science into practice.
             </p>
             <p>
-                JUST-OS uses retrieval-augmented generation. For each question it searches a library of open-access papers and guides
-                curated by <a href="https://forrt.org/">FORRT</a> (and pages on forrt.org for questions about FORRT itself).
+                JUST-OS uses retrieval-augmented generation. For each question it searches a library of open science literature
+                and guides curated by <a href="https://forrt.org/">FORRT</a> (full texts where available, otherwise abstract cards)
+                and, for questions about FORRT itself, pages on forrt.org.
                 A large language model then writes an answer from the passages it found and cites them with numbered references:
-                click a number to see the passage behind a claim. Answers can still be wrong or incomplete, so check the cited sources.
+                click a number to see the source behind a claim. The passage itself is shown only where the source's licence permits.
+                Answers can still be wrong or incomplete, so check the cited sources.
             </p>
             <p>
                 The code is open source on <a href="https://github.com/forrtproject/just-os-chatbot">GitHub</a>.

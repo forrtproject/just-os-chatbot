@@ -1,5 +1,5 @@
 import { renderSources, setupReferenceHandlers } from "./references.js";
-import { htmlToText, sanitizeHtml } from "./sanitize.js";
+import { htmlToText, sanitizeAnswer } from "./sanitize.js";
 
 let battleId = null;
 let criteria = {};
@@ -80,7 +80,7 @@ function answerCard(response) {
     el("span", "arena-time", `${response.seconds} s`)
   );
   const body = el("div", "arena-body bot-message");
-  body.innerHTML = sanitizeHtml(response.message); // server-built HTML, cleaned again
+  body.innerHTML = sanitizeAnswer(response.message); // server-built HTML, cleaned again
   card.append(header, body, renderSources(response.references, response.sources));
   if (response.error) {
     card.classList.add("failed");

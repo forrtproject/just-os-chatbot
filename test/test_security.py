@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 
 from config.settings import env_value
 from just_os import forrt_checks, qualle
-from just_os.sanitize import render_markdown, safe_href, sanitize_html
+from just_os.sanitize import render_markdown, safe_href, sanitize_html, valid_reference_data
 
 from test_app import app, read_jsonl  # noqa: F401  (fixture)
 from test_references import chunk
@@ -95,6 +95,37 @@ def test_reference_links_keep_their_attributes_only_when_allowed():
     assert sanitize_html('<a href="#" class="evil">x</a>', allow_references=True) == "<a>x</a>"
     other = sanitize_html('<a href="javascript:x" class="reference-link">x</a>', allow_references=True)
     assert "javascript" not in other
+
+
+def ref_link(data_reference):
+    return f'<a href="#" class="reference-link" data-reference="{data_reference}">[1]</a>'
+
+
+@pytest.mark.parametrize("data_reference", [
+    "", "not json", "{&quot;title&quot;:", "[1, 2]", "&quot;a string&quot;", "123", "null", "{}",
+    "{&quot;title&quot;:{&quot;a&quot;:1}}",  # nested object
+    "{&quot;title&quot;:[&quot;a&quot;]}",  # list value
+    "{&quot;title&quot;:&quot;T&quot;,&quot;onclick&quot;:&quot;x&quot;}",  # unknown field
+])
+def test_reference_links_with_invalid_data_lose_class_href_and_data(data_reference):
+    assert sanitize_html(ref_link(data_reference), allow_references=True) == "<a>[1]</a>"
+    assert not valid_reference_data(BeautifulSoup(ref_link(data_reference), "html.parser").a.get("data-reference"))
+
+
+def test_reference_link_without_data_reference_is_not_kept():
+    assert sanitize_html('<a href="#" class="reference-link">[1]</a>', allow_references=True) == "<a>[1]</a>"
+
+
+def test_real_reference_data_passes_validation():
+    """What ReferenceProcessor.reference_data() writes (paper and forrt.org page) must survive the sanitizer."""
+    processor = qualle.ReferenceProcessor()
+    page = chunk("FORRT glossary", "", text="")
+    page.metadata.update(creators="", link_to_resource="https://forrt.org/glossary/")
+    for node, unverified in ((chunk("Paper", "10.1/p", text="a < b"), False), (page, True)):
+        data = processor.reference_data(node, unverified)
+        assert valid_reference_data(json.dumps(data))
+        (link,) = reference_links(answer_html("Claim [0].", [node]))
+        assert link["href"] == "#" and json.loads(link["data-reference"])["title"] == data["title"]
 
 
 def test_render_markdown_sanitizes_raw_html_and_links():
@@ -199,6 +230,52 @@ def test_supported_links_are_kept():
     assert text == "[Glossary](https://forrt.org/glossary/)"
 
 
+@pytest.mark.parametrize("answer", [
+    '[label](https://evil.example "title")',
+    "[label](https://evil.example 'title')",
+    "[label](https://evil.example (title))",
+    '[label](<https://evil.example> "title")',
+    "[label](<https://evil.example>)",
+    '[label](https://evil.example\n"title")',
+    '[label]( https://evil.example  "title" )',
+    '[label](javascript:alert(1) "title")',
+    "[label](<javascript:alert(1)>)",
+])
+def test_titled_and_bracketed_links_to_unsupported_urls_are_removed(answer):
+    text, removed = forrt_checks.strip_unsupported_links(f"See {answer} now", PAGES)
+    assert text == "See label now"
+    assert removed in ([], ["https://evil.example"])
+    # Nothing the page would render as a link is left
+    assert not BeautifulSoup(render_markdown(text), "html.parser").find_all("a", href=True)
+
+
+@pytest.mark.parametrize("answer", [
+    '[l](https://evil.example "a "b" c")',  # quote inside the title
+    '[a [b] c](https://evil.example)',  # brackets inside the label
+    '[a\nb](https://evil.example "t")',  # label across a line break
+    '[l](https://evil.example "a \\" b")',  # escaped quote
+    "[l](HTTPS://evil.example)",
+    '[l](mailto:x@evil.example "a "b"")',
+])
+def test_links_the_patterns_do_not_parse_still_lose_unsupported_urls(answer):
+    text, removed = forrt_checks.strip_unsupported_links(answer, PAGES)
+    assert len(removed) == 1 and "evil.example" not in text
+    assert not BeautifulSoup(render_markdown(text), "html.parser").find_all("a", href=True)
+
+
+@pytest.mark.parametrize("answer", [
+    '[Glossary](https://forrt.org/glossary/ "FORRT glossary")',
+    "[Glossary](https://forrt.org/glossary/ 'FORRT glossary')",
+    '[Glossary](<https://forrt.org/glossary/> "FORRT glossary")',
+    "[Glossary](<https://forrt.org/glossary/>)",
+])
+def test_titled_links_to_supported_urls_are_kept(answer):
+    text, removed = forrt_checks.strip_unsupported_links(answer, PAGES)
+    assert text == "[Glossary](https://forrt.org/glossary/)" and removed == []
+    hrefs = [a["href"] for a in BeautifulSoup(render_markdown(text), "html.parser").find_all("a", href=True)]
+    assert hrefs == ["https://forrt.org/glossary/"]
+
+
 # ---------- home page: bg_color ----------
 
 @pytest.mark.parametrize("value, shown", [
@@ -267,6 +344,17 @@ def test_malformed_arena_requests_get_400(app, body):  # noqa: F811
     assert response.get_json()["status"] == "error"
 
 
+@pytest.mark.parametrize("path", ["/chat/feedback", "/review/save", "/recommend/save", "/arena/rate"])
+@pytest.mark.parametrize("body", ["[]", "[1]", '"hi"', "123", "true", "null", "not json"])
+def test_non_object_json_gets_400_on_every_json_endpoint(app, tmp_path, path, body):  # noqa: F811
+    app.config.update(RECOMMENDATIONS_FILE=str(tmp_path / "recommendations.jsonl"),
+                      REVIEW_ITEMS_FILE=str(tmp_path / "items.json"), SCORES_DIR=str(tmp_path / "scores"))
+    (tmp_path / "items.json").write_text("[]")
+    response = app.app.test_client().post(path, data=body, content_type="application/json")
+    assert response.status_code == 400
+    assert response.get_json()["status"] == "error"
+
+
 def test_prod_mode_ignores_the_router_choice(app):  # noqa: F811
     rag = app._rag_service = OkRag()
     app.config.update(PROD_MODE=True, CITATION_MODEL="m1")
@@ -330,21 +418,57 @@ def test_external_pattern_catches_cdns():
     assert not EXTERNAL.search('<a href="https://forrt.org/">FORRT</a>')
 
 
+SAFE_FILTER = re.compile(r"\|\s*safe\b")
+
+
+@pytest.mark.parametrize("path", TEMPLATES, ids=os.path.basename)
+def test_templates_use_no_safe_filter(path):
+    text = open(path, encoding="utf-8").read()
+    assert not SAFE_FILTER.search(text), SAFE_FILTER.search(text).group(0)
+
+
+def test_safe_filter_pattern():
+    for text in ("{{ x|safe }}", "{{ x | safe }}", "{{ x |\n safe }}", "{{ x|safe|e }}"):
+        assert SAFE_FILTER.search(text), text
+    assert not SAFE_FILTER.search("const link = safeUrl(r.url) || safeUrl(r.doi);")
+
+
 def test_home_page_has_body_vendor_css_and_an_accurate_about_box(app):  # noqa: F811
     template = open(os.path.join(ROOT, "just_os", "templates", "index.html"), encoding="utf-8").read()
-    assert "|safe }}" not in template.replace(" ", "").replace("message_history|safe", "")
+    assert "message_history" not in template
     html = app.app.test_client().get("/").get_data(as_text=True)
     soup = BeautifulSoup(html, "html.parser")
     assert html.index("</head>") < html.index("<body>") < html.index('id="header-bar"')
     assert any("css/vendor" in (link.get("href") or "") for link in soup.find_all("link"))
     about = soup.find(id="info-modal").get_text()
     assert "Open Scholar" not in about and "OpenScholar" not in about and "Unpaywall" not in about
+    assert "open-access" not in about and "abstract cards" in about and "licence permits" in about
     assert soup.find(id="info-modal").find("a", href="https://github.com/forrtproject/just-os-chatbot")
 
 
 def test_arena_page_uses_the_vendor_css(app):  # noqa: F811
     html = app.app.test_client().get("/arena").get_data(as_text=True)
     assert "css/vendor" in html and "cdnjs" not in html
+
+
+@pytest.mark.parametrize("path", TEMPLATES, ids=os.path.basename)
+def test_templates_link_static_files_with_static_url_for(path):
+    text = open(path, encoding="utf-8").read()
+    assert not re.search(r"(?<!static_)url_for\(\s*['\"]static['\"]", text)
+
+
+def test_static_url_for_uses_the_digest_manifest(app, monkeypatch):  # noqa: F811
+    from just_os.extensions import flask_static_digest
+
+    client = app.app.test_client()
+    manifest = {}  # whatever `flask digest compile` left in public/ on this machine is ignored
+    monkeypatch.setitem(flask_static_digest.manifests, "static", manifest)
+    html = client.get("/").get_data(as_text=True)
+    assert 'href="/css/vendor.css"' in html and 'src="/js/app.js"' in html  # no manifest: plain names
+    monkeypatch.setitem(manifest, "css/vendor.css", "css/vendor-0123abcd.css")
+    monkeypatch.setitem(manifest, "js/app.js", "js/app-89efcdab.js")
+    html = client.get("/").get_data(as_text=True)
+    assert 'href="/css/vendor-0123abcd.css"' in html and 'src="/js/app-89efcdab.js"' in html
 
 
 def test_review_page_links_only_http_sources(app, tmp_path):  # noqa: F811
@@ -401,6 +525,65 @@ def test_cached_answers_from_before_the_sanitizer_are_cleaned_on_the_way_out():
     (kept,) = reference_links(final["message"])
     assert json.loads(kept["data-reference"]) == {"title": "T"}
     assert "script" in old["message"]  # the stored entry itself is not changed in place
+
+
+def test_cached_answers_with_broken_reference_data_lose_the_citation_link():
+    from test_answer_cache import cache
+    from test_qualle import make_qualle, node
+
+    q = make_qualle(True, [node("Paper")], [node("Paper")], "Answer [0].")
+    q.answer_cache = cache()
+    broken = '<a href="#" class="reference-link" data-reference="{&quot;title&quot;:">[1]</a>'
+    q.answer_cache.store("What is preregistration?", {"status": "complete", "message": f"<p>Old {broken}</p>"}, "Old")
+    final = list(q.get_response("what is preregistration", "chat-1"))[-1]
+    assert final["message"] == "<p>Old <a>[1]</a></p>"
+
+
+def test_draft_sanitizer_drops_citation_attributes_and_answer_sanitizer_keeps_them():
+    sanitize = read("assets", "js", "sanitize.js")
+    draft = re.search(r"const DRAFT_CONFIG = \{(.*?)\n\};", sanitize, re.S).group(1)
+    answer = re.search(r"const ANSWER_CONFIG = \{(.*?)\n\};", sanitize, re.S).group(1)
+    allowed = re.search(r"ALLOWED_ATTR:\s*\[([^\]]*)\]", draft).group(1)
+    assert '"class"' not in allowed and '"data-reference"' not in allowed
+    assert re.search(r'FORBID_ATTR:\s*\["class", "data-reference"\]', draft)
+    assert '"data-reference"' in re.search(r"ALLOWED_ATTR:\s*\[([^\]]*)\]", answer).group(1)
+    assert "return sanitizeDraft(marked.parse(" in sanitize  # the streaming draft
+    assert "box.innerHTML = sanitizeDraft(html)" in sanitize  # text only
+    app_js = read("assets", "js", "app.js")
+    assert "innerHTML = markdownToHtml(" in app_js and "innerHTML = sanitizeAnswer(message)" in app_js
+    assert "sanitizeHtml" not in app_js + read("assets", "js", "arena.js")
+
+
+def test_reference_tooltip_ignores_malformed_data():
+    """referenceData() returns null for broken or non-object data-reference instead of throwing."""
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node not installed")
+    source = read("assets", "js", "references.js")
+    script = source + """
+const link = (value) => ({ getAttribute: () => value });
+const cases = [null, "", "not json", "{", "[1]", '"s"', "1", "null", "true", '{"title":"T"}'];
+console.log(JSON.stringify(cases.map((c) => referenceData(link(c)))));
+"""
+    out = subprocess.run([node, "--input-type=module", "-e", script], capture_output=True, text=True, check=True)
+    assert json.loads(out.stdout) == [None] * 9 + [{"title": "T"}]
+
+
+def test_stream_stops_after_the_final_frame_and_only_the_newest_request_resets_controls():
+    app_js = read("assets", "js", "app.js")
+    assert "const requestId = ++activeRequestId;" in app_js
+    assert "const isCurrent = () => requestId === activeRequestId;" in app_js
+    end_stream = re.search(r"function endStream\(\) \{(.*?)\n  \}", app_js, re.S).group(1)
+    # once per request; the interval always stops, the controls only for the newest request
+    assert end_stream.index("if (ended) return;") < end_stream.index("clearInterval(messageInterval)")
+    assert end_stream.index("clearInterval(messageInterval)") < end_stream.index("if (!isCurrent()) return;")
+    assert end_stream.index("if (!isCurrent()) return;") < end_stream.index("messageInput.disabled = false")
+    assert "while (!finished)" in app_js and "if (finished) break reading;" in app_js
+    assert "reader?.cancel().catch(() => {})" in app_js
+    assert "if (isCurrent()) showDraft(draft);" in app_js and "if (current) removeDraft();" in app_js
 
 
 def test_dompurify_config_keeps_reference_data_and_table_attributes():

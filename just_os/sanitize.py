@@ -8,6 +8,7 @@ Stdlib only (html.parser), so it behaves the same in the CPU and GPU environment
 """
 
 import html
+import json
 import re
 from html.parser import HTMLParser
 from typing import List, Optional
@@ -37,6 +38,8 @@ HTML_ELEMENTS = ALLOWED_TAGS | DROP_CONTENT_TAGS | frozenset("""
 """.split())
 ALLOWED_SCHEMES = ("http://", "https://", "mailto:")
 REFERENCE_CLASS = "reference-link"
+# The tooltip fields qualle.ReferenceProcessor.reference_data() writes into data-reference
+REFERENCE_FIELDS = frozenset({"unverified", "title", "authors", "year", "url", "text"})
 # Characters browsers ignore inside a URL scheme ("java\tscript:", NUL, ...)
 _URL_JUNK = re.compile(r"[\x00-\x20\x7f-\x9f]+")
 
@@ -51,6 +54,23 @@ def safe_href(url: Optional[str], allow_fragment: bool = False) -> Optional[str]
     if allow_fragment and compact == "#":
         return "#"
     return None
+
+
+def valid_reference_data(value: Optional[str]) -> bool:
+    """True when data-reference is a JSON object with only tooltip fields and plain values
+    (strings, numbers, booleans, null), as the server builds it."""
+    if not value:
+        return False
+    try:
+        data = json.loads(value)
+    except (TypeError, ValueError):
+        return False
+    return (
+        isinstance(data, dict)
+        and bool(data)
+        and set(data) <= REFERENCE_FIELDS
+        and all(v is None or isinstance(v, (str, int, float, bool)) for v in data.values())
+    )
 
 
 class _Sanitizer(HTMLParser):
@@ -111,8 +131,13 @@ class _Sanitizer(HTMLParser):
     def _attributes(self, tag, attrs):
         attrs = {name: value for name, value in attrs if value is not None}
         kept = []
+        # A citation link keeps href="#", its class and data-reference only when the data is valid
+        # tooltip JSON; otherwise it is an ordinary link and loses all three
         is_reference = (
-            self.allow_references and tag == "a" and (attrs.get("class") or "").strip() == REFERENCE_CLASS
+            self.allow_references
+            and tag == "a"
+            and (attrs.get("class") or "").strip() == REFERENCE_CLASS
+            and valid_reference_data(attrs.get("data-reference"))
         )
         if tag == "a":
             href = safe_href(attrs.get("href"), allow_fragment=is_reference)
@@ -120,8 +145,7 @@ class _Sanitizer(HTMLParser):
                 kept.append(("href", href))
             if is_reference:
                 kept.append(("class", REFERENCE_CLASS))
-                if attrs.get("data-reference"):
-                    kept.append(("data-reference", attrs["data-reference"]))
+                kept.append(("data-reference", attrs["data-reference"]))
             if attrs.get("title"):
                 kept.append(("title", attrs["title"]))
         elif tag in ("th", "td"):
@@ -159,8 +183,8 @@ class _Sanitizer(HTMLParser):
 
 def sanitize_html(text: str, allow_references: bool = False) -> str:
     """Keep only allowlisted tags and attributes. With allow_references, <a class="reference-link"
-    href="#" data-reference="..."> (the citation links the server builds) keep their attributes;
-    without it, such links from the model lose them."""
+    href="#" data-reference="..."> (the citation links the server builds) keep their attributes when
+    data-reference is valid tooltip JSON (valid_reference_data); without it, such links lose them."""
     parser = _Sanitizer(allow_references)
     parser.feed(text or "")
     return parser.result()

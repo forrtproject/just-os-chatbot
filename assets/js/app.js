@@ -1,6 +1,6 @@
 import { renderSources, setupReferenceHandlers } from "./references.js";
 import { addDebugTurn, debugEnabled, initDebug, resetDebug } from "./debug.js";
-import { markdownToHtml, sanitizeHtml } from "./sanitize.js";
+import { markdownToHtml, sanitizeAnswer } from "./sanitize.js";
 
 // "How was this answer?" under each answer: Good/Bad, then an optional comment, sent once
 function feedbackBar(turnId) {
@@ -56,7 +56,8 @@ function feedbackBar(turnId) {
 }
 
 // The answer while it is written (#41): plain Markdown without the [n] numbers, which are
-// renumbered at the end. The final message replaces it.
+// renumbered at the end. The final message replaces it. Draft markup comes from the model, so it
+// is cleaned with the strict sanitizer (no citation links, no classes).
 function showDraft(text) {
   let draft = document.getElementById("draft-answer");
   if (!draft) {
@@ -81,7 +82,7 @@ function addMessage(message, sender, sources = null, turnId = null, retryQuestio
   messageDiv.classList.add("message", `${sender}-message`);
 
   if (sender === "bot") {
-    messageDiv.innerHTML = sanitizeHtml(message);
+    messageDiv.innerHTML = sanitizeAnswer(message); // server-built HTML with citation links
     // Setup reference handlers after adding bot message
     setTimeout(() => {
       setupReferenceHandlers();
@@ -129,7 +130,14 @@ function addMessage(message, sender, sources = null, turnId = null, retryQuestio
   return added;
 }
 
+// Each question gets a number; only the newest one may change the draft, the status line and the
+// input. An older request that is still streaming (a Try again or example-question click does not
+// wait) still shows its own final answer but leaves the controls of the newer one alone.
+let activeRequestId = 0;
+
 async function sendMessage(message, { repeat = false } = {}) {
+  const requestId = ++activeRequestId;
+  const isCurrent = () => requestId === activeRequestId;
   const chatMessages = document.getElementById("chat-messages");
   const question = message;
 
@@ -147,23 +155,31 @@ async function sendMessage(message, { repeat = false } = {}) {
   let baseMessage = "Processing your request";
   statusMessage.innerText = baseMessage;
   let dotCount = 0;
+  let messageInterval = null;
   function updateMessage() {
+    if (!isCurrent()) {
+      clearInterval(messageInterval); // a newer question owns the status line
+      return;
+    }
     dotCount = (dotCount % 4) + 1;
-    let newMessage = baseMessage + ".".repeat(dotCount - 1);
-    statusMessage.innerText = newMessage;
+    statusMessage.innerText = baseMessage + ".".repeat(dotCount - 1);
   }
-  let messageInterval = setInterval(updateMessage, 1000);
+  messageInterval = setInterval(updateMessage, 1000);
 
   const messageInput = document.getElementById("user-input");
   const sendButton = document.getElementById("send-button");
 
   messageInput.disabled = true;
   sendButton.disabled = true;
-  //  sendButton.style.display = "none";
   window.scrollTo(0, document.body.scrollHeight, { behavior: "smooth" });
 
+  // Runs once per request; the controls are only touched while this is still the newest request
+  let ended = false;
   function endStream() {
+    if (ended) return;
+    ended = true;
     clearInterval(messageInterval);
+    if (!isCurrent()) return;
     messageInput.disabled = false;
     sendButton.disabled = false;
     sendButton.style.display = "block";
@@ -176,13 +192,15 @@ async function sendMessage(message, { repeat = false } = {}) {
   function finish(data) {
     if (finished) return;
     finished = true;
+    const current = isCurrent();
     endStream();
-    removeDraft();
+    if (current) removeDraft();
     const failed = data.status === "error" || data.outcome === "error";
     const shown = addMessage(data.message, "bot", data.metadata?.references, data.turn_id, failed ? question : null);
     addDebugTurn(shown, data, question);
   }
 
+  let reader = null;
   try {
     const response = await fetch("/chat", {
       method: "POST",
@@ -214,11 +232,12 @@ async function sendMessage(message, { repeat = false } = {}) {
       return;
     }
 
-    const reader = response.body.getReader();
+    reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
     let draft = "";
 
+    // A "complete" or "error" frame ends the request: nothing after it is read
     const handle = (line) => {
       const data = JSON.parse(line); // a broken line is an error (caught below)
       if (data.status === "complete" || data.status === "error") {
@@ -226,14 +245,14 @@ async function sendMessage(message, { repeat = false } = {}) {
       } else if (data.status === "partial") {
         draft += data.delta;
         baseMessage = "Writing the answer";
-        showDraft(draft);
+        if (isCurrent()) showDraft(draft);
       } else {
-        removeDraft();
+        if (isCurrent()) removeDraft();
         baseMessage = data.message;
       }
     };
 
-    while (true) {
+    reading: while (!finished) {
       const { value, done } = await reader.read();
       buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
       let newlineIndex;
@@ -241,10 +260,13 @@ async function sendMessage(message, { repeat = false } = {}) {
         const line = buffer.slice(0, newlineIndex).trim();
         buffer = buffer.slice(newlineIndex + 1);
         if (line) handle(line);
+        if (finished) break reading;
       }
-      if (done) break;
+      if (done) {
+        if (buffer.trim()) handle(buffer.trim());
+        break;
+      }
     }
-    if (buffer.trim()) handle(buffer.trim());
 
     // The stream ended without a final message (server restart, proxy timeout)
     if (!finished) {
@@ -254,6 +276,7 @@ async function sendMessage(message, { repeat = false } = {}) {
     console.error("Error:", error);
     finish({ status: "error", message: "<p>The bot could not be reached or sent a broken reply. Please try again.</p>" });
   } finally {
+    reader?.cancel().catch(() => {}); // stop reading after the final frame (no-op when the stream is done)
     endStream(); // never leave the input disabled
   }
 }

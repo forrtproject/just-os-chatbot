@@ -49,6 +49,15 @@ DEFAULT_BG_COLOR = "#fefdf6"
 MAX_RECOMMENDATIONS = 20  # DOIs or links per /recommend form
 
 
+def json_object() -> Optional[Dict[str, Any]]:
+    """The request's JSON body when it is an object; None for broken JSON, arrays, strings, numbers..."""
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else None
+
+
+NOT_AN_OBJECT = {"status": "error", "message": "Send a JSON object."}
+
+
 def recommendation_rows(data: dict) -> Tuple[Optional[str], list]:
     """(problem, rows) for one /recommend form: each line a DOI or an http(s) link; rows for
     RECOMMENDATIONS_FILE, read by `./run curate --recommendations`."""
@@ -231,6 +240,8 @@ class FlaskApp:
         self.app = Flask(__name__, static_folder="../public", static_url_path="")
         self.app.secret_key = os.getenv("SECRET_KEY", secrets.token_hex(16))
         self.app.config.update(self.config)
+        # static_url_for() in the templates: digested file names once `flask digest compile` has run
+        flask_static_digest.init_app(self.app)
         if self.config["PROXY_FIX_X_FOR"]:
             # Behind a trusted reverse proxy: rate-limit by the client IP in X-Forwarded-For
             self.app.wsgi_app = ProxyFix(self.app.wsgi_app, x_for=self.config["PROXY_FIX_X_FOR"])
@@ -416,7 +427,10 @@ class FlaskApp:
             """One reviewer's scores -> SCORES_DIR/scores_review_<name>_<time>.jsonl, score rows (#54);
             a new file per save, never overwritten."""
             items = self._review_items()
-            problem, rows = review_rows(request.get_json(silent=True) or {}, {i["key"]: i for i in items or []})
+            data = json_object()
+            if data is None:
+                return jsonify(NOT_AN_OBJECT), 400
+            problem, rows = review_rows(data, {i["key"]: i for i in items or []})
             if problem:
                 return jsonify({"status": "error", "message": problem}), 400
             name = re.sub(r"[^a-z0-9]+", "-", rows[0]["scorer"].lower()).strip("-")[:40] or "reviewer"
@@ -470,7 +484,10 @@ class FlaskApp:
             path = self.config.get("RECOMMENDATIONS_FILE")
             if not path:
                 abort(404)
-            problem, rows = recommendation_rows(request.get_json(silent=True) or {})
+            data = json_object()
+            if data is None:
+                return jsonify(NOT_AN_OBJECT), 400
+            problem, rows = recommendation_rows(data)
             if problem:
                 return jsonify({"status": "error", "message": problem}), 400
             try:
@@ -488,7 +505,9 @@ class FlaskApp:
         )
         def chat_feedback():
             """Store Good/Bad and an optional comment for one answer (once per turn)."""
-            data = request.get_json(silent=True) or {}
+            data = json_object()
+            if data is None:
+                return jsonify(NOT_AN_OBJECT), 400
             rating, comment = data.get("rating"), data.get("comment") or ""
             if rating not in ("good", "bad") or not isinstance(comment, str) or len(comment) > 2000:
                 return jsonify({"status": "error", "message": "Send rating good or bad and a comment of at most 2000 characters."}), 400
@@ -622,7 +641,9 @@ class FlaskApp:
             """Store ratings per answer and criterion, then reveal the model names."""
             if not self.config["ARENA_ENABLED"]:
                 abort(404)
-            data = request.get_json(silent=True) or {}
+            data = json_object()
+            if data is None:
+                return jsonify(NOT_AN_OBJECT), 400
             ratings = data.get("ratings")
             if not valid_ratings(ratings):
                 names = ", ".join(ARENA_CRITERIA)
@@ -869,8 +890,6 @@ class FlaskApp:
         Returns:
             Flask: The configured Flask application
         """
-        # Initialize extensions
-        flask_static_digest.init_app(self.app)
         return self.app
 
 
