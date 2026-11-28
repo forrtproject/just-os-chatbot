@@ -27,7 +27,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 
-from just_os.references import DOI_PATTERN, GLOSSARY_TYPE, normalize_doi, plain_metadata
+from just_os.references import DOI_PATTERN, GLOSSARY_TYPE, is_reference_chunk, normalize_doi, plain_metadata
 
 TITLE_COVERAGE = 0.8
 MIN_TITLE_WORDS = 4
@@ -179,17 +179,34 @@ class ReferenceLookup:
                     return found, why
         return [], ""
 
-    def chunks(self, question: str, found: List[Paper], n: int) -> List:
+    def chunks(self, question: str, found: List[Paper], n: int, skip_reference_chunks: bool = False,
+               dropped: Optional[List] = None) -> List:
         """The n chunks of the found papers closest to the question (NodeWithScore; score = FAISS L2 distance of unit
-        vectors, as the vector search gives them), any number per paper."""
+        vectors, as the vector search gives them), any number per paper. skip_reference_chunks (SKIP_REFERENCE_CHUNKS):
+        no reference-list chunks, unless a paper has nothing else; the left-out chunks go to `dropped`."""
         from llama_index.core.schema import NodeWithScore
 
         q = np.asarray(self._embed.get_query_embedding(question), dtype=np.float32)
         q /= np.linalg.norm(q) or 1
-        scored = []
+        scored, left_out = [], []
         for p in found:
             vectors = np.stack([self._faiss.reconstruct(row) for row in self._rows[p.key]])
             cosine = vectors @ q / np.maximum(np.linalg.norm(vectors, axis=1), 1e-9)
-            scored += [(float(c), node) for c, node in zip(cosine, self._chunks[p.key])]
+            pairs = [(float(c), node) for c, node in zip(cosine, self._chunks[p.key])]
+            if skip_reference_chunks:
+                kept = [(c, node) for c, node in pairs if not reference_chunk(node)]
+                if kept:  # a paper whose every chunk looks like a reference list keeps them all
+                    left_out += [pair for pair in pairs if reference_chunk(pair[1])]
+                    pairs = kept
+            scored += pairs
         scored.sort(key=lambda x: -x[0])
+        if dropped is not None:
+            dropped.extend(NodeWithScore(node=node, score=2 - 2 * c) for c, node in sorted(left_out, key=lambda x: -x[0]))
         return [NodeWithScore(node=node, score=2 - 2 * c) for c, node in scored[:n]]
+
+
+def reference_chunk(node) -> bool:
+    """A reference-list chunk as the retriever skips it (SKIP_REFERENCE_CHUNKS); abstract cards are short on purpose."""
+    if str(plain_metadata(node.metadata).get("material_type", "")).startswith("FORRT abstract card"):
+        return False
+    return is_reference_chunk(node.text)

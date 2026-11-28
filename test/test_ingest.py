@@ -134,6 +134,7 @@ def test_curate_tries_the_next_copy_when_one_is_the_wrong_paper(tmp_path, monkey
     copies = [("https://a.example/x.pdf", "unpaywall", "cc-by"), ("https://b.example/y.pdf", "openalex", "cc-by-sa")]
     monkeypatch.setattr(pdf_sources, "candidates", lambda http, doi, link: iter(copies))
     monkeypatch.setattr(pdf_sources, "download", lambda http, url: b"%PDF " + url.encode())
+    monkeypatch.setattr(curate, "is_public_url", lambda url: True)  # no DNS lookups in tests
     monkeypatch.setattr(convert_cluster_pdfs, "grobid_tei", lambda pdf, key: pdf.read_bytes().decode())
     titles = {"https://a.example/x.pdf": "Something else entirely", "https://b.example/y.pdf": "Open data in psychology"}
     monkeypatch.setattr(convert_cluster_pdfs, "tei_to_markdown",

@@ -34,9 +34,10 @@ PDF_META = re.compile(r'<meta[^>]+name=["\']citation_pdf_url["\'][^>]+content=["
 WORD = re.compile(r"[^\W\d_]{3,}", re.U)
 
 
-def client() -> httpx.Client:
+def client(transport: Optional[httpx.BaseTransport] = None) -> httpx.Client:
+    """transport: e.g. scripts.fetch_web_resources.PublicOnlyTransport, which curate uses (SSRF guard)."""
     agent = "JUST-OS curate (+https://github.com/forrtproject/just-os-chatbot" + (f"; mailto:{EMAIL}" if EMAIL else "") + ")"
-    return httpx.Client(follow_redirects=True, timeout=30, headers={"User-Agent": agent})
+    return httpx.Client(follow_redirects=True, timeout=30, headers={"User-Agent": agent}, transport=transport)
 
 
 def _json(http: httpx.Client, url: str, **params) -> dict:

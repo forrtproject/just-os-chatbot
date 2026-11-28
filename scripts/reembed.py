@@ -14,6 +14,8 @@ from llama_index.core.storage.docstore import SimpleDocumentStore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.faiss import FaissVectorStore
 
+from just_os.manifest import write_manifest
+
 if __name__ == "__main__":
     source_dir, model_name = sys.argv[1], sys.argv[2]
     output_path = f"data/processed/vs_latest_{model_name.split('/')[-1]}"
@@ -37,4 +39,6 @@ if __name__ == "__main__":
         show_progress=True,
     )
     index.storage_context.persist(output_path)
+    write_manifest(output_path, model_name, len(probe), document_count=len({n.ref_doc_id or n.node_id for n in nodes}),
+                   vector_count=vector_store._faiss_index.ntotal)
     print(f"{len(nodes)} nodes -> {output_path}")

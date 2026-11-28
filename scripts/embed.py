@@ -9,6 +9,7 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.faiss import FaissVectorStore
 
 from config import settings as justos_settings
+from just_os.manifest import write_manifest
 
 from config.settings import CREDENTIALS_FILE, GDRIVE_FOLDER_ID
 
@@ -18,6 +19,12 @@ REFERENCE_PATTERN = re.compile(r"\[(\d+)\]")
 
 def cleanup_markdown(text):
     return REFERENCE_PATTERN.sub("", text)
+
+
+def excluded_keys(metadata: pd.DataFrame) -> list:
+    """Every metadata column except the title, as a sorted list: llama-index stores these keys in the docstore
+    (JSON), so a set fails to persist and its order would change between builds."""
+    return sorted(set(metadata.columns).difference(("title",)))
 
 
 def unique_metadata(metadata: pd.DataFrame) -> pd.DataFrame:
@@ -38,7 +45,7 @@ if __name__ == "__main__":
     )
 
     markdown_files = list(datadir.joinpath("processed/markdown").glob("**/*.md"))
-    excluded_metadata_keys = set(metadata.columns).difference(("title",))
+    excluded_metadata_keys = excluded_keys(metadata)
 
     documents = [
         Document(
@@ -64,15 +71,14 @@ if __name__ == "__main__":
         embed_model=embed_model,
         show_progress=True,
     )
-    index.storage_context.persist(
-        f"data/processed/vs_{datetime.now().strftime('%y%m%d')}_{justos_settings.EMBEDDING_MODEL.split('/')[-1]}"
-    )
-
+    dated_path = f"data/processed/vs_{datetime.now().strftime('%y%m%d')}_{justos_settings.EMBEDDING_MODEL.split('/')[-1]}"
     output_path = (
         f"data/processed/vs_latest_{justos_settings.EMBEDDING_MODEL.split('/')[-1]}"
     )
-
-    index.storage_context.persist(output_path)
+    for path in (dated_path, output_path):
+        index.storage_context.persist(path)
+        write_manifest(path, justos_settings.EMBEDDING_MODEL, len(probe), justos_settings.CHUNK_SIZE,
+                       len(documents), faiss_index.ntotal)
     print(f"wrote {output_path}")
 
     if not Path(CREDENTIALS_FILE).exists():

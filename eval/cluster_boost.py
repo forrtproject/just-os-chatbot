@@ -27,18 +27,35 @@ MARGINS = [0.0, 0.01, 0.02, 0.03]
 BONUSES = [0.0, 0.01, 0.02, 0.04]
 
 
-def main():
-    from just_os.rag_service import create_embedding_model, load_index
+def boost_limiter(config, excluded):
+    """The app's per-paper cap and chunk limit (DocumentRetriever.limit_per_document) with the config's settings."""
     from just_os.qualle import DocumentRetriever
+
+    limiter = object.__new__(DocumentRetriever)
+    limiter.n_context_items, limiter.max_per_doc, limiter.excluded = config["MAX_CHUNKS"], config["MAX_CHUNKS_PER_DOC"], excluded
+    limiter.skip_reference_chunks = config.get("SKIP_REFERENCE_CHUNKS", False)
+    return limiter
+
+
+def boost_and_limit(limiter, nodes, cluster, bonus, table):
+    """Excluded documents out first, so they get no bonus and no place; then the boost and the limits."""
+    nodes = limiter.without_excluded(nodes)
+    return limiter.limit_per_document(boosted(nodes, cluster, bonus, table) if cluster else nodes)
+
+
+def main():
+    from just_os.rag_service import create_embedding_model, create_retriever, load_index
+    from just_os.qualle import excluded_documents
 
     config = dict(DEFAULT_CONFIG)
     embed = create_embedding_model(config)
     index = load_index(config, embed)
     table = document_clusters(config["CLUSTERS_FILE"])
-    cents = centroids(index, table)
-    retriever = index.as_retriever(similarity_top_k=config["RETRIEVER_TOP_K"])
-    limiter = object.__new__(DocumentRetriever)
-    limiter.n_context_items, limiter.max_per_doc, limiter.excluded = config["MAX_CHUNKS"], config["MAX_CHUNKS_PER_DOC"], ()
+    excluded = excluded_documents(config.get("INDEX_CORRECTIONS_FILE"))
+    cents = centroids(index, table, excluded=excluded)
+    # as the app: excluded documents left out before the cut to RETRIEVER_TOP_K (the boost is for vector search)
+    retriever = create_retriever({**config, "SEARCH_MODE": "vector"}, embed, index)
+    limiter = boost_limiter(config, excluded)
 
     questions = [q for q in map(json.loads, open("eval/questions.jsonl", encoding="utf-8")) if q.get("cluster") in CLUSTERS]
     prepared = []
@@ -60,7 +77,7 @@ def main():
                 cluster = best if gap >= margin and bonus > 0 else None
                 detected += cluster is not None
                 right += cluster == q["cluster"]
-                kept = limiter.limit_per_document(boosted(nodes, cluster, bonus, table) if cluster else nodes)
+                kept = boost_and_limit(limiter, nodes, cluster, bonus, table)
                 expected = {normalize_doi(d) for d in q.get("expected_dois", [])}
                 if expected:
                     with_dois += 1

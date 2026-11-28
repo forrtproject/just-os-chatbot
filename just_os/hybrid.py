@@ -8,14 +8,20 @@ docstore at start-up.
 A vector hit keeps its FAISS score, the squared L2 distance of unit vectors, from which
 vector_cosine gives the cosine; a keyword hit has score None (hybrid) or its BM25 score
 (bm25), which is on no fixed scale.
+
+Documents that config/index_corrections.json excludes are left out before the cut to top_k (excluded_ids), so they
+never take a place a valid chunk needs: the vector retriever fetches top_k plus the number of excluded chunks
+(rag_service.create_retriever), and BM25 never ranks an excluded chunk.
 """
 
 import logging
-from typing import Any, List, Optional
+from typing import Any, Collection, Iterable, List, Optional
 
 import numpy as np
 from llama_index.core.schema import NodeWithScore
 from sklearn.feature_extraction.text import CountVectorizer
+
+from just_os.references import document_key, plain_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -46,9 +52,13 @@ class BM25:
             scores[rows] += self.idf[j] * freq * (self.k1 + 1) / (freq + self.norm[rows])
         return scores
 
-    def top(self, query: str, k: int, scores=None) -> List[int]:
-        """The k best documents with a score above 0; `scores` reuses scores already computed."""
+    def top(self, query: str, k: int, scores=None, exclude: Collection[int] = ()) -> List[int]:
+        """The k best documents with a score above 0, none of the rows in `exclude`; `scores` reuses scores already
+        computed."""
         scores = self.scores(query) if scores is None else scores
+        if exclude:
+            scores = scores.copy()
+            scores[list(exclude)] = 0
         best = np.argsort(-scores)[:k]
         return [int(i) for i in best if scores[i] > 0]
 
@@ -62,21 +72,48 @@ def reciprocal_rank_fusion(*rankings: List[str]) -> List[str]:
     return sorted(fused, key=fused.get, reverse=True)
 
 
+def excluded_node_ids(nodes: Iterable[Any], excluded: Collection[str]) -> frozenset:
+    """node_id of every chunk whose document_key is in `excluded` (DOIs of config/index_corrections.json)."""
+    if not excluded:
+        return frozenset()
+    return frozenset(node.node_id for node in nodes if document_key(plain_metadata(node.metadata)) in excluded)
+
+
+def without_ids(hits: List[NodeWithScore], excluded_ids: Collection[str], top_k: int) -> List[NodeWithScore]:
+    """The first top_k hits that are not excluded chunks."""
+    return [hit for hit in hits if hit.node.node_id not in excluded_ids][:top_k]
+
+
+class ExcludingRetriever:
+    """SEARCH_MODE=vector with excluded documents: the wrapped retriever fetches top_k + len(excluded_ids) chunks
+    (rag_service.create_retriever), this one returns the top_k that are not excluded."""
+
+    def __init__(self, vector_retriever, excluded_ids: Collection[str], top_k: int):
+        self.vector_retriever = vector_retriever
+        self.excluded_ids = frozenset(excluded_ids)
+        self.top_k = top_k
+
+    def retrieve(self, query: str) -> List[NodeWithScore]:
+        return without_ids(self.vector_retriever.retrieve(query), self.excluded_ids, self.top_k)
+
+
 class HybridRetriever:
     """Same interface as a llama-index retriever: retrieve(query) -> [NodeWithScore]."""
 
-    def __init__(self, vector_retriever, nodes: List[Any], top_k: int):
+    def __init__(self, vector_retriever, nodes: List[Any], top_k: int, excluded_ids: Collection[str] = frozenset()):
         self.vector_retriever = vector_retriever
-        self.nodes = nodes
-        self.by_id = {node.node_id: node for node in nodes}
+        self.excluded_ids = frozenset(excluded_ids)
+        self.nodes = [node for node in nodes if node.node_id not in self.excluded_ids]
+        self.by_id = {node.node_id: node for node in self.nodes}
         self.top_k = top_k
-        logger.info(f"Building the BM25 keyword index over {len(nodes)} chunks")
-        self.bm25 = BM25([node.get_content() for node in nodes])
+        logger.info(f"Building the BM25 keyword index over {len(self.nodes)} chunks")
+        self.bm25 = BM25([node.get_content() for node in self.nodes]) if self.nodes else None
 
     def retrieve(self, query: str) -> List[NodeWithScore]:
-        vector_hits = self.vector_retriever.retrieve(query)
+        # both lists without excluded chunks and cut to top_k before the fusion, so ranks and BM25 stats ignore them
+        vector_hits = without_ids(self.vector_retriever.retrieve(query), self.excluded_ids, self.top_k)
         found = {hit.node.node_id: hit for hit in vector_hits}
-        keyword_ids = [self.nodes[i].node_id for i in self.bm25.top(query, self.top_k)]
+        keyword_ids = [self.nodes[i].node_id for i in self.bm25.top(query, self.top_k)] if self.bm25 else []
         fused = reciprocal_rank_fusion([hit.node.node_id for hit in vector_hits], keyword_ids)
         return [
             found.get(node_id) or NodeWithScore(node=self.by_id[node_id], score=None)
@@ -88,29 +125,35 @@ class KeywordRetriever:
     """SEARCH_MODE=bm25: the top_k chunks by BM25 alone, with their BM25 score. Keeps the
     vector retriever for what needs the FAISS index, such as the cosine router."""
 
-    def __init__(self, nodes: List[Any], top_k: int, vector_retriever=None):
+    def __init__(self, nodes: List[Any], top_k: int, vector_retriever=None, excluded_ids: Collection[str] = frozenset()):
         self.vector_retriever = vector_retriever
-        self.nodes = nodes
+        excluded_ids = frozenset(excluded_ids)
+        self.nodes = [node for node in nodes if node.node_id not in excluded_ids]
         self.top_k = top_k
-        logger.info(f"Building the BM25 keyword index over {len(nodes)} chunks")
-        self.bm25 = BM25([node.get_content() for node in nodes])
+        logger.info(f"Building the BM25 keyword index over {len(self.nodes)} chunks")
+        self.bm25 = BM25([node.get_content() for node in self.nodes]) if self.nodes else None
 
     def retrieve(self, query: str) -> List[NodeWithScore]:
+        if not self.bm25:
+            return []
         scores = self.bm25.scores(query)
-        return [NodeWithScore(node=self.nodes[i], score=float(scores[i])) for i in self.bm25.top(query, self.top_k, scores)]
+        return [NodeWithScore(node=self.nodes[i], score=float(scores[i]))
+                for i in self.bm25.top(query, self.top_k, scores)]
 
 
 SEARCH_MODES = ("vector", "bm25", "hybrid")
 
 
-def search_retriever(mode: str, vector_retriever, nodes: List[Any], top_k: int):
-    """The retriever for SEARCH_MODE; nodes (the docstore's chunks) are only read for bm25 and hybrid."""
+def search_retriever(mode: str, vector_retriever, nodes: List[Any], top_k: int,
+                     excluded_ids: Collection[str] = frozenset()):
+    """The retriever for SEARCH_MODE; nodes (the docstore's chunks) are only read for bm25 and hybrid. excluded_ids:
+    chunks never returned, left out before the cut to top_k (the vector retriever must fetch top_k + their number)."""
     if mode == "vector":
-        return vector_retriever
+        return ExcludingRetriever(vector_retriever, excluded_ids, top_k) if excluded_ids else vector_retriever
     if mode == "bm25":
-        return KeywordRetriever(nodes, top_k, vector_retriever)
+        return KeywordRetriever(nodes, top_k, vector_retriever, excluded_ids)
     if mode == "hybrid":
-        return HybridRetriever(vector_retriever, nodes, top_k)
+        return HybridRetriever(vector_retriever, nodes, top_k, excluded_ids)
     raise ValueError(f"SEARCH_MODE must be one of {', '.join(SEARCH_MODES)}, not {mode!r}")
 
 

@@ -32,6 +32,7 @@ from bs4 import BeautifulSoup, NavigableString, Tag
 from just_os import forrt_checks as checks
 from just_os import messages as msg
 from just_os.decisions import DecisionClient
+from just_os.manifest import check_manifest, embedder_dimension, read_manifest
 from just_os import trace
 
 logger = logging.getLogger(__name__)
@@ -186,12 +187,25 @@ def trim(markdown: str, question: str, max_chars: int) -> str:
     return "\n\n".join(out)
 
 
+def check_page_index(directory: Path, records: List[Dict[str, Any]], vectors: np.ndarray, embedding_model: str,
+                     embedder_size: Optional[int] = None) -> None:
+    """One vector per page record (else a search hit points at the wrong page), the size and model of manifest.json
+    when the folder has one (scripts/build_forrt_pages.py) and the embedder's vector size when known: ValueError
+    otherwise (Qualle then starts without the FORRT page route)."""
+    if vectors.ndim != 2 or len(vectors) != len(records):
+        raise ValueError(f"{directory}: {len(records)} pages in index.json but {len(vectors)} rows in vectors.npy: "
+                         "rebuild with scripts/build_forrt_pages.py")
+    check_manifest(read_manifest(directory), embedding_model, vectors.shape[1], where=str(directory),
+                   embedder_size=embedder_size)
+
+
 class ForrtPages:
     def __init__(self, config: Dict[str, Any], embed_model, client_manager, decisions: Optional[DecisionClient] = None):
         self.config = config
         self.dir = Path(config["FORRT_PAGES_DIR"])
         self.records: List[Dict[str, Any]] = json.loads((self.dir / "index.json").read_text(encoding="utf-8"))
         vectors = np.load(self.dir / "vectors.npy").astype(np.float32)
+        check_page_index(self.dir, self.records, vectors, config.get("EMBEDDING_MODEL", ""), embedder_dimension(embed_model))
         self.vectors = vectors / np.clip(np.linalg.norm(vectors, axis=1, keepdims=True), 1e-12, None)
         self.lex = [tokens(" ".join([r["title"], r.get("use_when", ""), " ".join(r.get("example_questions", []))]))
                     for r in self.records]

@@ -50,7 +50,7 @@ def load_index(index_dir: Path):
             "doc_id": d["relationships"]["1"]["node_id"],
             "title": str(m.get("title", ""))[:200],
             "doi": m.get("doi", ""),
-            "source": "cluster" if m.get("conditions_of_use") == CLUSTER_PDF_LICENCE else "justos",
+            "source": "cluster" if m.get("conditions_of_use") == CLUSTER_PDF_LICENCE or m.get("source_file") else "justos",
             "source_file": m.get("source_file", ""),
             "text": d["text"],
         })

@@ -37,8 +37,12 @@ GROBID = os.environ.get("GROBID_URL", "http://localhost:8070")
 TEI = "{http://www.tei-c.org/ns/1.0}"
 MIN_BODY = 2000  # characters; less than this is a scan or a failed parse
 MAX_GROBID_PAGES = 80  # books: GROBID is made for articles and runs out of memory on them
-# FORRT confirmed (12 Nov 2026) that the cluster PDFs are open access, so passages may be shown
-CLUSTER_LICENCE = "FORRT cluster PDF (open access)"
+# FORRT said (12 Nov 2026) that the cluster PDFs are open access, but free to read is not free to quote, and the
+# OpenAlex licence (best_oa_location, kept in `licence`) belongs to one open-access copy, not necessarily to the PDF in
+# the cluster folder: conditions_of_use stays empty (no passage shown) until a licence is checked for the local copy
+# (cluster_conditions; references.metadata_passage_allowed)
+METADATA_FIELDS = ["doi_hash", "title", "creators", "doi", "oa_status", "licence", "material_type",
+                   "conditions_of_use", "link_to_resource", "source_file"]
 OPENALEX_FIELDS = "doi,title,publication_year,authorships,open_access,best_oa_location"
 
 
@@ -118,6 +122,21 @@ def work_metadata(work: dict) -> dict:
             "oa_status": (work.get("open_access") or {}).get("oa_status") or "", "licence": licence}
 
 
+def cluster_conditions(meta: dict) -> str:
+    """conditions_of_use of a converted cluster PDF: "closed" for closed access, else "" (not checked for this copy,
+    so no passage is shown). The OpenAlex licence is never copied here: it is the licence of OpenAlex's best
+    open-access location, which may be another version than the PDF in FORRT's cluster folder."""
+    return "closed" if str(meta.get("oa_status") or "").strip().lower() == "closed" else ""
+
+
+def write_metadata(path: Path, rows) -> None:
+    """metadata.csv with a fixed header, so a run that keeps no paper still writes one."""
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=METADATA_FIELDS, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def largest_text(page) -> str:
     """The text in the largest font on a page: the title, when nothing else names it."""
     spans = [s for block in page.get_text("dict")["blocks"] for line in block.get("lines", []) for s in line["spans"]
@@ -131,6 +150,7 @@ def grobid_tei(pdf: Path, content_hash: str, header_only: bool = False) -> str:
     header_only: title, authors and DOI without the body."""
     import requests
 
+    TEI_CACHE.mkdir(parents=True, exist_ok=True)  # also when curate.py calls this on a fresh machine
     cache = TEI_CACHE / f"{content_hash}.xml"
     if cache.exists():
         return cache.read_text(encoding="utf-8")
@@ -229,13 +249,10 @@ if __name__ == "__main__":
                 rejected.append((paper["file"], "almost no text (scan)"))
                 continue
         (OUT / f"{key}.md").write_text(markdown, encoding="utf-8")
-        kept[key] = {"doi_hash": key, **meta, "material_type": "Reading", "conditions_of_use": CLUSTER_LICENCE,
+        kept[key] = {"doi_hash": key, **meta, "material_type": "Reading", "conditions_of_use": cluster_conditions(meta),
                      "link_to_resource": f"https://doi.org/{meta['doi']}" if meta["doi"] else match["url"],
                      "source_file": paper["file"]}
-    with open(OUT / "metadata.csv", "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(next(iter(kept.values()))))
-        writer.writeheader()
-        writer.writerows(kept.values())
+    write_metadata(OUT / "metadata.csv", kept.values())
     with open(OUT / "rejected.csv", "w", newline="", encoding="utf-8") as f:
         csv.writer(f).writerows([("file", "reason"), *rejected])
     with_doi = sum(bool(m["doi"]) for m in kept.values())

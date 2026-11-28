@@ -45,6 +45,18 @@ def cards(table: pd.DataFrame) -> pd.DataFrame:
     return table[(table.in_index == "no") & (table.excluded_in_source != "yes") & (text >= MIN_CHARS) & (table.title != "")]
 
 
+METADATA_FIELDS = ["doi_hash", "title", "creators", "doi", "link_to_resource", "material_type", "conditions_of_use",
+                   "FORRT_clusters"]
+
+
+def write_metadata(path: Path, rows: list) -> None:
+    """metadata.csv with a fixed header, so a run without new cards still writes a readable file."""
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=METADATA_FIELDS)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def main():
     rows = cards(pd.read_csv(LIST, dtype=str).fillna(""))
     OUT.mkdir(parents=True, exist_ok=True)
@@ -56,10 +68,7 @@ def main():
                      "link_to_resource": r.url or (f"https://doi.org/{r.doi}" if r.doi else ""),
                      "material_type": f"{CARD_TYPE}: {r.type or r.category}", "conditions_of_use": r.licence,
                      "FORRT_clusters": r.clusters})
-    with open(OUT / "metadata.csv", "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(meta[0]))
-        writer.writeheader()
-        writer.writerows(meta)
+    write_metadata(OUT / "metadata.csv", meta)
     print(f"{len(meta)} abstract cards -> {OUT} ({rows.category.value_counts().to_dict()})")
 
 

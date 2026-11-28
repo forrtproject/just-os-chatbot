@@ -11,7 +11,7 @@ setting that no longer exists or a `ROUTER` / `SEARCH_MODE` option it does not e
 ```
 just-os-chatbot/
 ├── README.md              Setup, API, links to docs/
-├── LICENSE                Project licence (GPL-3)
+├── LICENSE                Project licence (Apache 2.0; the front end is GPL-3, see README)
 ├── Dockerfile             3 stages: assets (Node) → app-build (uv) → app (Gunicorn)
 ├── compose.yaml           Services: web, redis, js, css; volumes hf-cache, redis
 ├── compose.dev.yaml       Dev overlay: mounts just_os/, config/, test/, eval/, scripts/, ingest/ (live reload, tests), deploy/ (read-only, for /architecture)
@@ -117,7 +117,7 @@ Limitations (measured 11 Nov with lingua 2.2.0 over all languages):
 ### `scripts/` (run from the repository root)
 | File | Command | What it does |
 |---|---|---|
-| `make_share_bundle.py` | `python scripts/make_share_bundle.py [--minimal] [--no-env]` | Zips `.env`, the index, the CSVs the bot and eval scripts read, and the embedding-comparison vectors into `share/just-os-team-bundle.zip` (git- and docker-ignored) with a `TEAM_SETUP.md` |
+| `make_share_bundle.py` | `python scripts/make_share_bundle.py [--minimal] [--include-env]` | Zips the index (`.env` only with `--include-env`), the CSVs the bot and eval scripts read, and the embedding-comparison vectors into `share/just-os-team-bundle.zip` (git- and docker-ignored) with a `TEAM_SETUP.md` |
 | `get_index.py` | `python scripts/get_index.py <zip-url>` | Downloads an index zip and unpacks it into `data/processed/` (standard library only) |
 | `bootstrap_local_database.py` | `uv run python -m scripts.bootstrap_local_database` | Ingestion step 1: checks open access (Unpaywall) for the downloaded PDFs, copies them to `data/pdfs/by-doi/<doi_hash>.pdf`, writes `data/processed/just-os_db.csv`, uploads to Drive |
 | `marker.sh` | `./scripts/marker.sh` | Step 2: PDF → Markdown with `marker` (GPU recommended) into `data/processed/markdown/` |

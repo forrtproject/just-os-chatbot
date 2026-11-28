@@ -1,9 +1,13 @@
 """FORRT glossary as sources: one Markdown document per term and language, for scripts/add_to_index.py.
 
     docker compose run --rm -v ./data:/app/data web python -m scripts.build_glossary [--glossary FILE]
+    cp -r data/processed/vs_latest_bge-m3 data/processed/vs_glossary_staging_<YYMMDD>   # a fresh copy of the paper index
     docker compose run --rm -v ./data:/app/data web python -m scripts.add_to_index \\
         data/processed/glossary_markdown data/processed/glossary_markdown/metadata.csv \\
-        --index data/processed/vs_latest_bge-m3 --output data/processed/vs_latest_bge-m3_glossary
+        --index data/processed/vs_glossary_staging_<YYMMDD> --output data/processed/vs_glossary_staging_<YYMMDD>
+
+Check the staging folder, then point VECTOR_STORE at it (or move it to vs_latest_bge-m3_glossary after a backup):
+never write into the live vs_latest_bge-m3_glossary, which already holds the glossary and the later additions.
 
 Reads content/glossary/_glossaries.json of github.com/forrtproject/forrt (all five languages: english,
 german, arabic, chinese, turkish; --glossary for a local copy) and forrt.org's sitemap, which gives each
@@ -99,6 +103,21 @@ def documents(glossary: list, urls: dict) -> list:
     return out
 
 
+METADATA_FIELDS = ["doi_hash", "title", "link_to_resource", "material_type", "conditions_of_use", "creators", "language",
+                   "en_title", "reference_dois"]
+
+
+def write_documents(out: Path, docs: list) -> None:
+    """The Markdown files and metadata.csv (a fixed header, so no entries still gives a readable file)."""
+    out.mkdir(parents=True, exist_ok=True)
+    for stem, body, _, _ in docs:
+        (out / f"{stem}.md").write_text(body, encoding="utf-8")
+    with open(out / "metadata.csv", "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=METADATA_FIELDS)
+        writer.writeheader()
+        writer.writerows({"doi_hash": stem, **meta} for stem, _, meta, _ in docs)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--glossary", help=f"local _glossaries.json (default: download {GLOSSARY_URL})")
@@ -109,13 +128,7 @@ def main():
                 else client.get(GLOSSARY_URL, timeout=60).raise_for_status().text)
         urls = page_urls(read_sitemap(client))
     docs = documents(json.loads(text), urls)
-    args.out.mkdir(parents=True, exist_ok=True)
-    for stem, body, _, _ in docs:
-        (args.out / f"{stem}.md").write_text(body, encoding="utf-8")
-    with open(args.out / "metadata.csv", "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["doi_hash", *docs[0][2]])
-        writer.writeheader()
-        writer.writerows({"doi_hash": stem, **meta} for stem, _, meta, _ in docs)
+    write_documents(args.out, docs)
     print(f"{len(docs)} glossary documents ({sum(d[3] for d in docs)} with their own page) -> {args.out}")
 
 

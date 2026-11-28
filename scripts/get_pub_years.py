@@ -4,7 +4,7 @@
 
 Reads every DOI in the index docstore and asks OpenAlex (free, no key) for the
 publication year, 50 DOIs per request. Standard library only.
-Default: data/processed/vs_latest_bge-m3 → data/raw/pub_years.csv (tracked in Git).
+Default: data/processed/vs_latest_bge-m3_glossary → data/raw/pub_years.csv (tracked in Git).
 """
 
 import csv
@@ -56,7 +56,7 @@ def fetch_years(dois):
 
 
 if __name__ == "__main__":
-    index_dir = sys.argv[1] if len(sys.argv) > 1 else "data/processed/vs_latest_bge-m3"
+    index_dir = sys.argv[1] if len(sys.argv) > 1 else "data/processed/vs_latest_bge-m3_glossary"
     output = sys.argv[2] if len(sys.argv) > 2 else "data/raw/pub_years.csv"
     dois = index_dois(index_dir)
     years = fetch_years(dois)

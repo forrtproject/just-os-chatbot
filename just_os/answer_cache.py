@@ -37,6 +37,11 @@ NAMESPACE_KEYS = (
 )
 
 
+# Raised when a rule that changes stored answers changes outside the settings above (2: quotes only from a licence
+# in conditions_of_use, so answers cached with cluster PDF quotes are not sent again)
+CACHE_VERSION = 2
+
+
 class AnswerCache:
     def __init__(self, redis, embed_model, config: Dict[str, Any]):
         self.redis = redis
@@ -52,7 +57,7 @@ class AnswerCache:
         values = [self.config.get(k) for k in NAMESPACE_KEYS]
         if model:
             values[NAMESPACE_KEYS.index("CITATION_MODEL")] = model
-        return f"answer_cache:{hashlib.md5(json.dumps(values).encode()).hexdigest()[:12]}"
+        return f"answer_cache:{hashlib.md5(json.dumps([CACHE_VERSION, *values]).encode()).hexdigest()[:12]}"
 
     def _vector(self, query: str) -> np.ndarray:
         vector = np.asarray(self.embed_model.get_query_embedding(query), dtype=np.float32)

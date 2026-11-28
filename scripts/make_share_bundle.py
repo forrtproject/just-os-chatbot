@@ -1,8 +1,8 @@
 """Make the zip a teammate needs next to the Git repo to run JUST-OS (not in Git).
 
-    python scripts/make_share_bundle.py            # .env + index + embedding-comparison vectors
-    python scripts/make_share_bundle.py --minimal  # .env + index only (enough to run the bot)
-    python scripts/make_share_bundle.py --no-env   # without your .env (teammates use their own keys)
+    python scripts/make_share_bundle.py                # index + embedding-comparison vectors, no .env
+    python scripts/make_share_bundle.py --minimal      # index only (enough to run the bot)
+    python scripts/make_share_bundle.py --include-env  # also your .env with its API keys (only for the team)
 
 Output: share/just-os-team-bundle.zip (share/ is git- and docker-ignored).
 The teammate unzips it in the root of their clone; the files land in the right places.
@@ -18,7 +18,8 @@ OUT = ROOT / "share" / "just-os-team-bundle.zip"
 
 # (path, needed for) — the index is what the app loads (VECTOR_STORE)
 RUN = [
-    ("data/processed/vs_latest_bge-m3", "the bot: default index (bge-m3)"),
+    ("data/processed/vs_latest_bge-m3_glossary", "the bot: default index (bge-m3, papers + FORRT glossary)"),
+    ("data/curation/forrt_article_list.csv", "the bot: FORRT clusters of the documents (CLUSTERS_FILE)"),
     ("data/raw/pub_years.csv", "the bot: publication years in the references (PUB_YEARS_FILE)"),
     ("data/raw/forrt_sheet1_261028.csv", "the bot: FORRT lookup mode (FORRT_SHEET_FILE)"),
 ]
@@ -73,9 +74,16 @@ def add_env(archive, path):
     archive.writestr(info, path.read_bytes())
 
 
+def options(argv, root=ROOT):
+    """(bundle parts, include .env): the .env and its API keys only with --include-env."""
+    parts = list(RUN) if "--minimal" in argv else RUN + COMPARE
+    return parts, "--include-env" in argv and (root / ".env").exists()
+
+
 if __name__ == "__main__":
-    parts = list(RUN) if "--minimal" in sys.argv else RUN + COMPARE
-    with_env = "--no-env" not in sys.argv and (ROOT / ".env").exists()
+    if "--no-env" in sys.argv:
+        print("--no-env is the default now; add --include-env to bundle your .env")
+    parts, with_env = options(sys.argv)
     OUT.parent.mkdir(exist_ok=True)
 
     with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as archive:

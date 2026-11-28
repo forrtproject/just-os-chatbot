@@ -65,9 +65,9 @@ def execute_concurrent_tasks(
 
 
 # Network utilities
-def load_url(url: str) -> bytes:
-    """Load data from a URL and return the raw bytes."""
-    with urllib.request.urlopen(url) as conn:
+def load_url(url: str, timeout: float = 60) -> str:
+    """Load a URL and return its body decoded as UTF-8 text."""
+    with urllib.request.urlopen(url, timeout=timeout) as conn:
         return conn.read().decode("utf-8")
 
 
