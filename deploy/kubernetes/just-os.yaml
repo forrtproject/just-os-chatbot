@@ -77,6 +77,9 @@ spec:
     metadata:
       labels: {app: just-os, component: web}
     spec:
+      # Terminating pod stops taking new requests immediately and drains within 30 s, before the replacement
+      # pod finishes loading bge-m3 + FAISS (~60 s) and passes /ready — preventing 3-pod overlap on uniGPT's 4-call cap
+      terminationGracePeriodSeconds: 30
       securityContext: {runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000, runAsNonRoot: true}
       containers:
         - name: web

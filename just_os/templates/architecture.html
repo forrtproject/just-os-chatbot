@@ -195,7 +195,7 @@
             them a yes/no prompt. Model <b>{{ prompts.intent.model }}</b>, one JSON value through a forced tool call.</p>
         {{ prompt("Three-way prompt (used with FORRT pages)", prompts.intent.prompt) }}
         {{ prompt("Yes/no prompt (no FORRT pages)", prompts.classify.prompt) }}
-        {{ cfg(["ROUTER", "DECISION_ROUTER", "DECISION_ROUTER_MODEL", "DECISION_ROUTER_MIN_CONFIDENCE", "DECISION_TIMEOUT", "DECISION_URL", "DECISION_API_KEY",
+        {{ cfg(["ROUTER", "DECISION_ROUTER", "DECISION_ROUTER_MODEL", "DECISION_ROUTER_MIN_CONFIDENCE", "DECISION_TIMEOUT", "DECISION_URL", "DECISION_API_KEY", "OPENROUTER_API_KEY",
                 "COSINE_PAPER_MIN", "COSINE_PAGE_MIN", "BAND_PAPER_LOW", "BAND_PAPER_HIGH", "BAND_PAGE_LOW", "BAND_PAGE_HIGH",
                 "BAND_MIDDLE_ROUTER", "GENERAL_MODEL", "EMBEDDING_MODEL", "FORRT_LOOKUP"]) }}
         <h4>Which model does what</h4>
@@ -339,11 +339,12 @@
         {% endif %}
         <p>With <code>stream</code>, the visible part is sent while it is written (nothing before [Response_Start], no half-written
             "[…"). A failed call (error, time-out, empty answer) is tried <code>LLM_RETRIES</code> more times, each waiting at most
-            <code>LLM_TIMEOUT</code> s (after an HTTP 429 as long as its Retry-After says, at most 10 s). A stream that breaks off
+            <code>LLM_TIMEOUT</code> s (after an HTTP 429 as long as its Retry-After says, at most 10 s), with all tries and fallbacks
+            sharing one <code>LLM_DEADLINE</code> budget. A stream that breaks off
             mid-answer is not shown as the answer: the page drops the draft and the answer is asked for again without streaming.
             <code>MAX_CONCURRENT_LLM_CALLS</code> caps the calls one process makes at once (prod: 2 per pod). An answer without
             any [n] citation that came back within <code>LLM_TIMEOUT</code> is asked for once more.</p>
-        {{ cfg(["CITATION_MODEL", "PROMPT_STYLE", "TEMPERATURE", "MAX_ANSWER_TOKENS", "LLM_RETRIES", "LLM_TIMEOUT", "MAX_CONCURRENT_LLM_CALLS", "NO_REASONING_MODELS", "BASE_URL"]) }}
+        {{ cfg(["CITATION_MODEL", "PROMPT_STYLE", "TEMPERATURE", "MAX_ANSWER_TOKENS", "LLM_RETRIES", "LLM_TIMEOUT", "LLM_DEADLINE", "MAX_CONCURRENT_LLM_CALLS", "NO_REASONING_MODELS", "BASE_URL"]) }}
         {% endcall %}
 
         {% call step("q-citations", "13. Citations and the Sources box", "both") %}

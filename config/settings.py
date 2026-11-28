@@ -10,7 +10,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # OpenScholar runs only on the RUG gateway: set BASE_URL=https://llm.hpc.rug.nl/,
     # LLM_API_KEY=<RUG key>, CITATION_MODEL=openscholar, GENERAL_MODEL=default-chat
     "BASE_URL": "https://openrouter.ai/api/v1",
-    "LLM_API_KEY": os.getenv("OPENROUTER_API_KEY"),
+    # Explicit answer-model key; when unset, OpenAIClientManager falls back to OPENROUTER_API_KEY
+    # only when BASE_URL has OpenRouter's origin (never sent to uniGPT or another custom host)
+    "LLM_API_KEY": None,
     "CITATION_MODEL": "meta-llama/llama-3.1-8b-instruct",
     # Rewrites follow-ups and is the topic check's fallback. Gemma 4 31B since 25 Nov 2026: Llama 3.1 8B copied the
     # previous answer into rewrites (docs/evaluation.md 3.25); web-prod uses the same model on uniGPT

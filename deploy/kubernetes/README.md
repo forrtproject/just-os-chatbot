@@ -76,7 +76,7 @@ Probes: `startupProbe` and `readinessProbe` call `/ready` with a 5 s timeout (20
 
 ## Updating
 
-- **Code:** build and push a new image tag, set it in the Deployment, `kubectl apply`. The rolling update replaces one pod at a time without a third pod (`maxSurge: 0`, `maxUnavailable: 1`): the other pod serves alone for about a minute while the new one loads. A surge pod would make 3 × 2 = 6 parallel uniGPT calls possible, over the key's 4.
+- **Code:** build and push a new image tag, set it in the Deployment, `kubectl apply`. If an earlier version installed the optional 4-replica HPA, delete it first (`kubectl -n just-os delete hpa just-os-web --ignore-not-found`) so `kubectl apply` does not leave it active. The rolling update replaces one pod at a time without a third pod (`maxSurge: 0`, `maxUnavailable: 1`, `terminationGracePeriodSeconds: 30`): the terminating pod drains before the replacement pod finishes loading models (~60 s) and passes `/ready`, keeping active pods within uniGPT's 4-call limit.
 - **More pods:** only after uniGPT raises the 4 parallel requests per key, or with `MAX_CONCURRENT_LLM_CALLS: "1"` (up to 4 pods). Keep (replicas + `maxSurge`) × `MAX_CONCURRENT_LLM_CALLS` and an HPA's `maxReplicas` × `MAX_CONCURRENT_LLM_CALLS` within the limit; `test/test_deploy_config.py` checks both.
 - **Index** (glossary, new papers): copy the new `vs_latest_bge-m3_glossary` into the data volume as in step 4, then `kubectl rollout restart deployment/just-os-web`.
 - **Model or settings:** edit the ConfigMap, apply, restart the Deployment.

@@ -28,7 +28,7 @@ from just_os.answer_cache import AnswerCache
 from just_os import trace
 from just_os.chat_manager import ChatManager
 from just_os.clusters import ClusterBoost, document_clusters
-from just_os.decisions import DECISION_ROUTERS, DecisionClient
+from just_os.decisions import DECISION_ROUTERS, DEFAULT_BASE_URL, DecisionClient, origin
 from just_os.forrt_lookup import ForrtLookup
 from just_os import forrt_checks as checks
 from just_os.forrt_pages import ForrtPages
@@ -356,6 +356,8 @@ class QueryProcessor:
             tools=tools,
             tool_choice=tool_choice,
         )
+        if response is None and getattr(self.client_manager, "last_call_timed_out_for_slot", lambda: False)():
+            return None
         try:
             return json.loads(
                 response.choices[0].message.tool_calls[0].function.arguments
@@ -866,7 +868,13 @@ class OpenAIClientManager:
             config: Configuration dictionary
         """
         self.config = config
-        self.api_key = config["LLM_API_KEY"]
+        explicit_key = config.get("LLM_API_KEY")
+        if explicit_key is not None and explicit_key != "":
+            self.api_key = explicit_key
+        elif origin(config.get("BASE_URL")) == origin(DEFAULT_BASE_URL):
+            self.api_key = config.get("OPENROUTER_API_KEY") or ""
+        else:
+            self.api_key = ""
         if not self.api_key:
             logger.warning("LLM_API_KEY / OPENROUTER_API_KEY environment variable not set")
 
@@ -887,6 +895,18 @@ class OpenAIClientManager:
         # (uniGPT takes 4 parallel requests per key: 2 pods x 2)
         slots = int(config.get("MAX_CONCURRENT_LLM_CALLS") or 0)
         self._llm_slots = threading.BoundedSemaphore(slots) if slots > 0 else None
+        self._slot_state = threading.local()
+
+    def last_call_timed_out_for_slot(self) -> bool:
+        state = getattr(self, "_slot_state", None)
+        return bool(getattr(state, "slot_timeout", False)) if state is not None else False
+
+    def _error_text(self, error: Exception) -> str:
+        """In PROD_MODE, omit raw SDK error bodies (providers can echo prompt/classifier text)."""
+        if self.config.get("PROD_MODE"):
+            status = getattr(error, "status_code", None)
+            return f"{error.__class__.__name__} (status={status})" if status is not None else error.__class__.__name__
+        return str(error) or error.__class__.__name__
 
     @contextlib.contextmanager
     def llm_slot(self, timeout: Optional[float] = None):
@@ -1003,6 +1023,9 @@ class OpenAIClientManager:
         per_try, total = self.budget(model)
         if deadline is None:
             deadline = time.monotonic() + total
+        state = getattr(self, "_slot_state", None)
+        if state is not None:
+            state.slot_timeout = False
         response, wait = None, first_wait
         for attempt in range(retries + 1):
             pause = wait if wait is not None else (min(2 ** (attempt - 1), 4) if attempt else 0)
@@ -1021,9 +1044,15 @@ class OpenAIClientManager:
                     if remaining <= 0:
                         raise LLMSlotTimeout("LLM_DEADLINE passed while waiting for a slot")
                     response = client.chat.completions.create(**kwargs, timeout=min(per_try, remaining))
+                if time.monotonic() > deadline:
+                    logger.error(f"OpenAI call exceeded LLM_DEADLINE ({model}, try {attempt + 1} of {retries + 1})")
+                    response = None
+                    break
             except Exception as e:
-                logger.error(f"OpenAI API error ({model}, try {attempt + 1} of {retries + 1}): {str(e)}")
+                logger.error(f"OpenAI API error ({model}, try {attempt + 1} of {retries + 1}): {self._error_text(e)}")
                 response = None
+                if isinstance(e, LLMSlotTimeout) and state is not None:
+                    state.slot_timeout = True
                 if getattr(e, "status_code", None) in NO_RETRY_STATUS or isinstance(e, LLMSlotTimeout):
                     # a wrong key, a missing model or a bad request: the same answer every time; no free slot:
                     # waiting again would only push the answer past WEB_TIMEOUT
@@ -1084,6 +1113,8 @@ class OpenAIClientManager:
                     timeout=min(per_try, remaining), **options,
                 ) as response:
                     for chunk in response:
+                        if time.monotonic() > deadline:
+                            raise TimeoutError("LLM_DEADLINE passed while streaming")
                         usage = getattr(chunk, "usage", None) or usage
                         for choice in getattr(chunk, "choices", None) or ():
                             if getattr(choice, "finish_reason", None):
@@ -1102,8 +1133,9 @@ class OpenAIClientManager:
             logger.error(f"OpenAI stream ({model}): {error}")
             raise
         except Exception as e:
-            logger.error(f"OpenAI API error (stream, after {sent} characters): {str(e)}")
-            error, wait = str(e) or e.__class__.__name__, self.retry_after(e)
+            err_text = self._error_text(e)
+            logger.error(f"OpenAI API error (stream, after {sent} characters): {err_text}")
+            error, wait = err_text, self.retry_after(e)
         finally:
             if traced:
                 trace.llm_call(model, started, usage, error=error, stream=True)

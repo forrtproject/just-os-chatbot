@@ -313,13 +313,13 @@ class ForrtPages:
                 resp.raise_for_status()
                 body = bytearray()
                 for piece in resp.iter_bytes():
+                    if time.monotonic() > deadline:  # httpx's timeout is per read, not for the whole body
+                        raise TimeoutError("FORRT_FETCH_TIMEOUT passed while reading")
                     body += piece
                     if len(body) >= MAX_PAGE_BYTES:
                         logger.warning(f"FORRT page {url[:200]} is larger than {MAX_PAGE_BYTES} bytes; read in part")
                         del body[MAX_PAGE_BYTES:]
                         break
-                    if time.monotonic() > deadline:  # httpx's timeout is per read, not for the whole body
-                        raise TimeoutError("FORRT_FETCH_TIMEOUT passed while reading")
                 return bytes(body).decode(getattr(resp, "encoding", None) or "utf-8", errors="replace"), url
         raise ValueError(f"more than {MAX_REDIRECTS} redirects")
 

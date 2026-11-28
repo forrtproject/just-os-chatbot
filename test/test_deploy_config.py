@@ -68,10 +68,14 @@ def test_the_kubernetes_deployment_stays_within_unigpts_parallel_requests():
     slots = int(kind("ConfigMap")[0]["data"]["MAX_CONCURRENT_LLM_CALLS"])
     replicas = deployment["spec"]["replicas"]
     surge = deployment["spec"]["strategy"]["rollingUpdate"]["maxSurge"]
-    assert isinstance(surge, int)  # a percentage would hide the number of extra pods
-    assert slots >= 1 and (replicas + surge) * slots <= UNIGPT_PARALLEL_REQUESTS  # also during a rollout
+    grace = deployment["spec"]["template"]["spec"].get("terminationGracePeriodSeconds")
+    assert isinstance(surge, int) and surge == 0  # no extra surge pod during rollout
+    assert isinstance(grace, int) and 0 < grace <= 30  # terminating pod exits before new pod loads (~60 s)
+    assert slots >= 1 and (replicas + surge) * slots <= UNIGPT_PARALLEL_REQUESTS
     for hpa in kind("HorizontalPodAutoscaler"):
         assert hpa["spec"]["maxReplicas"] * slots <= UNIGPT_PARALLEL_REQUESTS
+    readme = (ROOT / "deploy/kubernetes/README.md").read_text()
+    assert "delete hpa just-os-web" in readme
 
 
 def test_the_probes_wait_longer_than_one_redis_timeout():

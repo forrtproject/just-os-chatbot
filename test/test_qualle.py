@@ -1015,3 +1015,77 @@ def test_the_installed_openai_sdk_stream_is_read_closed_and_checked_for_its_fini
         for piece in manager.stream_chat_completion("m", [{"role": "user", "content": "q"}]):
             got.append(piece)
     assert got == ["Open data ", "is"]
+
+
+def test_openrouter_key_is_never_sent_to_a_custom_base_url():
+    openrouter = qualle.OpenAIClientManager({
+        "LLM_API_KEY": None, "OPENROUTER_API_KEY": "or-secret",
+        "BASE_URL": "https://openrouter.ai/api/v1", "OPENSCHOLAR_BASE_URL": "",
+    })
+    assert openrouter.api_key == "or-secret"
+    custom = qualle.OpenAIClientManager({
+        "LLM_API_KEY": None, "OPENROUTER_API_KEY": "or-secret",
+        "BASE_URL": "https://gpt.uni-muenster.de/v1", "OPENSCHOLAR_BASE_URL": "",
+    })
+    assert custom.api_key == ""
+
+
+def test_completion_past_deadline_is_rejected_and_structured_output_does_not_wait_twice(monkeypatch):
+    from types import SimpleNamespace
+
+    now = [100.0]
+    monkeypatch.setattr(qualle.time, "monotonic", lambda: now[0])
+    manager = qualle.OpenAIClientManager({
+        "LLM_API_KEY": "k", "BASE_URL": "https://llm.test/v1", "OPENSCHOLAR_BASE_URL": "",
+        "LLM_TIMEOUT": 60, "LLM_DEADLINE": 120, "LLM_RETRIES": 0,
+    })
+
+    def slow_create(**kwargs):
+        now[0] += 121.0
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="late"), finish_reason="stop")])
+
+    manager._client_for = lambda model: SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=slow_create)), base_url="https://llm.test/v1"
+    )
+    assert manager.create_chat_completion("m", [{"role": "user", "content": "q"}]) is None
+
+    # Saturated slot: _structured_output must not fall back to plain JSON for a second slot wait
+    calls = []
+    saturated = qualle.OpenAIClientManager({
+        "LLM_API_KEY": "k", "BASE_URL": "https://llm.test/v1", "OPENSCHOLAR_BASE_URL": "",
+        "LLM_TIMEOUT": 0.01, "LLM_DEADLINE": 1, "LLM_RETRIES": 0, "MAX_CONCURRENT_LLM_CALLS": 1,
+    })
+    saturated._llm_slots.acquire()
+    orig_create = saturated.create_chat_completion
+
+    def tracking(*args, **kwargs):
+        calls.append(kwargs.get("tools") is not None)
+        return orig_create(*args, **kwargs)
+
+    saturated.create_chat_completion = tracking
+    proc = qualle.QueryProcessor(saturated, {"GENERAL_MODEL": "m"}, None)
+    assert proc._structured_output("prompt", "flag", "boolean") is None
+    assert calls == [True]  # only the tool-call attempt ran, no second wait for plain JSON
+
+
+def test_prod_mode_redacts_raw_sdk_error_body(caplog):
+    from types import SimpleNamespace
+
+    manager = qualle.OpenAIClientManager({
+        "LLM_API_KEY": "k", "BASE_URL": "https://llm.test/v1", "OPENSCHOLAR_BASE_URL": "",
+        "LLM_RETRIES": 0, "PROD_MODE": True,
+    })
+
+    class FakeApiError(Exception):
+        status_code = 400
+
+    def fail(**kwargs):
+        raise FakeApiError("Bad request echoing SECRET_USER_QUESTION")
+
+    manager._client_for = lambda model: SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=fail)), base_url="https://llm.test/v1"
+    )
+    with caplog.at_level("ERROR", logger="just_os.qualle"):
+        assert manager.create_chat_completion("m", [{"role": "user", "content": "q"}]) is None
+    assert "SECRET_USER_QUESTION" not in caplog.text
+    assert "FakeApiError" in caplog.text and "400" in caplog.text
