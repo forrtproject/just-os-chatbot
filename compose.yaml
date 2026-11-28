@@ -107,7 +107,8 @@ services:
       LLM_API_KEY: "${UNIGPT_API_KEY:-missing-UNIGPT_API_KEY}"
       CITATION_MODEL: "gemma-4-31B-it"
       GENERAL_MODEL: "gemma-4-31B-it"
-      DECISION_API_KEY: "${OPENROUTER_API_KEY:-}"
+      # a placeholder too: an empty key would fail every decision call (it never falls back to the uniGPT key)
+      DECISION_API_KEY: "${OPENROUTER_API_KEY:-missing-OPENROUTER_API_KEY}"
       ROUTER: "banded"
       FLASK_DEBUG: "false"
       WEB_RELOAD: "false"

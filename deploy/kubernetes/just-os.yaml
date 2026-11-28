@@ -28,7 +28,8 @@ data:
   WEB_CONCURRENCY: "1"         # one worker per pod: each worker loads its own ~4 GB
   WEB_RELOAD: "false"
   WEB_TIMEOUT: "300"
-  OMP_NUM_THREADS: "2"
+  OMP_NUM_THREADS: "2"          # bge-m3's CPU threads per question (kept: RERANK=false never raises it)
+  MAX_CONCURRENT_LLM_CALLS: "2" # per pod: 2 pods x 2 = uniGPT's 4 parallel requests per key; others wait
   LLAMA_INDEX_CACHE_DIR: "/home/python/.cache/huggingface/hub"
   HF_HUB_OFFLINE: "1"          # bge-m3 is in the models PVC: no download at start
 ---
@@ -40,7 +41,7 @@ metadata:
   name: just-os-data
   labels: {app: just-os}
 spec:
-  accessModes: [ReadOnlyMany]
+  accessModes: [ReadWriteMany]   # the copy pod writes it once; the web pods mount it readOnly
   resources: {requests: {storage: 3Gi}}
 ---
 apiVersion: v1
@@ -49,7 +50,7 @@ metadata:
   name: just-os-models
   labels: {app: just-os}
 spec:
-  accessModes: [ReadOnlyMany]
+  accessModes: [ReadWriteMany]
   resources: {requests: {storage: 5Gi}}
 ---
 apiVersion: apps/v1
@@ -84,15 +85,15 @@ spec:
           resources:
             requests: {cpu: "1", memory: 5Gi}
             limits: {cpu: "4", memory: 6Gi}
-          startupProbe:                # the model and index load for about a minute
-            httpGet: {path: /up, port: http}
+          startupProbe:                # the model and index load for about a minute; /ready: loaded and Redis answers
+            httpGet: {path: /ready, port: http}
             periodSeconds: 10
             failureThreshold: 30
-          readinessProbe:
-            httpGet: {path: /up, port: http}
+          readinessProbe:              # 503 while the service is not loaded or Redis is unreachable: no traffic
+            httpGet: {path: /ready, port: http}
             periodSeconds: 15
             timeoutSeconds: 3
-          livenessProbe:
+          livenessProbe:               # /up: the process answers (restarts a hung pod, not one waiting for Redis)
             httpGet: {path: /up, port: http}
             periodSeconds: 60
             timeoutSeconds: 3

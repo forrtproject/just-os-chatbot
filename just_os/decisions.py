@@ -12,6 +12,7 @@ The endpoint is in alpha: every caller falls back when a call fails.
 import logging
 import time
 from typing import Any, Dict, Optional, Tuple
+from urllib.parse import urlparse
 
 import httpx
 
@@ -46,11 +47,27 @@ ROUTES = {
 }
 
 
+DEFAULT_DECISION_URL = "https://openrouter.ai/api/alpha/decisions"
+DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
+
+
+def decision_api_key(config: Dict[str, Any], url: str) -> str:
+    """The key sent to DECISION_URL. DECISION_API_KEY when it is set, even empty. Unset (None or missing): LLM_API_KEY,
+    but only when BASE_URL is on the same host as DECISION_URL, so a uniGPT key never goes to OpenRouter."""
+    key = config.get("DECISION_API_KEY")
+    if key is not None:
+        return key
+    answers_host = urlparse(config.get("BASE_URL") or DEFAULT_BASE_URL).hostname
+    if answers_host and answers_host == urlparse(url).hostname:
+        return config.get("LLM_API_KEY") or ""
+    return ""
+
+
 class DecisionClient:
     def __init__(self, config: Dict[str, Any]):
-        self.url = config.get("DECISION_URL", "https://openrouter.ai/api/alpha/decisions")
+        self.url = config.get("DECISION_URL", DEFAULT_DECISION_URL)
         # its own key: with BASE_URL on another provider (uniGPT), the decision models stay on OpenRouter
-        self.api_key = config.get("DECISION_API_KEY") or config.get("LLM_API_KEY", "")
+        self.api_key = decision_api_key(config, self.url)
         self.timeout = config.get("DECISION_TIMEOUT", 8)
 
     def decide(self, model: str, state: str, questions: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:

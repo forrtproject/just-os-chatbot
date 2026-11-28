@@ -25,6 +25,8 @@ class ChatManager:
         """
         self.redis = redis_client or get_redis_client()
         self.message_ttl = DEFAULT_CONFIG["MESSAGE_TTL"]
+        # the newest messages kept per chat (a question and its answer are two); 0 = all
+        self.max_messages = DEFAULT_CONFIG.get("MAX_HISTORY_MESSAGES", 20)
         logger.debug("ChatManager initialized")
 
     def add_message(self, chat_id: str, message: Dict[str, Any]) -> bool:
@@ -41,11 +43,14 @@ class ChatManager:
         key = f"chat:{chat_id}"
         
         try:
-            # Add message to list
-            self.redis.lpush(key, json.dumps(message))
-            
-            # Reset TTL on new message
-            self.redis.expire(key, self.message_ttl)
+            # One transaction: add the message (the list is newest first), keep the newest
+            # MAX_HISTORY_MESSAGES, reset the TTL. A chat can never grow without bound.
+            pipe = self.redis.pipeline(transaction=True)
+            pipe.lpush(key, json.dumps(message))
+            if self.max_messages > 0:
+                pipe.ltrim(key, 0, self.max_messages - 1)
+            pipe.expire(key, self.message_ttl)
+            pipe.execute()
             logger.debug(f"Added message to chat {chat_id}")
             return True
         except RedisError as e:

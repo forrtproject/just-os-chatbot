@@ -6,6 +6,7 @@ import random
 import secrets
 import threading
 import re
+import sys
 import uuid
 from datetime import datetime, timezone
 from typing import Dict, Any, Generator, Optional, Tuple
@@ -20,6 +21,7 @@ from werkzeug.exceptions import TooManyRequests
 from config.settings import get_config
 from just_os.clusters import SUGGESTED_QUESTIONS
 from just_os.chat_manager import ChatManager
+from just_os.database import redis_timeouts
 from just_os import article_list, criteria
 from just_os import eval_report
 from just_os.scores import SCALE as SCORE_SCALE, row as scores_row
@@ -44,6 +46,16 @@ APPEND_LOCK = threading.Lock()  # chat, feedback and arena logs (_append_jsonl)
 # 404 in PROD_MODE (with /chat/feedback: nothing to rate, nowhere to save)
 TEAM_PAGES = ("/eval", "/review", "/topics", "/arena", "/chat/feedback", "/recommend", "/articles", "/architecture")
 MAX_RECOMMENDATIONS = 20  # DOIs or links per /recommend form
+# chat_id: the chat's Redis key (chat:<chat_id>). The page sends a UUID; the forrt.org widget's format is not in this
+# repository, so any printable ASCII without spaces is accepted (a number too), only the length is capped.
+CHAT_ID_PATTERN = re.compile(r"[\x21-\x7e]{1,128}")
+
+
+def valid_chat_id(chat_id) -> Optional[str]:
+    """The chat_id as a string, or None when it is missing, too long or not printable ASCII."""
+    if isinstance(chat_id, int) and not isinstance(chat_id, bool):
+        chat_id = str(chat_id)
+    return chat_id if isinstance(chat_id, str) and CHAT_ID_PATTERN.fullmatch(chat_id) else None
 
 
 def recommendation_rows(data: dict) -> Tuple[Optional[str], list]:
@@ -168,6 +180,10 @@ class RateLimitManager:
             app=self.app,
             storage_uri=f"redis://{config['REDIS_HOST']}:{config['REDIS_PORT']}/{config['REDIS_DB']}",
             strategy="fixed-window",
+            storage_options=redis_timeouts(),  # a hung Redis fails fast, so swallow_errors can let the request through
+            # Redis briefly unreachable: let requests through without counting them, instead of
+            # answering every rate-limited request (all of /chat) with HTTP 500
+            swallow_errors=True,
         )
 
         # Register error handler for rate limit exceeded
@@ -226,6 +242,7 @@ class FlaskApp:
 
         # Initialize Flask app
         self.app = Flask(__name__, static_folder="../public", static_url_path="")
+        self.app.extensions["just_os"] = self  # config/gunicorn.py preloads the RAG service through this object
         self.app.secret_key = os.getenv("SECRET_KEY", secrets.token_hex(16))
         self.app.config.update(self.config)
         if self.config["PROXY_FIX_X_FOR"]:
@@ -235,6 +252,7 @@ class FlaskApp:
         # Initialize components
         self.chat_manager = ChatManager()
         self._rag_service = None
+        self._rag_init_error: Optional[str] = None  # the last failed load (get_rag_service), for /ready
 
         # Initialize rate limiting
         self.rate_limit_manager = RateLimitManager(self.app, self.config)
@@ -363,6 +381,12 @@ class FlaskApp:
                     }
                 ), 400
 
+            chat_id = valid_chat_id(chat_id)
+            if chat_id is None:
+                return jsonify({"status": "error", "message": "Invalid chat_id (at most 128 characters, no spaces)."}), 400
+            if not isinstance(user_message, str):
+                return jsonify({"status": "error", "message": "'message' must be text."}), 400
+
             # Validate message content
             is_valid, error_msg = self._validate_message(user_message)
             if not is_valid:
@@ -420,7 +444,9 @@ class FlaskApp:
                 return jsonify({"status": "error", "message": problem}), 400
             name = re.sub(r"[^a-z0-9]+", "-", rows[0]["scorer"].lower()).strip("-")[:40] or "reviewer"
             folder = self.config.get("SCORES_DIR", "data/scores")
-            path = os.path.join(folder, f"scores_review_{name}_{datetime.now(timezone.utc):%y%m%d-%H%M%S}.jsonl")
+            # microseconds and a random suffix: two saves in the same second ("x" below) must not collide
+            stamp = f"{datetime.now(timezone.utc):%y%m%d-%H%M%S-%f}-{secrets.token_hex(3)}"
+            path = os.path.join(folder, f"scores_review_{name}_{stamp}.jsonl")
             try:
                 os.makedirs(folder, exist_ok=True)
                 with open(path, "x", encoding="utf-8") as f:
@@ -557,8 +583,21 @@ class FlaskApp:
 
         @self.app.route("/up")
         def up():
-            """Health check for Docker and load balancers."""
+            """Liveness (Docker healthcheck, Kubernetes livenessProbe): the process answers."""
             return "ok"
+
+        @self.app.route("/ready")
+        def ready():
+            """Readiness (Kubernetes startupProbe and readinessProbe): the models and index are loaded and Redis
+            answers. Only reads state: never starts a load or waits for one (the probe times out in 3 s)."""
+            rag = self._rag_state()
+            try:
+                redis = "ok" if self.chat_manager.redis.ping() else "unreachable"
+            except Exception as error:
+                logger.warning("Readiness: Redis ping failed: %s", error)
+                redis = "unreachable"
+            ok = rag == "ok" and redis == "ok"
+            return jsonify({"status": "ready" if ok else "not ready", "rag": rag, "redis": redis}), 200 if ok else 503
 
         @self.app.route("/arena")
         def arena():
@@ -614,6 +653,7 @@ class FlaskApp:
             )
 
         @self.app.route("/arena/rate", methods=["POST"])
+        @self.rate_limit_manager.limiter.limit(self.rate_limit_manager.get_chat_rate_limit)
         def arena_rate():
             """Store ratings per answer and criterion, then reveal the model names."""
             if not self.config["ARENA_ENABLED"]:
@@ -623,13 +663,18 @@ class FlaskApp:
             if not valid_ratings(ratings):
                 names = ", ".join(ARENA_CRITERIA)
                 return jsonify({"status": "error", "message": f"Rate each answer {criteria.SCALE[0]}-{criteria.SCALE[-1]} on: {names}."}), 400
-            # getdel: one rating round per battle
-            battle = self.chat_manager.redis.getdel(f"arena:battle:{data.get('battle_id')}")
+            key = f"arena:battle:{data.get('battle_id')}"
+            # check the labels before the battle is used up: a bad request must leave it to rate again
+            battle = self.chat_manager.redis.get(key)
+            if battle is None:
+                return jsonify({"status": "error", "message": "Unknown or already rated battle."}), 404
+            if any(label not in json.loads(battle)["answers"] for label in ratings):
+                return jsonify({"status": "error", "message": "Unknown answer label."}), 400
+            # getdel: one rating round per battle (a second request that got here at the same time finds nothing)
+            battle = self.chat_manager.redis.getdel(key)
             if battle is None:
                 return jsonify({"status": "error", "message": "Unknown or already rated battle."}), 404
             battle = json.loads(battle)
-            if any(label not in battle["answers"] for label in ratings):
-                return jsonify({"status": "error", "message": "Unknown answer label."}), 400
             now = datetime.now(timezone.utc).isoformat(timespec="seconds")
             rows = [
                 json.dumps({
@@ -850,13 +895,26 @@ class FlaskApp:
             try:
                 from just_os.rag_service import create_rag_service
 
+                # one load per process (rag_service's lock); a recent failure is not retried at once
                 self._rag_service = create_rag_service(self.config, self.chat_manager)
+                self._rag_init_error = None
                 logger.debug("RAG service initialized")
             except Exception as e:
+                self._rag_init_error = f"{e.__class__.__name__}: {e}"
                 logger.error(f"Failed to initialize RAG service: {str(e)}")
                 return None
 
         return self._rag_service
+
+    def _rag_state(self) -> str:
+        """ok, failed or loading, without loading anything (rag_service is only imported once a load began)."""
+        if self._rag_service is not None:
+            return "ok"
+        module = sys.modules.get("just_os.rag_service")
+        loaded, error = module.rag_status() if module is not None else (False, None)
+        if loaded:
+            return "ok"
+        return "failed" if (error or self._rag_init_error) else "loading"
 
     def create_app(self) -> Flask:
         """

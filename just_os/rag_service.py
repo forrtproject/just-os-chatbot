@@ -1,5 +1,7 @@
 import logging
-from typing import Dict, Any, List, Optional
+import threading
+import time
+from typing import Dict, Any, List, Optional, Tuple
 
 from llama_index.core import StorageContext, load_index_from_storage
 from llama_index.core.base.embeddings.base import BaseEmbedding
@@ -36,8 +38,21 @@ class VoyageEmbedding(BaseEmbedding):
         return self._get_query_embedding(query)
 
 
-# Singleton instance for the RAG service
+# Singleton instance for the RAG service. One lock: requests that arrive while the models load wait for that
+# load instead of starting their own (each load holds ~4 GB, so parallel loads ran the pod out of memory).
 _rag_service_instance: Optional[Qualle] = None
+_rag_lock = threading.Lock()
+# The last failed load: callers within INIT_RETRY_SECONDS get this error at once instead of loading again,
+# so a broken index or a missing model cannot turn every request into a new ~1 min load. After that one
+# caller tries again (Docker Compose restarts nothing; on Kubernetes the startup probe on /ready restarts the pod).
+_rag_init_error: Optional[str] = None
+_rag_init_failed_at = 0.0
+INIT_RETRY_SECONDS = 60
+
+
+def rag_status() -> Tuple[bool, Optional[str]]:
+    """(loaded, last load error) without loading or waiting for the lock (for /ready)."""
+    return _rag_service_instance is not None, _rag_init_error
 
 
 def create_embedding_model(config: Dict[str, Any]):
@@ -102,16 +117,34 @@ def create_rag_service(
     Returns:
         Qualle: The initialized RAG service instance
     """
-    global _rag_service_instance
+    global _rag_service_instance, _rag_init_error, _rag_init_failed_at
 
     # Return existing instance if available
     if _rag_service_instance is not None:
         return _rag_service_instance
 
+    with _rag_lock:
+        # a caller that waited for the lock finds the service another one just loaded, or its fresh error
+        if _rag_service_instance is not None:
+            return _rag_service_instance
+        if _rag_init_error is not None and time.monotonic() - _rag_init_failed_at < INIT_RETRY_SECONDS:
+            raise RuntimeError(f"RAG service failed to load (retry within {INIT_RETRY_SECONDS} s): {_rag_init_error}")
+        try:
+            _rag_service_instance = _build_rag_service(config, chat_manager)
+        except Exception as e:
+            _rag_init_error, _rag_init_failed_at = f"{e.__class__.__name__}: {e}", time.monotonic()
+            logger.error(f"Failed to create RAG service: {str(e)}")
+            raise
+        _rag_init_error = None
+        logger.debug("Created new Qualle instance")
+        return _rag_service_instance
+
+
+def _build_rag_service(config: Optional[Dict[str, Any]], chat_manager: Optional[ChatManager]) -> Qualle:
     logger.debug("Initializing RAG components")
 
     # Use default config if not provided
-    if config is None:  # the gunicorn preload (config/gunicorn.py): the same AUTO_DEFAULTS as the app
+    if config is None:  # without the app (eval scripts): the same AUTO_DEFAULTS as the app
         from just_os import eval_report
         from just_os.decisions import ROUTERS
 
@@ -122,23 +155,15 @@ def create_rag_service(
     if chat_manager is None:
         chat_manager = ChatManager()
 
-    try:
-        # Initialize embedding model
-        embed_model = create_embedding_model(config)
+    # Initialize embedding model
+    embed_model = create_embedding_model(config)
 
-        # Initialize retriever
-        index = load_index(config, embed_model)
-        retriever = create_retriever(config, embed_model, index)
-        # Questions about one specific paper (by DOI, title or authors) are answered from it alone
-        references = (ReferenceLookup.from_index(index, embed_model, config.get("PUB_YEARS_FILE"),
-                                                 excluded_documents(config.get("INDEX_CORRECTIONS_FILE")))
-                      if config.get("REFERENCE_LOOKUP", True) else None)
+    # Initialize retriever
+    index = load_index(config, embed_model)
+    retriever = create_retriever(config, embed_model, index)
+    # Questions about one specific paper (by DOI, title or authors) are answered from it alone
+    references = (ReferenceLookup.from_index(index, embed_model, config.get("PUB_YEARS_FILE"),
+                                             excluded_documents(config.get("INDEX_CORRECTIONS_FILE")))
+                  if config.get("REFERENCE_LOOKUP", True) else None)
 
-        # Create and store the Qualle instance
-        _rag_service_instance = Qualle(config, chat_manager, embed_model, retriever, references)
-        logger.debug("Created new Qualle instance")
-
-        return _rag_service_instance
-    except Exception as e:
-        logger.error(f"Failed to create RAG service: {str(e)}")
-        raise
+    return Qualle(config, chat_manager, embed_model, retriever, references)

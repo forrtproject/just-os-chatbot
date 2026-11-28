@@ -9,6 +9,17 @@ logger = logging.getLogger(__name__)
 _redis_client: Optional[Redis] = None
 
 
+def redis_timeouts() -> dict:
+    """REDIS_TIMEOUT for connecting and for each reply: a Redis that stops answering fails fast."""
+    seconds = DEFAULT_CONFIG.get("REDIS_TIMEOUT", 2)
+    return {"socket_connect_timeout": seconds, "socket_timeout": seconds}
+
+
+def redis_options() -> dict:
+    return {"host": DEFAULT_CONFIG["REDIS_HOST"], "port": DEFAULT_CONFIG["REDIS_PORT"],
+            "db": DEFAULT_CONFIG["REDIS_DB"], **redis_timeouts()}
+
+
 def get_redis_client() -> Redis:
     """
     Get or create a Redis client instance.
@@ -21,11 +32,7 @@ def get_redis_client() -> Redis:
 
     if _redis_client is None:
         try:
-            _redis_client = Redis(
-                host=DEFAULT_CONFIG["REDIS_HOST"],
-                port=DEFAULT_CONFIG["REDIS_PORT"],
-                db=DEFAULT_CONFIG["REDIS_DB"],
-            )
+            _redis_client = Redis(**redis_options())
             logger.debug("Redis client initialized")
         except Exception as e:
             logger.error(f"Failed to initialize Redis client: {str(e)}")

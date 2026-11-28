@@ -84,9 +84,9 @@ So one pod answers the embedding and search part of a question in about 0.2 s of
 | Object | Spec | Why |
 |---|---|---|
 | Deployment `just-os-web` | **2 replicas**, each `requests: cpu 1, memory 5Gi`, `limits: cpu 4, memory 6Gi`; `WEB_CONCURRENCY=1` (one worker; 8 gthreads); `OMP_NUM_THREADS=2` (bge-m3's threads per question) | 4.3 GB measured, bge-m3 included, + headroom; two replicas so a restart or node drain keeps the bot up; one worker per pod, since each worker loads its own copy (~4 GB) |
-| Probes | `readinessProbe` and `livenessProbe`: HTTP `GET /up`; `startupProbe` with `failureThreshold × periodSeconds` ≥ 180 s | the models and index load for about a minute; without a startup probe the pod is killed while loading |
+| Probes | `startupProbe` and `readinessProbe`: HTTP `GET /ready` (models and index loaded, Redis answers); `livenessProbe`: `GET /up`; `startupProbe` with `failureThreshold × periodSeconds` ≥ 180 s | the models and index load for about a minute; without a startup probe the pod is killed while loading; `/up` answers during a Redis outage, so the pods are not restarted for it |
 | Deployment `redis` | 1 replica, `requests: cpu 100m, memory 256Mi`, no persistence needed | holds 1-hour chat memory and rate-limit counters, shared by both web replicas (that is why it must be one Redis, not one per pod) |
-| Volumes | index + FORRT page index: a **ReadOnlyMany PVC** (~2 GB) or baked into the image; Hugging Face cache (bge-m3, ~2.3 GB): baked into the image or a PVC | no download at start; read-only, as in `compose.yaml` |
+| Volumes | index + FORRT page index: a **ReadWriteMany PVC** (~2 GB; written once by a helper pod, mounted read-only by the web pods) or baked into the image; Hugging Face cache (bge-m3, ~2.3 GB): baked into the image or a PVC | no download at start; read-only, as in `compose.yaml` |
 | Node | ≥ 4 vCPU, ≥ 16 GB RAM for two replicas + Redis (or two nodes with 8 GB); no GPU | |
 | Ingress | HTTPS, host for the widget; `PROXY_FIX_X_FOR=1` (one proxy) so the rate limit sees client IPs; `ALLOWED_ORIGINS=https://forrt.org` | the widget is embedded on forrt.org |
 | Egress | `gpt.uni-muenster.de` (answers), `openrouter.ai` (Jev, Clef), `forrt.org` (FORRT pages are fetched live per question) | NetworkPolicy, if the cluster restricts egress |

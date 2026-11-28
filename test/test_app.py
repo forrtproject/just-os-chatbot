@@ -498,3 +498,156 @@ def test_architecture_page_names_only_existing_settings_and_explains_every_optio
         pass
     else:
         raise AssertionError("an unknown setting must break the page")
+
+
+# --- readiness, Redis outages, request checks (prod reliability)
+
+
+class FakeChatRag:
+    def __init__(self):
+        self.chat_ids = []
+
+    def get_response(self, query, chat_id, model=None, **options):
+        self.chat_ids.append(chat_id)
+        yield {"status": "complete", "message": "<p>ok</p>", "outcome": "answered"}
+
+
+def test_ready_needs_the_loaded_service_and_redis(app, monkeypatch):
+    from just_os import rag_service
+
+    monkeypatch.setattr(rag_service, "_rag_service_instance", None)
+    monkeypatch.setattr(rag_service, "_rag_init_error", None)
+    client = app.app.test_client()
+    assert client.get("/ready").status_code == 200 and client.get("/ready").get_json()["status"] == "ready"
+
+    app._rag_service = None  # still loading
+    response = client.get("/ready")
+    assert response.status_code == 503 and response.get_json() == {"status": "not ready", "rag": "loading", "redis": "ok"}
+    app._rag_init_error = "OSError: no index"  # the load failed
+    assert client.get("/ready").get_json()["rag"] == "failed"
+    assert "no index" not in client.get("/ready").get_data(as_text=True)  # the reason stays in the log
+    app._rag_init_error = None
+    monkeypatch.setattr(rag_service, "_rag_init_error", "OSError: no index")  # failed in the gunicorn preload
+    assert client.get("/ready").get_json()["rag"] == "failed"
+
+    app._rag_service = FakeRag()
+
+    def down():
+        raise ConnectionError("redis down")
+
+    monkeypatch.setattr(app.chat_manager.redis, "ping", down)
+    response = client.get("/ready")
+    assert response.status_code == 503 and response.get_json()["redis"] == "unreachable"
+    assert client.get("/up").status_code == 200  # liveness does not depend on Redis
+
+
+def test_ready_never_starts_or_waits_for_a_load(app, monkeypatch):
+    from just_os import rag_service
+
+    monkeypatch.setattr(rag_service, "_rag_service_instance", None)
+    monkeypatch.setattr(rag_service, "_rag_init_error", None)
+
+    def no_load(*a, **k):
+        raise AssertionError("/ready must not load the service")
+
+    monkeypatch.setattr(rag_service, "create_rag_service", no_load)
+    app._rag_service = None
+    assert rag_service._rag_lock.acquire(blocking=False)  # a load in progress holds the lock
+    try:
+        assert app.app.test_client().get("/ready").status_code == 503
+    finally:
+        rag_service._rag_lock.release()
+    rag_service._rag_service_instance = object()  # loaded by the gunicorn preload
+    assert app.app.test_client().get("/ready").status_code == 200
+
+
+def memory_limited_app(monkeypatch, tmp_path, **limiter_options):
+    """A FlaskApp whose rate limiter is on and counts in memory instead of Redis."""
+    from just_os import app as app_module
+
+    real = app_module.Limiter
+    monkeypatch.setattr(app_module, "Limiter", lambda **kw: real(**{**kw, "storage_uri": "memory://", **limiter_options}))
+    flask_app = FlaskApp()
+    flask_app.config.update(ARENA_ENABLED=True, ARENA_MODELS="m1,m2", ROUTER="", RATE_LIMIT="1000/minute",
+                            ARENA_RATINGS_FILE=str(tmp_path / "ratings.jsonl"), ARENA_ROUNDS_FILE=str(tmp_path / "rounds.jsonl"),
+                            CHAT_LOG_FILE=str(tmp_path / "chats.jsonl"))
+    flask_app.chat_manager.redis = fakeredis.FakeRedis()
+    flask_app._rag_service = FakeChatRag()
+    return flask_app
+
+
+def test_a_redis_outage_does_not_fail_rate_limited_requests(monkeypatch, tmp_path):
+    def broken_storage(flask_app):
+        def boom(*a, **k):
+            raise ConnectionError("Redis unreachable")
+
+        storage = flask_app.rate_limit_manager.limiter.storage
+        for name in ("incr", "get", "get_expiry", "check"):
+            if hasattr(storage, name):
+                monkeypatch.setattr(storage, name, boom)
+
+    body = {"message": "What is open data?", "chat_id": "c1"}
+    flask_app = memory_limited_app(monkeypatch, tmp_path)
+    assert flask_app.rate_limit_manager.limiter._swallow_errors is True
+    broken_storage(flask_app)
+    response = flask_app.app.test_client().post("/chat", json=body)
+    assert response.status_code == 200 and json.loads(response.data.decode().splitlines()[-1])["status"] == "complete"
+
+    # the same outage without swallow_errors: every /chat request failed with HTTP 500
+    flask_app = memory_limited_app(monkeypatch, tmp_path, swallow_errors=False)
+    broken_storage(flask_app)
+    assert flask_app.app.test_client().post("/chat", json=body).status_code == 500
+
+
+def test_chat_id_must_be_short_printable_text(app):
+    app._rag_service = rag = FakeChatRag()
+    client = app.app.test_client()
+    post = lambda chat_id: client.post("/chat", json={"message": "What is open data?", "chat_id": chat_id})  # noqa: E731
+    for bad in ("x" * 129, "", "has space", "tab\there", {"a": 1}, ["c"], None, True, "ü-not-ascii"):
+        response = post(bad)
+        assert response.status_code == 400 and "chat_id" in response.get_json()["message"], bad
+    assert rag.chat_ids == []
+    for good in ("3f2a6c1e-8b4d-4c3a-9f1e-2d7b5a9c0e11", "x" * 128, "widget:abc_1.2", 1732800000000):
+        assert post(good).status_code == 200, good
+    assert rag.chat_ids[-1] == "1732800000000"  # a number from a widget becomes the same key every time
+    assert client.post("/chat", json={"message": ["What is open data?"], "chat_id": "c"}).status_code == 400
+
+
+def test_an_unknown_label_leaves_the_battle_to_rate_again(app):
+    client = app.app.test_client()
+    battle = ask(client)[1]["battle_id"]
+    bad = client.post("/arena/rate", json={"battle_id": battle, "ratings": {"Z": scores()}})
+    assert bad.status_code == 400 and bad.get_json()["message"] == "Unknown answer label."
+    assert app.chat_manager.redis.get(f"arena:battle:{battle}") is not None  # not used up by the bad request
+    good = client.post("/arena/rate", json={"battle_id": battle, "ratings": {"A": scores()}})
+    assert good.status_code == 200 and set(good.get_json()["models"].values()) == {"m1", "m2"}
+    assert client.post("/arena/rate", json={"battle_id": battle, "ratings": {"A": scores()}}).status_code == 404  # once
+
+
+def test_arena_rating_is_rate_limited(monkeypatch, tmp_path):
+    flask_app = memory_limited_app(monkeypatch, tmp_path)
+    flask_app.config["RATE_LIMIT"] = "2/minute"
+    client = flask_app.app.test_client()
+    codes = [client.post("/arena/rate", json={"battle_id": "x", "ratings": {"A": scores()}}).status_code for _ in range(3)]
+    assert codes == [404, 404, 429]
+
+
+def test_two_review_saves_in_the_same_second_both_save(app, tmp_path, monkeypatch):
+    from datetime import datetime as real_datetime, timezone
+    from just_os import app as app_module
+
+    class SameMoment(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return real_datetime(2026, 11, 28, 12, 0, 0, 123456, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(app_module, "datetime", SameMoment)
+    items = [{"key": "k1", "answer_id": "a#q1", "id": "q1", "question": "Q?", "answer": "A [0].", "sources": [], "rubric": []}]
+    (tmp_path / "items.json").write_text(json.dumps(items))
+    app.config.update(REVIEW_ITEMS_FILE=str(tmp_path / "items.json"), SCORES_DIR=str(tmp_path / "scores"))
+    client = app.app.test_client()
+    body = {"reviewer": "Ada", "scores": {"k1": {"decision": "right", "correctness": "4"}}}
+    first, second = client.post("/review/save", json=body), client.post("/review/save", json=body)
+    assert first.status_code == second.status_code == 200
+    assert first.get_json()["file"] != second.get_json()["file"]
+    assert len(list((tmp_path / "scores").iterdir())) == 2

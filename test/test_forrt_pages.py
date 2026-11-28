@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from just_os import decisions, forrt_checks, qualle
+from just_os import decisions, forrt_checks, forrt_pages, qualle
 from just_os.forrt_pages import ForrtPages, extract, trim
 from test_qualle import CONFIG, completion, make_qualle
 
@@ -330,5 +330,94 @@ def test_both_route_reads_the_forrt_page_instead_of_only_linking_it(tmp_path):
 
 
 def test_decision_models_keep_their_own_key_when_answers_go_elsewhere():
-    assert decisions.DecisionClient({"LLM_API_KEY": "unigpt", "DECISION_API_KEY": "openrouter"}).api_key == "openrouter"
-    assert decisions.DecisionClient({"LLM_API_KEY": "openrouter", "DECISION_API_KEY": ""}).api_key == "openrouter"
+    key = lambda **config: decisions.DecisionClient(config).api_key  # noqa: E731
+    unigpt = "https://gpt.uni-muenster.de/v1"
+    assert key(LLM_API_KEY="unigpt", DECISION_API_KEY="openrouter", BASE_URL=unigpt) == "openrouter"  # set
+    assert key(LLM_API_KEY="openrouter", DECISION_API_KEY="") == ""  # set but empty: never another key
+    assert key(LLM_API_KEY="unigpt", DECISION_API_KEY="", BASE_URL=unigpt) == ""
+    # unset: the answer key only when the answers go to the decisions API's host (OpenRouter by default)
+    assert key(LLM_API_KEY="openrouter") == "openrouter"
+    assert key(LLM_API_KEY="openrouter", DECISION_API_KEY=None, BASE_URL="https://openrouter.ai/api/v1") == "openrouter"
+    assert key(LLM_API_KEY="unigpt", BASE_URL=unigpt) == ""  # a uniGPT key is never sent to OpenRouter
+    assert key(LLM_API_KEY="unigpt", DECISION_API_KEY=None, BASE_URL=unigpt) == ""
+    assert key(LLM_API_KEY="rug", BASE_URL="https://openrouter.ai.evil.example/v1") == ""  # hostname, not a prefix
+
+
+def test_the_decision_call_never_carries_the_unigpt_key(monkeypatch):
+    sent = []
+    monkeypatch.setattr(decisions.httpx, "post", lambda url, **k: sent.append((url, k["headers"])) or SimpleNamespace(
+        raise_for_status=lambda: None, json=lambda: {"answers": {}}))
+    decisions.DecisionClient({"LLM_API_KEY": "unigpt-secret", "BASE_URL": "https://gpt.uni-muenster.de/v1"}).decide(
+        "cloudflare/clef", "state", {})
+    assert sent and "unigpt-secret" not in sent[0][1]["Authorization"]
+
+
+class RedirectWeb(FakeWeb):
+    """FakeWeb with HTTP redirects: redirects maps a URL to its Location header."""
+
+    def __init__(self, pages, redirects):
+        super().__init__(pages)
+        self.redirects = redirects
+
+    def get(self, url):
+        if url in self.redirects:
+            self.calls.append(url)
+            return SimpleNamespace(is_redirect=True, headers={"location": self.redirects[url]}, raise_for_status=lambda: None, text="")
+        return super().get(url)
+
+
+def test_redirects_are_followed_only_within_the_allowed_domains(tmp_path):
+    pages, _ = make_pages(tmp_path, [], [])
+    page = "<html><body><main><p>Phase 2 is open.</p></main></body></html>"
+    # a redirect within forrt.org (relative Location) is read at its new address
+    pages.http = RedirectWeb({"https://forrt.org/glossary/english/": page}, {"https://forrt.org/glossary/": "/glossary/english/"})
+    assert pages.fetch("https://forrt.org/glossary/")["markdown"] == "Phase 2 is open."
+    # a redirect to another site, or to a non-http scheme, is never requested
+    for location in ("https://evil.example/steal", "http://169.254.169.254/latest/meta-data/", "file:///etc/passwd",
+                     "https://forrt.org.evil.example/"):
+        pages.cache.clear()
+        pages.http = RedirectWeb({location: page}, {"https://forrt.org/moved/": location})
+        assert pages.fetch("https://forrt.org/moved/") == {"markdown": "", "status": "failed"}
+        assert pages.http.calls == ["https://forrt.org/moved/"]
+    # a later hop leaving forrt.org is caught too
+    pages.http = RedirectWeb({"https://evil.example/": page}, {"https://forrt.org/a/": "https://forrt.org/b/",
+                                                              "https://forrt.org/b/": "https://evil.example/"})
+    assert pages.fetch("https://forrt.org/a/")["status"] == "failed" and "https://evil.example/" not in pages.http.calls
+    # a redirect loop ends after MAX_REDIRECTS hops
+    pages.http = RedirectWeb({}, {"https://forrt.org/loop/": "https://forrt.org/loop/"})
+    assert pages.fetch("https://forrt.org/loop/")["status"] == "failed"
+    assert len(pages.http.calls) == forrt_pages.MAX_REDIRECTS + 1
+    # a meta-refresh stub pointing off-site is not followed
+    stub = "<html><head><meta http-equiv=refresh content=\"0; url=https://evil.example/\"></head><body><main><p>Moved.</p></main></body></html>"
+    pages.http = FakeWeb({"https://forrt.org/stub/": stub, "https://evil.example/": page})
+    assert pages.fetch("https://forrt.org/stub/")["markdown"] == "Moved." and pages.http.calls == ["https://forrt.org/stub/"]
+
+
+def test_the_live_client_does_not_follow_redirects_by_itself(tmp_path):
+    pages, _ = make_pages(tmp_path, [], [])
+    live = ForrtPages(pages.config, pages.embed_model, pages.client_manager, pages.decisions)
+    assert live.http.follow_redirects is False  # ForrtPages.get checks every hop instead
+
+
+def test_settings_tell_an_unset_decision_key_from_an_empty_one():
+    """config/settings.py: DECISION_API_KEY set (even empty) wins; an empty OPENROUTER_API_KEY counts as unset, so the
+    same-host fallback in decisions.decision_api_key still applies."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+
+    def key(**env):
+        clean = {k: v for k, v in os.environ.items() if k not in ("DECISION_API_KEY", "OPENROUTER_API_KEY")}
+        out = subprocess.run([sys.executable, "-c", "from config.settings import DEFAULT_CONFIG as c; print(repr(c['DECISION_API_KEY']))"],
+                             cwd=root, env={**clean, "PYTHONPATH": str(root), **env}, capture_output=True, text=True, check=True)
+        return out.stdout.strip()
+
+    assert key() == "None"
+    assert key(OPENROUTER_API_KEY="") == "None"
+    assert key(OPENROUTER_API_KEY="or-key") == "'or-key'"
+    assert key(OPENROUTER_API_KEY="or-key", DECISION_API_KEY="dec-key") == "'dec-key'"
+    assert key(OPENROUTER_API_KEY="or-key", DECISION_API_KEY="") == "''"
+

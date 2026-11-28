@@ -7,7 +7,7 @@ For the people who keep JUST-OS running on the University of Münster servers. S
 1. Run the tests on the commit you deploy: `docker compose exec web python -m pytest -q` (all green).
 2. Build and push the image with the commit as tag: `docker build --target app -t <registry>/just-os/web:$(git rev-parse --short HEAD) .` and `docker push …`.
 3. Set the new tag in `deploy/kubernetes/just-os.yaml` and `kubectl -n just-os apply -f deploy/kubernetes/just-os.yaml`. The rolling update keeps one pod serving.
-4. Check: `kubectl -n just-os get pods` (all ready), `curl https://<host>/up` (`ok`), one question on the forrt.org widget that cites papers, and `https://<host>/eval` gives 404.
+4. Check: `kubectl -n just-os get pods` (all ready), `curl https://<host>/up` (`ok`) and `curl https://<host>/ready` (`"status": "ready"`), one question on the forrt.org widget that cites papers, and `https://<host>/eval` gives 404.
 
 ## Update the index (new papers, glossary, abstract cards)
 

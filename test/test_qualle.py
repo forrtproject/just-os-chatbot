@@ -454,3 +454,249 @@ def test_an_empty_streamed_answer_falls_back_to_the_call_with_retries():
     q.response_generator.stream_response = lambda *a, **k: iter(())  # the stream gave nothing
     final = list(q.get_response("What is open data?", "chat", stream=True))[-1]
     assert final["outcome"] == "answered" and "Answer" in final["message"]
+
+
+# --- prod reliability: CPU threads, LLM slots, Retry-After, broken streams, failed turns, private logs
+
+
+def test_without_the_reranker_omp_num_threads_is_left_alone(monkeypatch):
+    calls = []
+    monkeypatch.setattr(qualle.torch, "set_num_threads", calls.append)
+    monkeypatch.setattr(qualle, "CrossEncoder", lambda name: f"model {name}")
+    base = {"RERANK_MODEL": "rr", "MAX_CHUNKS": 7, "MIN_RELEVANCE": 0.1, "RERANK_THREADS": 6}
+    qualle.DocumentRetriever({**base, "RERANK": False}, retriever=None)
+    assert calls == []  # prod: OMP_NUM_THREADS=2 stays 2
+    retriever = qualle.DocumentRetriever({**base, "RERANK": True}, retriever=None)
+    assert calls == [6] and retriever.reranker == "model rr"
+    qualle.DocumentRetriever({**base, "RERANK": False, "VERIFY_CITATIONS": True}, retriever=None)
+    assert calls == [6, 6]
+
+
+def answer(content="Answer."):
+    return SimpleNamespace(choices=[SimpleNamespace(finish_reason="stop", message=SimpleNamespace(content=content))])
+
+
+def test_max_concurrent_llm_calls_caps_calls_and_streams_across_threads():
+    import threading
+    import time as real_time
+
+    manager = qualle.OpenAIClientManager({"LLM_API_KEY": "k", "BASE_URL": "https://example.org/v1",
+                                          "OPENSCHOLAR_BASE_URL": "", "MAX_CONCURRENT_LLM_CALLS": 2, "LLM_TIMEOUT": 5})
+    lock, state = threading.Lock(), {"now": 0, "most": 0}
+
+    def busy():
+        with lock:
+            state["now"] += 1
+            state["most"] = max(state["most"], state["now"])
+        real_time.sleep(0.05)
+        with lock:
+            state["now"] -= 1
+
+    def create(stream=False, **kwargs):
+        if stream:
+            def pieces():
+                busy()
+                yield SimpleNamespace(usage=None, choices=[SimpleNamespace(delta=SimpleNamespace(content="Hi"))])
+                busy()
+            return pieces()
+        busy()
+        return answer()
+
+    manager._client_for = lambda model: SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    jobs = [lambda: manager.create_chat_completion("m", [{"role": "user", "content": "q"}]),
+            lambda: list(manager.stream_chat_completion("m", [{"role": "user", "content": "q"}]))] * 4
+    threads = [threading.Thread(target=job) for job in jobs]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(10)
+    assert state["most"] == 2
+    assert manager._llm_slots._value == 2  # every slot was given back
+
+    unlimited = qualle.OpenAIClientManager({"LLM_API_KEY": "k", "BASE_URL": "https://example.org/v1", "OPENSCHOLAR_BASE_URL": ""})
+    assert unlimited._llm_slots is None  # default 0: no limit
+
+
+def test_a_stream_the_reader_abandons_gives_its_slot_back():
+    manager = qualle.OpenAIClientManager({"LLM_API_KEY": "k", "BASE_URL": "https://example.org/v1",
+                                          "OPENSCHOLAR_BASE_URL": "", "MAX_CONCURRENT_LLM_CALLS": 1})
+    chunk = SimpleNamespace(usage=None, choices=[SimpleNamespace(delta=SimpleNamespace(content="Hi"))])
+    manager._client_for = lambda model: SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(
+        create=lambda **kw: iter([chunk] * 5))))
+    stream = manager.stream_chat_completion("m", [])
+    assert next(stream) == "Hi" and manager._llm_slots._value == 0
+    stream.close()  # the browser went away
+    assert manager._llm_slots._value == 1
+
+
+def test_http_429_waits_as_long_as_retry_after_says_capped(monkeypatch):
+    pauses = []
+    monkeypatch.setattr(qualle.time, "sleep", pauses.append)
+
+    class RateLimited(Exception):
+        status_code = 429
+
+        def __init__(self, retry_after):
+            super().__init__("429 Too Many Requests")
+            self.response = SimpleNamespace(headers={"retry-after": retry_after} if retry_after is not None else {})
+
+    for header, expected in (("3", 3.0), ("120", qualle.MAX_RETRY_AFTER), ("Wed, 21 Oct 2026 07:28:00 GMT", 1),
+                             (None, 1), ("-5", 0.0)):
+        pauses.clear()
+        calls = []
+
+        def create(**kwargs):
+            calls.append(kwargs)
+            if len(calls) == 1:
+                raise RateLimited(header)
+            return answer()
+
+        assert fake_manager(create).create_chat_completion("m/x", [{"role": "user", "content": "q"}]) is not None
+        assert pauses == [expected], header
+    assert qualle.MAX_RETRY_AFTER <= 10
+
+
+def test_a_stream_that_breaks_after_some_text_raises_instead_of_ending_quietly():
+    chunk = lambda text: SimpleNamespace(usage=None, choices=[SimpleNamespace(delta=SimpleNamespace(content=text))])  # noqa: E731
+
+    def broken(**kwargs):
+        yield chunk("Open data is")
+        raise ConnectionError("connection reset")
+
+    manager = fake_manager(lambda **kw: broken(**kw))
+    got = []
+    with pytest.raises(qualle.StreamInterrupted):
+        for piece in manager.stream_chat_completion("m/x", []):
+            got.append(piece)
+    assert got == ["Open data is"]
+
+    def refused(**kwargs):  # an error before any text: an empty stream, as before (the caller falls back)
+        raise ConnectionError("refused")
+
+    assert list(fake_manager(refused).stream_chat_completion("m/x", [])) == []
+
+
+class BrokenStreamClient(FakeClient):
+    """Streams some text, then the connection breaks; create_chat_completion answers from the queue."""
+
+    def stream_chat_completion(self, **kwargs):
+        yield "[Response_Start]Open data is free to reuse "
+        yield "and the half sentence"
+        raise qualle.StreamInterrupted("connection reset")
+
+
+class RecordingCache:
+    def __init__(self):
+        self.stored = []
+
+    def store(self, *args):
+        self.stored.append(args)
+
+
+def test_a_broken_stream_is_answered_again_and_never_kept_half():
+    q = make_qualle(True, [node("Paper")], [], "unused")
+    q.response_generator.client_manager = BrokenStreamClient(completion(content="Open data can be reused by anyone [0]."))
+    messages = list(q.get_response("What is open data?", "chat", stream=True))
+    statuses = [m["status"] for m in messages]
+    first_after_partials = statuses.index("partial") + statuses[statuses.index("partial"):].index("in-progress")
+    assert messages[first_after_partials]["message"] == "Generating response"  # the page drops the half draft
+    final = messages[-1]
+    assert final["status"] == "complete" and "reused by anyone" in final["message"] and "half sentence" not in final["message"]
+    assert [m["content"] for m in q.chat_manager.messages] == ["What is open data?", "Open data can be reused by anyone [0]."]
+
+
+def test_a_broken_stream_without_a_second_answer_is_an_error_not_remembered_or_cached():
+    q = make_qualle(True, [node("Paper")], [], "unused")
+    q.response_generator.client_manager = BrokenStreamClient(None, None)  # the fallback call fails too
+    q.answer_cache = RecordingCache()
+    q.answer_cache.lookup = lambda query, model: None
+    final = list(q.get_response("What is open data?", "chat", stream=True))[-1]
+    assert final["outcome"] == "error" and "half sentence" not in final["message"]
+    assert q.chat_manager.messages == [] and q.answer_cache.stored == []
+
+
+def test_a_failed_answer_is_not_written_into_the_chat_history():
+    q = make_qualle(True, [node("Paper")], [], None)  # every call returns no text
+    final = list(q.get_response("What is open data?", "chat"))[-1]
+    assert final["outcome"] == "error"
+    assert q.chat_manager.messages == []  # Try again then asks afresh, not as a follow-up to the error
+
+
+def test_a_failed_forrt_pages_answer_is_not_written_into_the_chat_history():
+    q = make_qualle(True, [node("Paper")], [], "unused")
+    q.config = {**CONFIG, "DECISION_ROUTER": False, "ROUTER": "llm"}
+    q.query_processor.classify_intent = lambda query: "forrt"
+    q.route = lambda query, router=None: "forrt"
+    q.forrt_pages = SimpleNamespace(answer=lambda *a, **k: {"text": None, "sources": [], "found": False})
+    final = list(q.get_response("Which FORRT teams can I join?", "chat"))[-1]
+    assert final["outcome"] == "error" and q.chat_manager.messages == []
+
+
+def test_prod_logs_hold_no_question_text(caplog):
+    import hashlib
+    import logging
+
+    secret = "Is my unpublished dataset on depression in Leipzig open?"
+    q = make_qualle(True, [], [], "unused")
+    q.config = {**CONFIG, "PROD_MODE": True}
+    with caplog.at_level(logging.INFO, logger="just_os.qualle"):
+        final = list(q.get_response(secret, "chat"))[-1]
+    assert final["outcome"] == "no_sources"
+    assert secret not in caplog.text and "Leipzig" not in caplog.text
+    assert f"<{len(secret)} chars, sha256 {hashlib.sha256(secret.encode()).hexdigest()[:12]}>" in caplog.text
+
+    caplog.clear()
+    q.config = CONFIG  # dev: the question is logged for debugging
+    with caplog.at_level(logging.INFO, logger="just_os.qualle"):
+        list(q.get_response(secret, "chat"))
+    assert "Leipzig" in caplog.text
+
+
+def test_prod_logs_hold_no_rewritten_question(caplog):
+    import logging
+
+    grown = "open data " * 40
+    p = qualle.QueryProcessor(FakeClient(completion(tool_arguments=json.dumps({"reformulated_query": grown}))),
+                              {**CONFIG, "PROD_MODE": True}, FakeChatManager())
+    with caplog.at_level(logging.WARNING, logger="just_os.qualle"):
+        assert p.rephrase_query("And for Leipzig data?", "chat") == "And for Leipzig data?"
+    assert "open data open data" not in caplog.text and "chars, sha256" in caplog.text
+
+    retriever = object.__new__(qualle.DocumentRetriever)
+    retriever.config, retriever.search_mode, retriever.min_vector_similarity = {"PROD_MODE": True}, "vector", 0.55
+    with caplog.at_level(logging.INFO, logger="just_os.qualle"):
+        assert retriever.search_order("Leipzig depression data", [SimpleNamespace(score=1.9, node=None)]) == []
+    assert "Leipzig" not in caplog.text
+
+
+def test_forrt_pages_next_to_papers_use_one_shared_pool(monkeypatch):
+    def no_new_pools(*a, **k):
+        raise AssertionError("a thread pool per request")
+
+    monkeypatch.setattr(qualle, "ThreadPoolExecutor", no_new_pools)
+    q = object.__new__(qualle.Qualle)
+    q.config = {"FORRT_IN_PAPERS": True, "FORRT_IN_PAPERS_TIMEOUT": 5}
+    q.forrt_pages = SimpleNamespace(extra_sources=lambda query, min_score: [
+        {"title": "Teams", "url": "https://forrt.org/about/teams/", "text": f"{query} {min_score}"}])
+    jobs = [q.start_forrt_in_papers(f"q{i}", "open_science") for i in range(20)]
+    assert all(job.result(5)[0]["text"].startswith(f"q{i} ") for i, job in enumerate(jobs))
+    assert len(q.forrt_in_papers_result(q.start_forrt_in_papers("q", "both"), {})) == 1
+    assert qualle.FORRT_IN_PAPERS_POOL._max_workers >= 1
+
+
+def test_a_slot_that_never_comes_free_ends_the_retries(monkeypatch):
+    monkeypatch.setattr(qualle.time, "sleep", lambda s: None)
+    manager = qualle.OpenAIClientManager({"LLM_API_KEY": "k", "BASE_URL": "https://example.org/v1", "OPENSCHOLAR_BASE_URL": "",
+                                          "MAX_CONCURRENT_LLM_CALLS": 1, "LLM_TIMEOUT": 7, "LLM_RETRIES": 3})
+    waits, calls = [], []
+
+    class Busy:  # every slot stays taken by other requests
+        def acquire(self, timeout):
+            waits.append(timeout)
+            return False
+
+    manager._llm_slots = Busy()
+    manager._client_for = lambda model: SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(
+        create=lambda **kw: calls.append(kw))))
+    assert manager.create_chat_completion("m", [{"role": "user", "content": "q"}]) is None
+    assert waits == [7] and calls == []  # one wait of LLM_TIMEOUT, then the error: not 4 waits past WEB_TIMEOUT

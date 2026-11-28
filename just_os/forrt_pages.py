@@ -36,6 +36,8 @@ from just_os import trace
 
 logger = logging.getLogger(__name__)
 
+MAX_REDIRECTS = 5  # per page fetch, each hop checked against FORRT_FETCH_DOMAINS
+
 STOP = set("""the and for with that this what which who how are was were can could should would does did have has had
 you your our from about into there their they them where when why will not but any all some more most other such
 only own same than too very just also its it's i'm forrt""".split())
@@ -203,7 +205,8 @@ class ForrtPages:
         self.decisions = decisions or DecisionClient(config)
         self.listing_urls = as_list(config.get("FORRT_LISTING_URLS", "https://forrt.org/post/"))
         self.allowed_domains = as_list(config.get("FORRT_FETCH_DOMAINS", "forrt.org"))
-        self.http = httpx.Client(timeout=config.get("FORRT_FETCH_TIMEOUT", 6), follow_redirects=True,
+        # redirects by hand (get): every hop must stay on FORRT_FETCH_DOMAINS
+        self.http = httpx.Client(timeout=config.get("FORRT_FETCH_TIMEOUT", 6), follow_redirects=False,
                                  headers={"User-Agent": "JUST-OS chatbot (forrt.org page reader)"})
         self.cache: Dict[str, Any] = {}
         self.lock = threading.Lock()
@@ -285,22 +288,40 @@ class ForrtPages:
         return found
 
     # 3. fetch: always live from forrt.org; an in-memory cache of FORRT_CACHE_TTL seconds, no files
+    def allowed(self, url: str) -> bool:
+        """http(s) on one of FORRT_FETCH_DOMAINS (or a subdomain)."""
+        parts = urlparse(url)
+        host = (parts.hostname or "").lower()
+        return parts.scheme in ("http", "https") and any(host == d or host.endswith("." + d) for d in self.allowed_domains)
+
+    def get(self, url: str):
+        """(response, final url): GET that follows at most MAX_REDIRECTS redirects, each to an allowed URL; a redirect
+        elsewhere (another site, a non-http scheme) raises instead of being read."""
+        for _ in range(MAX_REDIRECTS + 1):
+            if not self.allowed(url):
+                raise ValueError(f"not an allowed FORRT address: {url[:200]}")
+            resp = self.http.get(url)
+            location = (getattr(resp, "headers", None) or {}).get("location")
+            if not (getattr(resp, "is_redirect", False) and location):
+                return resp, url
+            url = urljoin(url, location)
+        raise ValueError(f"more than {MAX_REDIRECTS} redirects")
+
     def fetch(self, url: str) -> Dict[str, Any]:
-        host = urlparse(url).netloc
-        if not any(host == d or host.endswith("." + d) for d in self.allowed_domains):
+        if not self.allowed(url):
             return {"markdown": "", "status": "failed"}
         with self.lock:
             hit = self.cache.get(url)
         if hit and time.time() - hit[0] < self.config.get("FORRT_CACHE_TTL", 3600):
             return {"markdown": hit[1], "status": "cache"}
         try:
-            resp = self.http.get(url)
+            resp, final = self.get(url)
             resp.raise_for_status()
-            target = refresh_target(resp.text, url)
-            if target and urlparse(target).netloc == host:  # a "this page has moved" stub: read the real page
-                resp = self.http.get(target)
+            target = refresh_target(resp.text, final)
+            if target and self.allowed(target):  # a "this page has moved" stub: read the real page
+                resp, final = self.get(target)
                 resp.raise_for_status()
-            markdown = extract(resp.text, target or url)["markdown"]
+            markdown = extract(resp.text, final)["markdown"]
             with self.lock:
                 self.cache[url] = (time.time(), markdown)
             return {"markdown": markdown, "status": "live"}
