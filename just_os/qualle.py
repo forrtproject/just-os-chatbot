@@ -6,7 +6,7 @@ import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Any, Optional, Generator, Iterator, Tuple
+from typing import Callable, Dict, List, Any, Optional, Generator, Iterator, Tuple, Union
 
 import markdown
 import numpy as np
@@ -178,6 +178,14 @@ class QueryEmbeddings:
                 self._vectors[query] = np.asarray(self.embed_model.get_query_embedding(query), dtype=np.float32)
             return self._vectors[query]
 
+    def lazy(self, query: str) -> Optional[Callable[[], Optional[np.ndarray]]]:
+        """get(query) for later, only when a step needs the vector (the vector search; the FORRT page search inside
+        its own job, so a failed embedding only drops the pages; a retrieval cache hit embeds nothing); None without
+        an embedding model."""
+        if self.embed_model is None:
+            return None
+        return lambda: self.get(query)
+
     def get_or_none(self, query: str) -> Optional[np.ndarray]:
         """get(), but None when the embedding call fails: for the answer cache, which must never break an answer
         (the next user of the vector asks again)."""
@@ -188,9 +196,18 @@ class QueryEmbeddings:
             return None
 
 
-def with_vector(query_vector: Optional[np.ndarray]) -> Dict[str, Any]:
+# a question embedding, or a callable that makes it when a step needs it (QueryEmbeddings.lazy)
+VectorOrLazy = Union[np.ndarray, Callable[[], Optional[np.ndarray]], None]
+
+
+def with_vector(query_vector: VectorOrLazy) -> Dict[str, Any]:
     """{"query_vector": ...} when there is one, else {}: components and test doubles without the parameter keep working."""
     return {} if query_vector is None else {"query_vector": query_vector}
+
+
+def resolve_vector(query_vector: VectorOrLazy) -> Optional[np.ndarray]:
+    """The vector itself: a lazy one (QueryEmbeddings.lazy) is made now."""
+    return query_vector() if callable(query_vector) else query_vector
 
 
 def visible_answer(raw: str, marked: bool) -> str:
@@ -599,7 +616,7 @@ class DocumentRetriever:
 
     @trace.step("sources", lambda result, *a, **k: {"retrieved": len(result[1]), "kept": len(result[0])})
     def retrieve_and_rerank(
-        self, query: str, timings: Optional[Dict[str, float]] = None, query_vector: Optional[np.ndarray] = None
+        self, query: str, timings: Optional[Dict[str, float]] = None, query_vector: VectorOrLazy = None
     ) -> Tuple[List[Any], List[Any]]:
         """
         Retrieve and rerank documents for a query.
@@ -608,12 +625,15 @@ class DocumentRetriever:
             query: User query
             timings: filled with search_s (vector/BM25 search) and rerank_s (re-ranker)
             query_vector: the question's embedding (QueryEmbeddings), so the search and the cluster boost
-                do not embed it again
+                do not embed it again; or QueryEmbeddings.lazy, made only when the search needs it (not for
+                bm25 search, and not when eval/run.py's retrieval cache answers instead of this method)
 
         Returns:
             Tuple of (ranked nodes, all retrieved nodes)
         """
         timings = {} if timings is None else timings
+        if callable(query_vector):  # bm25 search and its order use no vector (the cluster boost is vector-only)
+            query_vector = query_vector() if getattr(self, "search_mode", "vector") != "bm25" else None
         # Retrieve relevant nodes
         start = time.time()
         nodes = retrieve_with_vector(self._retriever, query, query_vector)
@@ -1274,13 +1294,14 @@ class Qualle:
 
         logger.debug("Qualle service initialized")
 
-    def query_vector(self, query: str, query_vector: Optional[np.ndarray] = None) -> np.ndarray:
-        """The question's embedding: the one given (QueryEmbeddings of the turn), else a new one."""
+    def query_vector(self, query: str, query_vector: VectorOrLazy = None) -> np.ndarray:
+        """The question's embedding: the one given (QueryEmbeddings of the turn, made now when lazy), else a new one."""
+        query_vector = resolve_vector(query_vector)
         if query_vector is not None:
             return np.asarray(query_vector, dtype=np.float32)
         return np.asarray(self._embed_model.get_query_embedding(query), dtype=np.float32)
 
-    def similarities(self, query: str, query_vector: Optional[np.ndarray] = None) -> Tuple[float, float]:
+    def similarities(self, query: str, query_vector: VectorOrLazy = None) -> Tuple[float, float]:
         """bge-m3 cosine of the question to the nearest paper chunk (FAISS) and to the nearest
         FORRT page description (-1 without FORRT pages)."""
         q = np.array([self.query_vector(query, query_vector)], dtype=np.float32)  # a copy: normalised in place
@@ -1292,7 +1313,7 @@ class Qualle:
         trace.note(similarity={"paper": round(paper, 4), "page": round(page, 4)})
         return paper, page
 
-    def cosine_route(self, query: str, query_vector: Optional[np.ndarray] = None) -> str:
+    def cosine_route(self, query: str, query_vector: VectorOrLazy = None) -> str:
         """Cosine router (no model call): above COSINE_PAPER_MIN → papers, above COSINE_PAGE_MIN →
         FORRT pages, both above → the closer one, neither → off topic.
         Thresholds from eval/questions.jsonl + eval/forrt_questions.jsonl (docs/evaluation.md 3.7)."""
@@ -1304,7 +1325,7 @@ class Qualle:
             return "open_science" if paper > page else "forrt"
         return "open_science" if is_paper else ("forrt" if is_page else "off_topic")
 
-    def banded_route(self, query: str, query_vector: Optional[np.ndarray] = None) -> Optional[str]:
+    def banded_route(self, query: str, query_vector: VectorOrLazy = None) -> Optional[str]:
         """Three bands of similarity (eval/tune_bands.py, docs/evaluation.md 3.11): below both low
         thresholds → off topic, with no model call; close to the papers (at or above BAND_PAPER_HIGH)
         and not close to a FORRT page (below BAND_PAGE_HIGH) → papers, with no model call; anything
@@ -1328,7 +1349,7 @@ class Qualle:
 
     @trace.step("topic check", lambda result, self, query, router=None, query_vector=None: {
         "route": result, "router": router or self.config.get("ROUTER") or ""})
-    def route(self, query: str, router: Optional[str] = None, query_vector: Optional[np.ndarray] = None) -> Optional[str]:
+    def route(self, query: str, router: Optional[str] = None, query_vector: VectorOrLazy = None) -> Optional[str]:
         """open_science / forrt / both / off_topic / small_talk (or forrt_lookup from the LLM classifier); None = model error.
 
         router (one of ROUTERS; the chat and arena dropdowns, eval/classify.py) picks one strategy:
@@ -1468,7 +1489,7 @@ class Qualle:
             # A first question very close to a recent one gets the stored answer
             use_cache = self.answer_cache is not None and not conversation_history
             if use_cache:
-                cached = self.answer_cache.lookup(query, model, **with_vector(vectors.get_or_none(query)))
+                cached = self.answer_cache.lookup(query, model, router=router, **with_vector(vectors.get_or_none(query)))
                 if cached:
                     turn.update(cached=True, answer=cached["text"])
                     remember(cached["text"])
@@ -1508,7 +1529,8 @@ class Qualle:
                 yield {"status": "in-progress", "message": "Classifying question"}
                 step = time.time()
                 by_similarity = (router or self.config.get("ROUTER") or "") in ("cosine", "banded")
-                intent = self.route(query, router, **with_vector(vectors.get(query) if by_similarity else None))
+                # lazy: a route replaced for the run (eval/run.py --route) embeds nothing
+                intent = self.route(query, router, **with_vector(vectors.lazy(query) if by_similarity else None))
                 timings["classify_s"] = time.time() - step
                 if found and intent in ("forrt", "forrt_lookup", "both"):
                     found = []  # a person or a FORRT project with authors' names: FORRT's pages answer
@@ -1573,13 +1595,12 @@ class Qualle:
                                                       **with_vector(vectors.get(query)))
                 timings["search_s"] = time.time() - step
             else:
-                # the vector search, the cluster boost and the FORRT page search share one embedding (bm25
-                # search alone needs none)
-                pages_wanted = getattr(self, "forrt_pages", None) is not None and self.config.get("FORRT_IN_PAPERS")
-                vector_search = getattr(self.document_retriever, "search_mode", "vector") != "bm25"
-                query_vector = vectors.get(query) if (vector_search or pages_wanted) else None
-                pages_job = self.start_forrt_in_papers(query, intent, **with_vector(query_vector))
-                ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(query, timings, **with_vector(query_vector))
+                # the vector search, the cluster boost and the FORRT page search share one embedding, made by
+                # the first step that needs it: the page job embeds inside the job (a failure drops only the
+                # pages), bm25 search needs none, a retrieval cache hit (eval/run.py) embeds nothing
+                lazy_vector = vectors.lazy(query)
+                pages_job = self.start_forrt_in_papers(query, intent, **with_vector(lazy_vector))
+                ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(query, timings, **with_vector(lazy_vector))
                 page_sources = self.forrt_in_papers_result(pages_job, timings)
                 ranked_nodes = list(ranked_nodes) + page_sources
             turn.update(nodes=list(ranked_nodes), page_sources=list(page_sources), reference_lookup=bool(found))
@@ -1661,8 +1682,12 @@ class Qualle:
                 final["outcome"] = "both"
             elif intent == "both" and self.forrt_pages is not None:
                 # the question also concerns FORRT itself: add the best forrt.org pages to the
-                # Sources box, after the papers (no extra answer call)
-                links = self.forrt_pages.links(query, **with_vector(vectors.get(query)))
+                # Sources box, after the papers (no extra answer call); optional, so a failure keeps the answer
+                try:
+                    links = self.forrt_pages.links(query, **with_vector(vectors.get(query)))
+                except Exception as e:
+                    logger.warning(f"FORRT page links skipped: {e.__class__.__name__}: {e}")
+                    links = []
                 if links:
                     refs = final["metadata"]["references"]
                     extra = page_references(links, start=len(refs) + 1)
@@ -1671,7 +1696,8 @@ class Qualle:
                         x for x in (final["metadata"]["sources"], page_source_lines(extra)) if x)
                     final["outcome"] = "both"
             if use_cache:
-                self.answer_cache.store(query, final, processed_message, model, **with_vector(vectors.get_or_none(query)))
+                self.answer_cache.store(query, final, processed_message, model, router=router,
+                                        **with_vector(vectors.get_or_none(query)))
             yield final
         except Exception as e:
             logger.error(f"Error in get_response: {str(e)}")
@@ -1681,16 +1707,20 @@ class Qualle:
                 "outcome": "error",
             }
 
-    def start_forrt_in_papers(self, query: str, intent: str, query_vector: Optional[np.ndarray] = None):
+    def start_forrt_in_papers(self, query: str, intent: str, query_vector: VectorOrLazy = None):
         """FORRT_IN_PAPERS: look for forrt.org pages that add to a papers answer while the papers are
-        searched (a future, or None when off). The `both` route skips the score floor."""
+        searched (a future, or None when off). The `both` route skips the score floor. A lazy query_vector
+        (QueryEmbeddings.lazy) is made inside the job: a failed embedding drops the pages, not the answer."""
         if getattr(self, "forrt_pages", None) is None or not self.config.get("FORRT_IN_PAPERS"):
             return None
         min_score = None if intent == "both" else self.config.get("FORRT_IN_PAPERS_MIN_SCORE", 0.6)
+
+        def pages():
+            return self.forrt_pages.extra_sources(query, min_score, **with_vector(resolve_vector(query_vector)))
+
         pool = ThreadPoolExecutor(1)
         # copy_context: the debug trace also sees the pages job
-        job = pool.submit(contextvars.copy_context().run, trace.step("FORRT pages next to papers")(self.forrt_pages.extra_sources),
-                          query, min_score, **with_vector(query_vector))
+        job = pool.submit(contextvars.copy_context().run, trace.step("FORRT pages next to papers")(pages))
         pool.shutdown(wait=False)
         return job
 
@@ -1733,7 +1763,7 @@ class Qualle:
             # Same topic check as the chat (the dropdown, else ROUTER / DECISION_ROUTER); in the
             # arena it only decides answer or refuse: the cards always answer from the papers
             by_similarity = (router or self.config.get("ROUTER") or "") in ("cosine", "banded")
-            intent = self.route(query, router, **with_vector(vectors.get(query) if by_similarity else None))
+            intent = self.route(query, router, **with_vector(vectors.lazy(query) if by_similarity else None))
             concerns_open_science = None if intent is None else intent != "off_topic"
             timings["classify_s"] = time.time() - step
             if concerns_open_science is None:
@@ -1750,9 +1780,7 @@ class Qualle:
                 return
 
             yield {"status": "in-progress", "message": "Finding relevant sources"}
-            vector_search = getattr(self.document_retriever, "search_mode", "vector") != "bm25"
-            ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(
-                query, timings, **with_vector(vectors.get(query) if vector_search else None))
+            ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(query, timings, **with_vector(vectors.lazy(query)))
             if not ranked_nodes:
                 yield {
                     "status": "complete",

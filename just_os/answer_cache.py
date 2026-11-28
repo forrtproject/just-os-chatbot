@@ -37,9 +37,12 @@ NAMESPACE_KEYS = (
     "MAX_CHUNKS_PER_DOC",
     "ROUTER",
     "CLUSTER_BOOST",
+    "CLUSTER_BOOST_MARGIN",
     "SKIP_REFERENCE_CHUNKS",
     "FORRT_IN_PAPERS",
     "ADAPTIVE_TOP_K",
+    "ADAPTIVE_TOP_K_RATIO",
+    "ADAPTIVE_TOP_K_MIN",
     "REFERENCE_LOOKUP",
     "VERIFY_CITATIONS",
     "TEMPERATURE",
@@ -79,12 +82,14 @@ class AnswerCache:
         self.fingerprint = index_fingerprint(config)  # read once at start, like the index itself
         self.key = self.key_for(None)
 
-    def key_for(self, model: Optional[str]) -> str:
-        """One cache per setup (NAMESPACE_KEYS and the index fingerprint); a model chosen for one request
-        replaces CITATION_MODEL."""
+    def key_for(self, model: Optional[str], router: Optional[str] = None) -> str:
+        """One cache per setup (NAMESPACE_KEYS and the index fingerprint); a model or router chosen for one request
+        (the chat and arena dropdowns) replaces CITATION_MODEL or ROUTER, so the key names the effective router."""
         values = [self.config.get(k) for k in NAMESPACE_KEYS]
         if model:
             values[NAMESPACE_KEYS.index("CITATION_MODEL")] = model
+        if router:
+            values[NAMESPACE_KEYS.index("ROUTER")] = router
         raw = json.dumps(values + [self.fingerprint], default=str)
         return f"answer_cache:{hashlib.md5(raw.encode()).hexdigest()[:12]}"
 
@@ -97,13 +102,13 @@ class AnswerCache:
 
     @trace.step("answer cache", lambda result, *a, **k: {"hit": bool(result)})
     def lookup(self, query: str, model: Optional[str] = None,
-               query_vector: Optional[np.ndarray] = None) -> Optional[Dict[str, Any]]:
+               query_vector: Optional[np.ndarray] = None, router: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Return the stored entry ({"response", "text"}) of the most similar fresh question."""
         try:
             vector = self._vector(query, query_vector)
             now = time.time()
             best, best_score = None, self.min_similarity
-            for raw in self.redis.lrange(self.key_for(model), 0, -1):
+            for raw in self.redis.lrange(self.key_for(model, router), 0, -1):
                 entry = json.loads(raw)
                 if now - entry["time"] > self.ttl:
                     continue
@@ -119,7 +124,7 @@ class AnswerCache:
             return None
 
     def store(self, query: str, response: Dict[str, Any], text: str, model: Optional[str] = None,
-              query_vector: Optional[np.ndarray] = None) -> None:
+              query_vector: Optional[np.ndarray] = None, router: Optional[str] = None) -> None:
         try:
             entry = {
                 "time": time.time(),
@@ -127,7 +132,7 @@ class AnswerCache:
                 "response": response,
                 "text": text,
             }
-            key = self.key_for(model)
+            key = self.key_for(model, router)
             self.redis.lpush(key, json.dumps(entry))
             self.redis.ltrim(key, 0, self.max_items - 1)
             self.redis.expire(key, self.ttl)

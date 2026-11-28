@@ -30,6 +30,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from build_grading_page import shown_answer  # noqa: E402  same folder
 from config.settings import get_config  # noqa: E402
 from just_os.chat_manager import ChatManager  # noqa: E402
 from just_os.rag_service import create_rag_service  # noqa: E402
@@ -118,6 +119,12 @@ def summary(rows, methods):
     return "\n".join(out)
 
 
+def answer_text(raw, final):
+    """What the judge reads: the shown answer (between [Response_Start] and [Response_End], as the app shows
+    it), else the final message as text (FORRT-page answers and refusals)."""
+    return shown_answer(raw or "") or re.sub(r"<[^>]+>", " ", final.get("message", "")).strip()
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--methods", default="none,rephrase,history,oracle")
@@ -135,6 +142,7 @@ def main():
     chats = chats[: args.limit]
 
     config = get_config()
+    config["ANSWER_CACHE_TTL"] = 0  # "none" and "oracle" ask first questions: a cached answer is no real turn
     provider = None
     if args.model:
         config["CITATION_MODEL"], provider = split_provider(args.model)
@@ -180,7 +188,7 @@ def main():
                              "rewrite": seen.get("rewrite", ""),
                              "route_ok": int(seen.get("route") in q["route"]), "outcome": outcome_of(final),
                              "sources": " ".join(pages + [doi_of(n) for n in seen.get("ranked", [])]),
-                             "answer": seen.get("raw") or re.sub(r"<[^>]+>", " ", final.get("message", "")).strip(),
+                             "answer": answer_text(seen.get("raw"), final),
                              "seconds": round(time.time() - start, 1), "cost_usd": round(seen.get("cost", 0), 6)})
                 print(f"run {run} {method:9} {q['id']} {rows[-1]['route']:13} {rows[-1]['outcome']}")
 

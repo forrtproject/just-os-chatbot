@@ -81,14 +81,28 @@ def coverage(scores, rubric, kind=None):
     return round(sum(scores[i] - criteria.SCALE[0] for i in ids) / ((criteria.SCALE[-1] - criteria.SCALE[0]) * len(ids)), 3) if ids else ""
 
 
+def numbered_dois(row):
+    """{n: DOI} of the sources as the answer cites them: from the numbered "sources" column (eval/run.py), else
+    from "retrieved_dois" (older runs), split on single spaces so a source without a DOI (a glossary entry, a
+    FORRT page) keeps its slot and [1] is still the second source. FORRT-route rows (sources numbered from 1,
+    no DOIs) give {}."""
+    try:
+        sources = json.loads(row.get("sources") or "null")
+    except ValueError:
+        sources = None
+    if isinstance(sources, list) and sources:
+        return {int(s["n"]): s["doi"] for s in sources if isinstance(s, dict) and s.get("doi") and "n" in s}
+    return {i: d for i, d in enumerate((row.get("retrieved_dois") or "").split(" ")) if d}
+
+
 def doi_recall(row, item):
     """Share of expected DOIs among the cited sources; the model sees sources numbered from 0. Only the shown
     answer counts: [n] in passages the model echoed after [Response_End] are not citations."""
-    retrieved = row.get("retrieved_dois", "").split()
-    if not retrieved or not item.get("expected_dois"):
+    dois = numbered_dois(row)
+    if not dois or not item.get("expected_dois"):
         return ""
     answer = shown_answer(row.get("answer") or "")
-    cited = {retrieved[int(n)] for n in re.findall(r"\[(\d+)\]", answer) if int(n) < len(retrieved)}
+    cited = {dois[int(n)] for n in re.findall(r"\[(\d+)\]", answer) if int(n) in dois}
     return round(sum(d in cited for d in item["expected_dois"]) / len(item["expected_dois"]), 3)
 
 

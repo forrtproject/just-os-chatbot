@@ -254,8 +254,9 @@ share/
 # Office lock files (created while a file is open; contain the user name)
 ~$*
 
-# eval/run_batches.py working file
+# eval/run_batches.py working file and run-series manifests
 eval/tmp_batch*.jsonl
+eval/results/batch_*.json
 eval/.retrieval_cache/
 # eval/topic_map/ working files (vectors, chunks): large
 eval/.topic_map/

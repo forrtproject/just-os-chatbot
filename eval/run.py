@@ -12,7 +12,9 @@ while the classifier is being changed; use it only for questions that all expect
 
 --model changes the answer model (CITATION_MODEL). The classify/rephrase model
 (GENERAL_MODEL) stays as configured unless --general-model is given, so a run
-compares answer models only. Output: eval/results/run_<YYMMDD-HHMMSS>_<model>.csv
+compares answer models only. Output: eval/results/run_<YYMMDD-HHMMSS>_<model>[_noretrieval | __route-<route>].csv
+(--skip-classifier is --route open_science), the names eval/pairs.py and the eval page read as forced-route runs.
+The answer cache is off (ANSWER_CACHE_TTL=0): a warm cache would skip the topic check, the search and the answer.
 
 What a row records comes from the turn itself (Qualle.get_response(evidence=...)): the exact sources the
 answer model saw (paper chunks, a named paper's chunks, then FORRT_IN_PAPERS pages), its answer and the
@@ -24,9 +26,11 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import pickle
 import re
 import sys
+import tempfile
 import time
 import uuid
 from datetime import datetime
@@ -180,8 +184,12 @@ def pin_provider(qualle, model, provider):
 def skip_classifier(qualle, route="open_science"):
     """Send every question one way (the papers, or with route="forrt" the FORRT pages), with no
     call to the decision model or the classifier. eval/pairs.py combines one run per way with each
-    topic check's decisions (eval/classify.py), so every topic check x answer model pair is scored."""
+    topic check's decisions (eval/classify.py), so every topic check x answer model pair is scored.
+    A question naming a library paper (REFERENCE_LOOKUP) would go to the papers without the topic check, so
+    any other forced route turns the reference lookup off: every question really goes the forced way."""
     qualle.route = lambda query, router=None, **kwargs: route  # kwargs: the turn's query_vector, not needed
+    if route != "open_science":
+        qualle.references = None
 
 
 def index_stamp(config):
@@ -215,14 +223,36 @@ def cache_retrieval(qualle, config, folder=Path("eval/.retrieval_cache")):
     folder.mkdir(parents=True, exist_ok=True)
 
     def cached(query, *args, **kwargs):
+        # a hit calls nothing: a lazy query_vector (QueryEmbeddings.lazy) in kwargs is never made
         path = folder / f"{hashlib.sha1((settings + query).encode('utf-8')).hexdigest()}.pkl"
         if path.exists():
             return pickle.loads(path.read_bytes())
         result = retrieve(query, *args, **kwargs)
-        path.write_bytes(pickle.dumps(result))
+        write_atomic(path, pickle.dumps(result))
         return result
 
     qualle.document_retriever.retrieve_and_rerank = cached
+
+
+def write_atomic(path, data: bytes):
+    """Write a file whole or not at all: parallel batches share the retrieval cache, and a stopped run must not
+    leave half a pickle that every later run fails to read."""
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+
+
+def default_out(model, no_retrieval=False, route=None, now=None):
+    """eval/results/run_<YYMMDD-HHMMSS>_<model>[__route-<route> | _noretrieval].csv, as eval/pairs.py and
+    eval/answers.py read it: a forced route ends the name; a run without retrieval has no topic check, so no route."""
+    name = f"run_{(now or datetime.now()):%y%m%d-%H%M%S}_{model.replace('/', '__')}"
+    name += "_noretrieval" if no_retrieval else (f"__route-{route}" if route else "")
+    return Path("eval/results") / f"{name}.csv"
 
 
 def run_row(q, final, seen, seconds, config, answer_model, truncate=False):
@@ -283,14 +313,23 @@ def build_parser():
     return parser
 
 
-def main():
-    args = build_parser().parse_args()
-
-    config = get_config()
+def run_config(config, args):
+    """The settings of a run and the answer model's provider pin (None): --model, --general-model, and the answer
+    cache off (ANSWER_CACHE_TTL=0), so every row is a real turn: a cached answer has no sources or raw answer and
+    skips the forced route."""
+    config = {**config, "ANSWER_CACHE_TTL": 0}
+    provider = None
     if args.model:
         config["CITATION_MODEL"], provider = split_provider(args.model)
     if args.general_model:
         config["GENERAL_MODEL"] = args.general_model
+    return config, provider
+
+
+def main():
+    args = build_parser().parse_args()
+
+    config, provider = run_config(get_config(), args)
     qualle = create_rag_service(config, ChatManager())
     if args.model and provider:
         pin_provider(qualle, config["CITATION_MODEL"], provider)
@@ -317,10 +356,8 @@ def main():
     questions = [json.loads(line) for line in open(args.questions, encoding="utf-8")]
     questions = questions[: args.limit] if args.limit else questions
 
-    out = Path(args.out) if args.out else Path("eval/results") / (
-        f"run_{datetime.now():%y%m%d-%H%M%S}_{(args.model or config['CITATION_MODEL']).replace('/', '__')}"
-        f"{'_noretrieval' if args.no_retrieval else ''}.csv"
-    )
+    forced = args.route or ("open_science" if args.skip_classifier else None)
+    out = Path(args.out) if args.out else default_out(args.model or config["CITATION_MODEL"], args.no_retrieval, forced)
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDS)
