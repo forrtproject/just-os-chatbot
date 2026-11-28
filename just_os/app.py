@@ -47,8 +47,12 @@ APPEND_LOCK = threading.Lock()  # chat, feedback and arena logs (_append_jsonl)
 TEAM_PAGES = ("/eval", "/review", "/topics", "/arena", "/chat/feedback", "/recommend", "/articles", "/architecture")
 MAX_RECOMMENDATIONS = 20  # DOIs or links per /recommend form
 # chat_id: the chat's Redis key (chat:<chat_id>). The page sends a UUID; the forrt.org widget's format is not in this
-# repository, so any printable ASCII without spaces is accepted (a number too), only the length is capped.
+# repository, so any printable ASCII without spaces is accepted (a number too), only the length is capped. Other keys
+# never start with chat: (feedback turns are feedback:turn:<turn_id>), so no chat_id can reach them.
 CHAT_ID_PATTERN = re.compile(r"[\x21-\x7e]{1,128}")
+FEEDBACK_TURN_PREFIX = "feedback:turn:"  # an answered turn kept one day for /chat/feedback (dev only)
+# Logged at start whenever PROD_MODE is off: these pages and the chat log have no login
+OPEN_TEAM_PAGES = tuple(page for page in TEAM_PAGES if page != "/chat/feedback")
 
 
 def valid_chat_id(chat_id) -> Optional[str]:
@@ -225,6 +229,15 @@ class RateLimitManager:
         response.status_code = 429
         return response
 
+def warn_if_open(config: Dict[str, Any]) -> None:
+    """PROD_MODE off (a team server): say at start that the team pages and the chat log are open to anyone who can
+    reach this server, so it is never put on a public address by mistake."""
+    if not config.get("PROD_MODE"):
+        logger.warning("PROD_MODE is false: the team pages (%s) and chat logging have no authentication and are open "
+                       "to anyone who can reach this server. Keep it on localhost or a private network; set "
+                       "PROD_MODE=true for a public deployment.", ", ".join(OPEN_TEAM_PAGES))
+
+
 class FlaskApp:
     """
     Main Flask application class that handles routes and services.
@@ -263,6 +276,7 @@ class FlaskApp:
         # Set up routes
         self.setup_routes()
 
+        warn_if_open(self.config)
         logger.debug("Flask application initialized")
 
     def _configure_cors(self):
@@ -519,7 +533,7 @@ class FlaskApp:
                 return jsonify({"status": "error", "message": "Send rating good or bad and a comment of at most 2000 characters."}), 400
             turn_id = data.get("turn_id")
             # getdel: one feedback per answer
-            turn = self.chat_manager.redis.getdel(f"chat:turn:{turn_id}") if isinstance(turn_id, str) else None
+            turn = self.chat_manager.redis.getdel(f"{FEEDBACK_TURN_PREFIX}{turn_id}") if isinstance(turn_id, str) else None
             if turn is None:
                 return jsonify({"status": "error", "message": "Unknown or already rated answer."}), 404
             turn = json.loads(turn)
@@ -588,16 +602,19 @@ class FlaskApp:
 
         @self.app.route("/ready")
         def ready():
-            """Readiness (Kubernetes startupProbe and readinessProbe): the models and index are loaded and Redis
-            answers. Only reads state: never starts a load or waits for one (the probe times out in 3 s)."""
+            """Readiness (Kubernetes startupProbe and readinessProbe): 200 once the models and index are loaded, 503
+            before. Redis is reported but does not decide: without it /chat still answers (no chat memory, no rate
+            limit), so a Redis outage must not take every pod out of the Service. Only reads state: never starts a
+            load or waits for one; the Redis ping fails after REDIS_TIMEOUT (2 s, no retries), within the probe's 5 s."""
             rag = self._rag_state()
             try:
-                redis = "ok" if self.chat_manager.redis.ping() else "unreachable"
+                redis = "ok" if self.chat_manager.redis.ping() else "error"
             except Exception as error:
                 logger.warning("Readiness: Redis ping failed: %s", error)
-                redis = "unreachable"
-            ok = rag == "ok" and redis == "ok"
-            return jsonify({"status": "ready" if ok else "not ready", "rag": rag, "redis": redis}), 200 if ok else 503
+                redis = "error"
+            if rag != "ok":
+                return jsonify({"status": "not ready", "rag": rag, "redis": redis}), 503
+            return jsonify({"status": "ready" if redis == "ok" else "degraded", "rag": rag, "redis": redis}), 200
 
         @self.app.route("/arena")
         def arena():
@@ -776,7 +793,7 @@ class FlaskApp:
         if lang and answer_lang and lang != answer_lang:
             logger.warning("Answer language %s differs from the question's (%s), turn %s", answer_lang, lang, turn_id)
         try:
-            self.chat_manager.redis.set(f"chat:turn:{turn_id}", row, ex=86400)
+            self.chat_manager.redis.set(f"{FEEDBACK_TURN_PREFIX}{turn_id}", row, ex=86400)
         except Exception as error:  # no Redis: the answer still goes out, without feedback
             logger.warning("Could not keep chat turn for feedback: %s", error)
             return response

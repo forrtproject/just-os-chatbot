@@ -51,15 +51,33 @@ DEFAULT_DECISION_URL = "https://openrouter.ai/api/alpha/decisions"
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 
 
+def origin(url: Optional[str]) -> Optional[Tuple[str, str, int]]:
+    """(scheme, host, port) of a URL, the default port filled in (http 80, https 443); None when it has no http(s)
+    scheme or host, or a bad port."""
+    try:
+        parts = urlparse(url or "")
+        scheme, host = parts.scheme.lower(), (parts.hostname or "").lower()
+        port = parts.port or {"http": 80, "https": 443}.get(scheme)
+    except ValueError:
+        return None
+    return (scheme, host, port) if scheme in ("http", "https") and host and port else None
+
+
 def decision_api_key(config: Dict[str, Any], url: str) -> str:
-    """The key sent to DECISION_URL. DECISION_API_KEY when it is set, even empty. Unset (None or missing): LLM_API_KEY,
-    but only when BASE_URL is on the same host as DECISION_URL, so a uniGPT key never goes to OpenRouter."""
+    """The key sent to DECISION_URL (url). DECISION_API_KEY when it is set, even empty. Unset (None or missing): a key
+    only for the origin it belongs to: LLM_API_KEY when BASE_URL has the same origin (scheme, host, port) as url, the
+    auto-sourced OPENROUTER_API_KEY when url is on OpenRouter's origin, else none. So a uniGPT key never goes to
+    OpenRouter, and no key goes to another DECISION_URL (another host, port or plain http) unless DECISION_API_KEY says so."""
     key = config.get("DECISION_API_KEY")
     if key is not None:
         return key
-    answers_host = urlparse(config.get("BASE_URL") or DEFAULT_BASE_URL).hostname
-    if answers_host and answers_host == urlparse(url).hostname:
+    target = origin(url)
+    if target is None:
+        return ""
+    if origin(config.get("BASE_URL") or DEFAULT_BASE_URL) == target:
         return config.get("LLM_API_KEY") or ""
+    if target == origin(DEFAULT_DECISION_URL):
+        return config.get("OPENROUTER_API_KEY") or ""
     return ""
 
 

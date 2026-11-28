@@ -37,6 +37,7 @@ from just_os import trace
 logger = logging.getLogger(__name__)
 
 MAX_REDIRECTS = 5  # per page fetch, each hop checked against FORRT_FETCH_DOMAINS
+MAX_PAGE_BYTES = 2 * 1024 * 1024  # a page body is read up to this size (the longest forrt.org pages are ~0.5 MB)
 
 STOP = set("""the and for with that this what which who how are was were can could should would does did have has had
 you your our from about into there their they them where when why will not but any all some more most other such
@@ -294,17 +295,32 @@ class ForrtPages:
         host = (parts.hostname or "").lower()
         return parts.scheme in ("http", "https") and any(host == d or host.endswith("." + d) for d in self.allowed_domains)
 
-    def get(self, url: str):
-        """(response, final url): GET that follows at most MAX_REDIRECTS redirects, each to an allowed URL; a redirect
-        elsewhere (another site, a non-http scheme) raises instead of being read."""
+    def get(self, url: str, deadline: float):
+        """(page text, final url): GET that follows at most MAX_REDIRECTS redirects, each to an allowed URL; a redirect
+        elsewhere (another site, a non-http scheme) raises instead of being read. All hops share one deadline
+        (time.monotonic()), and the body is read up to MAX_PAGE_BYTES, never buffered whole."""
         for _ in range(MAX_REDIRECTS + 1):
             if not self.allowed(url):
                 raise ValueError(f"not an allowed FORRT address: {url[:200]}")
-            resp = self.http.get(url)
-            location = (getattr(resp, "headers", None) or {}).get("location")
-            if not (getattr(resp, "is_redirect", False) and location):
-                return resp, url
-            url = urljoin(url, location)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("FORRT_FETCH_TIMEOUT passed")
+            with self.http.stream("GET", url, timeout=remaining) as resp:
+                location = (getattr(resp, "headers", None) or {}).get("location")
+                if getattr(resp, "is_redirect", False) and location:
+                    url = urljoin(url, location)
+                    continue
+                resp.raise_for_status()
+                body = bytearray()
+                for piece in resp.iter_bytes():
+                    body += piece
+                    if len(body) >= MAX_PAGE_BYTES:
+                        logger.warning(f"FORRT page {url[:200]} is larger than {MAX_PAGE_BYTES} bytes; read in part")
+                        del body[MAX_PAGE_BYTES:]
+                        break
+                    if time.monotonic() > deadline:  # httpx's timeout is per read, not for the whole body
+                        raise TimeoutError("FORRT_FETCH_TIMEOUT passed while reading")
+                return bytes(body).decode(getattr(resp, "encoding", None) or "utf-8", errors="replace"), url
         raise ValueError(f"more than {MAX_REDIRECTS} redirects")
 
     def fetch(self, url: str) -> Dict[str, Any]:
@@ -314,14 +330,14 @@ class ForrtPages:
             hit = self.cache.get(url)
         if hit and time.time() - hit[0] < self.config.get("FORRT_CACHE_TTL", 3600):
             return {"markdown": hit[1], "status": "cache"}
+        # one FORRT_FETCH_TIMEOUT for the whole fetch: redirects, the body and a meta-refresh hop
+        deadline = time.monotonic() + float(self.config.get("FORRT_FETCH_TIMEOUT", 6))
         try:
-            resp, final = self.get(url)
-            resp.raise_for_status()
-            target = refresh_target(resp.text, final)
+            text, final = self.get(url, deadline)
+            target = refresh_target(text, final)
             if target and self.allowed(target):  # a "this page has moved" stub: read the real page
-                resp, final = self.get(target)
-                resp.raise_for_status()
-            markdown = extract(resp.text, final)["markdown"]
+                text, final = self.get(target, deadline)
+            markdown = extract(text, final)["markdown"]
             with self.lock:
                 self.cache[url] = (time.time(), markdown)
             return {"markdown": markdown, "status": "live"}

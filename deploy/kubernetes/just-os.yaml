@@ -9,6 +9,12 @@
 # Replace before applying: IMAGE, HOST, and a storageClassName on the PVCs if the cluster needs one.
 # Sizes are measured: one web worker holds bge-m3 (~2.3 GB) and the index (1.3 GB on disk) = 4.3 GB RSS.
 # ALLOWED_ORIGINS stays at its default, https://forrt.org (config/settings.py).
+# The production settings below match compose.yaml's web-prod (test/test_deploy_config.py fails when they drift).
+#
+# uniGPT takes 4 parallel requests per key: pods x MAX_CONCURRENT_LLM_CALLS must stay <= 4 at every moment. Hence
+# 2 pods x 2 slots, rolling updates without surge (maxSurge 0: one pod at a time is replaced, so a rollout runs on
+# one pod for about a minute), and no autoscaler above 2 pods. More pods need a higher uniGPT limit first (or
+# MAX_CONCURRENT_LLM_CALLS 1 per pod for up to 4 pods); the test checks the sum.
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -23,9 +29,11 @@ data:
   ROUTER: "banded"
   SEARCH_MODE: "vector"
   RERANK: "false"
+  AUTO_DEFAULTS: "false"       # the settings above, never eval winners picked at start
   REDIS_HOST: "just-os-redis"
   PROXY_FIX_X_FOR: "1"         # one proxy (the ingress) in front: the rate limit sees the client IP
   WEB_CONCURRENCY: "1"         # one worker per pod: each worker loads its own ~4 GB
+  FLASK_DEBUG: "false"
   WEB_RELOAD: "false"
   WEB_TIMEOUT: "300"
   OMP_NUM_THREADS: "2"          # bge-m3's CPU threads per question (kept: RERANK=false never raises it)
@@ -59,11 +67,12 @@ metadata:
   name: just-os-web
   labels: {app: just-os, component: web}
 spec:
-  replicas: 2                  # a restart or node drain keeps the bot up
+  replicas: 2                  # a restart or node drain keeps the bot up; at most 2 (uniGPT's limit, see the top)
   selector:
     matchLabels: {app: just-os, component: web}
   strategy:
-    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
+    # no third pod during a rollout (3 x 2 LLM slots would pass uniGPT's 4): one pod is replaced at a time
+    rollingUpdate: {maxUnavailable: 1, maxSurge: 0}
   template:
     metadata:
       labels: {app: just-os, component: web}
@@ -85,14 +94,15 @@ spec:
           resources:
             requests: {cpu: "1", memory: 5Gi}
             limits: {cpu: "4", memory: 6Gi}
-          startupProbe:                # the model and index load for about a minute; /ready: loaded and Redis answers
+          startupProbe:                # the model and index load for about a minute; /ready: 200 once loaded
             httpGet: {path: /ready, port: http}
             periodSeconds: 10
+            timeoutSeconds: 5          # above REDIS_TIMEOUT (2 s): /ready pings Redis once, without retries
             failureThreshold: 30
-          readinessProbe:              # 503 while the service is not loaded or Redis is unreachable: no traffic
-            httpGet: {path: /ready, port: http}
+          readinessProbe:              # 503 only while the service is not loaded; a Redis outage gives 200 "degraded"
+            httpGet: {path: /ready, port: http}  # (/chat still answers, without chat memory): the pods keep traffic
             periodSeconds: 15
-            timeoutSeconds: 3
+            timeoutSeconds: 5
           livenessProbe:               # /up: the process answers (restarts a hung pod, not one waiting for Redis)
             httpGet: {path: /up, port: http}
             periodSeconds: 60
@@ -173,16 +183,19 @@ spec:
             backend:
               service: {name: just-os-web, port: {name: http}}
 ---
-# Optional: more pods under load (memory per pod stays fixed).
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: just-os-web
-  labels: {app: just-os}
-spec:
-  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: just-os-web}
-  minReplicas: 2
-  maxReplicas: 4
-  metrics:
-    - type: Resource
-      resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}
+# No HorizontalPodAutoscaler: more than 2 pods would pass uniGPT's 4 parallel requests per key (2 slots per pod, see
+# the top). Once uniGPT raises the limit (or with MAX_CONCURRENT_LLM_CALLS "1"), an HPA can go here, with
+# maxReplicas x MAX_CONCURRENT_LLM_CALLS <= the limit; test/test_deploy_config.py checks it:
+#
+# apiVersion: autoscaling/v2
+# kind: HorizontalPodAutoscaler
+# metadata:
+#   name: just-os-web
+#   labels: {app: just-os}
+# spec:
+#   scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: just-os-web}
+#   minReplicas: 2
+#   maxReplicas: 2
+#   metrics:
+#     - type: Resource
+#       resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}

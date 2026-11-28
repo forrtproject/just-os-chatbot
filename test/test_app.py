@@ -237,7 +237,7 @@ def test_prod_mode_saves_nothing_and_hides_team_pages(app):
     client = app.app.test_client()
     final = chat(client)
     assert final["message"] == "<p>answer</p>" and "turn_id" not in final  # no turn_id: no feedback buttons
-    assert not app.chat_manager.redis.keys("chat:turn:*")
+    assert not app.chat_manager.redis.keys("feedback:turn:*")
     assert not (os.path.exists(app.config["CHAT_LOG_FILE"]) or os.path.exists(app.config["CHAT_FEEDBACK_FILE"]))
     for path in ("/eval", "/review", "/topics", "/topics/map", "/arena", "/arena/leaderboard"):
         assert client.get(path).status_code == 404, path
@@ -537,8 +537,69 @@ def test_ready_needs_the_loaded_service_and_redis(app, monkeypatch):
 
     monkeypatch.setattr(app.chat_manager.redis, "ping", down)
     response = client.get("/ready")
-    assert response.status_code == 503 and response.get_json()["redis"] == "unreachable"
+    # a Redis outage keeps the pod in the Service: /chat still answers (no memory, no rate limit)
+    assert response.status_code == 200
+    assert response.get_json() == {"status": "degraded", "rag": "ok", "redis": "error"}
     assert client.get("/up").status_code == 200  # liveness does not depend on Redis
+    app._rag_service = None  # not loaded and no Redis: not ready
+    response = client.get("/ready")
+    assert response.status_code == 503 and response.get_json() == {"status": "not ready", "rag": "failed", "redis": "error"}
+
+
+def test_chat_answers_with_empty_history_while_redis_is_down(app, monkeypatch):
+    from redis.exceptions import ConnectionError as RedisConnectionError
+
+    class DownRedis:
+        def __getattr__(self, name):
+            def fail(*a, **k):
+                raise RedisConnectionError("redis down")
+            return fail
+
+    seen = {}
+
+    class HistoryRag:
+        def get_response(self, message, chat_id, model=None, **options):
+            seen["history"] = app.chat_manager.get_history(chat_id)
+            seen["kept"] = app.chat_manager.add_turn(chat_id, message, "Open data is free.")
+            yield {"status": "complete", "message": "Open data is free.", "outcome": "answered"}
+
+    app.chat_manager.redis = DownRedis()
+    app._rag_service = HistoryRag()
+    response = app.app.test_client().post("/chat", json={"message": "What is open data?", "chat_id": "c1"})
+    assert response.status_code == 200 and "Open data is free." in response.get_data(as_text=True)
+    assert seen == {"history": [], "kept": False}
+    assert app.app.test_client().get("/ready").get_json()["status"] == "degraded"
+
+
+def test_startup_warns_when_team_pages_are_open(caplog):
+    import logging
+
+    from just_os import app as app_module
+
+    with caplog.at_level(logging.WARNING, logger="just_os.app"):
+        app_module.warn_if_open({"PROD_MODE": False})
+    text = caplog.text
+    assert "PROD_MODE is false" in text and "no authentication" in text and "chat logging" in text
+    assert all(page in text for page in ("/arena", "/review", "/recommend", "/eval", "/architecture"))
+
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="just_os.app"):
+        app_module.warn_if_open({"PROD_MODE": True})
+    assert "PROD_MODE is false" not in caplog.text
+
+
+def test_the_app_logs_the_open_pages_warning_at_start(caplog, monkeypatch):
+    import logging
+
+    from just_os import app as app_module
+
+    base = app_module.get_config()
+    for prod, expected in ((False, True), (True, False)):
+        caplog.clear()
+        monkeypatch.setattr(app_module, "get_config", lambda prod=prod: {**base, "PROD_MODE": prod})
+        with caplog.at_level(logging.WARNING, logger="just_os.app"):
+            FlaskApp()
+        assert ("no authentication" in caplog.text) is expected, prod
 
 
 def test_ready_never_starts_or_waits_for_a_load(app, monkeypatch):
@@ -651,3 +712,26 @@ def test_two_review_saves_in_the_same_second_both_save(app, tmp_path, monkeypatc
     assert first.status_code == second.status_code == 200
     assert first.get_json()["file"] != second.get_json()["file"]
     assert len(list((tmp_path / "scores").iterdir())) == 2
+
+
+def test_no_chat_id_reaches_the_feedback_turns(app):
+    """chat:<chat_id> holds a chat's memory; feedback turns live under feedback:turn:, so a chat_id like
+    "turn:<id>" can neither read nor overwrite a turn waiting for its Good/Bad click."""
+    from just_os.app import FEEDBACK_TURN_PREFIX
+
+    class AnswerRag:
+        def get_response(self, message, chat_id, model=None, **options):
+            app.chat_manager.add_turn(chat_id, message, "An answer.")
+            yield {"status": "complete", "message": "An answer.", "outcome": "answered"}
+
+    app._rag_service = AnswerRag()
+    client = app.app.test_client()
+    first = json.loads(client.post("/chat", json={"message": "What is open data?", "chat_id": "c1"}).get_data(as_text=True).strip())
+    turn_id = first["turn_id"]
+    assert FEEDBACK_TURN_PREFIX == "feedback:turn:" and app.chat_manager.redis.exists(f"feedback:turn:{turn_id}")
+    client.post("/chat", json={"message": "Overwrite it", "chat_id": f"turn:{turn_id}"})
+    stored = json.loads(app.chat_manager.redis.get(f"feedback:turn:{turn_id}"))
+    assert stored["question"] == "What is open data?"  # untouched
+    assert app.chat_manager.redis.type(f"chat:turn:{turn_id}") == b"list"  # that chat's own memory, elsewhere
+    response = client.post("/chat/feedback", json={"turn_id": turn_id, "rating": "good"})
+    assert response.status_code == 200

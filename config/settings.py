@@ -20,11 +20,17 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "NO_REASONING_MODELS": "qwen/qwen3.7-flash",
     # A failed model call (provider error, time-out or an empty answer) is tried this many more times,
     # with a short pause, before the user sees an error and its Try again button. Not for OpenScholar,
-    # whose answers take minutes. Worst case (1 + retries) x LLM_TIMEOUT must stay under WEB_TIMEOUT. With
-    # MAX_CONCURRENT_LLM_CALLS a try may first wait for a free slot; a try that gets none within LLM_TIMEOUT ends the retries
+    # whose answers take minutes. All tries share LLM_DEADLINE. With MAX_CONCURRENT_LLM_CALLS a try may first
+    # wait for a free slot; a try that gets none within LLM_TIMEOUT ends the retries
     "LLM_RETRIES": 3,
     # Seconds before an LLM call gives up (the answer then shows an error, not a hang)
     "LLM_TIMEOUT": 60,
+    # Seconds for all tries of one call (slot waits, requests, pauses, Retry-After), and for the whole answer step
+    # (the stream, the call after a failed stream, the citation re-ask), so retries never multiply LLM_TIMEOUT. Each
+    # other call (rewrite, topic check; a structured-output fallback is a second call) has its own. Gemma 4 answers
+    # took at most 76 s in the eval runs (median 4-7 s), so a healthy answer stays well inside. Not for OpenScholar
+    # (OPENSCHOLAR_TIMEOUT)
+    "LLM_DEADLINE": 120,
     # LLM calls (answers, rewrites, streams) one process makes at once, across all requests; 0 = no limit. Others wait
     # up to LLM_TIMEOUT for a free slot. Prod sets 2: two pods against uniGPT's 4 parallel requests per key
     "MAX_CONCURRENT_LLM_CALLS": 0,
@@ -88,10 +94,12 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "BAND_PAGE_LOW": 0.461,
     "BAND_PAGE_HIGH": 0.606,
     "BAND_MIDDLE_ROUTER": "jev",
-    # Key for the decision models (Jev, Clef; OpenRouter's decisions API): DECISION_API_KEY, else OPENROUTER_API_KEY.
-    # Set but empty means no key. Unset: LLM_API_KEY, but only when BASE_URL is on DECISION_URL's host, so a
-    # uniGPT key (web-prod: BASE_URL on uniGPT Münster) is never sent to OpenRouter (decisions.decision_api_key)
-    "DECISION_API_KEY": os.getenv("DECISION_API_KEY", os.getenv("OPENROUTER_API_KEY") or None),
+    # Key for the decision models (Jev, Clef; OpenRouter's decisions API): DECISION_API_KEY when set (set but empty
+    # means no key). Unset: LLM_API_KEY when BASE_URL has DECISION_URL's origin (scheme, host, port), else
+    # OPENROUTER_API_KEY when DECISION_URL is on OpenRouter's origin, else none: a uniGPT key (web-prod) never goes to
+    # OpenRouter, and no key goes to another DECISION_URL without an explicit DECISION_API_KEY (decisions.decision_api_key)
+    "DECISION_API_KEY": os.getenv("DECISION_API_KEY"),
+    "OPENROUTER_API_KEY": os.getenv("OPENROUTER_API_KEY") or None,
     "DECISION_ROUTER_MODEL": "cloudflare/clef-flash",  # best of Jev/Clef/Clef-flash in docs/evaluation.md 3.6
     "DECISION_ROUTER_MIN_CONFIDENCE": 0.5,
     "DECISION_URL": "https://openrouter.ai/api/alpha/decisions",

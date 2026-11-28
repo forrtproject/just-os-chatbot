@@ -1,5 +1,6 @@
 """Decision-model router and FORRT page router (#15, #34): offline, no index or network."""
 
+import contextlib
 import json
 from datetime import date, timedelta
 from types import SimpleNamespace
@@ -118,6 +119,15 @@ class FakeWeb:
         if url not in self.pages:
             raise ConnectionError("forrt.org unreachable")
         return SimpleNamespace(raise_for_status=lambda: None, text=self.pages[url])
+
+    @contextlib.contextmanager
+    def stream(self, method, url, timeout=None):
+        """httpx.Client.stream: ForrtPages reads the body in pieces (MAX_PAGE_BYTES)."""
+        resp = self.get(url)
+        body = resp.text.encode("utf-8") if isinstance(resp.text, str) else resp.text
+        yield SimpleNamespace(is_redirect=getattr(resp, "is_redirect", False), headers=getattr(resp, "headers", {}),
+                              raise_for_status=resp.raise_for_status, encoding="utf-8",
+                              iter_bytes=lambda: (body[i:i + 65536] for i in range(0, len(body), 65536)))
 
 
 def test_forrt_answer_from_the_picked_page(tmp_path):
@@ -343,6 +353,27 @@ def test_decision_models_keep_their_own_key_when_answers_go_elsewhere():
     assert key(LLM_API_KEY="rug", BASE_URL="https://openrouter.ai.evil.example/v1") == ""  # hostname, not a prefix
 
 
+def test_auto_selected_decision_keys_are_bound_to_the_full_origin():
+    key = lambda **config: decisions.decision_api_key(config, config.pop("url", decisions.DEFAULT_DECISION_URL))  # noqa: E731
+    openrouter = "https://openrouter.ai/api/v1"
+    # same origin: the answer key may go along (an explicit :443 is the default port)
+    assert key(LLM_API_KEY="or", BASE_URL=openrouter) == "or"
+    assert key(LLM_API_KEY="or", BASE_URL="https://openrouter.ai:443/api/v1") == "or"
+    assert key(LLM_API_KEY="or", BASE_URL="https://OpenRouter.ai/api/v1", url="https://openrouter.ai:443/api/alpha/decisions") == "or"
+    # same host, another scheme or port: another origin, no key
+    assert key(LLM_API_KEY="or", BASE_URL=openrouter, url="http://openrouter.ai/api/alpha/decisions") == ""
+    assert key(LLM_API_KEY="or", BASE_URL=openrouter, url="https://openrouter.ai:8443/api/alpha/decisions") == ""
+    assert key(LLM_API_KEY="local", BASE_URL="http://llm.example:8080/v1", url="http://llm.example:9090/decide") == ""
+    # the auto-sourced OpenRouter key only for OpenRouter's own decisions origin
+    assert key(OPENROUTER_API_KEY="or", BASE_URL="https://gpt.uni-muenster.de/v1") == "or"
+    assert key(OPENROUTER_API_KEY="or", BASE_URL="https://gpt.uni-muenster.de/v1", url="https://decide.example/api") == ""
+    assert key(OPENROUTER_API_KEY="or", url="http://openrouter.ai/api/alpha/decisions") == ""
+    # cross-origin needs an explicit DECISION_API_KEY; a bad URL gets nothing
+    assert key(DECISION_API_KEY="explicit", OPENROUTER_API_KEY="or", url="https://decide.example/api") == "explicit"
+    assert key(LLM_API_KEY="or", OPENROUTER_API_KEY="or", url="https://openrouter.ai:99999/x") == ""
+    assert key(LLM_API_KEY="or", BASE_URL="ftp://openrouter.ai/", url="ftp://openrouter.ai/") == ""
+
+
 def test_the_decision_call_never_carries_the_unigpt_key(monkeypatch):
     sent = []
     monkeypatch.setattr(decisions.httpx, "post", lambda url, **k: sent.append((url, k["headers"])) or SimpleNamespace(
@@ -417,7 +448,74 @@ def test_settings_tell_an_unset_decision_key_from_an_empty_one():
 
     assert key() == "None"
     assert key(OPENROUTER_API_KEY="") == "None"
-    assert key(OPENROUTER_API_KEY="or-key") == "'or-key'"
+    # the OpenRouter key is not folded into DECISION_API_KEY: it stays an auto-sourced key, bound to OpenRouter's origin
+    assert key(OPENROUTER_API_KEY="or-key") == "None"
     assert key(OPENROUTER_API_KEY="or-key", DECISION_API_KEY="dec-key") == "'dec-key'"
     assert key(OPENROUTER_API_KEY="or-key", DECISION_API_KEY="") == "''"
 
+
+
+def mock_http(handler):
+    import httpx
+
+    return httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=False)
+
+
+def test_a_page_body_is_read_only_up_to_the_byte_cap(tmp_path):
+    import httpx
+
+    pages, _ = make_pages(tmp_path, [], [])
+    served = {}
+
+    def handler(request):
+        body = b"<html><body><main><p>Start of a huge page.</p><!--" + b"x" * (3 * 1024 * 1024) + b"--></main></body></html>"
+        served["bytes"] = len(body)
+
+        def pieces():
+            for i in range(0, len(body), 65536):
+                served["read"] = i + 65536
+                yield body[i:i + 65536]
+
+        return httpx.Response(200, headers={"content-type": "text/html; charset=utf-8"}, content=pieces())
+
+    pages.http = mock_http(handler)
+    text, final = pages.get("https://forrt.org/huge/", deadline=forrt_pages.time.monotonic() + 6)
+    assert final == "https://forrt.org/huge/" and text.startswith("<html>")
+    assert len(text.encode("utf-8")) == forrt_pages.MAX_PAGE_BYTES < served["bytes"]
+    assert served["read"] <= forrt_pages.MAX_PAGE_BYTES + 65536  # the rest was never downloaded
+    assert "Start of a huge page." in pages.fetch("https://forrt.org/huge/")["markdown"]
+
+
+def test_redirects_and_the_refresh_hop_share_one_fetch_deadline(tmp_path, monkeypatch):
+    import httpx
+
+    pages, _ = make_pages(tmp_path, [], [])
+    pages.config = {**pages.config, "FORRT_FETCH_TIMEOUT": 6}
+    clock = {"now": 100.0}
+    monkeypatch.setattr(forrt_pages.time, "monotonic", lambda: clock["now"])
+    requested, timeouts = [], []
+
+    def handler(request):  # every hop takes 4 s; each redirects to the next page
+        requested.append(str(request.url))
+        timeouts.append(request.extensions["timeout"]["read"])
+        clock["now"] += 4
+        return httpx.Response(302, headers={"location": f"/hop{len(requested)}/"})
+
+    pages.http = mock_http(handler)
+    assert pages.fetch("https://forrt.org/start/") == {"markdown": "", "status": "failed"}
+    assert len(requested) == 2  # 0 s and 4 s; the third hop would start after the 6 s: not requested
+    assert timeouts == [6, 2]  # each hop gets only the time left
+
+    # a meta-refresh stub counts against the same deadline
+    stub = "<html><head><meta http-equiv=refresh content=\"0; url=https://forrt.org/real/\"></head></html>"
+    requested.clear()
+    clock["now"] = 200.0
+
+    def slow_stub(request):
+        requested.append(str(request.url))
+        clock["now"] += 7  # the stub alone used up the deadline
+        return httpx.Response(200, html=stub)
+
+    pages.http = mock_http(slow_stub)
+    pages.cache.clear()
+    assert pages.fetch("https://forrt.org/stub/")["status"] == "failed" and requested == ["https://forrt.org/stub/"]

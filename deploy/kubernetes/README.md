@@ -1,6 +1,6 @@
 # JUST-OS on Kubernetes
 
-`just-os.yaml` runs the public bot (the `web-prod` service of `compose.yaml`) on a cluster: two web pods with `PROD_MODE=true` (no chat log or feedback saved, no team pages), Redis for the chat memory (kept 1 hour after a chat's last message, at most 20 messages) and rate limits, an Ingress for the forrt.org widget, and an optional autoscaler. Sizes and reasons: [docs/deployment-checklist.md](../../docs/deployment-checklist.md), task 3.
+`just-os.yaml` runs the public bot (the `web-prod` service of `compose.yaml`) on a cluster: two web pods with `PROD_MODE=true` (no chat log or feedback saved, no team pages), Redis for the chat memory (kept 1 hour after a chat's last message, at most 20 messages) and rate limits, and an Ingress for the forrt.org widget. Its production settings match `web-prod` in `compose.yaml` (`test/test_deploy_config.py` fails when they drift). No autoscaler: uniGPT takes 4 parallel requests per key, and 2 pods × `MAX_CONCURRENT_LLM_CALLS` 2 already use them (see Updating). Sizes and reasons: [docs/deployment-checklist.md](../../docs/deployment-checklist.md), task 3.
 
 ## 1. Build and push the image
 
@@ -56,6 +56,8 @@ kubectl -n just-os delete pod copy
 kubectl -n just-os rollout restart deployment/just-os-web
 ```
 
+**Upgrading from an earlier version of `just-os.yaml` whose claims were `ReadOnlyMany`:** the access mode of a bound PersistentVolumeClaim cannot be changed, so `kubectl apply` refuses the new manifest. Delete and recreate both claims, then copy the data again: scale the web pods down (`kubectl -n just-os scale deployment/just-os-web --replicas=0`), `kubectl -n just-os delete pvc just-os-data just-os-models` (with a `Delete` reclaim policy this deletes the data; keep a copy of the model cache or copy it from `hf-cache` again), `kubectl apply`, run the copy steps above, and scale back to 2. Leaving the old claims in place also works: they are only read by the web pods.
+
 If the cluster's storage class has no `ReadWriteMany` (many block-storage classes only offer `ReadWriteOnce`), ask the cluster team to fill the volumes, or bake the index and model into the image (a second Dockerfile stage) instead.
 
 ## 5. Check
@@ -70,10 +72,11 @@ curl -s localhost:8080/eval -o /dev/null -w "%{http_code}"   # 404: the team pag
 
 Then ask one question on `http://localhost:8080/` and check the answer cites papers.
 
-Probes: `startupProbe` and `readinessProbe` call `/ready` (200 once the models and index are loaded and Redis answers `PING`; 503 with `rag: loading|failed` or `redis: unreachable` otherwise), `livenessProbe` calls `/up` (200 while the process answers). A Redis outage therefore takes both pods out of the Service until Redis is back; the rate limiter itself lets requests through while Redis is down (`swallow_errors`). Each pod makes at most `MAX_CONCURRENT_LLM_CALLS` (2) uniGPT calls at once; further calls wait up to `LLM_TIMEOUT`.
+Probes: `startupProbe` and `readinessProbe` call `/ready` with a 5 s timeout (200 once the models and index are loaded; 503 with `rag: loading|failed` before), `livenessProbe` calls `/up` (200 while the process answers). Redis does not decide readiness: when it does not answer `PING` within `REDIS_TIMEOUT` (2 s, no retries), `/ready` gives 200 with `{"status": "degraded", "rag": "ok", "redis": "error"}` and the pods keep their traffic, because `/chat` still answers (without chat memory for follow-ups; the rate limiter lets requests through, `swallow_errors`). Each pod makes at most `MAX_CONCURRENT_LLM_CALLS` (2) uniGPT calls at once; further calls wait up to `LLM_TIMEOUT`, and a call that gets no slot ends with an error instead of waiting again.
 
 ## Updating
 
-- **Code:** build and push a new image tag, set it in the Deployment, `kubectl apply`. The rolling update keeps one pod serving (`maxUnavailable: 0`).
+- **Code:** build and push a new image tag, set it in the Deployment, `kubectl apply`. The rolling update replaces one pod at a time without a third pod (`maxSurge: 0`, `maxUnavailable: 1`): the other pod serves alone for about a minute while the new one loads. A surge pod would make 3 × 2 = 6 parallel uniGPT calls possible, over the key's 4.
+- **More pods:** only after uniGPT raises the 4 parallel requests per key, or with `MAX_CONCURRENT_LLM_CALLS: "1"` (up to 4 pods). Keep (replicas + `maxSurge`) × `MAX_CONCURRENT_LLM_CALLS` and an HPA's `maxReplicas` × `MAX_CONCURRENT_LLM_CALLS` within the limit; `test/test_deploy_config.py` checks both.
 - **Index** (glossary, new papers): copy the new `vs_latest_bge-m3_glossary` into the data volume as in step 4, then `kubectl rollout restart deployment/just-os-web`.
 - **Model or settings:** edit the ConfigMap, apply, restart the Deployment.

@@ -30,28 +30,26 @@ class ChatManager:
         logger.debug("ChatManager initialized")
 
     def add_message(self, chat_id: str, message: Dict[str, Any]) -> bool:
-        """
-        Add a message to the chat history.
-        
-        Args:
-            chat_id: Unique identifier for the chat session
-            message: Message data to store
-            
-        Returns:
-            bool: True if message was added successfully, False otherwise
-        """
+        """Add one message to the chat history (see add_turn)."""
+        return self._push(chat_id, [message])
+
+    def add_turn(self, chat_id: str, question: str, answer: str) -> bool:
+        """Add a question and its answer in one transaction, so two requests of the same chat can never interleave
+        their messages. Returns False when Redis failed (the answer still goes out, without memory)."""
+        return self._push(chat_id, [{"role": "user", "content": question}, {"role": "assistant", "content": answer}])
+
+    def _push(self, chat_id: str, messages: List[Dict[str, Any]]) -> bool:
         key = f"chat:{chat_id}"
-        
         try:
-            # One transaction: add the message (the list is newest first), keep the newest
+            # One transaction: add the messages (the list is newest first), keep the newest
             # MAX_HISTORY_MESSAGES, reset the TTL. A chat can never grow without bound.
             pipe = self.redis.pipeline(transaction=True)
-            pipe.lpush(key, json.dumps(message))
+            pipe.lpush(key, *[json.dumps(message) for message in messages])
             if self.max_messages > 0:
                 pipe.ltrim(key, 0, self.max_messages - 1)
             pipe.expire(key, self.message_ttl)
             pipe.execute()
-            logger.debug(f"Added message to chat {chat_id}")
+            logger.debug(f"Added {len(messages)} message(s) to chat {chat_id}")
             return True
         except RedisError as e:
             logger.error(f"Failed to add message to chat {chat_id}: {str(e)}")

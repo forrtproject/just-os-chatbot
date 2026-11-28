@@ -1,6 +1,8 @@
 import logging
 from typing import Optional
 from redis import Redis
+from redis.backoff import NoBackoff
+from redis.retry import Retry
 
 from config.settings import DEFAULT_CONFIG
 
@@ -10,9 +12,12 @@ _redis_client: Optional[Redis] = None
 
 
 def redis_timeouts() -> dict:
-    """REDIS_TIMEOUT for connecting and for each reply: a Redis that stops answering fails fast."""
+    """REDIS_TIMEOUT for connecting and for each reply, and no retries: a Redis that stops answering fails once,
+    after REDIS_TIMEOUT. redis-py otherwise retries a timed-out or refused command with backoff (11 tries measured),
+    so one request or probe could wait many times REDIS_TIMEOUT. Shared by the chat memory client and the limiter."""
     seconds = DEFAULT_CONFIG.get("REDIS_TIMEOUT", 2)
-    return {"socket_connect_timeout": seconds, "socket_timeout": seconds}
+    return {"socket_connect_timeout": seconds, "socket_timeout": seconds,
+            "retry": Retry(NoBackoff(), 0)}  # retry_on_timeout is deprecated in redis-py 6+: the Retry decides
 
 
 def redis_options() -> dict:
