@@ -55,7 +55,7 @@ def answer_runs(folder: str) -> List[Dict]:
     """One row per eval/run.py run, newest first."""
     out = []
     for path in sorted(Path(folder).glob("run_*.csv"), reverse=True):
-        match = re.match(r"run_(\d{6}-\d{4})_(.+)\.csv$", path.name)
+        match = re.match(r"run_(\d{6}-\d{4}(?:\d{2})?)_(.+)\.csv$", path.name)  # seconds since Nov 2026
         rows = _rows(path) if match else []
         if not rows:
             continue
@@ -441,14 +441,15 @@ def best_defaults(folder: str, routers: Iterable[str]) -> Dict[str, str]:
     full = max((r["n"] for r in papers), default=0)
     qualified = [r for r in papers if r["n"] == full and r["errors"] == 0 and r["judge"] is not None]
     scored = [r for r in qualified if score(r) is not None]
+    # without a provider pin such as "@groq", which the chat client does not understand (top_answer_models)
     if scored:
-        out["CITATION_MODEL"] = max(scored, key=lambda r: (score(r), r["judge"]))["model"]
+        out["CITATION_MODEL"] = max(scored, key=lambda r: (score(r), r["judge"]))["model"].split("@")[0]
     elif qualified:
-        out["CITATION_MODEL"] = max(qualified, key=lambda r: r["judge"])["model"]
+        out["CITATION_MODEL"] = max(qualified, key=lambda r: r["judge"])["model"].split("@")[0]
     known = set(routers) - {""}
     pair = best_pair(pair_results(folder), answer_model_rows(answer_runs(folder))[0])["best"]
     if pair and pair["topic_check"] in known:  # the pair rule decides both, when there is a pair table
-        out["CITATION_MODEL"] = pair["answer_model"]
+        out["CITATION_MODEL"] = pair["answer_model"].split("@")[0]
         out["ROUTER"] = pair["topic_check"]
         return out
     for path in sorted(Path(folder).glob("classify_*.csv"), reverse=True):

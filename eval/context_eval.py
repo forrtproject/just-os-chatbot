@@ -145,8 +145,10 @@ def main():
     seen = {}  # what the scored turn did, recorded without changing the pipeline
     route, retrieve = qualle.route, qualle.document_retriever.retrieve_and_rerank
     generate, complete = qualle.response_generator.generate_response, qualle.client_manager.create_chat_completion
-    qualle.route = lambda query, router=None: seen.update(route=route(query, router)) or seen["route"]
-    qualle.document_retriever.retrieve_and_rerank = lambda query, *a: seen.update(ranked=retrieve(query, *a)[0]) or (seen["ranked"], [])
+    # **kw: the turn passes its question embedding (query_vector) to both
+    qualle.route = lambda query, router=None, **kw: seen.update(route=route(query, router, **kw)) or seen["route"]
+    qualle.document_retriever.retrieve_and_rerank = lambda query, *a, **kw: seen.update(
+        ranked=retrieve(query, *a, **kw)[0]) or (seen["ranked"], [])
     qualle.response_generator.generate_response = lambda *a, **kw: seen.update(raw=generate(*a, **kw)) or seen["raw"]
     rephrase = qualle.query_processor.rephrase_query
     qualle.query_processor.rephrase_query = lambda *a, **kw: seen.update(rewrite=rephrase(*a, **kw)) or seen["rewrite"]

@@ -5,28 +5,71 @@ questions: one long process grows past the Docker VM's memory (~47 questions in 
 run.py writes a row per finished question, so stopping loses only the question in progress.
 On the next start, questions already in a model's run files (made since --since) are
 skipped. When a model has every question, its files are merged into the first one.
+Each run series records its questions and settings (eval/results/batch_<label>.json); a resume with
+other questions or settings stops instead of mixing two setups in one run file.
 
     python eval/run_batches.py --since 261112-1246 openai/gpt-oss-20b qwen/qwen3-14b ...
 """
 
 import argparse
+import hashlib
 import json
+import re
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from config.settings import DEFAULT_CONFIG  # noqa: E402
 RESULTS = ROOT / "eval/results"
 BATCH = 30
 TMP = ROOT / "eval/tmp_batch.jsonl"
 
 
+STAMP = re.compile(r"run_(\d{6}-\d{4})(\d{2})?_")
+
+
+def run_stamp(path) -> str:
+    """A run file's time as YYMMDD-HHMMSS, for sorting files named before (YYMMDD-HHMM) and after (with
+    seconds, so two batches in one minute get two files) Nov 2026 alike; "" for another name."""
+    m = STAMP.match(Path(path).name)
+    return f"{m.group(1)}{m.group(2) or '00'}" if m else ""
+
+
 def run_files(model, since):
-    """This model's run CSVs made at or after `since` (YYMMDD-HHMM), oldest first."""
-    files = sorted(RESULTS.glob(f"run_*_{model.replace('/', '__')}.csv"))
-    return [f for f in files if f.name[4:15] >= since and f.stat().st_size > 0]
+    """This model's run CSVs made at or after `since` (YYMMDD-HHMM or YYMMDD-HHMMSS), oldest first."""
+    files = sorted(RESULTS.glob(f"run_*_{model.replace('/', '__')}.csv"), key=run_stamp)
+    return [f for f in files if run_stamp(f) and run_stamp(f) >= since.ljust(13, "0") and f.stat().st_size > 0]
+
+
+def manifest_path(label):
+    return RESULTS / f"batch_{label.replace('/', '__')}.json"
+
+
+def check_manifest(label, since, lines, run_args, env, resuming):
+    """Record what a run series asks (questions, run.py arguments, settings) on its first batch; on a resume
+    (run files since `since` exist, whatever --since recorded them) stop when the questions or settings differ
+    from the recorded ones, so files of two setups are never merged."""
+    identity = {"since": since, "questions": hashlib.sha256("".join(lines).encode("utf-8")).hexdigest(),
+                "run_args": list(run_args), "settings": {k: str(v) for k, v in (env or {}).items()}}
+    path = manifest_path(label)
+    if resuming and path.exists():
+        recorded = json.loads(path.read_text(encoding="utf-8"))
+        changed = [k for k in ("questions", "run_args", "settings") if recorded.get(k) != identity[k]]
+        if changed:
+            raise SystemExit(f"{label}: the run files since {since} were made with other {', '.join(changed)} "
+                             f"({path.name}, series since {recorded.get('since')}); start a new series "
+                             f"(--since now) or use the same setup")
+        if recorded.get("since") == since:
+            return
+    elif resuming:
+        print(f"{label}: resuming run files since {since} that have no {path.name}; their setup is not checked", flush=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(identity, indent=1), encoding="utf-8")
 
 
 def done_ids(files):
@@ -45,17 +88,22 @@ def merge(files, order):
     return files[0]
 
 
-def main():
+def build_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("models", nargs="+")
     parser.add_argument("--since", required=True, help="first run to count, YYMMDD-HHMM")
     parser.add_argument("--questions", default="eval/questions.jsonl")
-    parser.add_argument("--general-model", default="meta-llama/llama-3.1-8b-instruct")
+    parser.add_argument("--general-model", default=DEFAULT_CONFIG["GENERAL_MODEL"],
+                        help="classify/rephrase model (default: GENERAL_MODEL of config/settings.py)")
     parser.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
                         help="a setting for this run's containers only, e.g. RERANK=true (the live bot keeps its own)")
     parser.add_argument("--route", choices=["open_science", "forrt"],
                         help="every question one way (eval/pairs.py); files are run_*_<model>__route-<route>.csv")
-    args = parser.parse_args()
+    return parser
+
+
+def main():
+    args = build_parser().parse_args()
     lines = read_questions(args.questions)
     order = [json.loads(line)["id"] for line in lines]
 
@@ -77,6 +125,7 @@ def run_all(label, run_args, since, lines, order, env=None):
     `since`, then merge them. env: settings for this run, passed to the container (eval/scorecard.py)."""
     settings = [x for key, value in (env or {}).items() for x in ("-e", f"{key}={value}")]
     tmp = TMP.with_name(f"tmp_batch_{label.replace('/', '__')}.jsonl")  # one per run, so runs can go in parallel
+    check_manifest(label, since, lines, run_args, env, resuming=bool(run_files(label, since)))
     while True:
         files = run_files(label, since)
         todo = [line for line, i in zip(lines, order) if i not in done_ids(files)]
@@ -84,7 +133,7 @@ def run_all(label, run_args, since, lines, order, env=None):
             break
         print(f"{label}: {len(order) - len(todo)}/{len(order)} done, next {min(BATCH, len(todo))}", flush=True)
         tmp.write_text("".join(todo[:BATCH]), encoding="utf-8")
-        out = f"eval/results/run_{datetime.now():%y%m%d-%H%M}_{label.replace('/', '__')}.csv"
+        out = f"eval/results/run_{datetime.now():%y%m%d-%H%M%S}_{label.replace('/', '__')}.csv"
         subprocess.run(
             ["docker", "compose", "run", "--rm", "-T", "-e", "OMP_NUM_THREADS=8", *settings, "web", "python",
              "eval/run.py", *run_args, "--cache-retrieval", "--questions", tmp.relative_to(ROOT).as_posix(), "--out", out],

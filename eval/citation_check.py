@@ -2,7 +2,7 @@
 
     docker compose run --rm -T --no-deps -v ./eval:/app/eval web python eval/citation_check.py eval/results/<run>.csv
 
-The run must come from `eval/run.py --full-answers` (whole answer, whole chunks; numbered from 0 = papers route).
+The run must keep whole answers and chunks (`eval/run.py` without `--truncate`; numbered from 0 = papers route).
 Every (cited sentence, cited chunk) pair, split as DocumentRetriever.unsupported_citations splits it, gets
   - the re-ranker score the app would compute (RERANK_MODEL), and the seconds that took per answer;
   - a label from the citation judge (gpt-oss-20b, config/criteria.json): does the chunk support the sentence?

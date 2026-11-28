@@ -31,13 +31,17 @@ def label(name: str) -> str:
     return f"cfg-{name}"
 
 
-def latest_runs(names):
-    """The newest run file of each configuration that has one."""
+def latest_runs(names, route=None):
+    """The newest run file of each configuration that has one: with route, its run with every question sent
+    that way (run_*_cfg-<name>__route-<route>.csv); without, its newest run of each kind (the topic check's
+    own, and one per forced route)."""
     paths = []
     for name in names:
-        files = sorted(run_batches.RESULTS.glob(f"run_*_{label(name)}.csv"))
-        if files:
-            paths.append(files[-1])
+        kinds = [f"__route-{route}"] if route else ["", "__route-open_science", "__route-forrt"]
+        for suffix in kinds:
+            files = sorted(run_batches.RESULTS.glob(f"run_*_{label(name)}{suffix}.csv"), key=run_batches.run_stamp)
+            if files:
+                paths.append(files[-1])
     return paths
 
 
@@ -65,7 +69,7 @@ def main():
         if not args.no_judge:
             subprocess.run(["docker", "compose", "run", "--rm", "-T", "web", "python", "eval/judge.py",
                             path.relative_to(ROOT).as_posix()], cwd=ROOT, check=False)
-    print(compare.summarize(latest_runs(args.names or configs)))
+    print(compare.summarize(latest_runs(args.names or configs, args.route)))
 
 
 if __name__ == "__main__":

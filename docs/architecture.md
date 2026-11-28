@@ -146,7 +146,7 @@ Limitations (measured 11 Nov with lingua 2.2.0 over all languages):
 | `compare.py` | Merges run CSVs into one Markdown table | stdout |
 | `make_retrieval_set.py` | Makes the retrieval question set (seed + synthetic + translated questions) | `retrieval_questions.jsonl` |
 | `coverage.py` | One reason per FORRT sheet resource for why it is (not) in the index | `results/coverage_<date>.{csv,md,svg}` |
-| `citation_check.py` | Calibrates `VERIFY_CITATIONS` (#23) on a `run.py --full-answers` run: per cited sentence-source pair the re-ranker score and a judge label (supported?), per threshold the share of unsupported sources caught and of flags that are right, re-ranker seconds per answer | `results/citation_check_<run>.md/.csv` |
+| `citation_check.py` | Calibrates `VERIFY_CITATIONS` (#23) on a `run.py` run with whole answers (the default): per cited sentence-source pair the re-ranker score and a judge label (supported?), per threshold the share of unsupported sources caught and of flags that are right, re-ranker seconds per answer | `results/citation_check_<run>.md/.csv` |
 | `cluster_balance.py` | Eval questions per FORRT cluster against the index's documents and chunks per cluster | `results/cluster_balance_<date>.md` |
 | `cluster_boost.py` | Retrieval only: does boosting the chunks of the question's nearest cluster (centroid of its chunks' vectors) raise hit@7 and the share of in-cluster sources? | `results/cluster_boost_<date>.md` |
 | `judge.py` | LLM judge: share of cited sentences their source supports → column `judge_support` in a run CSV | same run CSV |
@@ -174,6 +174,8 @@ Limitations (measured 11 Nov with lingua 2.2.0 over all languages):
 | `test_app.py` | Arena: chosen models, hidden names, OpenScholar filter, ratings, leaderboard, bad input; ProxyFix on/off; chat log with outcome, feedback once per answer |
 | `test_compare.py` | `eval/compare.py` summary numbers |
 | `test_coverage.py` | Coverage reasons in `eval/coverage.py` |
+| `test_query_embeddings.py` | One question embedding per turn (`QueryEmbeddings`): answer cache, cosine router, FORRT page search, vector search and cluster boost share it; chat and arena |
+| `test_eval_harness.py` | `eval/run.py` records the turn's exact sources (`FORRT_IN_PAPERS` pages, named papers), outcome and shown answer, whole answers by default, retrieval cache key; run file names with seconds and checked resumes; `--route` runs in the scorecard; pair counting; failed judge calls; dated presets; answer cache keys |
 
 ### `assets/` (front end)
 `js/app.js` (chat page; "How was this answer?" Good/Bad + optional comment under each answer → `/chat/feedback`), `js/arena.js` (arena page), `js/references.js` (shared source tooltip and source list with the quoted snippet; inserts metadata with `textContent`, links only for http(s) URLs), `css/app.css` (Tailwind). `esbuild.config.mjs` bundles `app.js` and `arena.js` into `public/js/`. The `js` and `css` compose services build them.
@@ -213,7 +215,7 @@ Each step yields a status line (`{"status": "in-progress", "message": ...}`). Th
 | Model weights (bge-m3, bge-reranker-v2-m3) | Docker volume `hf-cache` → `/home/python/.cache/huggingface`; `LLAMA_INDEX_CACHE_DIR` points llama-index to the same folder | Until the volume is deleted | No 2–3 GB download on each container start |
 | Chat history | Redis `chat:{chat_id}` (list, newest first): the question as the user typed it + the answer | `MESSAGE_TTL` = 1 h, reset on each message | Context for follow-up questions (`CONTEXT_METHOD`: hybrid by default, rephrase or history; evaluation.md 3.16); privacy-friendly |
 | Rate-limit counters | Redis (Flask-Limiter `storage_uri`) | Per window in `RATE_LIMIT` | Shared by all workers |
-| Answer cache (only with `ANSWER_CACHE_TTL` > 0) | Redis list `answer_cache:<hash of models, index, prompt, retrieval settings>`: question vector + final answer, newest first, max `ANSWER_CACHE_MAX_ITEMS` | `ANSWER_CACHE_TTL` seconds | A first question with cosine ≥ `ANSWER_CACHE_MIN_SIMILARITY` to a recent one gets the stored answer: no LLM call. Shared by all users (stores question text) |
+| Answer cache (only with `ANSWER_CACHE_TTL` > 0) | Redis list `answer_cache:<hash of models, index, prompt, retrieval and routing settings, and a fingerprint of the docstore, index corrections and cluster list>`: question vector + final answer, newest first, max `ANSWER_CACHE_MAX_ITEMS` | `ANSWER_CACHE_TTL` seconds | A first question with cosine ≥ `ANSWER_CACHE_MIN_SIMILARITY` to a recent one gets the stored answer: no LLM call. Shared by all users (stores question text) |
 | Arena rounds | Redis `arena:battle:{id}` (question, label → model + seconds) | 1 day, deleted when rated | Hide model names until the ratings are in |
 | Arena ratings | Redis list `arena:ratings` (time, question, model, seconds, correct, references, clarity, answer (HTML), sources) | No expiry (`redis-cli DEL arena:ratings`) | Leaderboard. The old two-model votes stay in `arena:votes` (unused) |
 | Arena ratings (copy) | `data/arena/ratings.jsonl` (`ARENA_RATINGS_FILE`), same rows, one JSON per line, appended on each rating | Kept; in Git | Backup and sharing: commit it to share the ratings with the team. Survives `docker compose down -v`. Not read by the app |

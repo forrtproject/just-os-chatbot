@@ -12,6 +12,7 @@ import hashlib
 import json
 import logging
 import time
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import numpy as np
@@ -34,7 +35,37 @@ NAMESPACE_KEYS = (
     "MIN_VECTOR_SIMILARITY",
     "MAX_CHUNKS",
     "MAX_CHUNKS_PER_DOC",
+    "ROUTER",
+    "CLUSTER_BOOST",
+    "SKIP_REFERENCE_CHUNKS",
+    "FORRT_IN_PAPERS",
+    "ADAPTIVE_TOP_K",
+    "REFERENCE_LOOKUP",
+    "VERIFY_CITATIONS",
+    "TEMPERATURE",
+    "MAX_ANSWER_TOKENS",
+    "BASE_URL",
 )
+
+
+def file_hash(path: Optional[str]) -> Optional[str]:
+    """sha1 of a file's bytes, or None when there is no such file."""
+    try:
+        return hashlib.sha1(Path(path).read_bytes()).hexdigest() if path else None
+    except OSError:
+        return None
+
+
+def index_fingerprint(config: Dict[str, Any]) -> list:
+    """What the namespace keys cannot see: an index changed in place (size and mtime of its docstore, as
+    scripts/fix_index_titles.py and add_to_index write it), the excluded documents and corrected titles
+    (INDEX_CORRECTIONS_FILE) and the cluster list the boost reads (CLUSTERS_FILE)."""
+    try:
+        stat = (Path(config.get("VECTOR_STORE") or "") / "docstore.json").stat()
+        docstore = [stat.st_size, int(stat.st_mtime)]
+    except OSError:
+        docstore = None
+    return [docstore, file_hash(config.get("INDEX_CORRECTIONS_FILE")), file_hash(config.get("CLUSTERS_FILE"))]
 
 
 class AnswerCache:
@@ -45,24 +76,31 @@ class AnswerCache:
         self.min_similarity = config["ANSWER_CACHE_MIN_SIMILARITY"]
         self.max_items = config["ANSWER_CACHE_MAX_ITEMS"]
         self.config = config
+        self.fingerprint = index_fingerprint(config)  # read once at start, like the index itself
         self.key = self.key_for(None)
 
     def key_for(self, model: Optional[str]) -> str:
-        """One cache per setup; a model chosen for one request replaces CITATION_MODEL."""
+        """One cache per setup (NAMESPACE_KEYS and the index fingerprint); a model chosen for one request
+        replaces CITATION_MODEL."""
         values = [self.config.get(k) for k in NAMESPACE_KEYS]
         if model:
             values[NAMESPACE_KEYS.index("CITATION_MODEL")] = model
-        return f"answer_cache:{hashlib.md5(json.dumps(values).encode()).hexdigest()[:12]}"
+        raw = json.dumps(values + [self.fingerprint], default=str)
+        return f"answer_cache:{hashlib.md5(raw.encode()).hexdigest()[:12]}"
 
-    def _vector(self, query: str) -> np.ndarray:
-        vector = np.asarray(self.embed_model.get_query_embedding(query), dtype=np.float32)
+    def _vector(self, query: str, query_vector: Optional[np.ndarray] = None) -> np.ndarray:
+        """The unit question vector; query_vector is the turn's embedding when Qualle already has it."""
+        if query_vector is None:
+            query_vector = self.embed_model.get_query_embedding(query)
+        vector = np.asarray(query_vector, dtype=np.float32)
         return vector / (np.linalg.norm(vector) or 1.0)
 
     @trace.step("answer cache", lambda result, *a, **k: {"hit": bool(result)})
-    def lookup(self, query: str, model: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def lookup(self, query: str, model: Optional[str] = None,
+               query_vector: Optional[np.ndarray] = None) -> Optional[Dict[str, Any]]:
         """Return the stored entry ({"response", "text"}) of the most similar fresh question."""
         try:
-            vector = self._vector(query)
+            vector = self._vector(query, query_vector)
             now = time.time()
             best, best_score = None, self.min_similarity
             for raw in self.redis.lrange(self.key_for(model), 0, -1):
@@ -80,11 +118,12 @@ class AnswerCache:
             logger.error(f"Answer cache lookup failed: {e}")
             return None
 
-    def store(self, query: str, response: Dict[str, Any], text: str, model: Optional[str] = None) -> None:
+    def store(self, query: str, response: Dict[str, Any], text: str, model: Optional[str] = None,
+              query_vector: Optional[np.ndarray] = None) -> None:
         try:
             entry = {
                 "time": time.time(),
-                "vector": np.round(self._vector(query), 4).tolist(),
+                "vector": np.round(self._vector(query, query_vector), 4).tolist(),
                 "response": response,
                 "text": text,
             }

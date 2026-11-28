@@ -17,7 +17,7 @@ arena, one for the chat), so that people and judges score the same stored answer
   answer cites them (arena sources are the reference list as shown)
 - seconds, cost_usd (empty when the source does not record them)
 - complete: false when the run kept only the first 2,000 characters of the answer and 800 of each
-  passage (eval/run.py without --full-answers)
+  passage (eval/run.py --truncate, or runs before 28 Nov 2026 without --full-answers)
 """
 
 import argparse
@@ -38,7 +38,7 @@ def record(answer_id, origin, question, config, answer, *, question_id="", time=
 def run_model(stem):
     """The answer model and forced route from a run file name, run_<YYMMDD-HHMM>_<model, / as __>[__route-<route>]
     [_noretrieval]; for runs written before eval/run.py had an answer_model column."""
-    m = re.match(r"run_\d{6}-\d{4}_(.+)$", stem)
+    m = re.match(r"run_\d{6}-\d{4}(?:\d{2})?_(.+)$", stem)
     if not m:
         return "", ""
     name = re.sub(r"_noretrieval$", "", m.group(1))
@@ -58,7 +58,8 @@ def from_run(run_csv):
         for s, p in zip(sources, passages):
             s["passage"] = p
         answer = r.get("answer", "")
-        # without --full-answers run.py cuts the answer at 2,000 characters and each passage at 800
+        # with --truncate (before 28 Nov 2026: without --full-answers) run.py cuts the answer at 2,000 characters and
+        # each passage at 800
         complete = len(answer) != 2000 and all(len(p) != 800 for p in passages)
         config = {"run": stem, "answer_model": r.get("answer_model") or model, "retrieval": r.get("retrieval", ""),
                   "route": route}

@@ -8,6 +8,12 @@ open_science` and `--route forrt`), and each topic check's decision per question
 (`eval/classify.py --routers ...` on the same questions) picks which of the two answers the pair
 would have given. A refusal (neither) or a failed topic check needs no answer. Seconds and cost
 add the topic check's own. Output: eval/results/pairs_<YYMMDD-HHMM>.csv and a Markdown table.
+
+Counting: a question that should be refused counts as correct only when the topic check refused it. When the
+check sent it to the papers or the FORRT pages and the search found nothing ("no sources"), no answer was
+shown, but the check got it wrong: such questions are counted in no_sources_refuse, not as refusals or correct.
+A "both" decision is scored from the papers run (the app adds FORRT pages next to the papers, which neither
+forced run has); both_as_papers counts those questions.
 """
 
 import argparse
@@ -18,17 +24,20 @@ from datetime import datetime
 from pathlib import Path
 from statistics import mean
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from run_batches import run_stamp  # noqa: E402  same folder
+
 RESULTS = Path(__file__).resolve().parent / "results"
 REFUSE = {"neither", "off_topic", "small_talk"}
 FIELDS = ["topic_check", "answer_model", "n", "correct", "answered", "should_answer", "refused", "should_refuse",
-          "hit", "citations_valid", "judge_support", "mean_s", "usd_per_1k"]
+          "no_sources_refuse", "both_as_papers", "hit", "citations_valid", "judge_support", "mean_s", "usd_per_1k"]
 
 
 def routed_runs(results=RESULTS):
     """{answer model: {"open_science": path, "forrt": path}} for the models with both forced runs (newest)."""
     runs = {}
-    for path in sorted(results.glob("run_*__route-*.csv")):
-        m = re.match(r"run_\d{6}-\d{4}_(.+)__route-(open_science|forrt)\.csv$", path.name)
+    for path in sorted(results.glob("run_*__route-*.csv"), key=run_stamp):
+        m = re.match(r"run_\d{6}-\d{4}(?:\d{2})?_(.+)__route-(open_science|forrt)\.csv$", path.name)
         if m:
             runs.setdefault(m.group(1).replace("__", "/"), {})[m.group(2)] = path
     return {model: r for model, r in runs.items() if len(r) == 2}
@@ -60,8 +69,11 @@ def score(decisions, papers, forrt):
             row = (forrt if route == "forrt" else papers).get(qid)
             outcome = row["outcome"] if row else "error"
         answered = row is not None and outcome == "answered"
-        rows.append({"expect": expect, "outcome": outcome,
-                     "correct": int((outcome == "answered") == (expect == "answer") and outcome != "error"),
+        # a should-refuse question is right only when refused on purpose: "no sources" after an answer route
+        # was the search's miss, not the topic check's decision
+        right = outcome == "answered" if expect == "answer" else outcome in ("refused", "small_talk")
+        rows.append({"expect": expect, "outcome": outcome, "both": route == "both",
+                     "correct": int(right),
                      "hit": num(row.get("hit")) if answered else None,
                      "valid": num(row.get("citations_valid")) if answered else None,
                      "judge": num(row.get("judge_support")) if answered else None,
@@ -77,6 +89,8 @@ def score(decisions, papers, forrt):
             "should_answer": sum(r["expect"] == "answer" for r in rows),
             "refused": sum(r["outcome"] == "refused" for r in rows if r["expect"] == "refuse"),
             "should_refuse": sum(r["expect"] == "refuse" for r in rows),
+            "no_sources_refuse": sum(r["outcome"] == "no_sources" for r in rows if r["expect"] == "refuse"),
+            "both_as_papers": sum(r["both"] for r in rows),
             "hit": avg("hit"), "citations_valid": avg("valid"), "judge_support": avg("judge"),
             "mean_s": avg("seconds"), "usd_per_1k": round(mean(r["usd"] for r in rows) * 1000, 3) if rows else ""}
 
@@ -111,12 +125,13 @@ def main():
         writer = csv.DictWriter(f, fieldnames=FIELDS)
         writer.writeheader()
         writer.writerows(table)
-    print("| Topic check | Answer model | Correct | Answered | Refused | hit | Citations valid | Judge | Mean s | USD / 1k q |\n"
-          "|---|---|---|---|---|---|---|---|---|---|")
+    print("| Topic check | Answer model | Correct | Answered | Refused | No sources (should refuse) | Both as papers "
+          "| hit | Citations valid | Judge | Mean s | USD / 1k q |\n"
+          "|---|---|---|---|---|---|---|---|---|---|---|---|")
     for r in table:
         print(f"| {r['topic_check']} | {r['answer_model']} | {r['correct']} | {r['answered']}/{r['should_answer']} "
-              f"| {r['refused']}/{r['should_refuse']} | {r['hit']} | {r['citations_valid']} | {r['judge_support']} "
-              f"| {r['mean_s']} | {r['usd_per_1k']} |")
+              f"| {r['refused']}/{r['should_refuse']} | {r['no_sources_refuse']} | {r['both_as_papers']} "
+              f"| {r['hit']} | {r['citations_valid']} | {r['judge_support']} | {r['mean_s']} | {r['usd_per_1k']} |")
     print(f"-> {out} (topic checks from {classify_csv.name})")
 
 

@@ -3,6 +3,7 @@ import html
 import json
 import logging
 import re
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Any, Optional, Generator, Iterator, Tuple
@@ -25,7 +26,7 @@ from just_os.decisions import DECISION_ROUTERS, DecisionClient
 from just_os.forrt_lookup import ForrtLookup
 from just_os import forrt_checks as checks
 from just_os.forrt_pages import ForrtPages
-from just_os.hybrid import vector_cosine
+from just_os.hybrid import retrieve_with_vector, vector_cosine
 from just_os import messages as msg
 from just_os.openscholar import generation_instance_prompts_w_references, system_prompt
 from llama_index.core.schema import NodeWithScore, TextNode
@@ -155,6 +156,41 @@ def page_nodes(pages: List[Dict[str, Any]]) -> List[TextNode]:
 def page_source_lines(refs: List[Dict[str, Any]]) -> str:
     """The same entries as text lines (metadata.sources, read by the forrt.org widget)."""
     return "\n".join(f"[{r['number']}] {r['title']}. {r['url']}" for r in refs)
+
+
+class QueryEmbeddings:
+    """The question embeddings of one turn: the answer cache, the cosine and banded routers, the FORRT page search,
+    the vector search and the cluster boost all embed the same question, so each distinct string is embedded once
+    (get_query_embedding; the vector as the model returns it, not normalised). Thread-safe: the FORRT_IN_PAPERS
+    page search runs next to the paper search. Without an embedding model (test doubles) get() is None and each
+    component embeds on its own."""
+
+    def __init__(self, embed_model):
+        self.embed_model = embed_model
+        self._vectors: Dict[str, np.ndarray] = {}
+        self._lock = threading.Lock()
+
+    def get(self, query: str) -> Optional[np.ndarray]:
+        if self.embed_model is None:
+            return None
+        with self._lock:
+            if query not in self._vectors:
+                self._vectors[query] = np.asarray(self.embed_model.get_query_embedding(query), dtype=np.float32)
+            return self._vectors[query]
+
+    def get_or_none(self, query: str) -> Optional[np.ndarray]:
+        """get(), but None when the embedding call fails: for the answer cache, which must never break an answer
+        (the next user of the vector asks again)."""
+        try:
+            return self.get(query)
+        except Exception as e:
+            logger.error(f"Question embedding failed: {e}")
+            return None
+
+
+def with_vector(query_vector: Optional[np.ndarray]) -> Dict[str, Any]:
+    """{"query_vector": ...} when there is one, else {}: components and test doubles without the parameter keep working."""
+    return {} if query_vector is None else {"query_vector": query_vector}
 
 
 def visible_answer(raw: str, marked: bool) -> str:
@@ -511,7 +547,7 @@ class DocumentRetriever:
                 return NodeWithScore(node=versions[lang], score=getattr(entry, "score", None))
         return entry
 
-    def search_order(self, query: str, nodes: List[Any]) -> List[Any]:
+    def search_order(self, query: str, nodes: List[Any], query_vector: Optional[np.ndarray] = None) -> List[Any]:
         """RERANK=false: the chunks in search order, or none ("no sources") when the best vector
         match is below MIN_VECTOR_SIMILARITY. BM25 scores have no fixed scale, so bm25 search
         has no such check."""
@@ -522,7 +558,7 @@ class DocumentRetriever:
                 return []
         boost = getattr(self, "cluster_boost", None)
         if boost is not None and self.search_mode == "vector":
-            nodes = boost.apply(query, nodes)
+            nodes = boost.apply(query, nodes, **with_vector(query_vector))
         nodes = self.limit_per_document(nodes, query)
         if self.adaptive_top_k and self.search_mode == "vector" and nodes and nodes[0].score is not None:
             # ADAPTIVE_TOP_K without the re-ranker: keep chunks whose cosine (1 - L2 distance / 2) is at least
@@ -563,7 +599,7 @@ class DocumentRetriever:
 
     @trace.step("sources", lambda result, *a, **k: {"retrieved": len(result[1]), "kept": len(result[0])})
     def retrieve_and_rerank(
-        self, query: str, timings: Optional[Dict[str, float]] = None
+        self, query: str, timings: Optional[Dict[str, float]] = None, query_vector: Optional[np.ndarray] = None
     ) -> Tuple[List[Any], List[Any]]:
         """
         Retrieve and rerank documents for a query.
@@ -571,6 +607,8 @@ class DocumentRetriever:
         Args:
             query: User query
             timings: filled with search_s (vector/BM25 search) and rerank_s (re-ranker)
+            query_vector: the question's embedding (QueryEmbeddings), so the search and the cluster boost
+                do not embed it again
 
         Returns:
             Tuple of (ranked nodes, all retrieved nodes)
@@ -578,7 +616,7 @@ class DocumentRetriever:
         timings = {} if timings is None else timings
         # Retrieve relevant nodes
         start = time.time()
-        nodes = self._retriever.retrieve(query)
+        nodes = retrieve_with_vector(self._retriever, query, query_vector)
         retrieved = time.time()
         timings["search_s"] = retrieved - start
 
@@ -586,7 +624,7 @@ class DocumentRetriever:
             return [], []
 
         if not self.rerank:
-            ordered = self.search_order(query, nodes)
+            ordered = self.search_order(query, nodes, query_vector)
             if trace.active():
                 # vector search scores are FAISS L2 distances of unit vectors: as cosine (vector_cosine), higher = closer
                 cosine = self.search_mode == "vector"
@@ -1236,11 +1274,17 @@ class Qualle:
 
         logger.debug("Qualle service initialized")
 
-    def similarities(self, query: str) -> Tuple[float, float]:
+    def query_vector(self, query: str, query_vector: Optional[np.ndarray] = None) -> np.ndarray:
+        """The question's embedding: the one given (QueryEmbeddings of the turn), else a new one."""
+        if query_vector is not None:
+            return np.asarray(query_vector, dtype=np.float32)
+        return np.asarray(self._embed_model.get_query_embedding(query), dtype=np.float32)
+
+    def similarities(self, query: str, query_vector: Optional[np.ndarray] = None) -> Tuple[float, float]:
         """bge-m3 cosine of the question to the nearest paper chunk (FAISS) and to the nearest
         FORRT page description (-1 without FORRT pages)."""
-        q = np.asarray([self._embed_model.get_query_embedding(query)], dtype=np.float32)
-        q /= np.linalg.norm(q)
+        q = np.array([self.query_vector(query, query_vector)], dtype=np.float32)  # a copy: normalised in place
+        q /= np.linalg.norm(q) or 1.0
         vector_retriever = getattr(self._retriever, "vector_retriever", self._retriever)  # bm25 and hybrid wrap it
         distance, _ = vector_retriever._index.vector_store._faiss_index.search(q, 1)
         paper = 1 - float(distance[0][0]) / 2  # squared L2 of unit vectors → cosine
@@ -1248,11 +1292,11 @@ class Qualle:
         trace.note(similarity={"paper": round(paper, 4), "page": round(page, 4)})
         return paper, page
 
-    def cosine_route(self, query: str) -> str:
+    def cosine_route(self, query: str, query_vector: Optional[np.ndarray] = None) -> str:
         """Cosine router (no model call): above COSINE_PAPER_MIN → papers, above COSINE_PAGE_MIN →
         FORRT pages, both above → the closer one, neither → off topic.
         Thresholds from eval/questions.jsonl + eval/forrt_questions.jsonl (docs/evaluation.md 3.7)."""
-        paper, page = self.similarities(query)
+        paper, page = self.similarities(query, **with_vector(query_vector))
         is_paper = paper >= self.config.get("COSINE_PAPER_MIN", 0.62)
         is_page = page >= self.config.get("COSINE_PAGE_MIN", 0.51)
         logger.info(f"Cosine router: paper {paper:.3f}, page {page:.3f}")
@@ -1260,14 +1304,14 @@ class Qualle:
             return "open_science" if paper > page else "forrt"
         return "open_science" if is_paper else ("forrt" if is_page else "off_topic")
 
-    def banded_route(self, query: str) -> Optional[str]:
+    def banded_route(self, query: str, query_vector: Optional[np.ndarray] = None) -> Optional[str]:
         """Three bands of similarity (eval/tune_bands.py, docs/evaluation.md 3.11): below both low
         thresholds → off topic, with no model call; close to the papers (at or above BAND_PAPER_HIGH)
         and not close to a FORRT page (below BAND_PAGE_HIGH) → papers, with no model call; anything
         else, including every question close to a FORRT page, → BAND_MIDDLE_ROUTER decides. Paper and
         page similarities are on different scales, so similarity never routes to FORRT on its own.
         The bands are set strictly: answering an off-topic question counts as the worse error."""
-        paper, page = self.similarities(query)
+        paper, page = self.similarities(query, **with_vector(query_vector))
         c = {**DEFAULT_CONFIG, **self.config}
         measured = self.forrt_pages is not None  # without FORRT pages, page is -1, not a similarity
         if measured and paper < c["BAND_PAPER_LOW"] and page < c["BAND_PAGE_LOW"]:
@@ -1277,12 +1321,14 @@ class Qualle:
         else:
             band = "middle"
             middle = c["BAND_MIDDLE_ROUTER"]
-            route = self.route(query, "jev" if middle in ("banded", "") else middle)  # "" would mean ROUTER
+            route = self.route(query, "jev" if middle in ("banded", "") else middle,  # "" would mean ROUTER
+                               **with_vector(query_vector))
         logger.info(f"Banded router: paper {paper:.3f}, page {page:.3f}, {band} band -> {route}")
         return route
 
-    @trace.step("topic check", lambda result, self, query, router=None: {"route": result, "router": router or self.config.get("ROUTER") or ""})
-    def route(self, query: str, router: Optional[str] = None) -> Optional[str]:
+    @trace.step("topic check", lambda result, self, query, router=None, query_vector=None: {
+        "route": result, "router": router or self.config.get("ROUTER") or ""})
+    def route(self, query: str, router: Optional[str] = None, query_vector: Optional[np.ndarray] = None) -> Optional[str]:
         """open_science / forrt / both / off_topic / small_talk (or forrt_lookup from the LLM classifier); None = model error.
 
         router (one of ROUTERS; the chat and arena dropdowns, eval/classify.py) picks one strategy:
@@ -1290,7 +1336,7 @@ class Qualle:
         "llm" (the LLM classifier alone), "cosine" (cosine_route), "banded" (banded_route) or "none" (no check: every question
         gets the papers and the FORRT pages; MIN_RELEVANCE still stops unrelated ones as "no sources").
         Without router (default): DECISION_ROUTER with DECISION_ROUTER_MODEL when it is confident
-        enough, else the LLM classifier.
+        enough, else the LLM classifier. query_vector: the question's embedding for the cosine and banded routers.
         """
         if small_talk(query):
             return "small_talk"
@@ -1298,9 +1344,9 @@ class Qualle:
         if router == "none":
             return "both"
         if router == "cosine":
-            return self.cosine_route(query)
+            return self.cosine_route(query, **with_vector(query_vector))
         if router == "banded":
-            return self.banded_route(query)
+            return self.banded_route(query, **with_vector(query_vector))
         if router in DECISION_ROUTERS:
             self.decisions = self.decisions or DecisionClient(self.config)
             route, p, info = self.decisions.route(DECISION_ROUTERS[router], query)
@@ -1338,19 +1384,30 @@ class Qualle:
 
     def get_response(
         self, query: str, chat_id: str, model: Optional[str] = None, stream: bool = False,
-        router: Optional[str] = None, debug: bool = False,
+        router: Optional[str] = None, debug: bool = False, evidence: Optional[Dict[str, Any]] = None,
     ) -> Generator[Dict[str, Any], None, None]:
         """The response messages (see _respond). Every final message also gets "timings":
         seconds for classify_s (topic check), search_s, rerank_s, answer_s (LLM, with the
         retry) and total_s; a step that did not run is missing (refusals stop early).
-        debug: the final message also gets "debug", the trace of the turn (just_os/trace.py)."""
+        debug: the final message also gets "debug", the trace of the turn (just_os/trace.py).
+        evidence: a dict the turn fills with what the answer was made from (eval/run.py), per call, so
+        concurrent requests never share it:
+          route        the route taken (open_science, both, forrt, ...; missing when the turn stopped before)
+          nodes        the exact source nodes the answer model saw, numbered [0]..: paper chunks or the reference
+                       lookup's chunks, then the FORRT_IN_PAPERS pages
+          page_sources the FORRT_IN_PAPERS page nodes among them
+          reference_lookup  True when the chunks came from a paper the question named
+          forrt        ForrtPages.answer's result on the FORRT route (its sources are numbered from 1)
+          raw          the answer model's text as returned (after the retry), before post-processing
+          answer       the shown answer (text between [Response_Start] and [Response_End])
+          cached       True when the answer cache replied"""
         timings: Dict[str, float] = {}
         start = time.time()
         token = trace.begin() if debug else None
         try:
             if debug:
                 trace.note(settings=self.debug_settings(model, router))
-            for message in self._respond(query, chat_id, model, stream, router, timings):
+            for message in self._respond(query, chat_id, model, stream, router, timings, evidence):
                 if message.get("status") in ("complete", "error"):
                     done = {k: round(v, 2) for k, v in timings.items()}
                     message = {**message, "timings": {**done, "total_s": round(time.time() - start, 2)}}
@@ -1376,7 +1433,7 @@ class Qualle:
 
     def _respond(
         self, query: str, chat_id: str, model: Optional[str], stream: bool,
-        router: Optional[str], timings: Dict[str, float],
+        router: Optional[str], timings: Dict[str, float], evidence: Optional[Dict[str, Any]] = None,
     ) -> Generator[Dict[str, Any], None, None]:
         """
         Generate a response to a user query.
@@ -1391,6 +1448,9 @@ class Qualle:
         """
         logger.debug("Starting response generation for chat_id: %s", chat_id)
         user_query = query  # the history keeps what the user typed, not the rephrased query
+        turn = evidence if evidence is not None else {}  # see get_response
+        vectors = QueryEmbeddings(getattr(self, "_embed_model", None))  # each question string embedded once
+        page_sources: List[TextNode] = []  # FORRT_IN_PAPERS pages, on every path
 
         def remember(answer: str) -> None:
             self.chat_manager.add_message(chat_id, {"role": "user", "content": user_query})
@@ -1408,8 +1468,9 @@ class Qualle:
             # A first question very close to a recent one gets the stored answer
             use_cache = self.answer_cache is not None and not conversation_history
             if use_cache:
-                cached = self.answer_cache.lookup(query, model)
+                cached = self.answer_cache.lookup(query, model, **with_vector(vectors.get_or_none(query)))
                 if cached:
+                    turn.update(cached=True, answer=cached["text"])
                     remember(cached["text"])
                     yield cached["response"]
                     return
@@ -1446,13 +1507,15 @@ class Qualle:
             else:
                 yield {"status": "in-progress", "message": "Classifying question"}
                 step = time.time()
-                intent = self.route(query, router)
+                by_similarity = (router or self.config.get("ROUTER") or "") in ("cosine", "banded")
+                intent = self.route(query, router, **with_vector(vectors.get(query) if by_similarity else None))
                 timings["classify_s"] = time.time() - step
                 if found and intent in ("forrt", "forrt_lookup", "both"):
                     found = []  # a person or a FORRT project with authors' names: FORRT's pages answer
                 elif found and intent == "off_topic":
                     intent = "open_science"  # two of a library paper's authors were named
             logger.debug(f"Query intent: {intent}")
+            turn["route"] = intent
 
             if intent is None:
                 yield {
@@ -1465,8 +1528,10 @@ class Qualle:
             if intent in ("forrt", "forrt_lookup") and self.forrt_pages is not None:
                 yield {"status": "in-progress", "message": "Reading FORRT pages"}
                 step = time.time()
-                result = self.forrt_pages.answer(query, model=model, language_text=user_query)
+                result = self.forrt_pages.answer(query, model=model, language_text=user_query,
+                                                 **with_vector(vectors.get(query)))
                 timings["forrt_pages_s"] = time.time() - step  # page search, live fetch and answer
+                turn.update(forrt=result, raw=result["text"], answer=result["text"])
                 if result["text"] is None:
                     error = msg.message("generation_error", user_query)
                     remember(error)
@@ -1487,6 +1552,7 @@ class Qualle:
 
             if intent in ("forrt", "forrt_lookup", "both"):
                 intent = "both" if intent == "both" else "open_science"  # no FORRT route set up: papers answer
+                turn["route"] = intent
 
             if intent == "small_talk":  # the rephrased follow-up is small talk
                 about = msg.message("about", user_query)
@@ -1503,13 +1569,20 @@ class Qualle:
             yield {"status": "in-progress", "message": "Finding relevant sources"}
             if found:  # the named paper(s) only, any number of chunks each; no FORRT pages next to them
                 step = time.time()
-                ranked_nodes = self.references.chunks(query, found, self.document_retriever.n_context_items)
+                ranked_nodes = self.references.chunks(query, found, self.document_retriever.n_context_items,
+                                                      **with_vector(vectors.get(query)))
                 timings["search_s"] = time.time() - step
             else:
-                pages_job = self.start_forrt_in_papers(query, intent)
-                ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(query, timings)
+                # the vector search, the cluster boost and the FORRT page search share one embedding (bm25
+                # search alone needs none)
+                pages_wanted = getattr(self, "forrt_pages", None) is not None and self.config.get("FORRT_IN_PAPERS")
+                vector_search = getattr(self.document_retriever, "search_mode", "vector") != "bm25"
+                query_vector = vectors.get(query) if (vector_search or pages_wanted) else None
+                pages_job = self.start_forrt_in_papers(query, intent, **with_vector(query_vector))
+                ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(query, timings, **with_vector(query_vector))
                 page_sources = self.forrt_in_papers_result(pages_job, timings)
                 ranked_nodes = list(ranked_nodes) + page_sources
+            turn.update(nodes=list(ranked_nodes), page_sources=list(page_sources), reference_lookup=bool(found))
             if not ranked_nodes:
                 yield from self.no_relevant_nodes_handler(user_query, chat_id)
                 return
@@ -1560,6 +1633,7 @@ class Qualle:
                 return
 
             processed_message = self.response_generator.post_process_response(response_text)
+            turn.update(raw=response_text, answer=processed_message)
             unverified = set()
             if self.config.get("VERIFY_CITATIONS"):
                 yield {"status": "in-progress", "message": "Checking citations"}
@@ -1583,10 +1657,12 @@ class Qualle:
                     ),
                 },
             }
-            if intent == "both" and self.forrt_pages is not None and not page_sources:
+            if intent == "both" and page_sources:  # the forrt.org pages were read next to the papers
+                final["outcome"] = "both"
+            elif intent == "both" and self.forrt_pages is not None:
                 # the question also concerns FORRT itself: add the best forrt.org pages to the
                 # Sources box, after the papers (no extra answer call)
-                links = self.forrt_pages.links(query)
+                links = self.forrt_pages.links(query, **with_vector(vectors.get(query)))
                 if links:
                     refs = final["metadata"]["references"]
                     extra = page_references(links, start=len(refs) + 1)
@@ -1595,7 +1671,7 @@ class Qualle:
                         x for x in (final["metadata"]["sources"], page_source_lines(extra)) if x)
                     final["outcome"] = "both"
             if use_cache:
-                self.answer_cache.store(query, final, processed_message, model)
+                self.answer_cache.store(query, final, processed_message, model, **with_vector(vectors.get_or_none(query)))
             yield final
         except Exception as e:
             logger.error(f"Error in get_response: {str(e)}")
@@ -1605,7 +1681,7 @@ class Qualle:
                 "outcome": "error",
             }
 
-    def start_forrt_in_papers(self, query: str, intent: str):
+    def start_forrt_in_papers(self, query: str, intent: str, query_vector: Optional[np.ndarray] = None):
         """FORRT_IN_PAPERS: look for forrt.org pages that add to a papers answer while the papers are
         searched (a future, or None when off). The `both` route skips the score floor."""
         if getattr(self, "forrt_pages", None) is None or not self.config.get("FORRT_IN_PAPERS"):
@@ -1614,7 +1690,7 @@ class Qualle:
         pool = ThreadPoolExecutor(1)
         # copy_context: the debug trace also sees the pages job
         job = pool.submit(contextvars.copy_context().run, trace.step("FORRT pages next to papers")(self.forrt_pages.extra_sources),
-                          query, min_score)
+                          query, min_score, **with_vector(query_vector))
         pool.shutdown(wait=False)
         return job
 
@@ -1653,9 +1729,11 @@ class Qualle:
             yield {"status": "in-progress", "message": "Classifying question"}
             timings: Dict[str, float] = {}
             step = time.time()
+            vectors = QueryEmbeddings(getattr(self, "_embed_model", None))
             # Same topic check as the chat (the dropdown, else ROUTER / DECISION_ROUTER); in the
             # arena it only decides answer or refuse: the cards always answer from the papers
-            intent = self.route(query, router)
+            by_similarity = (router or self.config.get("ROUTER") or "") in ("cosine", "banded")
+            intent = self.route(query, router, **with_vector(vectors.get(query) if by_similarity else None))
             concerns_open_science = None if intent is None else intent != "off_topic"
             timings["classify_s"] = time.time() - step
             if concerns_open_science is None:
@@ -1672,7 +1750,9 @@ class Qualle:
                 return
 
             yield {"status": "in-progress", "message": "Finding relevant sources"}
-            ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(query, timings)
+            vector_search = getattr(self.document_retriever, "search_mode", "vector") != "bm25"
+            ranked_nodes, _ = self.document_retriever.retrieve_and_rerank(
+                query, timings, **with_vector(vectors.get(query) if vector_search else None))
             if not ranked_nodes:
                 yield {
                     "status": "complete",

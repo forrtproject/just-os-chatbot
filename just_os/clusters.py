@@ -116,8 +116,10 @@ class ClusterBoost:
         self.centroids = centroids(index, table)
         logger.info(f"Cluster boost: centroids of {len(CLUSTERS)} clusters in {time.time() - start:.1f} s")
 
-    def apply(self, query: str, nodes) -> List:
-        cluster = question_cluster(self.centroids, self.embed_model.get_query_embedding(query), self.margin)
+    def apply(self, query: str, nodes, query_vector: Optional[np.ndarray] = None) -> List:
+        """query_vector: the question's embedding when the turn already has it (Qualle's QueryEmbeddings)."""
+        vector = query_vector if query_vector is not None else self.embed_model.get_query_embedding(query)
+        cluster = question_cluster(self.centroids, vector, self.margin)
         return boosted(nodes, cluster, self.bonus, self.table) if cluster else nodes
 
 

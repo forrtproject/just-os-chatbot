@@ -31,11 +31,14 @@ from just_os.qualle import OpenAIClientManager, QueryProcessor  # noqa: E402
 
 
 def gold(question: dict, intent: bool) -> str:
+    """The LLM classifier's gold class. A question without "expect" (eval/forrt_questions.jsonl) should be
+    answered, as in eval/run.py, unless its route label is neither."""
     if question.get("kind") == TASK:
         return TASK
     if intent and question.get("intent"):
         return question["intent"]
-    return "open_science" if question["expect"] == "answer" else "off_topic"
+    expect = question.get("expect") or ("refuse" if question.get("route") == "neither" else "answer")
+    return "open_science" if expect == "answer" else "off_topic"
 
 
 def predict(processor: QueryProcessor, text: str, intent: bool):

@@ -12,7 +12,12 @@ while the classifier is being changed; use it only for questions that all expect
 
 --model changes the answer model (CITATION_MODEL). The classify/rephrase model
 (GENERAL_MODEL) stays as configured unless --general-model is given, so a run
-compares answer models only. Output: eval/results/run_<YYMMDD-HHMM>_<model>.csv
+compares answer models only. Output: eval/results/run_<YYMMDD-HHMMSS>_<model>.csv
+
+What a row records comes from the turn itself (Qualle.get_response(evidence=...)): the exact sources the
+answer model saw (paper chunks, a named paper's chunks, then FORRT_IN_PAPERS pages), its answer and the
+outcome of the final message. Answers and passages are kept whole, so eval/judge.py and
+eval/rubric_judge.py judge what the model wrote; --truncate keeps the first 2000 / 800 characters.
 """
 
 import argparse
@@ -28,11 +33,14 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from build_grading_page import shown_answer  # noqa: E402  same folder
 from config.settings import get_config  # noqa: E402
 from just_os.chat_manager import ChatManager  # noqa: E402
 from just_os.messages import all_texts  # noqa: E402
 from just_os.rag_service import create_rag_service  # noqa: E402
+from just_os.answer_cache import file_hash  # noqa: E402
 from just_os.references import normalize_doi, plain_metadata  # noqa: E402
 
 FIELDS = [
@@ -52,10 +60,19 @@ def retrieval_label(config):
     return f"{mode}, cos>={gate}" if gate else mode
 
 
+# The final message's "outcome" (Qualle._respond) as a run row's outcome; the FORRT routes and papers + pages
+# are answers too
+OUTCOMES = {"answered": "answered", "both": "answered", "forrt": "answered", "forrt_lookup": "answered",
+            "off_topic": "refused", "small_talk": "small_talk", "no_sources": "no_sources", "error": "error"}
+
+
 def outcome_of(final):
     if final.get("status") == "error":
         return "error"
-    # Refusals are in the language of the question (config/refusals.csv)
+    if final.get("outcome") in OUTCOMES:
+        return OUTCOMES[final["outcome"]]
+    # No outcome (answer_directly, runs of older code): the refusals are in the language of the question
+    # (config/refusals.csv)
     text = final.get("message", "")
     if any(t in text for t in all_texts("off_topic")):
         return "refused"
@@ -77,15 +94,22 @@ def answer_source(seen, refs):
     return ("papers" if seen["ranked"] else ""), all(0 <= r < len(seen["ranked"]) for r in refs)
 
 
-def hit_of(q, ranked_dois, forrt):
+def hit_of(q, ranked_dois, forrt, ranked=()):
     """1 when an expected DOI is among the ranked papers or an expected URL among the FORRT pages the
-    answer used (eval/forrt_questions.jsonl has expected_urls only); "" when the question expects neither."""
+    answer used (eval/forrt_questions.jsonl has expected_urls only): the FORRT route's pages or the
+    FORRT_IN_PAPERS pages among the ranked sources; "" when the question expects neither."""
     expected = [d.lower() for d in q.get("expected_dois", [])]
     urls = {u.rstrip("/").lower() for u in q.get("expected_urls", [])}
     if not expected and not urls:
         return ""
     pages = {s["url"].rstrip("/").lower() for s in (forrt or {}).get("sources", [])}
+    pages |= {str(plain_metadata(n.metadata).get("link_to_resource") or "").rstrip("/").lower() for n in ranked}
     return int(any(d in ranked_dois for d in expected) or bool(urls & pages))
+
+
+def turn_record(evidence):
+    """seen (what the answer was made from) from Qualle.get_response's evidence dict."""
+    return {"ranked": list(evidence.get("nodes") or []), "raw": evidence.get("raw"), "forrt": evidence.get("forrt")}
 
 
 def passages_of(seen, limit=800):
@@ -157,7 +181,7 @@ def skip_classifier(qualle, route="open_science"):
     """Send every question one way (the papers, or with route="forrt" the FORRT pages), with no
     call to the decision model or the classifier. eval/pairs.py combines one run per way with each
     topic check's decisions (eval/classify.py), so every topic check x answer model pair is scored."""
-    qualle.route = lambda query, router=None: route
+    qualle.route = lambda query, router=None, **kwargs: route  # kwargs: the turn's query_vector, not needed
 
 
 def index_stamp(config):
@@ -169,17 +193,25 @@ def index_stamp(config):
         return None
 
 
+def retrieval_settings(config):
+    """Everything that changes the ranked chunks of a question: the cache key of cache_retrieval."""
+    return json.dumps([retrieval_label(config), config.get("VECTOR_STORE"), config.get("RETRIEVER_TOP_K"),
+                       config.get("MAX_CHUNKS"), config.get("MIN_RELEVANCE"), config.get("MAX_CHUNKS_PER_DOC"),
+                       config.get("ADAPTIVE_TOP_K"), config.get("EMBEDDING_MODEL"),
+                       config.get("ADAPTIVE_TOP_K_RATIO"), config.get("ADAPTIVE_TOP_K_MIN"),
+                       config.get("CLUSTER_BOOST"), config.get("CLUSTER_BOOST_MARGIN"), config.get("SKIP_REFERENCE_CHUNKS"),
+                       config.get("RERANK_MODEL"), config.get("FORRT_IN_PAPERS"),
+                       file_hash(config.get("INDEX_CORRECTIONS_FILE")), file_hash(config.get("CLUSTERS_FILE")),
+                       index_stamp(config)])
+
+
 def cache_retrieval(qualle, config, folder=Path("eval/.retrieval_cache")):
     """Keep the ranked chunks per question and retrieval settings on disk, so the re-ranker
     (4-15 s per question on CPU) runs once for all answer models. Cached questions have no
-    search_s/rerank_s, so their seconds are answer time only."""
+    search_s/rerank_s, so their seconds are answer time only. FORRT_IN_PAPERS pages are not cached
+    (they are added after this step), but the setting is in the key."""
     retrieve = qualle.document_retriever.retrieve_and_rerank
-    settings = json.dumps([retrieval_label(config), config.get("VECTOR_STORE"), config.get("RETRIEVER_TOP_K"),
-                           config.get("MAX_CHUNKS"), config.get("MIN_RELEVANCE"), config.get("MAX_CHUNKS_PER_DOC"),
-                           config.get("ADAPTIVE_TOP_K"), config.get("EMBEDDING_MODEL"),
-                           config.get("ADAPTIVE_TOP_K_RATIO"), config.get("ADAPTIVE_TOP_K_MIN"),
-                           config.get("CLUSTER_BOOST"), config.get("CLUSTER_BOOST_MARGIN"), config.get("SKIP_REFERENCE_CHUNKS"),
-                           index_stamp(config)])
+    settings = retrieval_settings(config)
     folder.mkdir(parents=True, exist_ok=True)
 
     def cached(query, *args, **kwargs):
@@ -193,20 +225,66 @@ def cache_retrieval(qualle, config, folder=Path("eval/.retrieval_cache")):
     qualle.document_retriever.retrieve_and_rerank = cached
 
 
-def main():
+def run_row(q, final, seen, seconds, config, answer_model, truncate=False):
+    """One CSV row: q the question (with "expect"), final the turn's last message, seen what the answer was made
+    from (turn_record) and the token counters."""
+    outcome = outcome_of(final)
+    ranked_dois = [doi_of(n) for n in seen["ranked"]]
+    # the answer as the app shows it: [n] the model wrote outside [Response_Start]..[Response_End]
+    # (echoed passages) are not citations, and the judges read this text
+    answer = shown_answer(seen["raw"] or "")
+    refs = [int(n) for n in re.findall(r"\[(\d+)\]", answer)]
+    answered_from, valid = answer_source(seen, refs)
+    return {
+        "id": q["id"],
+        "answer_model": answer_model,  # what answered, with an @provider pin (#54)
+        "lang": q.get("lang", "en"),
+        "cluster": q.get("cluster", ""),
+        "type": q.get("type", ""),
+        "route": q.get("route", ""),
+        "expect": q["expect"],
+        "outcome": outcome,
+        "answered_from": answered_from if outcome == "answered" else "",
+        "correct": int((outcome == "answered") == (q["expect"] == "answer") and outcome != "error"),
+        "hit": hit_of(q, ranked_dois, seen["forrt"], seen["ranked"]),
+        "n_citations": len(refs),
+        "citations_valid": int(valid) if refs else "",
+        "seconds": round(seconds, 1),
+        # the bot's own step times (Qualle.get_response "timings"); empty when a step did not run
+        **{k: final.get("timings", {}).get(k, "") for k in ("classify_s", "search_s", "rerank_s", "answer_s")},
+        "prompt_tokens": seen.get("prompt_tokens", 0),
+        "completion_tokens": seen.get("completion_tokens", 0),
+        "cost_usd": round(seen.get("cost", 0.0), 6),
+        "retrieval": retrieval_label(config),
+        "retrieved_dois": " ".join(ranked_dois),
+        "question": q["question"],
+        "answer": answer[:2000] if truncate else answer,
+        # what the answer model saw, for eval/judge.py
+        "passages": json.dumps(passages_of(seen, 800 if truncate else 0)),
+        # per passage its title and DOI or URL, numbered as the answer cites them (human review)
+        "sources": json.dumps(sources_of(seen)),
+    }
+
+
+def build_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", help="answer model (CITATION_MODEL)")
     parser.add_argument("--general-model", help="classify/rephrase model (GENERAL_MODEL)")
     parser.add_argument("--questions", default="eval/questions.jsonl")
     parser.add_argument("--limit", type=int, help="only the first N questions")
     parser.add_argument("--no-retrieval", action="store_true", help="answer without sources")
-    parser.add_argument("--full-answers", action="store_true",
-                        help="keep the whole answer (default: the first 2000 characters)")
+    parser.add_argument("--truncate", action="store_true",
+                        help="keep the first 2000 characters of each answer and 800 of each passage (default: whole)")
+    parser.add_argument("--full-answers", action="store_true", help=argparse.SUPPRESS)  # the default since Nov 2026
     parser.add_argument("--out", help="output CSV (default eval/results/run_<time>_<model>.csv)")
     parser.add_argument("--skip-classifier", action="store_true", help="treat every question as open science")
     parser.add_argument("--route", choices=["open_science", "forrt"], help="send every question this way (no topic check)")
     parser.add_argument("--cache-retrieval", action="store_true", help="reuse ranked chunks across runs (eval/.retrieval_cache)")
-    args = parser.parse_args()
+    return parser
+
+
+def main():
+    args = build_parser().parse_args()
 
     config = get_config()
     if args.model:
@@ -221,19 +299,9 @@ def main():
     if args.cache_retrieval:
         cache_retrieval(qualle, config)
 
-    # Record what each step did, without changing the pipeline
+    # Tokens and cost of every model call; what the answer was made from comes from the turn (evidence)
     seen = {}
-    retrieve = qualle.document_retriever.retrieve_and_rerank
-    generate = qualle.response_generator.generate_response
     complete = qualle.client_manager.create_chat_completion
-
-    def record_retrieve(query, *args, **kwargs):
-        seen["ranked"], all_nodes = retrieve(query, *args, **kwargs)
-        return seen["ranked"], all_nodes
-
-    def record_generate(*a, **kw):
-        seen["raw"] = generate(*a, **kw)
-        return seen["raw"]
 
     def record_complete(**kw):
         response = complete(**kw)
@@ -244,37 +312,13 @@ def main():
             seen["cost"] += getattr(usage, "cost", 0) or 0
         return response
 
-    qualle.document_retriever.retrieve_and_rerank = record_retrieve
-    qualle.response_generator.generate_response = record_generate
     qualle.client_manager.create_chat_completion = record_complete
-
-    # A question naming a paper is answered from the reference lookup's chunks, not from the search
-    if qualle.references is not None:
-        lookup = qualle.references.chunks
-
-        def record_lookup(*a, **kw):
-            seen["ranked"] = lookup(*a, **kw)
-            return seen["ranked"]
-
-        qualle.references.chunks = record_lookup
-
-    # A question the topic check sends to forrt.org is answered by ForrtPages, not by the
-    # answer step above: record its text and sources too
-    if qualle.forrt_pages is not None:
-        forrt_answer = qualle.forrt_pages.answer
-
-        def record_forrt(*a, **kw):
-            seen["forrt"] = forrt_answer(*a, **kw)
-            seen["raw"] = seen["forrt"]["text"]
-            return seen["forrt"]
-
-        qualle.forrt_pages.answer = record_forrt
 
     questions = [json.loads(line) for line in open(args.questions, encoding="utf-8")]
     questions = questions[: args.limit] if args.limit else questions
 
     out = Path(args.out) if args.out else Path("eval/results") / (
-        f"run_{datetime.now():%y%m%d-%H%M}_{(args.model or config['CITATION_MODEL']).replace('/', '__')}"
+        f"run_{datetime.now():%y%m%d-%H%M%S}_{(args.model or config['CITATION_MODEL']).replace('/', '__')}"
         f"{'_noretrieval' if args.no_retrieval else ''}.csv"
     )
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -296,44 +340,15 @@ def main():
             if args.no_retrieval:
                 final = answer_directly(qualle, config, q["question"], seen)
             else:
-                final = list(qualle.get_response(q["question"], chat_id))[-1]
+                evidence = {}
+                final = list(qualle.get_response(q["question"], chat_id, evidence=evidence))[-1]
+                seen.update(turn_record(evidence))
             seconds = time.time() - start
 
-            outcome = outcome_of(final)
-            ranked_dois = [doi_of(n) for n in seen["ranked"]]
-            refs = [int(n) for n in re.findall(r"\[(\d+)\]", seen["raw"] or "")]
-            answered_from, valid = answer_source(seen, refs)
-            writer.writerow({
-                "id": q["id"],
-                "answer_model": args.model or config["CITATION_MODEL"],  # what answered, with an @provider pin (#54)
-                "lang": q.get("lang", "en"),
-                "cluster": q.get("cluster", ""),
-                "type": q.get("type", ""),
-                "route": q.get("route", ""),
-                "expect": q["expect"],
-                "outcome": outcome,
-                "answered_from": answered_from if outcome == "answered" else "",
-                "correct": int((outcome == "answered") == (q["expect"] == "answer") and outcome != "error"),
-                "hit": hit_of(q, ranked_dois, seen["forrt"]),
-                "n_citations": len(refs),
-                "citations_valid": int(valid) if refs else "",
-                "seconds": round(seconds, 1),
-                # the bot's own step times (Qualle.get_response "timings"); empty when a step did not run
-                **{k: final.get("timings", {}).get(k, "") for k in ("classify_s", "search_s", "rerank_s", "answer_s")},
-                "prompt_tokens": seen["prompt_tokens"],
-                "completion_tokens": seen["completion_tokens"],
-                "cost_usd": round(seen["cost"], 6),
-                "retrieval": retrieval_label(config),
-                "retrieved_dois": " ".join(ranked_dois),
-                "question": q["question"],
-                "answer": (seen["raw"] or "") if args.full_answers else (seen["raw"] or "")[:2000],
-                # what the answer model saw, for eval/judge.py
-                "passages": json.dumps(passages_of(seen, 0 if args.full_answers else 800)),
-                # per passage its title and DOI or URL, numbered as the answer cites them (human review)
-                "sources": json.dumps(sources_of(seen)),
-            })
+            row = run_row(q, final, seen, seconds, config, args.model or config["CITATION_MODEL"], args.truncate)
+            writer.writerow(row)
             f.flush()
-            print(f"{q['id']:6} {outcome:10} {seconds:5.1f}s")
+            print(f"{q['id']:6} {row['outcome']:10} {seconds:5.1f}s")
 
     print(f"wrote {out}")
     from compare import summarize  # same folder

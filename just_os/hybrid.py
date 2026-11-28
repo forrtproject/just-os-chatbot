@@ -14,7 +14,8 @@ import logging
 from typing import Any, List, Optional
 
 import numpy as np
-from llama_index.core.schema import NodeWithScore
+from llama_index.core.base.base_retriever import BaseRetriever
+from llama_index.core.schema import NodeWithScore, QueryBundle
 from sklearn.feature_extraction.text import CountVectorizer
 
 logger = logging.getLogger(__name__)
@@ -73,8 +74,8 @@ class HybridRetriever:
         logger.info(f"Building the BM25 keyword index over {len(nodes)} chunks")
         self.bm25 = BM25([node.get_content() for node in nodes])
 
-    def retrieve(self, query: str) -> List[NodeWithScore]:
-        vector_hits = self.vector_retriever.retrieve(query)
+    def retrieve(self, query: str, query_vector: Optional[np.ndarray] = None) -> List[NodeWithScore]:
+        vector_hits = retrieve_with_vector(self.vector_retriever, query, query_vector)
         found = {hit.node.node_id: hit for hit in vector_hits}
         keyword_ids = [self.nodes[i].node_id for i in self.bm25.top(query, self.top_k)]
         fused = reciprocal_rank_fusion([hit.node.node_id for hit in vector_hits], keyword_ids)
@@ -95,12 +96,25 @@ class KeywordRetriever:
         logger.info(f"Building the BM25 keyword index over {len(nodes)} chunks")
         self.bm25 = BM25([node.get_content() for node in nodes])
 
-    def retrieve(self, query: str) -> List[NodeWithScore]:
-        scores = self.bm25.scores(query)
+    def retrieve(self, query: str, query_vector: Optional[np.ndarray] = None) -> List[NodeWithScore]:
+        scores = self.bm25.scores(query)  # keywords only: query_vector is not needed
         return [NodeWithScore(node=self.nodes[i], score=float(scores[i])) for i in self.bm25.top(query, self.top_k, scores)]
 
 
 SEARCH_MODES = ("vector", "bm25", "hybrid")
+
+
+def retrieve_with_vector(retriever, query: str, query_vector: Optional[np.ndarray] = None) -> List[NodeWithScore]:
+    """retriever.retrieve(query), with the question's embedding when there is one, so the vector search does not
+    embed it again: a llama-index retriever gets it in a QueryBundle, HybridRetriever and KeywordRetriever as
+    query_vector. Any other retriever (test doubles) gets the plain query."""
+    if query_vector is None:
+        return retriever.retrieve(query)
+    if isinstance(retriever, (HybridRetriever, KeywordRetriever)):
+        return retriever.retrieve(query, query_vector=query_vector)
+    if isinstance(retriever, BaseRetriever):
+        return retriever.retrieve(QueryBundle(query_str=query, embedding=[float(x) for x in query_vector]))
+    return retriever.retrieve(query)
 
 
 def search_retriever(mode: str, vector_retriever, nodes: List[Any], top_k: int):

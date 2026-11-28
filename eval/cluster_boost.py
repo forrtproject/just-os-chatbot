@@ -21,15 +21,25 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config.settings import DEFAULT_CONFIG  # noqa: E402
 from just_os.clusters import CLUSTERS, boosted, centroids, clusters_of, document_clusters  # noqa: E402
+from just_os.qualle import DocumentRetriever, excluded_documents  # noqa: E402
 from just_os.references import normalize_doi, plain_metadata  # noqa: E402
 
 MARGINS = [0.0, 0.01, 0.02, 0.03]
 BONUSES = [0.0, 0.01, 0.02, 0.04]
 
 
+def make_limiter(config):
+    """DocumentRetriever.limit_per_document with the app's rules: the excluded documents (INDEX_CORRECTIONS_FILE),
+    no reference-list chunks (SKIP_REFERENCE_CHUNKS), the per-paper cap and MAX_CHUNKS; no re-ranker loaded."""
+    limiter = object.__new__(DocumentRetriever)
+    limiter.n_context_items, limiter.max_per_doc = config["MAX_CHUNKS"], config["MAX_CHUNKS_PER_DOC"]
+    limiter.excluded = excluded_documents(config.get("INDEX_CORRECTIONS_FILE"))
+    limiter.skip_reference_chunks = config.get("SKIP_REFERENCE_CHUNKS", False)
+    return limiter
+
+
 def main():
     from just_os.rag_service import create_embedding_model, load_index
-    from just_os.qualle import DocumentRetriever
 
     config = dict(DEFAULT_CONFIG)
     embed = create_embedding_model(config)
@@ -37,8 +47,7 @@ def main():
     table = document_clusters(config["CLUSTERS_FILE"])
     cents = centroids(index, table)
     retriever = index.as_retriever(similarity_top_k=config["RETRIEVER_TOP_K"])
-    limiter = object.__new__(DocumentRetriever)
-    limiter.n_context_items, limiter.max_per_doc, limiter.excluded = config["MAX_CHUNKS"], config["MAX_CHUNKS_PER_DOC"], ()
+    limiter = make_limiter(config)
 
     questions = [q for q in map(json.loads, open("eval/questions.jsonl", encoding="utf-8")) if q.get("cluster") in CLUSTERS]
     prepared = []
@@ -60,7 +69,7 @@ def main():
                 cluster = best if gap >= margin and bonus > 0 else None
                 detected += cluster is not None
                 right += cluster == q["cluster"]
-                kept = limiter.limit_per_document(boosted(nodes, cluster, bonus, table) if cluster else nodes)
+                kept = limiter.limit_per_document(boosted(nodes, cluster, bonus, table) if cluster else nodes, q["question"])
                 expected = {normalize_doi(d) for d in q.get("expected_dois", [])}
                 if expected:
                     with_dois += 1
