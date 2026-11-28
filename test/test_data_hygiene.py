@@ -3,7 +3,6 @@ adaptive top-k without the re-ranker, manifest.json of an index, and the ingesti
 
 import csv
 import json
-import logging
 import socket
 from types import SimpleNamespace
 
@@ -34,11 +33,22 @@ PROSE = ("Preregistration means writing down the hypotheses, the design and the 
 
 @pytest.mark.parametrize("meta, allowed", [
     ({"conditions_of_use": "FORRT cluster PDF (open access)", "licence": "", "oa_status": "gold"}, False),  # unknown licence
-    ({"conditions_of_use": "FORRT cluster PDF (open access)", "licence": "cc-by", "oa_status": "gold"}, True),
+    # the OpenAlex licence belongs to one open-access copy, not to the cluster PDF: it never allows a quote
+    ({"conditions_of_use": "FORRT cluster PDF (open access)", "licence": "cc-by", "oa_status": "gold"}, False),
+    ({"conditions_of_use": "FORRT cluster PDF (CC BY)", "licence": "cc-by", "oa_status": "gold"}, False),
+    ({"conditions_of_use": "", "licence": "cc-by", "oa_status": "gold", "source_file": "a.pdf"}, False),
+    ({"conditions_of_use": "cc-by", "licence": "cc-by", "oa_status": "gold", "source_file": "a.pdf"}, True),  # checked
     ({"conditions_of_use": "cc-by", "licence": "cc-by", "oa_status": "closed"}, False),  # closed access wins
     ({"conditions_of_use": "CC BY 4.0", "oa_status": " Closed "}, False),
     ({"conditions_of_use": "CC BY 4.0", "licence": "cc-by-nc"}, False),  # NC in either field
-    ({"conditions_of_use": "", "licence": "public-domain", "oa_status": "green"}, True),
+    ({"conditions_of_use": "", "licence": "public-domain", "oa_status": "green"}, False),  # licence alone: no
+    # negated or restricted text in either field vetoes the quote
+    ({"conditions_of_use": "Not open access (Unpaywall)", "licence": "cc-by"}, False),
+    ({"conditions_of_use": "CC BY", "licence": "Not licensed under CC BY"}, False),
+    ({"conditions_of_use": "Not licensed under CC BY"}, False),
+    ({"conditions_of_use": "Creative Commons Attribution No Derivatives"}, False),
+    ({"conditions_of_use": "CC BY", "licence": "closed"}, False),
+    ({"conditions_of_use": "CC BY", "licence": "All rights reserved"}, False),
     ({"conditions_of_use": "closed", "licence": "", "oa_status": "closed"}, False),
     ({"conditions_of_use": "CC0"}, True),  # older metadata without oa_status or licence
     ({"conditions_of_use": {"abc": "CC BY"}}, True),  # dict-valued metadata (#24)
@@ -48,6 +58,25 @@ def test_quotes_need_an_open_licence_and_no_closed_access(meta, allowed):
     assert metadata_passage_allowed(meta) is allowed
     assert passage_allowed(meta) is allowed  # a dict goes to the metadata check
     assert passage_allowed("CC BY") is True and passage_allowed(None) is False  # strings as before
+
+
+@pytest.mark.parametrize("text", [
+    "Not licensed under CC BY", "not open access", "Not open access (Unpaywall)", "closed", "CC BY, closed",
+    "All rights reserved", "Copyright 2020 the authors, CC BY", "\u00a9 Elsevier", "some-rights-reserved",
+    "Creative Commons Attribution No Derivatives", "Creative Commons Attribution-NoDerivatives 4.0",
+    "Creative Commons Attribution Non Commercial", "Creative Commons Attribution-NonCommercial 4.0", "CC BY NC",
+    "CC BY ND", "cc-by-nd", "CC BY, I don't see any of these", "FORRT cluster PDF (open access)",
+])
+def test_negated_and_restricted_licence_text_vetoes_the_quote(text):
+    assert passage_allowed(text) is False
+    assert metadata_passage_allowed({"conditions_of_use": text}) is False
+    assert metadata_passage_allowed({"conditions_of_use": "CC BY", "licence": text}) is False
+
+
+@pytest.mark.parametrize("text", ["CC BY", "cc-by", "CC BY 4.0", "CC BY-SA", "Creative Commons Attribution 4.0 International",
+                                  "CC0", "CC-0", "Public Domain", "public-domain", "Creative Commons Public Domain Dedication"])
+def test_open_licences_still_allow_the_quote(text):
+    assert passage_allowed(text) is True and metadata_passage_allowed({"conditions_of_use": text}) is True
 
 
 def test_closed_and_unknown_cluster_pdfs_show_no_passage_and_cc_by_ones_do():
@@ -61,15 +90,21 @@ def test_closed_and_unknown_cluster_pdfs_show_no_passage_and_cc_by_ones_do():
     assert processor.reference_data(cluster_pdf("", "closed"))["text"] == ""
     assert processor.reference_data(cluster_pdf("", "bronze"))["text"] == ""
     assert processor.reference_data(cluster_pdf("cc-by", "closed"))["text"] == ""
-    assert processor.reference_data(cluster_pdf("cc-by", "gold"))["text"] == PROSE
+    # OpenAlex's cc-by is the licence of another copy: the cluster PDF itself shows no passage
+    assert processor.reference_data(cluster_pdf("cc-by", "gold"))["text"] == ""
     answer = "Preregistration separates planned tests from exploratory ones [0]."
     assert processor.snippets([cluster_pdf("", "closed")], answer) == {}
-    assert processor.snippets([cluster_pdf("cc-by", "gold")], answer) != {}
+    assert processor.snippets([cluster_pdf("cc-by", "gold")], answer) == {}
+    checked = cluster_pdf("cc-by", "gold")  # a licence checked for the local copy, in conditions_of_use
+    checked.metadata["conditions_of_use"] = "CC BY 4.0"
+    assert processor.reference_data(checked)["text"] == PROSE
+    assert processor.snippets([checked], answer) != {}
 
 
-def test_converted_cluster_pdfs_record_the_real_licence():
+def test_converted_cluster_pdfs_never_take_the_openalex_licence_as_their_own():
     assert convert_cluster_pdfs.cluster_conditions({"oa_status": "closed", "licence": "cc-by"}) == "closed"
-    assert convert_cluster_pdfs.cluster_conditions({"oa_status": "gold", "licence": "cc-by"}) == "cc-by"
+    assert convert_cluster_pdfs.cluster_conditions({"oa_status": "gold", "licence": "cc-by"}) == ""
+    assert convert_cluster_pdfs.cluster_conditions({"oa_status": "gold", "licence": "public-domain"}) == ""
     assert convert_cluster_pdfs.cluster_conditions({"oa_status": "hybrid", "licence": "cc-by-nc-nd"}) == ""
     assert convert_cluster_pdfs.cluster_conditions({"oa_status": "", "licence": ""}) == ""
     assert not hasattr(convert_cluster_pdfs, "CLUSTER_LICENCE")
@@ -272,7 +307,7 @@ def test_paper_lookup_passes_the_setting_and_traces_what_it_left_out():
 # --- 4. manifest.json
 
 
-def test_manifest_round_trip_and_checks(tmp_path, caplog):
+def test_manifest_round_trip_and_checks(tmp_path):
     path = manifest.write_manifest(tmp_path, "BAAI/bge-m3", 1024, 512, 3, 40)
     saved = manifest.read_manifest(tmp_path)
     assert path.name == "manifest.json" and saved["embedding_model"] == "BAAI/bge-m3" and saved["dimension"] == 1024
@@ -280,9 +315,8 @@ def test_manifest_round_trip_and_checks(tmp_path, caplog):
     manifest.check_manifest(saved, "BAAI/bge-m3", 1024)  # fine
     with pytest.raises(ValueError, match="1024"):
         manifest.check_manifest(saved, "BAAI/bge-m3", 384)
-    with caplog.at_level(logging.ERROR):
+    with pytest.raises(ValueError, match="voyage-4-large"):  # another model: never a mixed index
         manifest.check_manifest(saved, "mongodb/voyage-4-large", 1024)
-    assert "voyage-4-large" in caplog.text
     assert manifest.read_manifest(tmp_path / "old_index") is None
     manifest.check_manifest(None, "anything", 7)  # an index without manifest loads as before
     (tmp_path / "broken").mkdir()
@@ -391,21 +425,8 @@ def test_only_public_http_links_are_fetched(fake_dns, url, public):
     assert fetch_web_resources.is_public_url(url) is public
 
 
-def test_blocked_links_are_reported_and_redirects_are_checked(fake_dns):
+def test_blocked_links_are_reported(fake_dns):
     assert curate.web_markdown({"title": "T", "link_to_resource": "http://localhost/secret"})[0] == "blocked_link"
-    with pytest.raises(fetch_web_resources.BlockedURL):
-        fetch_web_resources._CheckedRedirects().redirect_request(None, None, 302, "Found", {}, "http://127.0.0.1/")
-
-    def handler(request):
-        if request.url.host == "example.org":
-            return httpx.Response(302, headers={"Location": "http://intranet.local/admin"})
-        return httpx.Response(200, text="private")
-
-    http = curate.guarded_client(httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=True))
-    with pytest.raises(httpx.HTTPError):  # a failed source, as pdf_sources skips it
-        http.get("https://example.org/paper.pdf")
-    with pytest.raises(httpx.HTTPError):
-        http.get("http://localhost/")
 
 
 def test_ingestion_scripts_write_a_header_when_nothing_is_found(tmp_path):
@@ -462,3 +483,347 @@ def test_load_url_has_a_timeout(monkeypatch):
 
     monkeypatch.setattr(helpers.urllib.request, "urlopen", lambda url, timeout=None: seen.update(timeout=timeout) or Response())
     assert helpers.load_url("https://example.org/x.csv") == "a,b\n" and seen["timeout"] == 60
+
+
+# --- review fixes: SSRF at connection time
+
+
+class FakeSocket:
+    def setsockopt(self, *args):
+        pass
+
+    def close(self):
+        pass
+
+
+def test_public_only_backend_connects_to_the_address_it_checked(monkeypatch):
+    """DNS rebinding: the first answer is public, every later one private. The backend resolves once and connects to
+    that checked address, never to the host name (which the OS would resolve again)."""
+    answers = iter(["93.184.216.34", "127.0.0.1", "127.0.0.1"])
+    lookups, connected = [], []
+
+    def getaddrinfo(host, port, *a, **k):
+        lookups.append(host)
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (next(answers), port or 0))]
+
+    monkeypatch.setattr(socket, "getaddrinfo", getaddrinfo)
+    monkeypatch.setattr(socket, "create_connection", lambda address, *a, **k: connected.append(address) or FakeSocket())
+    fetch_web_resources.PublicOnlyBackend().connect_tcp("rebind.example", 443)
+    assert lookups == ["rebind.example"] and connected == [("93.184.216.34", 443)]
+
+
+def test_public_only_backend_refuses_private_hosts_before_connecting(fake_dns, monkeypatch):
+    monkeypatch.setattr(socket, "create_connection", lambda *a, **k: pytest.fail("no connection to a private host"))
+    backend = fetch_web_resources.PublicOnlyBackend()
+    for host in ("intranet.local", "localhost", "metadata.cloud", "v6.local", "127.0.0.1", "no-such-host.invalid"):
+        with pytest.raises(fetch_web_resources.BlockedConnect):
+            backend.connect_tcp(host, 80)
+    with pytest.raises(fetch_web_resources.BlockedConnect):
+        backend.connect_unix_socket("/var/run/docker.sock")
+
+
+def test_public_clients_use_the_guarded_backend_and_no_env_proxy(monkeypatch):
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:3128")
+    for http in (fetch_web_resources.public_client(), curate.guarded_client()):
+        assert isinstance(http._transport, fetch_web_resources.PublicOnlyTransport)
+        assert isinstance(http._transport._pool._network_backend, fetch_web_resources.PublicOnlyBackend)
+        assert not http._mounts  # an env proxy would connect for the client, unchecked
+        assert http.follow_redirects
+    with pytest.raises(ValueError):
+        fetch_web_resources.PublicOnlyTransport(proxy="http://127.0.0.1:3128")
+
+
+@pytest.fixture
+def public_site(fake_dns, monkeypatch):
+    """A local web server that the fake DNS's public example.org reaches: /page is HTML, /hop redirects to a private
+    host. Only connections the backend allowed are made (to 93.184.216.34, rerouted to the local server)."""
+    import http.server
+    import threading
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/hop":
+                self.send_response(302)
+                self.send_header("Location", "http://intranet.local/admin")
+                self.end_headers()
+                return
+            body = b"<html><body><main>" + b"Open data lets others check results. " * 30 + b"</main></body></html>"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    real = socket.create_connection
+    connected = []
+
+    def create_connection(address, *args, **kwargs):
+        connected.append(address[0])
+        assert address[0] == "93.184.216.34", f"connection to {address} was not checked"
+        return real(("127.0.0.1", server.server_address[1]), *args, **kwargs)
+
+    monkeypatch.setattr(socket, "create_connection", create_connection)
+    yield f"http://example.org:{server.server_address[1]}", connected
+    server.shutdown()
+    server.server_close()
+
+
+def test_fetch_follows_public_pages_and_refuses_a_redirect_to_a_private_host(public_site):
+    base, connected = public_site
+    assert "Open data lets others check results." in fetch_web_resources.fetch(base + "/page")
+    with pytest.raises(fetch_web_resources.BlockedURL, match="intranet.local"):
+        fetch_web_resources.fetch(base + "/hop")
+    assert curate.web_markdown({"title": "T", "link_to_resource": base + "/hop"})[0] == "blocked_link"
+    with curate.guarded_client() as http, pytest.raises(httpx.ConnectError):  # a failed source for pdf_sources
+        http.get(base + "/hop")
+    assert set(connected) == {"93.184.216.34"}
+
+
+# --- review fixes: manifest mismatch raises
+
+
+class SizedEmbedder:
+    def __init__(self, size):
+        self._model = SimpleNamespace(get_sentence_embedding_dimension=lambda: size)
+
+
+def test_the_huggingface_embedder_exposes_its_size_where_embedder_dimension_reads_it():
+    """No weights downloaded: the attribute chain embedder_dimension relies on exists in the installed packages."""
+    from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+    from sentence_transformers import SentenceTransformer
+
+    assert "_model" in HuggingFaceEmbedding.__private_attributes__
+    assert callable(getattr(SentenceTransformer, "get_embedding_dimension", None)
+                    or getattr(SentenceTransformer, "get_sentence_embedding_dimension", None))
+    fake = object.__new__(SentenceTransformer)  # bypass loading; answer as a loaded model would
+    fake.__dict__["get_embedding_dimension"] = lambda: 1024
+    assert manifest.embedder_dimension(SimpleNamespace(_model=fake)) == 1024
+
+
+def test_embedder_dimension_is_read_without_embedding():
+    assert manifest.embedder_dimension(SizedEmbedder(1024)) == 1024
+    assert manifest.embedder_dimension(SimpleNamespace()) is None  # Voyage, test doubles
+    assert manifest.embedder_dimension(SizedEmbedder(None)) is None
+    with pytest.raises(ValueError, match="384"):
+        manifest.check_manifest(None, "BAAI/bge-small-en-v1.5", 1024, embedder_size=384)  # no manifest, wrong size
+    manifest.check_manifest(None, "any", 1024, embedder_size=None)  # no manifest, size unknown: loads as before
+    manifest.check_manifest(None, "any", 1024, embedder_size=1024)
+
+
+def test_the_app_refuses_an_index_of_another_model_or_embedder_size(tmp_path, monkeypatch):
+    monkeypatch.setattr(rag_service.FaissVectorStore, "from_persist_dir",
+                        lambda path: SimpleNamespace(_faiss_index=SimpleNamespace(d=1024)))
+    monkeypatch.setattr(rag_service.StorageContext, "from_defaults", lambda **kwargs: object())
+    monkeypatch.setattr(rag_service, "load_index_from_storage", lambda **kwargs: "index")
+    config = {"VECTOR_STORE": str(tmp_path), "EMBEDDING_MODEL": "BAAI/bge-m3"}
+    assert rag_service.load_index(config, None) == "index"  # no manifest: as before
+    with pytest.raises(ValueError, match="384"):
+        rag_service.load_index(config, SizedEmbedder(384))
+    manifest.write_manifest(tmp_path, "mongodb/voyage-4-large", 1024)
+    with pytest.raises(ValueError, match="voyage-4-large"):
+        rag_service.load_index(config, None)
+    manifest.write_manifest(tmp_path, "BAAI/bge-m3", 1024)
+    assert rag_service.load_index(config, SizedEmbedder(1024)) == "index"
+
+
+def test_forrt_page_index_refuses_another_model_or_embedder_size(tmp_path):
+    records = [{"url": "a"}, {"url": "b"}]
+    with pytest.raises(ValueError):
+        check_page_index(tmp_path, records, np.zeros((2, 4)), "m", embedder_size=8)
+    manifest.write_manifest(tmp_path, "other-model", 4)
+    with pytest.raises(ValueError, match="other-model"):
+        check_page_index(tmp_path, records, np.zeros((2, 4)), "m")
+    check_page_index(tmp_path, records, np.zeros((2, 4)), "other-model", embedder_size=4)
+
+
+def test_add_to_index_refuses_to_append_with_another_model(tmp_path):
+    store = FaissVectorStore(faiss_index=faiss.IndexFlatL2(8))
+    index = VectorStoreIndex.from_documents([Document(text="one", metadata={"title": "A"})],
+                                            storage_context=StorageContext.from_defaults(vector_store=store),
+                                            embed_model=MockEmbedding(embed_dim=8))
+    add_to_index.check_index(index, tmp_path, "model")  # no manifest: as before
+    with pytest.raises(ValueError):
+        add_to_index.check_index(index, tmp_path, "model", SizedEmbedder(16))
+    manifest.write_manifest(tmp_path, "old-model", 8)
+    with pytest.raises(ValueError, match="old-model"):
+        add_to_index.check_index(index, tmp_path, "new-model")
+    add_to_index.check_index(index, tmp_path, "old-model", SizedEmbedder(8))
+    assert manifest.read_manifest(tmp_path)["embedding_model"] == "old-model"  # not overwritten
+
+
+# --- review fixes: excluded chunks never take a top-k place
+
+
+def chunk(node_id, text, doi):
+    return TextNode(id_=node_id, text=text, metadata={"title": doi, "doi": doi})
+
+
+def test_vector_search_returns_top_k_eligible_chunks_when_excluded_ones_rank_first():
+    from just_os.hybrid import ExcludingRetriever, excluded_node_ids, search_retriever
+
+    nodes = [chunk("x1", "t", EXCLUDED), chunk("x2", "t", EXCLUDED), chunk("a", "t", "10.1/a"), chunk("b", "t", "10.1/b"),
+             chunk("c", "t", "10.1/c")]
+    ids = excluded_node_ids(nodes, {EXCLUDED})
+    assert ids == {"x1", "x2"}
+    # the wrapped retriever fetches top_k + 2 (create_retriever), the excluded two first
+    vector = SimpleNamespace(retrieve=lambda q: [NodeWithScore(node=n, score=0.1 * i) for i, n in enumerate(nodes[:4])])
+    retriever = search_retriever("vector", vector, [], 2, ids)
+    assert isinstance(retriever, ExcludingRetriever) and retriever.vector_retriever is vector
+    assert [h.node.node_id for h in retriever.retrieve("q")] == ["a", "b"]
+    assert search_retriever("vector", vector, [], 2) is vector  # no exclusions: as before
+
+
+def test_hybrid_and_keyword_search_leave_excluded_chunks_out_before_the_cut():
+    from just_os.hybrid import HybridRetriever, KeywordRetriever
+
+    nodes = [chunk("x", "HARKing HARKing HARKing", EXCLUDED), chunk("a", "HARKing twice HARKing", "10.1/a"),
+             chunk("b", "HARKing once", "10.1/b"), chunk("c", "open data", "10.1/c")]
+    keyword = KeywordRetriever(nodes, top_k=2, excluded_ids={"x"})
+    assert [h.node.node_id for h in keyword.retrieve("HARKing")] == ["a", "b"]
+    assert [h.node.node_id for h in KeywordRetriever(nodes, top_k=2).retrieve("HARKing")] == ["x", "a"]  # as before
+    vector = SimpleNamespace(retrieve=lambda q: [NodeWithScore(node=nodes[0], score=0.0),
+                                                 NodeWithScore(node=nodes[3], score=0.5)])
+    hits = HybridRetriever(vector, nodes, top_k=3, excluded_ids={"x"}).retrieve("HARKing")
+    assert "x" not in [h.node.node_id for h in hits] and len(hits) == 3
+
+
+def test_create_retriever_fetches_the_excluded_chunks_in_addition(tmp_path):
+    corrections = tmp_path / "corrections.json"
+    corrections.write_text(json.dumps({"exclude": {EXCLUDED: "another work"}}), encoding="utf-8")
+    docs = {"x1": chunk("x1", "t", EXCLUDED), "x2": chunk("x2", "t", EXCLUDED), "a": chunk("a", "t", "10.1/a")}
+    asked = []
+    index = SimpleNamespace(docstore=SimpleNamespace(docs=docs),
+                            as_retriever=lambda similarity_top_k: asked.append(similarity_top_k) or SimpleNamespace())
+    retriever = rag_service.create_retriever({"RETRIEVER_TOP_K": 20, "SEARCH_MODE": "vector",
+                                              "INDEX_CORRECTIONS_FILE": str(corrections)}, None, index)
+    assert asked == [22] and retriever.top_k == 20 and retriever.excluded_ids == {"x1", "x2"}
+    rag_service.create_retriever({"RETRIEVER_TOP_K": 20, "SEARCH_MODE": "vector"}, None, index)
+    assert asked[-1] == 20
+
+
+# --- review fixes: link-only resources, URL case, resume sidecars
+
+
+def test_untitled_links_get_their_own_document_key_and_survive_add_to_index(tmp_path):
+    from just_os.references import document_key, normalize_url
+
+    assert document_key({"link_to_resource": "HTTPS://OSF.io/Guide/"}) == "url:https://osf.io/Guide"
+    assert document_key({"link_to_resource": "https://osf.io/guide"}) != document_key({"link_to_resource": "https://osf.io/Guide"})
+    assert document_key({"title": "T", "link_to_resource": "https://x.org"}) == "t"  # a title still comes first
+    assert document_key({}) == ""
+    assert normalize_url("https://Example.ORG/Path?Q=A#Frag") == "https://example.org/Path?Q=A#Frag"
+    assert document_key({"link_to_resource": "https://app.org/#/a"}) != document_key({"link_to_resource": "https://app.org/#/b"})
+    for name in ("p1", "p2"):
+        (tmp_path / f"{name}.md").write_text("Some page text.", encoding="utf-8")
+    metadata = pd.DataFrame([{"doi_hash": "p1", "title": "", "doi": "", "link_to_resource": "https://a.org/one"},
+                             {"doi_hash": "p2", "title": "", "doi": "", "link_to_resource": "https://a.org/two"}]).set_index("doi_hash")
+    docs = add_to_index.new_documents(tmp_path, metadata, set())
+    assert [d.metadata["link_to_resource"] for d in docs] == ["https://a.org/one", "https://a.org/two"]
+    assert add_to_index.new_documents(tmp_path, metadata, {"url:https://a.org/one"})[0].metadata["link_to_resource"] == "https://a.org/two"
+    index = SimpleNamespace(docstore=SimpleNamespace(docs={d.doc_id: d for d in docs}))  # both are in the index
+    assert add_to_index.indexed_keys(index) == {"url:https://a.org/one", "url:https://a.org/two"}
+    store = tmp_path / "store"
+    store.mkdir()
+    (store / "docstore.json").write_text(json.dumps({"docstore/data": {
+        d.doc_id: {"__data__": {"metadata": d.metadata}} for d in docs}}), encoding="utf-8")
+    assert curate.indexed_keys(store) == {"url:https://a.org/one", "url:https://a.org/two"}
+
+
+def test_curate_dedup_keeps_the_case_of_paths_and_queries():
+    assert curate.dedup_key({"link_to_resource": "https://OSF.IO/AbCd1/"}) == curate.dedup_key({"link_to_resource": "https://osf.io/AbCd1"})
+    assert curate.dedup_key({"link_to_resource": "https://osf.io/AbCd1"}) != curate.dedup_key({"link_to_resource": "https://osf.io/abcd1"})
+    assert curate.dedup_key({"link_to_resource": "https://x.org/p?id=A"}) != curate.dedup_key({"link_to_resource": "https://x.org/p?id=a"})
+
+
+@pytest.mark.parametrize("sidecar", ["null", "[1, 2]", "{broken", '"text"'])
+def test_a_resumed_run_survives_a_sidecar_that_is_not_an_object(tmp_path, monkeypatch, sidecar):
+    markdown_dir = tmp_path / "markdown"
+    markdown_dir.mkdir()
+    row = {"title": "", "doi": "", "link_to_resource": "https://x.org/page", "creators": "", "conditions_of_use": "",
+           "material_type": ""}
+    key = curate.resource_key(row)
+    (markdown_dir / f"{key}.md").write_text("# T\n\ntext", encoding="utf-8")
+    (markdown_dir / f"{key}.json").write_text(sidecar, encoding="utf-8")
+    monkeypatch.setattr(curate, "web_markdown", lambda row: pytest.fail("a resumed run converts nothing again"))
+    report, metadata = curate.curate([row], set(), tmp_path)
+    assert report[0]["outcome"] == "converted" and metadata[0]["doi_hash"] == key
+    assert isinstance(json.loads((markdown_dir / f"{key}.json").read_text(encoding="utf-8")), dict)  # rewritten whole
+
+
+def test_write_atomic_leaves_no_partial_file(tmp_path, monkeypatch):
+    import os
+    import stat
+
+    target = tmp_path / "a.md"
+    curate.write_atomic(target, "first")
+    assert target.read_text(encoding="utf-8") == "first"
+    umask = os.umask(0)
+    os.umask(umask)
+    assert stat.S_IMODE(target.stat().st_mode) == 0o666 & ~umask  # the usual permissions, readable from the host
+
+    def failing_replace(src, dst):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(curate.os, "replace", failing_replace)
+    with pytest.raises(OSError):
+        curate.write_atomic(target, "second, cut short")
+    assert target.read_text(encoding="utf-8") == "first"
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["a.md"]  # no temporary file left, none named *.md
+
+
+# --- review fixes: debug trace, answer cache, eval, docs
+
+
+def test_the_debug_trace_shows_excerpts_only_for_open_licences():
+    r = plain_retriever([])
+    r.min_relevance = 0.1
+    open_chunk = scored("10.1234/open", 0.2, conditions_of_use="CC BY")
+    cluster_chunk = scored("10.1234/cluster", 0.3, conditions_of_use="FORRT cluster PDF (open access)", licence="cc-by")
+    token = trace.begin()
+    try:
+        r.trace_sources([(0.9, open_chunk), (0.8, cluster_chunk)], [open_chunk, cluster_chunk], None, "rerank")
+        rows = trace.active().info["sources"]["chunks"]
+    finally:
+        trace.end(token)
+    assert rows[0]["text"].startswith("Preregistration") and rows[1]["text"] == ""
+
+
+def test_the_answer_cache_key_carries_the_quote_rule_version(monkeypatch):
+    from just_os import answer_cache
+
+    config = {"ANSWER_CACHE_TTL": 60, "ANSWER_CACHE_MIN_SIMILARITY": 0.9, "ANSWER_CACHE_MAX_ITEMS": 10}
+    key = answer_cache.AnswerCache(None, None, config).key
+    monkeypatch.setattr(answer_cache, "CACHE_VERSION", answer_cache.CACHE_VERSION + 1)
+    assert answer_cache.AnswerCache(None, None, config).key != key
+
+
+def test_cluster_boost_eval_leaves_excluded_chunks_out_before_the_boost(monkeypatch):
+    import importlib
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eval"))
+    cluster_boost = importlib.import_module("cluster_boost")
+    limiter = cluster_boost.boost_limiter({"MAX_CHUNKS": 7, "MAX_CHUNKS_PER_DOC": 0, "SKIP_REFERENCE_CHUNKS": True}, {EXCLUDED})
+    assert limiter.skip_reference_chunks is True
+    boosted_with = []
+    monkeypatch.setattr(cluster_boost, "boosted", lambda nodes, *a: boosted_with.extend(nodes) or nodes)
+    nodes = [scored(EXCLUDED, 0.0), scored("10.1234/a", 0.5), scored("10.1234/refs", 0.6, text=REFERENCE_LIST)]
+    kept = cluster_boost.boost_and_limit(limiter, nodes, "some cluster", 0.02, {})
+    assert EXCLUDED not in [n.metadata["doi"] for n in boosted_with]
+    assert [n.metadata["doi"] for n in kept] == ["10.1234/a"]
+
+
+def test_architecture_doc_names_the_licence_of_the_license_file():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    assert "Apache License" in (root / "LICENSE").read_text(encoding="utf-8")[:200]
+    line = next(line for line in (root / "docs/architecture.md").read_text(encoding="utf-8").splitlines()
+                if line.lstrip("│├└─ ").startswith("LICENSE"))
+    assert "Apache 2.0" in line

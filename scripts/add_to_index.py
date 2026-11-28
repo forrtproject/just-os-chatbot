@@ -6,7 +6,7 @@
 <metadata.csv> has a doi_hash column (the Markdown file name without .md) and the usual
 metadata (title, creators, link_to_resource, doi, conditions_of_use, ...). Documents whose
 DOI or title is already in the index are skipped. The embedding model is EMBEDDING_MODEL,
-so it must be the model of the index. --output defaults to the index folder itself; give a
+so it must be the model of the index (a manifest.json naming another model or vector size stops the run). --output defaults to the index folder itself; give a
 new folder to keep the old index. Example: scripts/fetch_web_resources.py output.
 """
 
@@ -18,7 +18,7 @@ from llama_index.core import Document, Settings, StorageContext, load_index_from
 from llama_index.vector_stores.faiss import FaissVectorStore
 
 from config import settings as justos_settings
-from just_os.manifest import check_manifest, index_counts, read_manifest, write_manifest
+from just_os.manifest import check_index_dir, embedder_dimension, index_counts, read_manifest, write_manifest
 from just_os.references import document_key, plain_metadata
 from scripts.build_abstract_cards import CARD_TYPE
 from scripts.embed import cleanup_markdown, excluded_keys, unique_metadata
@@ -59,6 +59,12 @@ def new_documents(markdown_dir: Path, metadata: pd.DataFrame, known: set) -> lis
     return documents
 
 
+def check_index(index, index_dir, embedding_model: str, embed_model=None) -> None:
+    """ValueError before anything is added when the index's manifest.json names another embedding model or vector
+    size, or the embedder's vectors are not the index's size: adding would mix two vector spaces in one index."""
+    check_index_dir(index_dir, embedding_model, index.vector_store._faiss_index.d, embedder_dimension(embed_model))
+
+
 def add_documents(index, documents) -> int:
     for document in documents:
         index.insert(document)
@@ -92,9 +98,7 @@ if __name__ == "__main__":
         model_name=justos_settings.EMBEDDING_MODEL, embed_batch_size=32, model_kwargs=model_kwargs
     )
     index = load_index(args.index, embed_model)
-    # adding with another model than the index's would mix two vector spaces
-    check_manifest(read_manifest(args.index), justos_settings.EMBEDDING_MODEL, index.vector_store._faiss_index.d,
-                   where=args.index)
+    check_index(index, args.index, justos_settings.EMBEDDING_MODEL, embed_model)  # never a mixed index
     # doi_hash as text: file names such as 0011 are not numbers
     metadata = unique_metadata(pd.read_csv(args.metadata_csv, dtype={"doi_hash": str}).set_index("doi_hash"))
     added = add_documents(index, new_documents(args.markdown_dir, metadata, indexed_keys(index)))

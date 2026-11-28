@@ -11,7 +11,7 @@ setting that no longer exists or a `ROUTER` / `SEARCH_MODE` option it does not e
 ```
 just-os-chatbot/
 ├── README.md              Setup, API, links to docs/
-├── LICENSE                Project licence (GPL-3)
+├── LICENSE                Project licence (Apache 2.0; the front end is GPL-3, see README)
 ├── Dockerfile             3 stages: assets (Node) → app-build (uv) → app (Gunicorn)
 ├── compose.yaml           Services: web, redis, js, css; volumes hf-cache, redis
 ├── compose.dev.yaml       Dev overlay: mounts just_os/, config/, test/, eval/, scripts/, ingest/ (live reload, tests), deploy/ (read-only, for /architecture)

@@ -25,7 +25,7 @@ import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from just_os.references import metadata_passage_allowed, normalize_doi
+from just_os.references import normalize_doi
 from scripts.get_pub_years import fetch_works
 from scripts.match_cluster_pdfs import OUT as MATCHES
 from scripts.match_cluster_pdfs import PDF_DIR
@@ -37,8 +37,10 @@ GROBID = os.environ.get("GROBID_URL", "http://localhost:8070")
 TEI = "{http://www.tei-c.org/ns/1.0}"
 MIN_BODY = 2000  # characters; less than this is a scan or a failed parse
 MAX_GROBID_PAGES = 80  # books: GROBID is made for articles and runs out of memory on them
-# FORRT said (12 Nov 2026) that the cluster PDFs are open access, but free to read is not free to quote: a passage
-# is shown only for an open licence OpenAlex confirms (cluster_conditions; references.metadata_passage_allowed)
+# FORRT said (12 Nov 2026) that the cluster PDFs are open access, but free to read is not free to quote, and the
+# OpenAlex licence (best_oa_location, kept in `licence`) belongs to one open-access copy, not necessarily to the PDF in
+# the cluster folder: conditions_of_use stays empty (no passage shown) until a licence is checked for the local copy
+# (cluster_conditions; references.metadata_passage_allowed)
 METADATA_FIELDS = ["doi_hash", "title", "creators", "doi", "oa_status", "licence", "material_type",
                    "conditions_of_use", "link_to_resource", "source_file"]
 OPENALEX_FIELDS = "doi,title,publication_year,authorships,open_access,best_oa_location"
@@ -121,12 +123,10 @@ def work_metadata(work: dict) -> dict:
 
 
 def cluster_conditions(meta: dict) -> str:
-    """conditions_of_use of a converted cluster PDF: its OpenAlex licence when that is open (CC BY, CC0, public
-    domain), "closed" for closed access, else "" (unknown, so no passage is shown)."""
-    if str(meta.get("oa_status") or "").strip().lower() == "closed":
-        return "closed"
-    licence = str(meta.get("licence") or "").strip()
-    return licence if metadata_passage_allowed({"licence": licence}) else ""
+    """conditions_of_use of a converted cluster PDF: "closed" for closed access, else "" (not checked for this copy,
+    so no passage is shown). The OpenAlex licence is never copied here: it is the licence of OpenAlex's best
+    open-access location, which may be another version than the PDF in FORRT's cluster folder."""
+    return "closed" if str(meta.get("oa_status") or "").strip().lower() == "closed" else ""
 
 
 def write_metadata(path: Path, rows) -> None:

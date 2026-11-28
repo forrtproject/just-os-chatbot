@@ -657,7 +657,9 @@ class DocumentRetriever:
                 why = "paper or chunk limit"
             rows.append({"title": meta.get(TITLE_KEY) or "Unknown title", "url": meta.get("link_to_resource") or meta.get("doi") or "",
                          "score": None if score is None else round(score, 4), "sent": id(node) in sent_ids,
-                         "n": sent_ids.get(id(node)), "why": why, "text": " ".join(node.text.split())[:400]})
+                         "n": sent_ids.get(id(node)), "why": why,
+                         # the excerpt only for an open licence, as for tooltips and snippets
+                         "text": " ".join(node.text.split())[:400] if metadata_passage_allowed(meta) else ""})
         floor = {"rerank": self.min_relevance, "cosine": self.min_vector_similarity or None}.get(kind)
         trace.note(sources={"kind": kind, "min_relevance": floor,
                             "cutoff": cutoff, "max_chunks": self.n_context_items, "max_per_doc": self.max_per_doc,

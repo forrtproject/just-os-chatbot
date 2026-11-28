@@ -21,6 +21,7 @@ Report: data/curation/<YYMMDD>/report.csv, one row per resource with its outcome
 import argparse
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -28,10 +29,9 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
 
-import httpx
 import pandas as pd
 
-from just_os.references import document_key, normalize_doi, plain_metadata
+from just_os.references import document_key, normalize_doi, normalize_url, plain_metadata
 
 MAX_TRIES = 6  # PDF copies tried per resource (each one may go through GROBID)
 MIN_PROSE_WORDS = 200  # words in lines of 8+ words: a page below is a menu or landing page (26 Nov: 102 of 420)
@@ -57,7 +57,7 @@ def dedup_key(row):
     kept (each is reported on its own)."""
     if row.get("doi"):
         return "doi:" + row["doi"]
-    link = str(row.get("link_to_resource") or "").strip().rstrip("/").lower()
+    link = normalize_url(row.get("link_to_resource"))  # only scheme and host are case-insensitive
     if link:
         return "link:" + link
     title = " ".join(str(row.get("title") or "").lower().split())
@@ -109,7 +109,7 @@ def pdf_markdown(row, work, http=None):
     from ingest import pdf_sources
     from scripts.convert_cluster_pdfs import grobid_tei, tei_to_markdown
 
-    http = http or guarded_client(pdf_sources.client())
+    http = http or guarded_client()
     if not row["title"]:
         row["title"] = pdf_sources.lookup_title(http, row["doi"])
     outcome = "no_open_access_pdf"
@@ -143,24 +143,14 @@ def pdf_markdown(row, work, http=None):
     return outcome, ""
 
 
-class BlockedRequest(httpx.RequestError):
-    """A request (or a redirect) to a non-http(s) or private address; an httpx error, so the callers that skip a
-    failed source skip it too."""
+def guarded_client():
+    """pdf_sources' client with every connection, redirects included, made by fetch_web_resources.PublicOnlyBackend
+    (SSRF guard: the row's link and the landing pages it leads to come from sheets and the /recommend page). A
+    refused connection is an httpx.ConnectError, so pdf_sources skips that source as a failed one."""
+    from ingest import pdf_sources
+    from scripts.fetch_web_resources import PublicOnlyTransport
 
-
-def guarded_client(http):
-    """The client with every request and redirect checked by fetch_web_resources.check_public_url (SSRF guard):
-    the row's link and the landing pages it leads to come from sheets and the /recommend page."""
-    from scripts.fetch_web_resources import BlockedURL, check_public_url
-
-    def check(request):
-        try:
-            check_public_url(str(request.url))
-        except BlockedURL as e:
-            raise BlockedRequest(str(e), request=request) from e
-
-    http.event_hooks = {**http.event_hooks, "request": [*http.event_hooks.get("request", []), check]}
-    return http
+    return pdf_sources.client(transport=PublicOnlyTransport())
 
 
 def is_public_url(url):
@@ -189,6 +179,31 @@ def web_markdown(row):
     return "converted", f"# {row['title']}\n\nSource: {row['link_to_resource']}\n\n{text}\n"
 
 
+def write_atomic(path, text):
+    """Write a file whole or not at all: a temporary file in the same folder (not *.md, so add_to_index never reads
+    it), then os.replace, so a stopped run never leaves half a file that a resumed run takes as done. Plain open(),
+    so the file gets the usual permissions (mkstemp would make it readable by its owner only); the writes happen in
+    the main thread, so the process id makes the name unique."""
+    path = Path(path)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(text)
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
+def saved_metadata(path):
+    """The metadata a first run saved next to a resource's Markdown; {} when missing, unreadable or not an object."""
+    try:
+        saved = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return saved if isinstance(saved, dict) else {}
+
+
 def curate(rows, known, work, workers=WORKERS):
     """Convert the new rows into work/markdown; returns (report rows, metadata rows). `workers` resources at a time
     (most of the time is waiting for publishers' servers); a resource whose Markdown this run's folder already has is
@@ -202,14 +217,10 @@ def curate(rows, known, work, workers=WORKERS):
         if document_key(row) in known:
             return row, key, "already_indexed", ""
         if done.exists():
-            saved = markdown_dir / f"{key}.json"  # what pdf_markdown filled in: title, creators, licence
-            if saved.exists():
-                try:
-                    for field, value in json.loads(saved.read_text(encoding="utf-8")).items():
-                        if field in METADATA_FIELDS and value and not row.get(field):
-                            row[field] = value
-                except ValueError:
-                    pass
+            # what pdf_markdown filled in: title, creators, licence
+            for field, value in saved_metadata(markdown_dir / f"{key}.json").items():
+                if field in METADATA_FIELDS and value and not row.get(field):
+                    row[field] = value
             return row, key, "converted", done.read_text(encoding="utf-8")
         try:
             outcome, markdown = pdf_markdown(row, work) if row["doi"] else web_markdown(row)
@@ -233,9 +244,9 @@ def curate(rows, known, work, workers=WORKERS):
             row, key, outcome, markdown = future.result() if future else (row, key, "duplicate", "")
             if markdown:
                 meta = {k: row[k] for k in METADATA_FIELDS}
-                # metadata first: a run stopped between the two files redoes the resource rather than losing it
-                (markdown_dir / f"{key}.json").write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
-                (markdown_dir / f"{key}.md").write_text(markdown, encoding="utf-8")
+                # metadata first, each file whole or not at all: a run stopped in between redoes the resource
+                write_atomic(markdown_dir / f"{key}.json", json.dumps(meta, ensure_ascii=False))
+                write_atomic(markdown_dir / f"{key}.md", markdown)
                 metadata.append({"doi_hash": key, **meta})
             report.append({"title": row["title"], "doi": row["doi"], "link_to_resource": row["link_to_resource"],
                            "outcome": outcome, "what_it_means": OUTCOMES[outcome]})

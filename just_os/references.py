@@ -14,12 +14,20 @@ DOI_PATTERN = re.compile(r"10\.\d{4,9}/[^\s\"'<>]+", re.IGNORECASE)
 TRAILING = ".,;:'\"!?"
 PAIRS = {")": "(", "]": "["}
 
-# CC BY, CC0 and public domain allow showing a passage; NC/ND variants do not (F4). Free to read is not free to
-# quote: a FORRT cluster PDF shows a passage only when OpenAlex gives it an open licence (scripts/convert_cluster_pdfs.py)
+# CC BY (and SA), CC0 and public domain allow showing a passage (F4). Matched on licence_words(): lower case,
+# separators as spaces, so "cc-by", "CC BY" and "Creative Commons Attribution" read alike
 OPEN_LICENCE = re.compile(
-    r"\bcc[\s-]?0\b|\bcc[\s-]?zero\b|public[\s-]domain|\bcc[\s-]?by\b|creative commons attribution",
-    re.I,
+    r"\bcc ?0\b|\bcc zero\b|\bpublic domain\b|\bcc by\b|\bccby\b|creative commons (attribution|zero|public domain)"
 )
+# Any of these in any licence field vetoes the quote: NC/ND variants, negations ("Not licensed under CC BY", "not open
+# access", "I don't see any of these"), closed access and reserved rights
+RESTRICTED = re.compile(
+    r"\bnc\b|\bnd\b|non ?commercial|no ?deriv|\bnot\b|n['\u2019]t\b|\bclosed\b|\b(all|some) rights reserved\b|copyright|\u00a9"
+)
+# Free to read is not free to quote: the label of a FORRT cluster PDF never makes a passage quotable, and neither does
+# the OpenAlex licence recorded next to it (scripts/convert_cluster_pdfs.py), which belongs to one open-access copy
+# (best_oa_location), not necessarily to the PDF in FORRT's cluster folder
+CLUSTER_PDF = re.compile(r"forrt cluster pdf")
 GLOSSARY_TYPE = "FORRT Glossary"  # material_type of the glossary documents (scripts/build_glossary.py)
 
 # Reference-list chunk: many "(2013)", "2013.", "et al.", "12(3)" or "123-130." per 100 words (eval/topic_map,
@@ -37,7 +45,6 @@ def citation_density(text: str) -> float:
 def is_reference_chunk(text: str) -> bool:
     """A reference list, author block or near-empty chunk."""
     return citation_density(text) > CITATIONS_PER_100_WORDS or len(text.split()) < MIN_WORDS
-RESTRICTED = re.compile(r"\bnc\b|\bnd\b|non-?commercial|no-?deriv", re.I)
 
 
 def plain_metadata(metadata: Dict) -> Dict:
@@ -95,9 +102,29 @@ def reference_url(metadata: Dict) -> Optional[str]:
     return safe_url(metadata.get("link_to_resource"))
 
 
+def normalize_url(url: Optional[str]) -> str:
+    """A link for comparing: scheme and host in lower case, no trailing slash; path, query and fragment keep their
+    case (on many sites /Guide and /guide are different pages, and #/route a different view). "" for no link."""
+    url = str(url or "").strip()
+    if not url:
+        return ""
+    parts = urllib.parse.urlsplit(url)
+    if not parts.scheme or not parts.netloc:
+        return url.rstrip("/")
+    return urllib.parse.urlunsplit(
+        (parts.scheme.lower(), parts.netloc.lower(), parts.path, parts.query, parts.fragment)).rstrip("/")
+
+
 def document_key(metadata: Dict) -> str:
-    """One key per paper, so chunks of the same paper share one reference number."""
-    return _doi(metadata) or re.sub(r"[^a-z0-9]", "", str(metadata.get("title", "")).lower())
+    """One key per paper, so chunks of the same paper share one reference number: the DOI, else the title, else (a
+    web page or recommendation with neither) "url:" and its normalized link, so two untitled links stay apart."""
+    title = re.sub(r"[^a-z0-9]", "", str(metadata.get("title", "")).lower())
+    if doi := _doi(metadata):
+        return doi
+    if title:
+        return title
+    link = normalize_url(metadata.get("link_to_resource"))
+    return f"url:{link}" if link else ""
 
 
 def paper_key(metadata: Dict) -> str:
@@ -107,23 +134,37 @@ def paper_key(metadata: Dict) -> str:
     return title or document_key(metadata)
 
 
+def licence_words(text: Optional[str]) -> str:
+    """A licence text for matching: lower case, with hyphens, slashes, commas and brackets as spaces."""
+    return " ".join(re.sub(r"[-_/,;:()\[\].]+", " ", str(text or "").lower()).split())
+
+
+def licence_vetoes(text: Optional[str]) -> bool:
+    """The text restricts or denies reuse (NC, ND, a negation, closed, reserved rights) or is a cluster PDF label."""
+    words = licence_words(text)
+    return bool(RESTRICTED.search(words) or CLUSTER_PDF.search(words))
+
+
 def passage_allowed(conditions_of_use: Union[str, Dict, None]) -> bool:
-    """True for CC BY (and SA), CC0 and public domain; False for NC/ND and unknown licences.
-    A metadata dict is checked with metadata_passage_allowed."""
+    """True for CC BY (and SA), CC0 and public domain; False for NC/ND, negated, closed or unknown licences and the
+    FORRT cluster PDF label. A metadata dict is checked with metadata_passage_allowed."""
     if isinstance(conditions_of_use, dict):
         return metadata_passage_allowed(conditions_of_use)
-    text = str(conditions_of_use or "")
-    return bool(OPEN_LICENCE.search(text)) and not RESTRICTED.search(text)
+    return bool(OPEN_LICENCE.search(licence_words(conditions_of_use))) and not licence_vetoes(conditions_of_use)
 
 
 def metadata_passage_allowed(meta: Dict) -> bool:
-    """A chunk's passage may be shown: not closed access (oa_status), and its licence or conditions_of_use is an
-    open licence, with neither of them NC/ND."""
+    """A chunk's passage may be shown only when its conditions_of_use is itself an open licence (passage_allowed).
+    licence and oa_status can only veto: closed access, NC/ND or a negation in either field denies the quote, but an
+    open `licence` never allows one, since convert_cluster_pdfs records there the licence of an OpenAlex open-access
+    copy, not of the cluster PDF in the index. So a cluster PDF shows no passage until its conditions_of_use is set
+    to a licence checked for that copy."""
     meta = plain_metadata(meta or {})
     if str(meta.get("oa_status") or "").strip().lower() == "closed":
         return False
-    texts = [str(meta.get(key) or "") for key in ("licence", "conditions_of_use")]
-    return any(OPEN_LICENCE.search(t) for t in texts) and not any(RESTRICTED.search(t) for t in texts)
+    if any(licence_vetoes(meta.get(key)) for key in ("licence", "conditions_of_use")):
+        return False
+    return passage_allowed(str(meta.get("conditions_of_use") or ""))
 
 
 SNIPPET_MAX = 300  # characters of the quote under a source

@@ -15,7 +15,7 @@ def test_create_retriever_reads_the_docstore_only_for_bm25_and_hybrid(monkeypatc
     monkeypatch.setattr(rag_service, "load_index_from_storage", lambda **kwargs: index)
     seen = {}
 
-    def search_retriever(mode, retriever, nodes, top_k):
+    def search_retriever(mode, retriever, nodes, top_k, excluded_ids=frozenset()):
         seen[mode] = (retriever, nodes, top_k)
         return mode
 

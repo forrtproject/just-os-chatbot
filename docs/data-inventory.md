@@ -98,7 +98,7 @@ Where title, authors and DOI of the 753 papers come from:
 
 The 192 papers without a DOI have no link and show "n.d." as year.
 
-**Licence.** The cluster papers in the current index have `conditions_of_use` = "FORRT cluster PDF (open access)" (FORRT, 12 Nov 2026), but free to read is not free to quote: the bot shows a passage only when the chunk's `licence` (from OpenAlex) is an open licence (CC BY incl. SA, CC0, public domain) and its `oa_status` is not "closed" (`metadata_passage_allowed`). New conversions store that licence, "closed" or "" as `conditions_of_use` (`scripts/convert_cluster_pdfs.py`). OpenAlex's status is kept in the `oa_status` and `licence` columns of `data/processed/cluster_markdown/metadata.csv`:
+**Licence.** The cluster papers in the current index have `conditions_of_use` = "FORRT cluster PDF (open access)" (FORRT, 12 Nov 2026), but free to read is not free to quote, and OpenAlex's `licence` belongs to its best open-access copy, not necessarily to the PDF in FORRT's cluster folder. So the bot shows no passage from a cluster PDF until its `conditions_of_use` holds an open licence (CC BY incl. SA, CC0, public domain) checked for that copy; `licence` and `oa_status` can only deny a quote (`metadata_passage_allowed`). New conversions store "closed" (closed access) or "" as `conditions_of_use` (`scripts/convert_cluster_pdfs.py`). OpenAlex's status is kept in the `oa_status` and `licence` columns of `data/processed/cluster_markdown/metadata.csv`:
 
 | OpenAlex open-access status | Papers |
 |---|---|
@@ -145,6 +145,6 @@ This agrees with the [Meta Science Arena](https://metasciencearena.app/arenas/pd
 - **Size.** The bge-m3 index is 1.3 GB on disk (was 679 MB); the web container loads all of it into memory.
 - **Shares.** `data/processed/vs_latest_bge-m3.zip` still holds the 513-document index. `share/just-os-team-bundle.zip` is rebuilt with `python scripts/make_share_bundle.py`.
 - **Publication years.** `data/raw/pub_years.csv` has a year for 1,156 DOIs of the index; the rest show "n.d.".
-- **Licences.** The bot shows passages for CC BY (incl. SA), CC0 and public domain, judged on `conditions_of_use` and `licence`, never for closed access (`metadata_passage_allowed`); cluster PDFs count only with an open OpenAlex licence.
+- **Licences.** The bot shows passages for CC BY (incl. SA), CC0 and public domain, when `conditions_of_use` says so; NC/ND, a negation ("Not open access"), "closed", reserved rights or copyright in `conditions_of_use` or `licence` deny it, as does closed access (`metadata_passage_allowed`). Cluster PDFs show no passage for now (their OpenAlex licence may be another copy's).
 - **Metadata defect.** 10 JUST-OS documents still store their metadata as one-item dicts (#24); the code unwraps them, and a full `scripts/embed.py` rebuild removes them.
 - **Earlier Markdown.** `data/processed/cluster_markdown_pymupdf4llm/` is the pymupdf4llm output of the first 153 cluster papers (11 Nov), kept for comparison.

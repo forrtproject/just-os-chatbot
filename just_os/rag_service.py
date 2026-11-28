@@ -10,8 +10,8 @@ from llama_index.vector_stores.faiss import FaissVectorStore
 from config.settings import get_config
 from just_os.reference_lookup import ReferenceLookup
 from just_os.chat_manager import ChatManager
-from just_os.manifest import check_index_dir
-from just_os.hybrid import search_retriever
+from just_os.manifest import check_index_dir, embedder_dimension
+from just_os.hybrid import excluded_node_ids, search_retriever
 from just_os.qualle import Qualle, excluded_documents
 from just_os.voyage import Voyage, is_voyage
 
@@ -63,10 +63,11 @@ def create_embedding_model(config: Dict[str, Any]):
 def load_index(config: Dict[str, Any], embed_model):
     persist_dir = config["VECTOR_STORE"]
     vector_store = FaissVectorStore.from_persist_dir(persist_dir)
-    # manifest.json (new indexes): the vectors are the size and model it names; an older folder loads unchecked
+    # manifest.json (new indexes): the vectors are the size and model it names (ValueError otherwise); an older folder
+    # is only checked against the embedder's vector size, when known
     dimension = getattr(getattr(vector_store, "_faiss_index", None), "d", None)
     if dimension is not None:
-        check_index_dir(persist_dir, config.get("EMBEDDING_MODEL", ""), dimension)
+        check_index_dir(persist_dir, config.get("EMBEDDING_MODEL", ""), dimension, embedder_dimension(embed_model))
     storage_context = StorageContext.from_defaults(vector_store=vector_store, persist_dir=persist_dir)
     return load_index_from_storage(storage_context=storage_context, embed_model=embed_model)
 
@@ -84,10 +85,15 @@ def create_retriever(config: Dict[str, Any], embed_model, index=None):
     """
     try:
         index = index if index is not None else load_index(config, embed_model)
-        retriever = index.as_retriever(similarity_top_k=config["RETRIEVER_TOP_K"])
+        top_k = config["RETRIEVER_TOP_K"]
+        # chunks of excluded documents (config/index_corrections.json) are fetched in addition and dropped before the
+        # cut to top_k, so they never take a valid chunk's place
+        excluded = excluded_documents(config.get("INDEX_CORRECTIONS_FILE"))
+        excluded_ids = excluded_node_ids(index.docstore.docs.values(), excluded) if excluded else frozenset()
+        retriever = index.as_retriever(similarity_top_k=top_k + len(excluded_ids))
         mode = config.get("SEARCH_MODE", "vector")
         nodes = list(index.docstore.docs.values()) if mode != "vector" else []
-        return search_retriever(mode, retriever, nodes, config["RETRIEVER_TOP_K"])
+        return search_retriever(mode, retriever, nodes, top_k, excluded_ids)
     except Exception as e:
         logger.error(f"Failed to initialize retriever: {str(e)}")
         raise
