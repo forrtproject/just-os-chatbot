@@ -46,6 +46,9 @@ class FakeChatManager:
     def add_message(self, chat_id, message):
         self.messages.append(message)
 
+    def add_turn(self, chat_id, question, answer):  # one transaction in ChatManager
+        self.messages += [{"role": "user", "content": question}, {"role": "assistant", "content": answer}]
+
 
 def node(title, text="some text"):
     return SimpleNamespace(
@@ -454,3 +457,635 @@ def test_an_empty_streamed_answer_falls_back_to_the_call_with_retries():
     q.response_generator.stream_response = lambda *a, **k: iter(())  # the stream gave nothing
     final = list(q.get_response("What is open data?", "chat", stream=True))[-1]
     assert final["outcome"] == "answered" and "Answer" in final["message"]
+
+
+# --- prod reliability: CPU threads, LLM slots, Retry-After, broken streams, failed turns, private logs
+
+
+def test_without_the_reranker_omp_num_threads_is_left_alone(monkeypatch):
+    calls = []
+    monkeypatch.setattr(qualle.torch, "set_num_threads", calls.append)
+    monkeypatch.setattr(qualle, "CrossEncoder", lambda name: f"model {name}")
+    base = {"RERANK_MODEL": "rr", "MAX_CHUNKS": 7, "MIN_RELEVANCE": 0.1, "RERANK_THREADS": 6}
+    qualle.DocumentRetriever({**base, "RERANK": False}, retriever=None)
+    assert calls == []  # prod: OMP_NUM_THREADS=2 stays 2
+    retriever = qualle.DocumentRetriever({**base, "RERANK": True}, retriever=None)
+    assert calls == [6] and retriever.reranker == "model rr"
+    qualle.DocumentRetriever({**base, "RERANK": False, "VERIFY_CITATIONS": True}, retriever=None)
+    assert calls == [6, 6]
+
+
+def answer(content="Answer."):
+    return SimpleNamespace(choices=[SimpleNamespace(finish_reason="stop", message=SimpleNamespace(content=content))])
+
+
+def chunk(text=None, finish_reason=None):
+    return SimpleNamespace(usage=None, choices=[SimpleNamespace(delta=SimpleNamespace(content=text), finish_reason=finish_reason)])
+
+
+class FakeStream:
+    """The SDK's Stream: iterable and a context manager that closes the HTTP response. items: chunks, or an
+    exception to raise at that point; finish: add a last chunk with finish_reason="stop"."""
+
+    def __init__(self, items, finish=True, before=None):
+        self.items = list(items) + ([chunk(None, "stop")] if finish else [])
+        self.before, self.closed = before, False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.closed = True
+        return False
+
+    def __iter__(self):
+        for item in self.items:
+            if self.before:
+                self.before()
+            if isinstance(item, BaseException):
+                raise item
+            yield item
+
+
+def test_max_concurrent_llm_calls_caps_calls_and_streams_across_threads():
+    import threading
+    import time as real_time
+
+    manager = qualle.OpenAIClientManager({"LLM_API_KEY": "k", "BASE_URL": "https://example.org/v1",
+                                          "OPENSCHOLAR_BASE_URL": "", "MAX_CONCURRENT_LLM_CALLS": 2, "LLM_TIMEOUT": 5})
+    lock, state = threading.Lock(), {"now": 0, "most": 0}
+
+    def busy():
+        with lock:
+            state["now"] += 1
+            state["most"] = max(state["most"], state["now"])
+        real_time.sleep(0.05)
+        with lock:
+            state["now"] -= 1
+
+    def create(stream=False, **kwargs):
+        if stream:
+            return FakeStream([chunk("Hi")], before=busy)
+        busy()
+        return answer()
+
+    manager._client_for = lambda model: SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    jobs = [lambda: manager.create_chat_completion("m", [{"role": "user", "content": "q"}]),
+            lambda: list(manager.stream_chat_completion("m", [{"role": "user", "content": "q"}]))] * 4
+    threads = [threading.Thread(target=job) for job in jobs]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(10)
+    assert state["most"] == 2
+    assert manager._llm_slots._value == 2  # every slot was given back
+
+    unlimited = qualle.OpenAIClientManager({"LLM_API_KEY": "k", "BASE_URL": "https://example.org/v1", "OPENSCHOLAR_BASE_URL": ""})
+    assert unlimited._llm_slots is None  # default 0: no limit
+
+
+def test_a_stream_the_reader_abandons_gives_its_slot_back():
+    manager = qualle.OpenAIClientManager({"LLM_API_KEY": "k", "BASE_URL": "https://example.org/v1",
+                                          "OPENSCHOLAR_BASE_URL": "", "MAX_CONCURRENT_LLM_CALLS": 1})
+    response = FakeStream([chunk("Hi")] * 5)
+    manager._client_for = lambda model: SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(
+        create=lambda **kw: response)))
+    stream = manager.stream_chat_completion("m", [])
+    assert next(stream) == "Hi" and manager._llm_slots._value == 0 and not response.closed
+    stream.close()  # the browser went away
+    assert manager._llm_slots._value == 1
+    assert response.closed  # the upstream HTTP stream is closed at once, not when it is garbage collected
+
+
+def test_http_429_waits_as_long_as_retry_after_says_capped(monkeypatch):
+    pauses = []
+    monkeypatch.setattr(qualle.time, "sleep", pauses.append)
+
+    class RateLimited(Exception):
+        status_code = 429
+
+        def __init__(self, retry_after):
+            super().__init__("429 Too Many Requests")
+            self.response = SimpleNamespace(headers={"retry-after": retry_after} if retry_after is not None else {})
+
+    import email.utils
+    from datetime import datetime, timedelta, timezone
+
+    soon = email.utils.format_datetime(datetime.now(timezone.utc) + timedelta(seconds=60), usegmt=True)
+    past = "Wed, 21 Oct 2015 07:28:00 GMT"
+    for header, expected in (("3", 3.0), ("120", qualle.MAX_RETRY_AFTER), (soon, qualle.MAX_RETRY_AFTER), (past, 0.0),
+                             (None, 1), ("-5", 1), ("nan", 1), ("inf", 1), ("soon", 1)):
+        pauses.clear()
+        calls = []
+
+        def create(**kwargs):
+            calls.append(kwargs)
+            if len(calls) == 1:
+                raise RateLimited(header)
+            return answer()
+
+        assert fake_manager(create).create_chat_completion("m/x", [{"role": "user", "content": "q"}]) is not None
+        assert pauses == ([expected] if expected else []), header  # 0 s: no pause
+    assert qualle.MAX_RETRY_AFTER <= 10
+
+
+def test_a_stream_that_breaks_after_some_text_raises_instead_of_ending_quietly():
+    response = FakeStream([chunk("Open data is"), ConnectionError("connection reset")], finish=False)
+    manager = fake_manager(lambda **kw: response)
+    got = []
+    with pytest.raises(qualle.StreamInterrupted) as broke:
+        for piece in manager.stream_chat_completion("m/x", []):
+            got.append(piece)
+    assert got == ["Open data is"] and broke.value.sent == len("Open data is") and response.closed
+
+    def refused(**kwargs):  # an error before any text: no pieces, then StreamInterrupted (the caller falls back)
+        raise ConnectionError("refused")
+
+    with pytest.raises(qualle.StreamInterrupted) as failed:
+        list(fake_manager(refused).stream_chat_completion("m/x", []))
+    assert failed.value.sent == 0 and failed.value.retry_after is None
+
+
+def test_a_stream_that_ends_without_a_finish_reason_is_incomplete():
+    """A clean EOF with no finish_reason (a proxy or provider dropped the connection politely) is a cut-off answer."""
+    cut = fake_manager(lambda **kw: FakeStream([chunk("Open data is"), chunk(" free to")], finish=False))
+    got = []
+    with pytest.raises(qualle.StreamInterrupted, match="finish_reason"):
+        for piece in cut.stream_chat_completion("m/x", []):
+            got.append(piece)
+    assert got == ["Open data is", " free to"]
+
+    for reason in ("stop", "length"):  # any finish_reason ends the stream properly; a usage chunk after it is fine
+        items = [chunk("Done."), chunk(None, reason), SimpleNamespace(usage={"total_tokens": 3}, choices=[])]
+        complete = fake_manager(lambda **kw: FakeStream(items, finish=False))
+        assert list(complete.stream_chat_completion("m/x", [])) == ["Done."]
+
+
+def test_a_clean_eof_without_finish_reason_is_never_kept():
+    class CutClient(FakeClient):
+        def stream_chat_completion(self, **kwargs):
+            manager = fake_manager(lambda **kw: FakeStream([chunk("[Response_Start]Open data is free [0] and the half")],
+                                                           finish=False))
+            yield from manager.stream_chat_completion("m/x", [])
+
+    q = make_qualle(True, [node("Paper")], [], "unused")
+    q.response_generator.client_manager = CutClient(completion(content="Open data can be reused by anyone [0]."))
+    q.answer_cache = RecordingCache()
+    q.answer_cache.lookup = lambda query, model: None
+    final = list(q.get_response("What is open data?", "chat", stream=True))[-1]
+    assert "reused by anyone" in final["message"] and "the half" not in final["message"]
+    assert [m["content"] for m in q.chat_manager.messages] == ["What is open data?", "Open data can be reused by anyone [0]."]
+    assert len(q.answer_cache.stored) == 1 and "the half" not in q.answer_cache.stored[0][2]
+
+
+def test_a_streaming_429_passes_its_retry_after_to_the_fallback(monkeypatch):
+    pauses = []
+    monkeypatch.setattr(qualle.time, "sleep", pauses.append)
+
+    class RateLimited(Exception):
+        status_code = 429
+        response = SimpleNamespace(headers={"retry-after": "4"})
+
+    calls = []
+
+    def create(stream=False, **kwargs):
+        calls.append(stream)
+        if stream:
+            raise RateLimited("429 Too Many Requests")
+        return answer("Open data can be reused [0].")
+
+    q = make_qualle(True, [node("Paper")], [], "unused")
+    q.response_generator.client_manager = fake_manager(create)
+    final = list(q.get_response("What is open data?", "chat", stream=True))[-1]
+    assert final["outcome"] == "answered" and calls == [True, False]
+    assert pauses == [4.0]  # the stream's Retry-After, before the call without streaming
+
+
+def test_no_free_slot_for_the_stream_ends_the_answer_without_a_second_wait(monkeypatch):
+    waits, calls = [], []
+
+    class Busy:  # every slot stays taken by other requests
+        def acquire(self, timeout):
+            waits.append(timeout)
+            return False
+
+    manager = fake_manager(lambda **kw: calls.append(kw), LLM_TIMEOUT=7)
+    manager._llm_slots = Busy()
+    q = make_qualle(True, [node("Paper")], [], "unused")
+    q.response_generator.client_manager = manager
+    final = list(q.get_response("What is open data?", "chat", stream=True))[-1]
+    assert final["outcome"] == "error"
+    assert waits == [7] and calls == []  # one wait for a slot, no fallback call waiting another LLM_TIMEOUT
+    assert q.chat_manager.messages == []
+
+
+def test_retries_share_one_deadline(monkeypatch):
+    clock = {"now": 1000.0}
+    monkeypatch.setattr(qualle.time, "monotonic", lambda: clock["now"])
+    monkeypatch.setattr(qualle.time, "sleep", lambda s: clock.__setitem__("now", clock["now"] + s))
+    timeouts = []
+
+    def slow(**kwargs):  # every try uses up its whole time limit
+        timeouts.append(kwargs["timeout"])
+        clock["now"] += kwargs["timeout"]
+        raise TimeoutError("read timed out")
+
+    manager = fake_manager(slow, LLM_TIMEOUT=60, LLM_DEADLINE=150, LLM_RETRIES=3)
+    start = clock["now"]
+    assert manager.create_chat_completion("m/x", [{"role": "user", "content": "q"}]) is None
+    assert clock["now"] - start <= 150  # not 4 x 60 s plus pauses
+    assert timeouts[:2] == [60, 60] and sum(timeouts) < 150 and timeouts[-1] < 60  # the last try gets what is left
+
+    timeouts.clear()
+    clock["now"] = 2000.0
+    assert manager.create_chat_completion("m/x", [{"role": "user", "content": "q"}], deadline=2000.0 + 30) is None
+    assert timeouts[0] == 30 and clock["now"] <= 2030.0  # a deadline passed in (the answer's) is shared too
+
+
+def test_a_stream_past_its_deadline_is_incomplete(monkeypatch):
+    clock = {"now": 0.0}
+    monkeypatch.setattr(qualle.time, "monotonic", lambda: clock["now"])
+
+    def tick():
+        clock["now"] += 50
+
+    manager = fake_manager(lambda **kw: FakeStream([chunk("a")] * 10, before=tick), LLM_DEADLINE=120)
+    got = []
+    with pytest.raises(qualle.StreamInterrupted, match="LLM_DEADLINE"):
+        for piece in manager.stream_chat_completion("m/x", []):
+            got.append(piece)
+    assert 1 <= len(got) < 10
+
+
+class BrokenStreamClient(FakeClient):
+    """Streams some text, then the connection breaks; create_chat_completion answers from the queue."""
+
+    def stream_chat_completion(self, **kwargs):
+        yield "[Response_Start]Open data is free to reuse "
+        yield "and the half sentence"
+        raise qualle.StreamInterrupted("connection reset")
+
+
+class RecordingCache:
+    def __init__(self):
+        self.stored = []
+
+    def store(self, *args):
+        self.stored.append(args)
+
+
+def test_a_broken_stream_is_answered_again_and_never_kept_half():
+    q = make_qualle(True, [node("Paper")], [], "unused")
+    q.response_generator.client_manager = BrokenStreamClient(completion(content="Open data can be reused by anyone [0]."))
+    messages = list(q.get_response("What is open data?", "chat", stream=True))
+    statuses = [m["status"] for m in messages]
+    first_after_partials = statuses.index("partial") + statuses[statuses.index("partial"):].index("in-progress")
+    assert messages[first_after_partials]["message"] == "Generating response"  # the page drops the half draft
+    final = messages[-1]
+    assert final["status"] == "complete" and "reused by anyone" in final["message"] and "half sentence" not in final["message"]
+    assert [m["content"] for m in q.chat_manager.messages] == ["What is open data?", "Open data can be reused by anyone [0]."]
+
+
+def test_a_broken_stream_without_a_second_answer_is_an_error_not_remembered_or_cached():
+    q = make_qualle(True, [node("Paper")], [], "unused")
+    q.response_generator.client_manager = BrokenStreamClient(None, None)  # the fallback call fails too
+    q.answer_cache = RecordingCache()
+    q.answer_cache.lookup = lambda query, model: None
+    final = list(q.get_response("What is open data?", "chat", stream=True))[-1]
+    assert final["outcome"] == "error" and "half sentence" not in final["message"]
+    assert q.chat_manager.messages == [] and q.answer_cache.stored == []
+
+
+def test_a_failed_answer_is_not_written_into_the_chat_history():
+    q = make_qualle(True, [node("Paper")], [], None)  # every call returns no text
+    final = list(q.get_response("What is open data?", "chat"))[-1]
+    assert final["outcome"] == "error"
+    assert q.chat_manager.messages == []  # Try again then asks afresh, not as a follow-up to the error
+
+
+def test_a_failed_forrt_pages_answer_is_not_written_into_the_chat_history():
+    q = make_qualle(True, [node("Paper")], [], "unused")
+    q.config = {**CONFIG, "DECISION_ROUTER": False, "ROUTER": "llm"}
+    q.query_processor.classify_intent = lambda query: "forrt"
+    q.route = lambda query, router=None: "forrt"
+    q.forrt_pages = SimpleNamespace(answer=lambda *a, **k: {"text": None, "sources": [], "found": False})
+    final = list(q.get_response("Which FORRT teams can I join?", "chat"))[-1]
+    assert final["outcome"] == "error" and q.chat_manager.messages == []
+
+
+def test_prod_logs_hold_no_question_text(caplog):
+    import hashlib
+    import logging
+
+    secret = "Is my unpublished dataset on depression in Leipzig open?"
+    q = make_qualle(True, [], [], "unused")
+    q.config = {**CONFIG, "PROD_MODE": True}
+    with caplog.at_level(logging.INFO, logger="just_os.qualle"):
+        final = list(q.get_response(secret, "chat"))[-1]
+    assert final["outcome"] == "no_sources"
+    assert secret not in caplog.text and "Leipzig" not in caplog.text
+    assert f"<{len(secret)} chars, sha256 {hashlib.sha256(secret.encode()).hexdigest()[:12]}>" in caplog.text
+
+    caplog.clear()
+    q.config = CONFIG  # dev: the question is logged for debugging
+    with caplog.at_level(logging.INFO, logger="just_os.qualle"):
+        list(q.get_response(secret, "chat"))
+    assert "Leipzig" in caplog.text
+
+
+def test_prod_logs_hold_no_rewritten_question(caplog):
+    import logging
+
+    grown = "open data " * 40
+    p = qualle.QueryProcessor(FakeClient(completion(tool_arguments=json.dumps({"reformulated_query": grown}))),
+                              {**CONFIG, "PROD_MODE": True}, FakeChatManager())
+    with caplog.at_level(logging.WARNING, logger="just_os.qualle"):
+        assert p.rephrase_query("And for Leipzig data?", "chat") == "And for Leipzig data?"
+    assert "open data open data" not in caplog.text and "chars, sha256" in caplog.text
+
+    retriever = object.__new__(qualle.DocumentRetriever)
+    retriever.config, retriever.search_mode, retriever.min_vector_similarity = {"PROD_MODE": True}, "vector", 0.55
+    with caplog.at_level(logging.INFO, logger="just_os.qualle"):
+        assert retriever.search_order("Leipzig depression data", [SimpleNamespace(score=1.9, node=None)]) == []
+    assert "Leipzig" not in caplog.text
+
+
+def test_forrt_pages_next_to_papers_use_one_shared_pool(monkeypatch):
+    def no_new_pools(*a, **k):
+        raise AssertionError("a thread pool per request")
+
+    monkeypatch.setattr(qualle, "ThreadPoolExecutor", no_new_pools)
+    q = object.__new__(qualle.Qualle)
+    q.config = {"FORRT_IN_PAPERS": True, "FORRT_IN_PAPERS_TIMEOUT": 5}
+    q.forrt_pages = SimpleNamespace(extra_sources=lambda query, min_score: [
+        {"title": "Teams", "url": "https://forrt.org/about/teams/", "text": f"{query} {min_score}"}])
+    jobs = [q.start_forrt_in_papers(f"q{i}", "open_science") for i in range(qualle.FORRT_IN_PAPERS_MAX_JOBS)]
+    assert all(job.result(5)[0]["text"].startswith(f"q{i} ") for i, job in enumerate(jobs))
+    assert len(q.forrt_in_papers_result(q.start_forrt_in_papers("q", "both"), {})) == 1
+    assert qualle.FORRT_IN_PAPERS_POOL._max_workers >= 1
+
+
+def test_a_slot_that_never_comes_free_ends_the_retries(monkeypatch):
+    monkeypatch.setattr(qualle.time, "sleep", lambda s: None)
+    manager = qualle.OpenAIClientManager({"LLM_API_KEY": "k", "BASE_URL": "https://example.org/v1", "OPENSCHOLAR_BASE_URL": "",
+                                          "MAX_CONCURRENT_LLM_CALLS": 1, "LLM_TIMEOUT": 7, "LLM_RETRIES": 3})
+    waits, calls = [], []
+
+    class Busy:  # every slot stays taken by other requests
+        def acquire(self, timeout):
+            waits.append(timeout)
+            return False
+
+    manager._llm_slots = Busy()
+    manager._client_for = lambda model: SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(
+        create=lambda **kw: calls.append(kw))))
+    assert manager.create_chat_completion("m", [{"role": "user", "content": "q"}]) is None
+    assert waits == [7] and calls == []  # one wait of LLM_TIMEOUT, then the error: not 4 waits past WEB_TIMEOUT
+
+
+def test_forrt_pages_next_to_papers_are_skipped_when_too_many_jobs_wait(monkeypatch, caplog):
+    import logging
+    import threading
+
+    release = threading.Event()
+    q = object.__new__(qualle.Qualle)
+    q.config = {"FORRT_IN_PAPERS": True, "FORRT_IN_PAPERS_TIMEOUT": 0.01}
+    q.forrt_pages = SimpleNamespace(extra_sources=lambda query, min_score: release.wait(5) and [])
+    jobs = [q.start_forrt_in_papers(f"q{i}", "open_science") for i in range(qualle.FORRT_IN_PAPERS_MAX_JOBS)]
+    assert all(jobs)  # running and queued, all stuck on a slow forrt.org
+    with caplog.at_level(logging.WARNING, logger="just_os.qualle"):
+        assert q.start_forrt_in_papers("one too many", "open_science") is None  # skipped, not queued
+    assert "skipped" in caplog.text
+    # an answer that stops waiting (FORRT_IN_PAPERS_TIMEOUT) does not free the place: the job still runs
+    assert q.forrt_in_papers_result(jobs[0], {}) == []
+    assert q.start_forrt_in_papers("still full", "open_science") is None
+    release.set()
+    for job in jobs:
+        try:
+            job.result(5)
+        except Exception:  # cancelled while queued
+            pass
+    deadline = qualle.time.monotonic() + 5
+    while qualle.FORRT_IN_PAPERS_JOBS._value < qualle.FORRT_IN_PAPERS_MAX_JOBS and qualle.time.monotonic() < deadline:
+        qualle.time.sleep(0.01)
+    assert qualle.FORRT_IN_PAPERS_JOBS._value == qualle.FORRT_IN_PAPERS_MAX_JOBS  # every place given back
+    job = q.start_forrt_in_papers("free again", "open_science")
+    assert job is not None and job.result(5) == []
+
+
+def test_prod_logs_hold_no_classifier_echo_or_rewrite(caplog):
+    import logging
+
+    secret = "Leipzig depression dataset"
+    for method, key in (("classify_intent", "category"), ("classify_query", "concerns_open_science")):
+        echo = json.dumps({key: f"about {secret}"})
+        p = qualle.QueryProcessor(FakeClient(completion(tool_arguments=echo)), {**CONFIG, "PROD_MODE": True}, FakeChatManager())
+        caplog.clear()
+        with caplog.at_level(logging.ERROR, logger="just_os.qualle"):
+            assert getattr(p, method)("q") is None
+        assert "Failed to classify" in caplog.text and "leipzig" not in caplog.text.lower() and "chars, sha256" in caplog.text
+        dev = qualle.QueryProcessor(FakeClient(completion(tool_arguments=echo)), CONFIG, FakeChatManager())
+        caplog.clear()
+        with caplog.at_level(logging.ERROR, logger="just_os.qualle"):
+            getattr(dev, method)("q")
+        assert "leipzig" in caplog.text.lower()  # dev: the echo helps debugging
+
+    class History(FakeChatManager):
+        def get_history(self, chat_id):
+            return [{"role": "user", "content": "What is open data?"}, {"role": "assistant", "content": "Data to reuse."}]
+
+    q = make_qualle(True, [], [], "unused")
+    q.config = {**CONFIG, "PROD_MODE": True, "CONTEXT_METHOD": "rephrase"}
+    q.chat_manager = History()
+    q.query_processor.rephrase_query = lambda query, chat_id: f"Is the {secret} open?"
+    caplog.clear()
+    with caplog.at_level(logging.DEBUG, logger="just_os.qualle"):
+        list(q.get_response("And is that one open?", "chat"))
+    assert "Rephrased query" in caplog.text and "leipzig" not in caplog.text.lower()
+
+
+class TurnRecorder(FakeChatManager):
+    def __init__(self):
+        super().__init__()
+        self.turns = []
+
+    def add_message(self, chat_id, message):
+        raise AssertionError("messages are kept as one turn (add_turn), never one by one")
+
+    def add_turn(self, chat_id, question, answer):
+        self.turns.append((chat_id, question, answer))
+
+
+def test_a_turn_is_kept_once_in_one_call_after_the_final_message_is_built():
+    q = make_qualle(True, [node("Paper")], [], "Open data is free to reuse [0].")
+    q.chat_manager = TurnRecorder()
+    order = []
+    q.chat_manager.add_turn = lambda chat_id, question, answer: order.append(("remember", question, answer))
+    sources = q.reference_processor.references_from_nodes
+    q.reference_processor.references_from_nodes = lambda *a: order.append(("sources",)) or sources(*a)
+    final = list(q.get_response("What is open data?", "chat"))[-1]
+    assert final["outcome"] == "answered"
+    assert order == [("sources",), ("remember", "What is open data?", "Open data is free to reuse [0].")]
+
+    # a failure while the final message is built (sources, FORRT links) keeps nothing
+    q = make_qualle(True, [node("Paper")], [], "Open data is free to reuse [0].")
+    q.chat_manager = TurnRecorder()
+    q.reference_processor.reference_list = lambda *a: (_ for _ in ()).throw(RuntimeError("broken metadata"))
+    final = list(q.get_response("What is open data?", "chat"))[-1]
+    assert final["outcome"] == "error" and q.chat_manager.turns == []
+
+    q = make_qualle(True, [node("Paper")], [], "Open data is free to reuse [0].")
+    q.chat_manager = TurnRecorder()
+    q.forrt_pages = SimpleNamespace(links=lambda query: (_ for _ in ()).throw(RuntimeError("index gone")))
+    q.route = lambda query, router=None: "both"
+    q.start_forrt_in_papers = lambda query, intent: None
+    final = list(q.get_response("How can FORRT help me learn about open data?", "chat"))[-1]
+    assert final["outcome"] == "error" and q.chat_manager.turns == []
+
+
+def test_an_openscholar_answer_gets_its_own_time_limit_not_llm_deadline():
+    manager = qualle.OpenAIClientManager({
+        "LLM_API_KEY": "k", "BASE_URL": "https://openrouter.ai/api/v1", "LLM_TIMEOUT": 60, "LLM_DEADLINE": 120,
+        "OPENSCHOLAR_BASE_URL": "http://openscholar.test/v1", "OPENSCHOLAR_API_KEY": "os", "OPENSCHOLAR_TIMEOUT": 600,
+        "OPENSCHOLAR_MODEL": "openscholar-8b"})
+    timeouts = []
+    manager.openscholar_client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(
+        create=lambda **kw: timeouts.append(kw["timeout"]) or answer("Answer [0]."))))
+    q = make_qualle(True, [node("Paper")], [], "unused")
+    q.response_generator.client_manager = manager
+    final = list(q.get_response("What is open data?", "chat", model="openscholar-8b"))[-1]
+    assert final["outcome"] == "answered" and timeouts and timeouts[0] > 590  # OPENSCHOLAR_TIMEOUT, not 120 s
+
+
+def test_closing_the_answer_stream_from_the_page_closes_the_upstream_stream():
+    """The browser goes away: Flask closes the outermost generator (get_response); the SDK stream must close and
+    the LLM slot come back, through every generator in between."""
+    manager = qualle.OpenAIClientManager({"LLM_API_KEY": "k", "BASE_URL": "https://example.org/v1",
+                                          "OPENSCHOLAR_BASE_URL": "", "MAX_CONCURRENT_LLM_CALLS": 1})
+    response = FakeStream([chunk("[Response_Start]Open data "), chunk("is free "), chunk("to reuse [0].")])
+    manager._client_for = lambda model: SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(
+        create=lambda **kw: response)))
+    q = make_qualle(True, [node("Paper")], [], "unused")
+    q.response_generator.client_manager = manager
+    messages = q.get_response("What is open data?", "chat", stream=True)
+    while next(messages)["status"] != "partial":
+        pass
+    assert manager._llm_slots._value == 0 and not response.closed
+    messages.close()
+    assert response.closed and manager._llm_slots._value == 1
+    assert q.chat_manager.messages == []  # nothing kept from an abandoned answer
+
+
+def sse_client(events, finish=True):
+    """A real OpenAI client against an httpx MockTransport serving server-sent events."""
+    import httpx
+    from openai import OpenAI
+
+    seen = {}
+
+    def handler(request):
+        seen["timeout"] = request.extensions["timeout"]
+        lines = []
+        for i, text in enumerate(events):
+            last = finish and i == len(events) - 1
+            data = {"id": "c", "object": "chat.completion.chunk", "created": 1, "model": "m",
+                    "choices": [{"index": 0, "delta": {"content": text}, "finish_reason": "stop" if last else None}]}
+            lines.append(f"data: {json.dumps(data)}\n\n")
+        if finish:
+            lines.append("data: [DONE]\n\n")
+        return httpx.Response(200, headers={"content-type": "text/event-stream"}, content="".join(lines).encode())
+
+    client = OpenAI(api_key="k", base_url="https://llm.test/v1", max_retries=0,
+                    http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+    return client, seen
+
+
+def test_the_installed_openai_sdk_stream_is_read_closed_and_checked_for_its_finish_reason():
+    manager = qualle.OpenAIClientManager({"LLM_API_KEY": "k", "BASE_URL": "https://llm.test/v1", "OPENSCHOLAR_BASE_URL": "",
+                                          "LLM_TIMEOUT": 7})
+    complete, seen = sse_client(["Open data ", "is free."])
+    manager._client_for = lambda model: complete
+    assert list(manager.stream_chat_completion("m", [{"role": "user", "content": "q"}])) == ["Open data ", "is free."]
+    assert seen["timeout"]["read"] == 7  # the per-request timeout reached httpx
+
+    cut, _ = sse_client(["Open data ", "is"], finish=False)  # the server ends the stream politely mid-answer
+    manager._client_for = lambda model: cut
+    got = []
+    with pytest.raises(qualle.StreamInterrupted, match="finish_reason"):
+        for piece in manager.stream_chat_completion("m", [{"role": "user", "content": "q"}]):
+            got.append(piece)
+    assert got == ["Open data ", "is"]
+
+
+def test_openrouter_key_is_never_sent_to_a_custom_base_url():
+    openrouter = qualle.OpenAIClientManager({
+        "LLM_API_KEY": None, "OPENROUTER_API_KEY": "or-secret",
+        "BASE_URL": "https://openrouter.ai/api/v1", "OPENSCHOLAR_BASE_URL": "",
+    })
+    assert openrouter.api_key == "or-secret"
+    custom = qualle.OpenAIClientManager({
+        "LLM_API_KEY": None, "OPENROUTER_API_KEY": "or-secret",
+        "BASE_URL": "https://gpt.uni-muenster.de/v1", "OPENSCHOLAR_BASE_URL": "",
+    })
+    assert custom.api_key == ""
+
+
+def test_completion_past_deadline_is_rejected_and_structured_output_does_not_wait_twice(monkeypatch):
+    from types import SimpleNamespace
+
+    now = [100.0]
+    monkeypatch.setattr(qualle.time, "monotonic", lambda: now[0])
+    manager = qualle.OpenAIClientManager({
+        "LLM_API_KEY": "k", "BASE_URL": "https://llm.test/v1", "OPENSCHOLAR_BASE_URL": "",
+        "LLM_TIMEOUT": 60, "LLM_DEADLINE": 120, "LLM_RETRIES": 0,
+    })
+
+    def slow_create(**kwargs):
+        now[0] += 121.0
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="late"), finish_reason="stop")])
+
+    manager._client_for = lambda model: SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=slow_create)), base_url="https://llm.test/v1"
+    )
+    assert manager.create_chat_completion("m", [{"role": "user", "content": "q"}]) is None
+
+    # Saturated slot: _structured_output must not fall back to plain JSON for a second slot wait
+    calls = []
+    saturated = qualle.OpenAIClientManager({
+        "LLM_API_KEY": "k", "BASE_URL": "https://llm.test/v1", "OPENSCHOLAR_BASE_URL": "",
+        "LLM_TIMEOUT": 0.01, "LLM_DEADLINE": 1, "LLM_RETRIES": 0, "MAX_CONCURRENT_LLM_CALLS": 1,
+    })
+    saturated._llm_slots.acquire()
+    orig_create = saturated.create_chat_completion
+
+    def tracking(*args, **kwargs):
+        calls.append(kwargs.get("tools") is not None)
+        return orig_create(*args, **kwargs)
+
+    saturated.create_chat_completion = tracking
+    proc = qualle.QueryProcessor(saturated, {"GENERAL_MODEL": "m"}, None)
+    assert proc._structured_output("prompt", "flag", "boolean") is None
+    assert calls == [True]  # only the tool-call attempt ran, no second wait for plain JSON
+
+
+def test_prod_mode_redacts_raw_sdk_error_body(caplog):
+    from types import SimpleNamespace
+
+    manager = qualle.OpenAIClientManager({
+        "LLM_API_KEY": "k", "BASE_URL": "https://llm.test/v1", "OPENSCHOLAR_BASE_URL": "",
+        "LLM_RETRIES": 0, "PROD_MODE": True,
+    })
+
+    class FakeApiError(Exception):
+        status_code = 400
+
+    def fail(**kwargs):
+        raise FakeApiError("Bad request echoing SECRET_USER_QUESTION")
+
+    manager._client_for = lambda model: SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=fail)), base_url="https://llm.test/v1"
+    )
+    with caplog.at_level("ERROR", logger="just_os.qualle"):
+        assert manager.create_chat_completion("m", [{"role": "user", "content": "q"}]) is None
+    assert "SECRET_USER_QUESTION" not in caplog.text
+    assert "FakeApiError" in caplog.text and "400" in caplog.text

@@ -90,11 +90,17 @@ services:
   # The public bot next to web (dev): same image, PROD_MODE (no chat saved, no team pages),
   # its own port and Redis database, nothing writable under data/. Starts with --profile prod
   # (or COMPOSE_PROFILES=prod). Not covered by compose.dev.yaml: it runs the code baked into the image.
+  # Its production settings match deploy/kubernetes/just-os.yaml's ConfigMap (test/test_deploy_config.py fails when
+  # they drift). It does not read the dev .env: settings for this service only go in .env.prod (optional). The two keys
+  # below are filled in by Compose from the shell or the project .env (Compose reads .env for ${...} in this file,
+  # not .env.prod): a key only in .env.prod would be replaced by the placeholder.
   web-prod:
     <<: *default-app
     profiles: ["prod"]
+    env_file:
+      - path: ".env.prod"
+        required: false
     environment:
-      OMP_NUM_THREADS: 1
       LLAMA_INDEX_CACHE_DIR: /home/python/.cache/huggingface/hub
       PROD_MODE: "true"
       REDIS_DB: 1
@@ -107,10 +113,24 @@ services:
       LLM_API_KEY: "${UNIGPT_API_KEY:-missing-UNIGPT_API_KEY}"
       CITATION_MODEL: "gemma-4-31B-it"
       GENERAL_MODEL: "gemma-4-31B-it"
-      DECISION_API_KEY: "${OPENROUTER_API_KEY:-}"
+      # a placeholder too: an empty key would fail every decision call (it never falls back to the uniGPT key)
+      DECISION_API_KEY: "${OPENROUTER_API_KEY:-missing-OPENROUTER_API_KEY}"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-missing-OPENROUTER_API_KEY}"
       ROUTER: "banded"
+      SEARCH_MODE: "vector"
+      RERANK: "false"
+      AUTO_DEFAULTS: "false"
+      # one reverse proxy in front (compose.prod.yaml: just-os-prod:8000 behind the proxy network)
+      PROXY_FIX_X_FOR: "1"
+      # bge-m3 from the hf-cache volume, which the web service fills on its first start: no download here
+      HF_HUB_OFFLINE: "1"
+      OMP_NUM_THREADS: "2"
+      # uniGPT takes 4 parallel requests per key; the Kubernetes deployment runs 2 pods x 2
+      MAX_CONCURRENT_LLM_CALLS: "2"
       FLASK_DEBUG: "false"
       WEB_RELOAD: "false"
+      WEB_CONCURRENCY: "1"
+      WEB_TIMEOUT: "300"
     deploy:
       resources:
         limits:
@@ -124,6 +144,8 @@ services:
       retries: 3
     ports:
       - "${DOCKER_WEB_PROD_PORT_FORWARD:-127.0.0.1:8001}:${PORT:-8000}"
+    # Not the host's ./public (web's mount): web-prod serves the compiled assets baked into its own image, so
+    # starting an older dev image of web can never overwrite them
     volumes:
       - "./data:/app/data:ro"
       - "hf-cache:/home/python/.cache/huggingface"

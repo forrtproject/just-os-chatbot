@@ -10,7 +10,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # OpenScholar runs only on the RUG gateway: set BASE_URL=https://llm.hpc.rug.nl/,
     # LLM_API_KEY=<RUG key>, CITATION_MODEL=openscholar, GENERAL_MODEL=default-chat
     "BASE_URL": "https://openrouter.ai/api/v1",
-    "LLM_API_KEY": os.getenv("OPENROUTER_API_KEY"),
+    # Explicit answer-model key; when unset, OpenAIClientManager falls back to OPENROUTER_API_KEY
+    # only when BASE_URL has OpenRouter's origin (never sent to uniGPT or another custom host)
+    "LLM_API_KEY": None,
     "CITATION_MODEL": "meta-llama/llama-3.1-8b-instruct",
     # Rewrites follow-ups and is the topic check's fallback. Gemma 4 31B since 25 Nov 2026: Llama 3.1 8B copied the
     # previous answer into rewrites (docs/evaluation.md 3.25); web-prod uses the same model on uniGPT
@@ -20,10 +22,20 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "NO_REASONING_MODELS": "qwen/qwen3.7-flash",
     # A failed model call (provider error, time-out or an empty answer) is tried this many more times,
     # with a short pause, before the user sees an error and its Try again button. Not for OpenScholar,
-    # whose answers take minutes. Worst case (1 + retries) x LLM_TIMEOUT must stay under WEB_TIMEOUT
+    # whose answers take minutes. All tries share LLM_DEADLINE. With MAX_CONCURRENT_LLM_CALLS a try may first
+    # wait for a free slot; a try that gets none within LLM_TIMEOUT ends the retries
     "LLM_RETRIES": 3,
     # Seconds before an LLM call gives up (the answer then shows an error, not a hang)
     "LLM_TIMEOUT": 60,
+    # Seconds for all tries of one call (slot waits, requests, pauses, Retry-After), and for the whole answer step
+    # (the stream, the call after a failed stream, the citation re-ask), so retries never multiply LLM_TIMEOUT. Each
+    # other call (rewrite, topic check; a structured-output fallback is a second call) has its own. Gemma 4 answers
+    # took at most 76 s in the eval runs (median 4-7 s), so a healthy answer stays well inside. Not for OpenScholar
+    # (OPENSCHOLAR_TIMEOUT)
+    "LLM_DEADLINE": 120,
+    # LLM calls (answers, rewrites, streams) one process makes at once, across all requests; 0 = no limit. Others wait
+    # up to LLM_TIMEOUT for a free slot. Prod sets 2: two pods against uniGPT's 4 parallel requests per key
+    "MAX_CONCURRENT_LLM_CALLS": 0,
     # Longest answer in tokens. Without a cap Llama 3.1 8B looped in Kannada and Marathi up to
     # 16k tokens (12 min, eval 12 Nov); English answers stay under ~1k. 0 = no cap
     "MAX_ANSWER_TOKENS": 2000,
@@ -40,7 +52,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     # Local CrossEncoder on CPU; multilingual (bge-reranker-base is English-focused and
     # dropped German/Spanish questions as "no sources", eval 5 Nov)
     "RERANK_MODEL": "BAAI/bge-reranker-v2-m3",
-    # CPU threads for the re-ranker and embedding (20 chunks: ~25 s with 1 thread, ~13 s with 6)
+    # CPU threads for the re-ranker (20 chunks: ~25 s with 1 thread, ~13 s with 6); set only with RERANK or
+    # VERIFY_CITATIONS, otherwise OMP_NUM_THREADS decides (also for the embedding)
     "RERANK_THREADS": 6,
     # Follow-up questions: "rephrase" (one LLM call makes a stand-alone question), "history" (no
     # rephrase; the earlier turns go into the answer prompt) or "hybrid" (the rephrased question for
@@ -83,9 +96,12 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "BAND_PAGE_LOW": 0.461,
     "BAND_PAGE_HIGH": 0.606,
     "BAND_MIDDLE_ROUTER": "jev",
-    # Key for the decision models (Jev, Clef; OpenRouter's decisions API); empty = LLM_API_KEY. Set it to the
-    # OpenRouter key when BASE_URL / LLM_API_KEY point elsewhere (web-prod: uniGPT Münster)
-    "DECISION_API_KEY": os.getenv("OPENROUTER_API_KEY") or "",
+    # Key for the decision models (Jev, Clef; OpenRouter's decisions API): DECISION_API_KEY when set (set but empty
+    # means no key). Unset: LLM_API_KEY when BASE_URL has DECISION_URL's origin (scheme, host, port), else
+    # OPENROUTER_API_KEY when DECISION_URL is on OpenRouter's origin, else none: a uniGPT key (web-prod) never goes to
+    # OpenRouter, and no key goes to another DECISION_URL without an explicit DECISION_API_KEY (decisions.decision_api_key)
+    "DECISION_API_KEY": os.getenv("DECISION_API_KEY"),
+    "OPENROUTER_API_KEY": os.getenv("OPENROUTER_API_KEY") or None,
     "DECISION_ROUTER_MODEL": "cloudflare/clef-flash",  # best of Jev/Clef/Clef-flash in docs/evaluation.md 3.6
     "DECISION_ROUTER_MIN_CONFIDENCE": 0.5,
     "DECISION_URL": "https://openrouter.ai/api/alpha/decisions",
@@ -175,6 +191,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "REDIS_HOST": "redis",
     "REDIS_PORT": 6379,
     "REDIS_DB": 0,
+    # Seconds to connect to Redis and to wait for one reply (chat memory, rate limiter, /ready). Without it a Redis
+    # that stops answering (node lost, paused) blocks requests and probes instead of failing fast
+    "REDIS_TIMEOUT": 2,
     # see https://flask-limiter.readthedocs.io/en/stable/configuration.html#ratelimit-string
     "RATE_LIMIT": "100/minute;500/hour;2000/day",
     # Number of trusted reverse proxies in front of the app (0 = none). Set to 1 behind
@@ -187,13 +206,18 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "MAX_MESSAGE_LENGTH": 2000,
     "MIN_MESSAGE_LENGTH": 3,
     # Chat settings
-    "MESSAGE_TTL": 3600,  # 1 hour in seconds
+    # The chat memory (Redis chat:<chat_id>, also in PROD_MODE): each question as typed and each answer, for
+    # follow-ups. Kept MESSAGE_TTL seconds after the chat's last message (1 hour), at most MAX_HISTORY_MESSAGES
+    # messages (the newest; a question and its answer are two)
+    "MESSAGE_TTL": 3600,
+    "MAX_HISTORY_MESSAGES": 20,
     # Debug panel on the built-in chat page: per turn the rewritten question, topic check scores,
     # source scores, step times and model costs. False: no panel, and /chat ignores "debug" requests
     "DEBUG_PANEL": True,
-    # Public deployment (service web-prod in compose.yaml): no chat turn, feedback or arena round is
-    # saved (file or Redis), no Good/Bad buttons, no debug panel, only CITATION_MODEL on the chat page,
-    # and the team pages (/eval, /review, /topics, /arena) answer 404, whatever the settings above say
+    # Public deployment (service web-prod in compose.yaml): no chat log, feedback or arena round is saved
+    # (file or Redis), no Good/Bad buttons, no debug panel, only CITATION_MODEL on the chat page, logs show a
+    # question's length and hash instead of its text, and the team pages (/eval, /review, /topics, /arena) answer
+    # 404, whatever the settings above say. The chat memory for follow-ups stays (MESSAGE_TTL: 1 hour in Redis)
     "PROD_MODE": False,
     # Arena (page /arena): the user picks models, each answers the same question from the
     # same sources, and the user rates each answer 1-5. Off by default: one LLM call per model.

@@ -1,10 +1,17 @@
+import contextlib
 import contextvars
+import email.utils
+import hashlib
 import html
 import json
 import logging
+import math
+import os
 import re
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional, Generator, Iterator, Tuple
 
 import markdown
@@ -21,7 +28,7 @@ from just_os.answer_cache import AnswerCache
 from just_os import trace
 from just_os.chat_manager import ChatManager
 from just_os.clusters import ClusterBoost, document_clusters
-from just_os.decisions import DECISION_ROUTERS, DecisionClient
+from just_os.decisions import DECISION_ROUTERS, DEFAULT_BASE_URL, DecisionClient, origin
 from just_os.forrt_lookup import ForrtLookup
 from just_os import forrt_checks as checks
 from just_os.forrt_pages import ForrtPages
@@ -102,6 +109,60 @@ REWRITE_MAX_ADDED_WORDS = 15
 # HTTP errors no retry can fix (401 wrong or missing key, 403 no access to the model, 404 no such model, 400 bad
 # request); time-outs, 429 and 5xx are retried (LLM_RETRIES)
 NO_RETRY_STATUS = {400, 401, 403, 404}
+# HTTP 429 with Retry-After: wait that many seconds before the next try, at most this long, so that
+# (1 + LLM_RETRIES) tries stay within WEB_TIMEOUT
+MAX_RETRY_AFTER = 10
+
+# FORRT_IN_PAPERS page jobs (start_forrt_in_papers) of all requests share these threads (one per gunicorn thread).
+# At most FORRT_IN_PAPERS_MAX_JOBS jobs running or queued: under overload a new request skips the optional pages
+# instead of queuing work that would only finish after its answer
+FORRT_IN_PAPERS_WORKERS = int(os.getenv("PYTHON_MAX_THREADS", 8)) or 8
+FORRT_IN_PAPERS_POOL = ThreadPoolExecutor(max_workers=FORRT_IN_PAPERS_WORKERS, thread_name_prefix="forrt-in-papers")
+FORRT_IN_PAPERS_MAX_JOBS = 2 * FORRT_IN_PAPERS_WORKERS
+FORRT_IN_PAPERS_JOBS = threading.BoundedSemaphore(FORRT_IN_PAPERS_MAX_JOBS)
+
+
+class LLMSlotTimeout(TimeoutError):
+    """No MAX_CONCURRENT_LLM_CALLS slot came free within LLM_TIMEOUT: the process is overloaded."""
+
+
+class StreamInterrupted(Exception):
+    """The answer stream failed, broke off, passed its deadline or ended without a finish_reason: the text so far
+    (sent characters) is not a complete answer. retry_after: the seconds an HTTP 429 asked to wait (else None)."""
+
+    def __init__(self, message: str, retry_after: Optional[float] = None, sent: int = 0):
+        super().__init__(message)
+        self.retry_after, self.sent = retry_after, sent
+
+
+def retry_after_seconds(value: Any) -> Optional[float]:
+    """Seconds from a Retry-After header: a number of seconds or an HTTP date, at most MAX_RETRY_AFTER. None (the
+    usual pause) when missing or invalid: not a number or date, NaN, infinite or negative. A date in the past is 0."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    try:
+        seconds = float(text)
+    except ValueError:
+        try:
+            when = email.utils.parsedate_to_datetime(text)
+        except (TypeError, ValueError, IndexError):
+            return None
+        if when.tzinfo is None:  # an HTTP date is GMT
+            when = when.replace(tzinfo=timezone.utc)
+        seconds = max((when - datetime.now(timezone.utc)).total_seconds(), 0.0)
+    if not math.isfinite(seconds) or seconds < 0:
+        return None
+    return min(seconds, float(MAX_RETRY_AFTER))
+
+
+def loggable(text: str, config: Optional[Dict[str, Any]], limit: int = 120) -> str:
+    """User text for INFO/WARNING logs: the text itself (cut to limit), but in PROD_MODE only its length and a
+    short hash (the same question gives the same hash), so the public bot's logs hold no questions."""
+    text = str(text)
+    if (config or {}).get("PROD_MODE"):
+        return f"<{len(text)} chars, sha256 {hashlib.sha256(text.encode('utf-8')).hexdigest()[:12]}>"
+    return repr(text[:limit])
 REPHRASE_PROMPT = """Conversation so far (oldest first):
 {conversation}
 
@@ -295,6 +356,8 @@ class QueryProcessor:
             tools=tools,
             tool_choice=tool_choice,
         )
+        if response is None and getattr(self.client_manager, "last_call_timed_out_for_slot", lambda: False)():
+            return None
         try:
             return json.loads(
                 response.choices[0].message.tool_calls[0].function.arguments
@@ -338,7 +401,7 @@ Return your answer as a valid JSON object with a single boolean entry "concerns_
 """
         result = self._structured_output(prompt, "concerns_open_science", "boolean")
         if not isinstance(result, bool):
-            logger.error(f"Failed to classify query, got: {result!r}")
+            logger.error(f"Failed to classify query, got: {loggable(result, self.config)}")
             return None
         return result
 
@@ -362,7 +425,7 @@ Return your answer as a valid JSON object with a single string entry "category"
         result = self._structured_output(prompt, "category", "string")
         result = result.strip().lower() if isinstance(result, str) else None
         if result not in INTENTS:
-            logger.error(f"Failed to classify intent, got: {result!r}")
+            logger.error(f"Failed to classify intent, got: {loggable(result, self.config)}")
             return None
         return result
 
@@ -397,7 +460,8 @@ Return your answer as a valid JSON object with a single string entry "category"
             return query
         typed, rewritten = len(query.split()), len(result.split())
         if rewritten > max(2 * typed, typed + REWRITE_MAX_ADDED_WORDS):
-            logger.warning(f"Rewrite of {typed} words grew to {rewritten}, using the question as typed: {result[:120]!r}")
+            logger.warning(f"Rewrite of {typed} words grew to {rewritten}, using the question as typed: "
+                           f"{loggable(result, self.config)}")
             return query
         return result
 
@@ -417,13 +481,15 @@ class DocumentRetriever:
         """
         self.config = config
         self._retriever = retriever
-        # The container sets OMP_NUM_THREADS=1; the re-ranker is ~2x faster with 6 threads
-        torch.set_num_threads(config.get("RERANK_THREADS", 6))
         self.rerank = config.get("RERANK", True)
         self.search_mode = config.get("SEARCH_MODE", "vector")
         self.min_vector_similarity = config.get("MIN_VECTOR_SIMILARITY", DEFAULT_CONFIG["MIN_VECTOR_SIMILARITY"])
         # VERIFY_CITATIONS also scores with the re-ranker model
         needed = self.rerank or config.get("VERIFY_CITATIONS")
+        if needed:
+            # The container sets OMP_NUM_THREADS; the re-ranker is ~2x faster with 6 threads. Without the
+            # re-ranker OMP_NUM_THREADS stays (prod: 2 per pod, for bge-m3 next to the other requests)
+            torch.set_num_threads(config.get("RERANK_THREADS", 6))
         self.reranker = CrossEncoder(config["RERANK_MODEL"]) if needed else None
         self.verify_min_score = config.get("VERIFY_MIN_SCORE", 0.1)
         self.n_context_items = config["MAX_CHUNKS"]
@@ -518,7 +584,8 @@ class DocumentRetriever:
         if self.search_mode != "bm25" and self.min_vector_similarity > 0:
             cosine = vector_cosine(nodes)
             if cosine is not None and cosine < self.min_vector_similarity:
-                logger.info(f"No sources: best vector match {cosine:.3f} < MIN_VECTOR_SIMILARITY for {query[:60]!r}")
+                logger.info(f"No sources: best vector match {cosine:.3f} < MIN_VECTOR_SIMILARITY for "
+                            f"{loggable(query, getattr(self, 'config', None), 60)}")
                 return []
         boost = getattr(self, "cluster_boost", None)
         if boost is not None and self.search_mode == "vector":
@@ -698,13 +765,16 @@ class ResponseGenerator:
         context: str,
         model: Optional[str] = None,
         history: Optional[List[Dict[str, str]]] = None,
+        deadline: Optional[float] = None,
     ) -> Iterator[str]:
-        """The raw answer in pieces while the model writes it (#41)."""
+        """The raw answer in pieces while the model writes it (#41). deadline: time.monotonic() by which the stream
+        must have ended (the answer's shared LLM_DEADLINE)."""
         yield from self.client_manager.stream_chat_completion(
             model=model or self.citation_model,
             messages=self._messages(query, context, history),
             temperature=self.config.get("TEMPERATURE", 0.3),
             max_tokens=self.config.get("MAX_ANSWER_TOKENS"),
+            **({"deadline": deadline} if deadline is not None else {}),
         )
 
     @trace.step("answer")
@@ -714,6 +784,8 @@ class ResponseGenerator:
         context: str,
         model: Optional[str] = None,
         history: Optional[List[Dict[str, str]]] = None,
+        deadline: Optional[float] = None,
+        first_wait: Optional[float] = None,
     ) -> Optional[str]:
         """
         Generate a response using the LLM.
@@ -722,6 +794,8 @@ class ResponseGenerator:
             query: User query
             context: Context for the query
             model: Model to use instead of CITATION_MODEL (used by the arena)
+            deadline: time.monotonic() by which all tries must end (shared with the stream before it)
+            first_wait: seconds to wait before the first try (a streaming HTTP 429's Retry-After)
 
         Returns:
             Generated response or None if generation fails
@@ -731,6 +805,8 @@ class ResponseGenerator:
             messages=self._messages(query, context, history),
             temperature=self.config.get("TEMPERATURE", 0.3),
             max_tokens=self.config.get("MAX_ANSWER_TOKENS"),
+            **({"deadline": deadline} if deadline is not None else {}),
+            **({"first_wait": first_wait} if first_wait is not None else {}),
         )
 
         if not response or not response.choices:
@@ -792,7 +868,13 @@ class OpenAIClientManager:
             config: Configuration dictionary
         """
         self.config = config
-        self.api_key = config["LLM_API_KEY"]
+        explicit_key = config.get("LLM_API_KEY")
+        if explicit_key is not None and explicit_key != "":
+            self.api_key = explicit_key
+        elif origin(config.get("BASE_URL")) == origin(DEFAULT_BASE_URL):
+            self.api_key = config.get("OPENROUTER_API_KEY") or ""
+        else:
+            self.api_key = ""
         if not self.api_key:
             logger.warning("LLM_API_KEY / OPENROUTER_API_KEY environment variable not set")
 
@@ -809,6 +891,54 @@ class OpenAIClientManager:
             if config.get("OPENSCHOLAR_BASE_URL")
             else None
         )
+        # MAX_CONCURRENT_LLM_CALLS (0 = no limit): LLM calls of this process at once, across all requests
+        # (uniGPT takes 4 parallel requests per key: 2 pods x 2)
+        slots = int(config.get("MAX_CONCURRENT_LLM_CALLS") or 0)
+        self._llm_slots = threading.BoundedSemaphore(slots) if slots > 0 else None
+        self._slot_state = threading.local()
+
+    def last_call_timed_out_for_slot(self) -> bool:
+        state = getattr(self, "_slot_state", None)
+        return bool(getattr(state, "slot_timeout", False)) if state is not None else False
+
+    def _error_text(self, error: Exception) -> str:
+        """In PROD_MODE, omit raw SDK error bodies (providers can echo prompt/classifier text)."""
+        if self.config.get("PROD_MODE"):
+            status = getattr(error, "status_code", None)
+            return f"{error.__class__.__name__} (status={status})" if status is not None else error.__class__.__name__
+        return str(error) or error.__class__.__name__
+
+    @contextlib.contextmanager
+    def llm_slot(self, timeout: Optional[float] = None):
+        """Hold one of the MAX_CONCURRENT_LLM_CALLS slots for one call or one whole stream. A caller that waits
+        longer than timeout (default LLM_TIMEOUT) gets LLMSlotTimeout (the call fails without more tries)."""
+        slots = getattr(self, "_llm_slots", None)  # test doubles built without __init__ have none
+        if slots is None:
+            yield
+            return
+        if not slots.acquire(timeout=self.config.get("LLM_TIMEOUT", 60) if timeout is None else max(timeout, 0)):
+            raise LLMSlotTimeout("all MAX_CONCURRENT_LLM_CALLS slots stayed busy")
+        try:
+            yield
+        finally:
+            slots.release()
+
+    @staticmethod
+    def retry_after(error: Exception) -> Optional[float]:
+        """Seconds from the Retry-After header (seconds or an HTTP date) of an HTTP 429, at most MAX_RETRY_AFTER,
+        or None (no 429, or a missing or invalid header: the usual pause)."""
+        if getattr(error, "status_code", None) != 429:
+            return None
+        headers = getattr(getattr(error, "response", None), "headers", None) or {}
+        return retry_after_seconds(headers.get("retry-after"))
+
+    def budget(self, model: str) -> Tuple[float, float]:
+        """(seconds for one try, seconds for all tries of one call: LLM_DEADLINE). OpenScholar: OPENSCHOLAR_TIMEOUT
+        for both (one try of minutes)."""
+        if model == self.config.get("OPENSCHOLAR_MODEL") and getattr(self, "openscholar_client", None):
+            seconds = float(self.config.get("OPENSCHOLAR_TIMEOUT", 600))
+            return seconds, seconds
+        return float(self.config.get("LLM_TIMEOUT", 60)), float(self.config.get("LLM_DEADLINE", 120))
 
     def _client_for(self, model: str) -> Optional[OpenAI]:
         if self.openscholar_client and model == self.config.get("OPENSCHOLAR_MODEL"):
@@ -850,6 +980,8 @@ class OpenAIClientManager:
         tools: Optional[List[Dict[str, Any]]] = None,
         tool_choice: Optional[Dict[str, Any]] = None,
         max_tokens: Optional[int] = None,
+        deadline: Optional[float] = None,
+        first_wait: Optional[float] = None,
     ) -> Optional[ChatCompletion]:
         """
         Create a chat completion with error handling.
@@ -860,6 +992,9 @@ class OpenAIClientManager:
             temperature: Sampling temperature
             tools: Optional list of tools
             tool_choice: Optional tool choice
+            deadline: time.monotonic() by which every try must end; default now + LLM_DEADLINE. Slot waits,
+                requests and pauses all count against it, so retries never multiply LLM_TIMEOUT past it
+            first_wait: seconds to wait before the first try (a streaming HTTP 429's Retry-After)
 
         Returns:
             ChatCompletion or None if the request fails
@@ -885,19 +1020,44 @@ class OpenAIClientManager:
         # The first try plus LLM_RETRIES more on a provider error, a time-out or an empty answer; only
         # then does the user see an error (and Try again). OpenScholar is not retried: it takes minutes
         retries = 0 if model == self.config.get("OPENSCHOLAR_MODEL") else self.config.get("LLM_RETRIES", 3)
-        response = None
+        per_try, total = self.budget(model)
+        if deadline is None:
+            deadline = time.monotonic() + total
+        state = getattr(self, "_slot_state", None)
+        if state is not None:
+            state.slot_timeout = False
+        response, wait = None, first_wait
         for attempt in range(retries + 1):
-            if attempt:
-                time.sleep(min(2 ** (attempt - 1), 4))
+            pause = wait if wait is not None else (min(2 ** (attempt - 1), 4) if attempt else 0)
+            if time.monotonic() + pause >= deadline:  # no time left for another try
+                if not attempt:
+                    logger.error(f"No time left for a call to {model} (LLM_DEADLINE)")
+                break
+            if pause:  # never while holding a MAX_CONCURRENT_LLM_CALLS slot
+                time.sleep(pause)
+            wait = None
             if traced:
                 attempts = attempt + 1
             try:
-                response = client.chat.completions.create(**kwargs)
+                with self.llm_slot(timeout=min(per_try, deadline - time.monotonic())):
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise LLMSlotTimeout("LLM_DEADLINE passed while waiting for a slot")
+                    response = client.chat.completions.create(**kwargs, timeout=min(per_try, remaining))
+                if time.monotonic() > deadline:
+                    logger.error(f"OpenAI call exceeded LLM_DEADLINE ({model}, try {attempt + 1} of {retries + 1})")
+                    response = None
+                    break
             except Exception as e:
-                logger.error(f"OpenAI API error ({model}, try {attempt + 1} of {retries + 1}): {str(e)}")
+                logger.error(f"OpenAI API error ({model}, try {attempt + 1} of {retries + 1}): {self._error_text(e)}")
                 response = None
-                if getattr(e, "status_code", None) in NO_RETRY_STATUS:
-                    break  # a wrong key, a missing model or a bad request: the same answer every time
+                if isinstance(e, LLMSlotTimeout) and state is not None:
+                    state.slot_timeout = True
+                if getattr(e, "status_code", None) in NO_RETRY_STATUS or isinstance(e, LLMSlotTimeout):
+                    # a wrong key, a missing model or a bad request: the same answer every time; no free slot:
+                    # waiting again would only push the answer past WEB_TIMEOUT
+                    break
+                wait = self.retry_after(e)  # 429: the provider says when to come back
                 continue
             choice = response.choices[0] if response and response.choices else None
             if tools or (choice and (choice.message.content or "").strip()):
@@ -920,36 +1080,67 @@ class OpenAIClientManager:
 
     def stream_chat_completion(
         self, model: str, messages: List[Dict[str, str]], temperature: float = 0.3,
-        max_tokens: Optional[int] = None,
+        max_tokens: Optional[int] = None, deadline: Optional[float] = None,
     ) -> Iterator[str]:
-        """The answer text in pieces as the model writes it. An error ends the stream; the
-        caller treats an empty answer like a failed call.
-        shortcut: LLM_TIMEOUT limits each wait for a piece, not the whole answer; add a
-        deadline if a model ever trickles text for minutes (PR #40 has one)."""
+        """The answer text in pieces as the model writes it. A stream counts as complete only when a chunk carried a
+        finish_reason (stop, length, ...). Any failure raises StreamInterrupted after the pieces so far: an error
+        before or after the first piece (with an HTTP 429's Retry-After), the deadline (default now + LLM_DEADLINE;
+        LLM_TIMEOUT also limits each wait for a piece) or an end without a finish_reason, so a cut-off text is never
+        taken for a complete answer. No free MAX_CONCURRENT_LLM_CALLS slot raises LLMSlotTimeout: the caller must
+        not ask again. The SDK stream is a context manager, so a reader that stops reading (the browser went away)
+        closes the HTTP stream and frees the slot at once."""
         client = self._client_for(model)
         if not client:
             logger.error("OpenAI client not initialized")
             return
+        per_try, total = self.budget(model)
+        if deadline is None:
+            deadline = time.monotonic() + total
         options = {**({"max_tokens": max_tokens} if max_tokens else {}), **self.no_reasoning(model)}
         traced = trace.active() is not None
         if traced:  # debug trace: the last chunk then carries the token counts (and the cost on OpenRouter)
             body = {**options.get("extra_body", {}), **self.usage_request(client)}
             options.update(stream_options={"include_usage": True}, **({"extra_body": body} if body else {}))
-        started, usage, error = time.perf_counter(), None, None
+        started, usage, error, sent, finished, wait = time.perf_counter(), None, None, 0, False, None
         try:
-            for chunk in client.chat.completions.create(
-                model=model, messages=messages, temperature=temperature, stream=True, **options,
-            ):
-                usage = getattr(chunk, "usage", None) or usage
-                for choice in chunk.choices:
-                    if choice.delta.content:
-                        yield choice.delta.content
-        except Exception as e:
-            logger.error(f"OpenAI API error (stream): {str(e)}")
+            # the slot is held until the stream ends (or the reader stops reading)
+            with self.llm_slot(timeout=min(per_try, deadline - time.monotonic())):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise LLMSlotTimeout("LLM_DEADLINE passed while waiting for a slot")
+                with client.chat.completions.create(
+                    model=model, messages=messages, temperature=temperature, stream=True,
+                    timeout=min(per_try, remaining), **options,
+                ) as response:
+                    for chunk in response:
+                        if time.monotonic() > deadline:
+                            raise TimeoutError("LLM_DEADLINE passed while streaming")
+                        usage = getattr(chunk, "usage", None) or usage
+                        for choice in getattr(chunk, "choices", None) or ():
+                            if getattr(choice, "finish_reason", None):
+                                finished = True
+                            content = getattr(getattr(choice, "delta", None), "content", None)
+                            if content:
+                                sent += len(content)
+                                yield content
+                        if time.monotonic() > deadline:
+                            raise TimeoutError("LLM_DEADLINE passed while streaming")
+            if not finished:
+                error = "the stream ended without a finish_reason"
+                logger.error(f"OpenAI stream incomplete ({model}, after {sent} characters): {error}")
+        except LLMSlotTimeout as e:
             error = str(e)
+            logger.error(f"OpenAI stream ({model}): {error}")
+            raise
+        except Exception as e:
+            err_text = self._error_text(e)
+            logger.error(f"OpenAI API error (stream, after {sent} characters): {err_text}")
+            error, wait = err_text, self.retry_after(e)
         finally:
             if traced:
                 trace.llm_call(model, started, usage, error=error, stream=True)
+        if error is not None:
+            raise StreamInterrupted(error, retry_after=wait, sent=sent)
 
 
 class ReferenceProcessor:
@@ -1330,11 +1521,11 @@ class Qualle:
         Yields:
             Response message
         """
-        logger.warning(f"No relevant nodes found for query: {query}")
+        logger.warning(f"No relevant nodes found for query: {loggable(query, self.config)}")
         text = msg.message("no_sources", query)
-        self.chat_manager.add_message(chat_id, {"role": "user", "content": query})
-        self.chat_manager.add_message(chat_id, {"role": "assistant", "content": text})
-        yield {"status": "complete", "message": markdown.markdown(text), "outcome": "no_sources"}
+        message = {"status": "complete", "message": markdown.markdown(text), "outcome": "no_sources"}
+        self.chat_manager.add_turn(chat_id, query, text)
+        yield message
 
     def get_response(
         self, query: str, chat_id: str, model: Optional[str] = None, stream: bool = False,
@@ -1393,8 +1584,9 @@ class Qualle:
         user_query = query  # the history keeps what the user typed, not the rephrased query
 
         def remember(answer: str) -> None:
-            self.chat_manager.add_message(chat_id, {"role": "user", "content": user_query})
-            self.chat_manager.add_message(chat_id, {"role": "assistant", "content": answer})
+            """Keep the question and the answer for follow-ups, in one transaction, once the final message is built
+            (a failure while building it keeps nothing). Failed answers are never remembered: Try again asks anew."""
+            self.chat_manager.add_turn(chat_id, user_query, answer)
 
         try:
             if small_talk(user_query):  # before rephrasing: the history must not turn "thanks" into a question
@@ -1428,7 +1620,7 @@ class Qualle:
                 else:
                     yield {"status": "in-progress", "message": "Reformulating question"}
                     query = self.query_processor.rephrase_query(query, chat_id)
-                    logger.debug(f"Rephrased query: {query}")
+                    logger.debug(f"Rephrased query: {loggable(query, self.config)}")
                     if method == "hybrid":
                         # the answer sees the user's own words (the rewrite can lose a detail) and the
                         # rewrite (a long chat can point back past the last HISTORY_TURNS messages)
@@ -1439,7 +1631,9 @@ class Qualle:
             # A question that names one paper of the library is about that paper: no topic check, its chunks only
             found, matched_by = self.references.match(user_query, query) if self.references else ([], "")
             if found:
-                logger.info(f"Reference lookup ({matched_by}): {[p.title[:60] for p in found]}")
+                titles = (f"{len(found)} paper(s)" if self.config.get("PROD_MODE")
+                          else [p.title[:60] for p in found])  # the titles would tell what was asked
+                logger.info(f"Reference lookup ({matched_by}): {titles}")
                 trace.note(reference_lookup={"matched_by": matched_by, "papers": [p.title for p in found]})
             if found and matched_by != "authors":
                 intent = "open_science"
@@ -1468,21 +1662,23 @@ class Qualle:
                 result = self.forrt_pages.answer(query, model=model, language_text=user_query)
                 timings["forrt_pages_s"] = time.time() - step  # page search, live fetch and answer
                 if result["text"] is None:
+                    # not remembered: Try again asks the question afresh, not as a follow-up to the error
                     error = msg.message("generation_error", user_query)
-                    remember(error)
                     yield {"status": "complete", "message": markdown.markdown(error), "outcome": "error"}
                     return
-                remember(result["text"])
                 refs = page_references(result["sources"])
-                yield {"status": "complete", "message": markdown.markdown(result["text"], extensions=MARKDOWN_EXTENSIONS),
-                       "outcome": "forrt" if result["found"] else "no_sources",
-                       "metadata": {"sources": page_source_lines(refs), "references": refs}}
+                final = {"status": "complete", "message": markdown.markdown(result["text"], extensions=MARKDOWN_EXTENSIONS),
+                         "outcome": "forrt" if result["found"] else "no_sources",
+                         "metadata": {"sources": page_source_lines(refs), "references": refs}}
+                remember(result["text"])
+                yield final
                 return
 
             if intent in ("forrt", "forrt_lookup") and self.forrt_lookup is not None:
                 answer = self.forrt_lookup.answer(user_query if history_for_answer else query)
+                final = {"status": "complete", "message": markdown.markdown(answer), "outcome": "forrt_lookup"}
                 remember(answer)
-                yield {"status": "complete", "message": markdown.markdown(answer), "outcome": "forrt_lookup"}
+                yield final
                 return
 
             if intent in ("forrt", "forrt_lookup", "both"):
@@ -1517,25 +1713,45 @@ class Qualle:
 
             yield {"status": "in-progress", "message": "Generating response"}
             start = time.time()
+            # one deadline for the whole answer: the stream, the call after a failed stream and the citation re-ask.
+            # LLM_DEADLINE, or OPENSCHOLAR_TIMEOUT for the self-hosted OpenScholar (one answer takes minutes)
+            budget = getattr(self.response_generator.client_manager, "budget", None)
+            answer_model = model or self.response_generator.citation_model
+            seconds = budget(answer_model)[1] if callable(budget) else float(self.config.get("LLM_DEADLINE", 120))
+            deadline = time.monotonic() + seconds
             if stream:
                 # #41: send what can be shown while the model writes; the complete
                 # answer below still gets the citations, sources, cache and history
-                raw, shown = "", 0
-                for piece in self.response_generator.stream_response(
-                    answer_query, context, model, history=history_for_answer
-                ):
-                    raw += piece
-                    visible = visible_answer(raw, self.response_generator.marks_response)
-                    if len(visible) > shown:
-                        yield {"status": "partial", "delta": visible[shown:]}
-                        shown = len(visible)
-                # nothing streamed (provider error or an empty answer): the normal call, with its retries
+                raw, shown, first_wait = "", 0, None
+                try:
+                    for piece in self.response_generator.stream_response(
+                        answer_query, context, model, history=history_for_answer, deadline=deadline
+                    ):
+                        raw += piece
+                        visible = visible_answer(raw, self.response_generator.marks_response)
+                        if len(visible) > shown:
+                            yield {"status": "partial", "delta": visible[shown:]}
+                            shown = len(visible)
+                except LLMSlotTimeout:
+                    # every slot stayed busy for LLM_TIMEOUT: asking again would wait as long once more
+                    logger.error("No free LLM slot for the answer; not asking again")
+                    error = msg.message("generation_error", user_query)
+                    yield {"status": "complete", "message": markdown.markdown(error), "outcome": "error"}
+                    return
+                except StreamInterrupted as e:
+                    # a failed or cut-off answer is not an answer: never shown as final, remembered or cached. A
+                    # progress line makes the page drop the unfinished draft; the normal call below writes it again
+                    logger.warning(f"Answer stream failed after {len(raw)} characters ({e}); asking again without streaming")
+                    if raw:
+                        yield {"status": "in-progress", "message": "Generating response"}
+                    raw, first_wait = "", e.retry_after
+                # nothing streamed (an empty answer) or a failed stream: the normal call, with its retries
                 response_text = raw or self.response_generator.generate_response(
-                    answer_query, context, model, history=history_for_answer
+                    answer_query, context, model, history=history_for_answer, deadline=deadline, first_wait=first_wait
                 )
             else:
                 response_text = self.response_generator.generate_response(
-                    answer_query, context, model, history=history_for_answer
+                    answer_query, context, model, history=history_for_answer, deadline=deadline
                 )
             logger.info(f"Timing: answer {time.time() - start:.1f}s ({model or self.config.get('CITATION_MODEL')})")
             timings["answer_s"] = time.time() - start
@@ -1549,13 +1765,13 @@ class Qualle:
             ):
                 logger.info("Answer has no [n] citation, asking again")
                 response_text = self.response_generator.generate_response(
-                    answer_query, context, model, history=history_for_answer
+                    answer_query, context, model, history=history_for_answer, deadline=deadline
                 ) or response_text
                 timings["answer_s"] = time.time() - start  # with the retry
             if not response_text:
                 logger.error("Failed to generate response")
+                # not remembered: Try again asks the question afresh, not as a follow-up to the error
                 error = msg.message("generation_error", user_query)
-                remember(error)
                 yield {"status": "complete", "message": markdown.markdown(error), "outcome": "error"}
                 return
 
@@ -1567,7 +1783,6 @@ class Qualle:
             html_message, used_refs = self.response_generator.process_with_references(
                 processed_message, ranked_nodes, unverified
             )
-            remember(processed_message)
 
             final = {
                 "status": "complete",
@@ -1594,6 +1809,8 @@ class Qualle:
                     final["metadata"]["sources"] = "\n".join(
                         x for x in (final["metadata"]["sources"], page_source_lines(extra)) if x)
                     final["outcome"] = "both"
+            # only now, with the final message built (references, FORRT links): a failure above keeps nothing
+            remember(processed_message)
             if use_cache:
                 self.answer_cache.store(query, final, processed_message, model)
             yield final
@@ -1611,11 +1828,19 @@ class Qualle:
         if getattr(self, "forrt_pages", None) is None or not self.config.get("FORRT_IN_PAPERS"):
             return None
         min_score = None if intent == "both" else self.config.get("FORRT_IN_PAPERS_MIN_SCORE", 0.6)
-        pool = ThreadPoolExecutor(1)
-        # copy_context: the debug trace also sees the pages job
-        job = pool.submit(contextvars.copy_context().run, trace.step("FORRT pages next to papers")(self.forrt_pages.extra_sources),
-                          query, min_score)
-        pool.shutdown(wait=False)
+        if not FORRT_IN_PAPERS_JOBS.acquire(blocking=False):
+            logger.warning(f"FORRT pages next to the papers skipped: {FORRT_IN_PAPERS_MAX_JOBS} jobs already running or queued")
+            return None
+        try:
+            # copy_context: the debug trace also sees the pages job
+            job = FORRT_IN_PAPERS_POOL.submit(contextvars.copy_context().run,
+                                              trace.step("FORRT pages next to papers")(self.forrt_pages.extra_sources),
+                                              query, min_score)
+        except Exception:
+            FORRT_IN_PAPERS_JOBS.release()
+            raise
+        # the job's place is given back when it ends, is cancelled or fails, not when the answer stops waiting for it
+        job.add_done_callback(lambda _: FORRT_IN_PAPERS_JOBS.release())
         return job
 
     def forrt_in_papers_result(self, job, timings: Dict[str, float]) -> List[TextNode]:
@@ -1626,6 +1851,7 @@ class Qualle:
         try:
             return page_nodes(job.result(timeout=self.config.get("FORRT_IN_PAPERS_TIMEOUT", 10)))
         except Exception as e:
+            job.cancel()  # still queued behind other requests' jobs: never start it
             logger.warning(f"FORRT pages next to the papers skipped: {e.__class__.__name__}: {e}")
             return []
         finally:

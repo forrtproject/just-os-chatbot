@@ -143,7 +143,7 @@
             {{ prompts.rephrase.temperature }}; models without tool calls are asked again for plain JSON.</p>
         <p>The exact prompt for the example chat ("{{ history[0].content }}" → answer → "{{ follow_up }}"), model <b>{{ prompts.rephrase.model }}</b>:</p>
         {{ prompt("Rewrite prompt", prompts.rephrase.prompt, True) }}
-        {{ cfg(["CONTEXT_METHOD", "GENERAL_MODEL", "TEMPERATURE_GENERAL", "MESSAGE_TTL"]) }}
+        {{ cfg(["CONTEXT_METHOD", "GENERAL_MODEL", "TEMPERATURE_GENERAL", "MESSAGE_TTL", "MAX_HISTORY_MESSAGES"]) }}
         {% endcall %}
 
         {% call step("q-reference", "5. Does the question name one paper of the library?", "both") %}
@@ -195,7 +195,7 @@
             them a yes/no prompt. Model <b>{{ prompts.intent.model }}</b>, one JSON value through a forced tool call.</p>
         {{ prompt("Three-way prompt (used with FORRT pages)", prompts.intent.prompt) }}
         {{ prompt("Yes/no prompt (no FORRT pages)", prompts.classify.prompt) }}
-        {{ cfg(["ROUTER", "DECISION_ROUTER", "DECISION_ROUTER_MODEL", "DECISION_ROUTER_MIN_CONFIDENCE", "DECISION_TIMEOUT", "DECISION_URL", "DECISION_API_KEY",
+        {{ cfg(["ROUTER", "DECISION_ROUTER", "DECISION_ROUTER_MODEL", "DECISION_ROUTER_MIN_CONFIDENCE", "DECISION_TIMEOUT", "DECISION_URL", "DECISION_API_KEY", "OPENROUTER_API_KEY",
                 "COSINE_PAPER_MIN", "COSINE_PAGE_MIN", "BAND_PAPER_LOW", "BAND_PAPER_HIGH", "BAND_PAGE_LOW", "BAND_PAGE_HIGH",
                 "BAND_MIDDLE_ROUTER", "GENERAL_MODEL", "EMBEDDING_MODEL", "FORRT_LOOKUP"]) }}
         <h4>Which model does what</h4>
@@ -339,9 +339,12 @@
         {% endif %}
         <p>With <code>stream</code>, the visible part is sent while it is written (nothing before [Response_Start], no half-written
             "[…"). A failed call (error, time-out, empty answer) is tried <code>LLM_RETRIES</code> more times, each waiting at most
-            <code>LLM_TIMEOUT</code> s. An answer without any [n] citation that came back within <code>LLM_TIMEOUT</code> is asked
-            for once more.</p>
-        {{ cfg(["CITATION_MODEL", "PROMPT_STYLE", "TEMPERATURE", "MAX_ANSWER_TOKENS", "LLM_RETRIES", "LLM_TIMEOUT", "NO_REASONING_MODELS", "BASE_URL"]) }}
+            <code>LLM_TIMEOUT</code> s (after an HTTP 429 as long as its Retry-After says, at most 10 s), with all tries and fallbacks
+            sharing one <code>LLM_DEADLINE</code> budget. A stream that breaks off
+            mid-answer is not shown as the answer: the page drops the draft and the answer is asked for again without streaming.
+            <code>MAX_CONCURRENT_LLM_CALLS</code> caps the calls one process makes at once (prod: 2 per pod). An answer without
+            any [n] citation that came back within <code>LLM_TIMEOUT</code> is asked for once more.</p>
+        {{ cfg(["CITATION_MODEL", "PROMPT_STYLE", "TEMPERATURE", "MAX_ANSWER_TOKENS", "LLM_RETRIES", "LLM_TIMEOUT", "LLM_DEADLINE", "MAX_CONCURRENT_LLM_CALLS", "NO_REASONING_MODELS", "BASE_URL"]) }}
         {% endcall %}
 
         {% call step("q-citations", "13. Citations and the Sources box", "both") %}
@@ -363,16 +366,16 @@
 
         {% call step("q-redis", "14. Where Redis comes in", "both") %}
         <table class="plain"><tr><th>Key</th><th>What</th><th>How long</th><th></th></tr>
-            <tr><td><code>chat:&lt;chat_id&gt;</code></td><td>The chat memory: each question as typed and each answer</td><td><code>MESSAGE_TTL</code> s after the last message</td><td><span class="tag t-both">dev + prod</span></td></tr>
+            <tr><td><code>chat:&lt;chat_id&gt;</code></td><td>The chat memory: each question as typed and each answer (the newest <code>MAX_HISTORY_MESSAGES</code>; failed answers are not kept)</td><td><code>MESSAGE_TTL</code> s after the last message</td><td><span class="tag t-both">dev + prod</span></td></tr>
             <tr><td>(flask-limiter keys)</td><td>Rate-limit counters per IP, fixed window</td><td>the window</td><td><span class="tag t-both">dev + prod</span></td></tr>
             <tr><td><code>answer_cache:&lt;setup&gt;</code></td><td>The answer cache (step 3)</td><td><code>ANSWER_CACHE_TTL</code> (0 = off)</td><td><span class="tag t-both">dev + prod</span></td></tr>
-            <tr><td><code>chat:turn:&lt;turn_id&gt;</code></td><td>The answered turn, so a Good/Bad click can refer to it</td><td>1 day, or until rated</td><td><span class="tag t-dev">dev only</span></td></tr>
+            <tr><td><code>feedback:turn:&lt;turn_id&gt;</code></td><td>The answered turn, so a Good/Bad click can refer to it</td><td>1 day, or until rated</td><td><span class="tag t-dev">dev only</span></td></tr>
             <tr><td><code>arena:battle:&lt;id&gt;</code>, <code>arena:ratings</code></td><td>Arena rounds until rated, and all ratings</td><td>1 day / kept</td><td><span class="tag t-dev">dev only</span></td></tr>
         </table>
         <p>On prod (Kubernetes) Redis keeps nothing on disk and is shared by both web pods (<code>just-os-redis</code>). Files are
             separate: on dev every turn is appended to <code>CHAT_LOG_FILE</code> and feedback to <code>CHAT_FEEDBACK_FILE</code>;
             <code>PROD_MODE</code> saves neither.</p>
-        {{ cfg(["REDIS_HOST", "REDIS_PORT", "REDIS_DB", "MESSAGE_TTL", "RATE_LIMIT", "CHAT_LOG_FILE", "CHAT_FEEDBACK_FILE"]) }}
+        {{ cfg(["REDIS_HOST", "REDIS_PORT", "REDIS_DB", "REDIS_TIMEOUT", "MESSAGE_TTL", "MAX_HISTORY_MESSAGES", "RATE_LIMIT", "CHAT_LOG_FILE", "CHAT_FEEDBACK_FILE"]) }}
         {% endcall %}
 
         {% call step("q-errors", "15. Refusals, errors and their language", "both") %}
@@ -390,7 +393,7 @@
         {% call step("q-prod", "16. The public deployment (PROD_MODE)", "prod") %}
         <p>The forrt.org widget talks to the Kubernetes deployment (or the <code>web-prod</code> service of Docker Compose): two web
             pods and one Redis. <code>PROD_MODE</code> is true there: nothing is saved (no chat log, feedback or arena files, no
-            <code>chat:turn</code> keys), no Good/Bad buttons, no debug panel, only <code>CITATION_MODEL</code> on the chat page, and
+            <code>feedback:turn</code> keys), no Good/Bad buttons, no debug panel, only <code>CITATION_MODEL</code> on the chat page, and
             all team pages (/eval, /review, /topics, /arena, /recommend, /articles, /architecture) answer 404. Answers and
             rewrites run on uniGPT Münster (<code>BASE_URL</code>); the decision models stay on OpenRouter with their own key. The
             index is mounted read-only.</p>

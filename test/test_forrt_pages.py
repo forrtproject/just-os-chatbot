@@ -1,12 +1,13 @@
 """Decision-model router and FORRT page router (#15, #34): offline, no index or network."""
 
+import contextlib
 import json
 from datetime import date, timedelta
 from types import SimpleNamespace
 
 import numpy as np
 
-from just_os import decisions, forrt_checks, qualle
+from just_os import decisions, forrt_checks, forrt_pages, qualle
 from just_os.forrt_pages import ForrtPages, extract, trim
 from test_qualle import CONFIG, completion, make_qualle
 
@@ -118,6 +119,15 @@ class FakeWeb:
         if url not in self.pages:
             raise ConnectionError("forrt.org unreachable")
         return SimpleNamespace(raise_for_status=lambda: None, text=self.pages[url])
+
+    @contextlib.contextmanager
+    def stream(self, method, url, timeout=None):
+        """httpx.Client.stream: ForrtPages reads the body in pieces (MAX_PAGE_BYTES)."""
+        resp = self.get(url)
+        body = resp.text.encode("utf-8") if isinstance(resp.text, str) else resp.text
+        yield SimpleNamespace(is_redirect=getattr(resp, "is_redirect", False), headers=getattr(resp, "headers", {}),
+                              raise_for_status=resp.raise_for_status, encoding="utf-8",
+                              iter_bytes=lambda: (body[i:i + 65536] for i in range(0, len(body), 65536)))
 
 
 def test_forrt_answer_from_the_picked_page(tmp_path):
@@ -330,5 +340,182 @@ def test_both_route_reads_the_forrt_page_instead_of_only_linking_it(tmp_path):
 
 
 def test_decision_models_keep_their_own_key_when_answers_go_elsewhere():
-    assert decisions.DecisionClient({"LLM_API_KEY": "unigpt", "DECISION_API_KEY": "openrouter"}).api_key == "openrouter"
-    assert decisions.DecisionClient({"LLM_API_KEY": "openrouter", "DECISION_API_KEY": ""}).api_key == "openrouter"
+    key = lambda **config: decisions.DecisionClient(config).api_key  # noqa: E731
+    unigpt = "https://gpt.uni-muenster.de/v1"
+    assert key(LLM_API_KEY="unigpt", DECISION_API_KEY="openrouter", BASE_URL=unigpt) == "openrouter"  # set
+    assert key(LLM_API_KEY="openrouter", DECISION_API_KEY="") == ""  # set but empty: never another key
+    assert key(LLM_API_KEY="unigpt", DECISION_API_KEY="", BASE_URL=unigpt) == ""
+    # unset: the answer key only when the answers go to the decisions API's host (OpenRouter by default)
+    assert key(LLM_API_KEY="openrouter") == "openrouter"
+    assert key(LLM_API_KEY="openrouter", DECISION_API_KEY=None, BASE_URL="https://openrouter.ai/api/v1") == "openrouter"
+    assert key(LLM_API_KEY="unigpt", BASE_URL=unigpt) == ""  # a uniGPT key is never sent to OpenRouter
+    assert key(LLM_API_KEY="unigpt", DECISION_API_KEY=None, BASE_URL=unigpt) == ""
+    assert key(LLM_API_KEY="rug", BASE_URL="https://openrouter.ai.evil.example/v1") == ""  # hostname, not a prefix
+
+
+def test_auto_selected_decision_keys_are_bound_to_the_full_origin():
+    key = lambda **config: decisions.decision_api_key(config, config.pop("url", decisions.DEFAULT_DECISION_URL))  # noqa: E731
+    openrouter = "https://openrouter.ai/api/v1"
+    # same origin: the answer key may go along (an explicit :443 is the default port)
+    assert key(LLM_API_KEY="or", BASE_URL=openrouter) == "or"
+    assert key(LLM_API_KEY="or", BASE_URL="https://openrouter.ai:443/api/v1") == "or"
+    assert key(LLM_API_KEY="or", BASE_URL="https://OpenRouter.ai/api/v1", url="https://openrouter.ai:443/api/alpha/decisions") == "or"
+    # same host, another scheme or port: another origin, no key
+    assert key(LLM_API_KEY="or", BASE_URL=openrouter, url="http://openrouter.ai/api/alpha/decisions") == ""
+    assert key(LLM_API_KEY="or", BASE_URL=openrouter, url="https://openrouter.ai:8443/api/alpha/decisions") == ""
+    assert key(LLM_API_KEY="local", BASE_URL="http://llm.example:8080/v1", url="http://llm.example:9090/decide") == ""
+    # the auto-sourced OpenRouter key only for OpenRouter's own decisions origin
+    assert key(OPENROUTER_API_KEY="or", BASE_URL="https://gpt.uni-muenster.de/v1") == "or"
+    assert key(OPENROUTER_API_KEY="or", BASE_URL="https://gpt.uni-muenster.de/v1", url="https://decide.example/api") == ""
+    assert key(OPENROUTER_API_KEY="or", url="http://openrouter.ai/api/alpha/decisions") == ""
+    # cross-origin needs an explicit DECISION_API_KEY; a bad URL gets nothing
+    assert key(DECISION_API_KEY="explicit", OPENROUTER_API_KEY="or", url="https://decide.example/api") == "explicit"
+    assert key(LLM_API_KEY="or", OPENROUTER_API_KEY="or", url="https://openrouter.ai:99999/x") == ""
+    assert key(LLM_API_KEY="or", BASE_URL="ftp://openrouter.ai/", url="ftp://openrouter.ai/") == ""
+
+
+def test_the_decision_call_never_carries_the_unigpt_key(monkeypatch):
+    sent = []
+    monkeypatch.setattr(decisions.httpx, "post", lambda url, **k: sent.append((url, k["headers"])) or SimpleNamespace(
+        raise_for_status=lambda: None, json=lambda: {"answers": {}}))
+    decisions.DecisionClient({"LLM_API_KEY": "unigpt-secret", "BASE_URL": "https://gpt.uni-muenster.de/v1"}).decide(
+        "cloudflare/clef", "state", {})
+    assert sent and "unigpt-secret" not in sent[0][1]["Authorization"]
+
+
+class RedirectWeb(FakeWeb):
+    """FakeWeb with HTTP redirects: redirects maps a URL to its Location header."""
+
+    def __init__(self, pages, redirects):
+        super().__init__(pages)
+        self.redirects = redirects
+
+    def get(self, url):
+        if url in self.redirects:
+            self.calls.append(url)
+            return SimpleNamespace(is_redirect=True, headers={"location": self.redirects[url]}, raise_for_status=lambda: None, text="")
+        return super().get(url)
+
+
+def test_redirects_are_followed_only_within_the_allowed_domains(tmp_path):
+    pages, _ = make_pages(tmp_path, [], [])
+    page = "<html><body><main><p>Phase 2 is open.</p></main></body></html>"
+    # a redirect within forrt.org (relative Location) is read at its new address
+    pages.http = RedirectWeb({"https://forrt.org/glossary/english/": page}, {"https://forrt.org/glossary/": "/glossary/english/"})
+    assert pages.fetch("https://forrt.org/glossary/")["markdown"] == "Phase 2 is open."
+    # a redirect to another site, or to a non-http scheme, is never requested
+    for location in ("https://evil.example/steal", "http://169.254.169.254/latest/meta-data/", "file:///etc/passwd",
+                     "https://forrt.org.evil.example/"):
+        pages.cache.clear()
+        pages.http = RedirectWeb({location: page}, {"https://forrt.org/moved/": location})
+        assert pages.fetch("https://forrt.org/moved/") == {"markdown": "", "status": "failed"}
+        assert pages.http.calls == ["https://forrt.org/moved/"]
+    # a later hop leaving forrt.org is caught too
+    pages.http = RedirectWeb({"https://evil.example/": page}, {"https://forrt.org/a/": "https://forrt.org/b/",
+                                                              "https://forrt.org/b/": "https://evil.example/"})
+    assert pages.fetch("https://forrt.org/a/")["status"] == "failed" and "https://evil.example/" not in pages.http.calls
+    # a redirect loop ends after MAX_REDIRECTS hops
+    pages.http = RedirectWeb({}, {"https://forrt.org/loop/": "https://forrt.org/loop/"})
+    assert pages.fetch("https://forrt.org/loop/")["status"] == "failed"
+    assert len(pages.http.calls) == forrt_pages.MAX_REDIRECTS + 1
+    # a meta-refresh stub pointing off-site is not followed
+    stub = "<html><head><meta http-equiv=refresh content=\"0; url=https://evil.example/\"></head><body><main><p>Moved.</p></main></body></html>"
+    pages.http = FakeWeb({"https://forrt.org/stub/": stub, "https://evil.example/": page})
+    assert pages.fetch("https://forrt.org/stub/")["markdown"] == "Moved." and pages.http.calls == ["https://forrt.org/stub/"]
+
+
+def test_the_live_client_does_not_follow_redirects_by_itself(tmp_path):
+    pages, _ = make_pages(tmp_path, [], [])
+    live = ForrtPages(pages.config, pages.embed_model, pages.client_manager, pages.decisions)
+    assert live.http.follow_redirects is False  # ForrtPages.get checks every hop instead
+
+
+def test_settings_tell_an_unset_decision_key_from_an_empty_one():
+    """config/settings.py: DECISION_API_KEY set (even empty) wins; an empty OPENROUTER_API_KEY counts as unset, so the
+    same-host fallback in decisions.decision_api_key still applies."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+
+    def key(**env):
+        clean = {k: v for k, v in os.environ.items() if k not in ("DECISION_API_KEY", "OPENROUTER_API_KEY")}
+        out = subprocess.run([sys.executable, "-c", "from config.settings import DEFAULT_CONFIG as c; print(repr(c['DECISION_API_KEY']))"],
+                             cwd=root, env={**clean, "PYTHONPATH": str(root), **env}, capture_output=True, text=True, check=True)
+        return out.stdout.strip()
+
+    assert key() == "None"
+    assert key(OPENROUTER_API_KEY="") == "None"
+    # the OpenRouter key is not folded into DECISION_API_KEY: it stays an auto-sourced key, bound to OpenRouter's origin
+    assert key(OPENROUTER_API_KEY="or-key") == "None"
+    assert key(OPENROUTER_API_KEY="or-key", DECISION_API_KEY="dec-key") == "'dec-key'"
+    assert key(OPENROUTER_API_KEY="or-key", DECISION_API_KEY="") == "''"
+
+
+
+def mock_http(handler):
+    import httpx
+
+    return httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=False)
+
+
+def test_a_page_body_is_read_only_up_to_the_byte_cap(tmp_path):
+    import httpx
+
+    pages, _ = make_pages(tmp_path, [], [])
+    served = {}
+
+    def handler(request):
+        body = b"<html><body><main><p>Start of a huge page.</p><!--" + b"x" * (3 * 1024 * 1024) + b"--></main></body></html>"
+        served["bytes"] = len(body)
+
+        def pieces():
+            for i in range(0, len(body), 65536):
+                served["read"] = i + 65536
+                yield body[i:i + 65536]
+
+        return httpx.Response(200, headers={"content-type": "text/html; charset=utf-8"}, content=pieces())
+
+    pages.http = mock_http(handler)
+    text, final = pages.get("https://forrt.org/huge/", deadline=forrt_pages.time.monotonic() + 6)
+    assert final == "https://forrt.org/huge/" and text.startswith("<html>")
+    assert len(text.encode("utf-8")) == forrt_pages.MAX_PAGE_BYTES < served["bytes"]
+    assert served["read"] <= forrt_pages.MAX_PAGE_BYTES + 65536  # the rest was never downloaded
+    assert "Start of a huge page." in pages.fetch("https://forrt.org/huge/")["markdown"]
+
+
+def test_redirects_and_the_refresh_hop_share_one_fetch_deadline(tmp_path, monkeypatch):
+    import httpx
+
+    pages, _ = make_pages(tmp_path, [], [])
+    pages.config = {**pages.config, "FORRT_FETCH_TIMEOUT": 6}
+    clock = {"now": 100.0}
+    monkeypatch.setattr(forrt_pages.time, "monotonic", lambda: clock["now"])
+    requested, timeouts = [], []
+
+    def handler(request):  # every hop takes 4 s; each redirects to the next page
+        requested.append(str(request.url))
+        timeouts.append(request.extensions["timeout"]["read"])
+        clock["now"] += 4
+        return httpx.Response(302, headers={"location": f"/hop{len(requested)}/"})
+
+    pages.http = mock_http(handler)
+    assert pages.fetch("https://forrt.org/start/") == {"markdown": "", "status": "failed"}
+    assert len(requested) == 2  # 0 s and 4 s; the third hop would start after the 6 s: not requested
+    assert timeouts == [6, 2]  # each hop gets only the time left
+
+    # a meta-refresh stub counts against the same deadline
+    stub = "<html><head><meta http-equiv=refresh content=\"0; url=https://forrt.org/real/\"></head></html>"
+    requested.clear()
+    clock["now"] = 200.0
+
+    def slow_stub(request):
+        requested.append(str(request.url))
+        clock["now"] += 7  # the stub alone used up the deadline
+        return httpx.Response(200, html=stub)
+
+    pages.http = mock_http(slow_stub)
+    pages.cache.clear()
+    assert pages.fetch("https://forrt.org/stub/")["status"] == "failed" and requested == ["https://forrt.org/stub/"]
